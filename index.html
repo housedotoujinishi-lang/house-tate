@@ -1228,7 +1228,7 @@ function showMainApp(){
     const ov=document.createElement('div');
     ov.id='goal-edit-overlay';
     ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
-    ov.innerHTML=`<div style="background:var(--bg1);border-radius:14px;padding:24px;width:min(680px,100%);max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.3)">${h}</div>`;
+    ov.innerHTML=`<div style="background:var(--s1);border-radius:14px;padding:24px;width:min(680px,100%);max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.3)">${h}</div>`;
     document.body.appendChild(ov);
     document.getElementById('save-goals-btn').onclick=async()=>{
       document.querySelectorAll('.goal-inp').forEach(inp=>{
@@ -1266,7 +1266,7 @@ function showMainApp(){
     const ov=document.createElement('div');
     ov.id='inc-edit-overlay';
     ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
-    ov.innerHTML=`<div style="background:var(--bg1);border-radius:14px;padding:24px;width:min(580px,100%);max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.3)">${h}</div>`;
+    ov.innerHTML=`<div style="background:var(--s1);border-radius:14px;padding:24px;width:min(580px,100%);max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.3)">${h}</div>`;
     document.body.appendChild(ov);
     document.getElementById('save-inc-btn').onclick=async()=>{
       document.querySelectorAll('.inc-inp').forEach(inp=>{
