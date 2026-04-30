@@ -1064,12 +1064,11 @@ function ensureTaskStatus(){
   });
 }
 
-function initGoalData(){staffAccs().forEach(a=>{if(!personalCountGoals[a.uid]){personalCountGoals[a.uid]={...COUNT_DEF[a.role]||COUNT_DEF['エージェント'],...Object.fromEntries(EXTRA_CONTRACTS.map(k=>[k,2]))};}if(!personalCountProgress[a.uid]){personalCountProgress[a.uid]={};ALL_COUNT_KEYS.forEach(k=>{personalCountProgress[a.uid][k]=Math.floor(Math.random()*(personalCountGoals[a.uid][k]||2)*.7);});}if(!personalSalesGoals[a.uid]){const tgts={エージェント:12000000,サポート:5000000,査定担当:8000000};const tgt=tgts[a.role]||8000000;const breakdown={};SALES_CATS.forEach(k=>{breakdown[k]=0;});const sampleBreakdown={仲介:Math.floor(tgt*.4*.65),買取:Math.floor(tgt*.2*.65),リフォーム:Math.floor(tgt*.2*.65),ネット:0,ウォーターサーバー:0,火災保険:0};personalSalesGoals[a.uid]={target:tgt,actual:Math.floor(tgt*.65),breakdown:sampleBreakdown,counts:{仲介:1,買取:1,リフォーム:1,ネット:0,ウォーターサーバー:0,火災保険:0}};}else if(!personalSalesGoals[a.uid].breakdown){const sg=personalSalesGoals[a.uid];sg.breakdown={};sg.counts={};SALES_CATS.forEach(k=>{sg.breakdown[k]=0;sg.counts[k]=0;});}if(!incAdjustments[a.uid])incAdjustments[a.uid]={};
+function initGoalData(){staffAccs().forEach(a=>{if(!personalCountGoals[a.uid]){personalCountGoals[a.uid]={...COUNT_DEF[a.role]||COUNT_DEF['エージェント'],...Object.fromEntries(EXTRA_CONTRACTS.map(k=>[k,2]))};}if(!personalCountProgress[a.uid]){personalCountProgress[a.uid]={};ALL_COUNT_KEYS.forEach(k=>{personalCountProgress[a.uid][k]=0;});}if(!personalSalesGoals[a.uid]){const tgts={エージェント:12000000,サポート:5000000,査定担当:8000000};const tgt=tgts[a.role]||8000000;const breakdown={};SALES_CATS.forEach(k=>{breakdown[k]=0;});const sampleBreakdown={仲介:Math.floor(tgt*.4*.65),買取:Math.floor(tgt*.2*.65),リフォーム:Math.floor(tgt*.2*.65),ネット:0,ウォーターサーバー:0,火災保険:0};personalSalesGoals[a.uid]={target:tgt,actual:0,breakdown:sampleBreakdown,counts:{仲介:0,買取:0,リフォーム:0,ネット:0,ウォーターサーバー:0,火災保険:0}};}else if(!personalSalesGoals[a.uid].breakdown){const sg=personalSalesGoals[a.uid];sg.breakdown={};sg.counts={};SALES_CATS.forEach(k=>{sg.breakdown[k]=0;sg.counts[k]=0;});}if(!incAdjustments[a.uid])incAdjustments[a.uid]={};
     if(!salesReports[a.uid]){
       const y=today.getFullYear(),m=String(today.getMonth()+1).padStart(2,'0');
       const sg=personalSalesGoals[a.uid];const bd=sg.breakdown||{};
       salesReports[a.uid]=[];
-      SALES_CATS.forEach(k=>{if(bd[k]>0)salesReports[a.uid].push({id:Date.now()+Math.random(),date:`${y}-${m}-10`,cat:k,amount:bd[k],memo:'',ts:Date.now()});});
     }
   });
   staffAccs().forEach(a=>{rebuildSalesFromReports(a.uid);});
@@ -1155,91 +1154,9 @@ function ds(d){return d instanceof Date?localStr(d):d;}
 function isHol(y,m,d){const dow=new Date(y,m,d).getDay();return dow===0||dow===6;}
 function visMis(){return selectedMembers.size===0?members.map((_,i)=>i):[...selectedMembers].sort((a,b)=>a-b);}
 function singleMi(){return selectedMembers.size===1?[...selectedMembers][0]:-1;}
-function mkEvs(mi){const y=today.getFullYear(),m=today.getMonth(),dim=new Date(y,m+1,0).getDate();const pats=[[{t:'朝礼',cat:'社内MTG',d:1,sh:9,sm:0,eh:9,em:30},{t:'山田様 追客',cat:'追客',d:3,sh:14,sm:0,eh:15,em:0},{t:'田中様 査定',cat:'査定',d:7,sh:13,sm:0,eh:15,em:0},{t:'週次MTG',cat:'社内MTG',d:10,sh:9,sm:0,eh:10,em:0}],[{t:'朝礼',cat:'社内MTG',d:1,sh:9,sm:0,eh:9,em:30},{t:'中村様 追客',cat:'追客',d:2,sh:11,sm:0,eh:11,em:30},{t:'林様 査定',cat:'査定',d:6,sh:13,sm:0,eh:15,em:30},{t:'週次MTG',cat:'社内MTG',d:10,sh:9,sm:0,eh:10,em:0}],[{t:'朝礼',cat:'社内MTG',d:1,sh:9,sm:0,eh:9,em:30},{t:'週次MTG',cat:'社内MTG',d:10,sh:9,sm:0,eh:10,em:0}],[{t:'朝礼',cat:'社内MTG',d:1,sh:9,sm:0,eh:9,em:30},{t:'書類チェック',cat:'事務',d:2,sh:10,sm:0,eh:11,em:30},{t:'週次MTG',cat:'社内MTG',d:10,sh:9,sm:0,eh:10,em:0}],[{t:'朝礼',cat:'社内MTG',d:1,sh:9,sm:0,eh:9,em:30},{t:'小林様 査定',cat:'査定',d:2,sh:10,sm:0,eh:12,em:0},{t:'週次MTG',cat:'社内MTG',d:10,sh:9,sm:0,eh:10,em:0}]];const pat=pats[Math.min(mi,pats.length-1)];return pat.filter(p=>p.d>=1&&p.d<=dim).map(p=>({title:p.t,cat:p.cat,date:mkDate(y,m,p.d),sh:p.sh,sm:p.sm,eh:p.eh,em:p.em}));}
+function mkEvs(mi){return [];const pats_disabled=[[{t:'朝礼',cat:'社内MTG',d:1,sh:9,sm:0,eh:9,em:30},{t:'山田様 追客',cat:'追客',d:3,sh:14,sm:0,eh:15,em:0},{t:'田中様 査定',cat:'査定',d:7,sh:13,sm:0,eh:15,em:0},{t:'週次MTG',cat:'社内MTG',d:10,sh:9,sm:0,eh:10,em:0}],[{t:'朝礼',cat:'社内MTG',d:1,sh:9,sm:0,eh:9,em:30},{t:'中村様 追客',cat:'追客',d:2,sh:11,sm:0,eh:11,em:30},{t:'林様 査定',cat:'査定',d:6,sh:13,sm:0,eh:15,em:30},{t:'週次MTG',cat:'社内MTG',d:10,sh:9,sm:0,eh:10,em:0}],[{t:'朝礼',cat:'社内MTG',d:1,sh:9,sm:0,eh:9,em:30},{t:'週次MTG',cat:'社内MTG',d:10,sh:9,sm:0,eh:10,em:0}],[{t:'朝礼',cat:'社内MTG',d:1,sh:9,sm:0,eh:9,em:30},{t:'書類チェック',cat:'事務',d:2,sh:10,sm:0,eh:11,em:30},{t:'週次MTG',cat:'社内MTG',d:10,sh:9,sm:0,eh:10,em:0}],[{t:'朝礼',cat:'社内MTG',d:1,sh:9,sm:0,eh:9,em:30},{t:'小林様 査定',cat:'査定',d:2,sh:10,sm:0,eh:12,em:0},{t:'週次MTG',cat:'社内MTG',d:10,sh:9,sm:0,eh:10,em:0}]];const pat=pats[Math.min(mi,pats.length-1)];return pat.filter(p=>p.d>=1&&p.d<=dim).map(p=>({title:p.t,cat:p.cat,date:mkDate(y,m,p.d),sh:p.sh,sm:p.sm,eh:p.eh,em:p.em}));}
 function mkShiftData(){const{y,m}=shiftMo;const dim=new Date(y,m+1,0).getDate(),res={};members.forEach((mem,mi)=>{res[mem.uid]={};for(let d=1;d<=dim;d++){const dow=new Date(y,m,d).getDay();res[mem.uid][d]='work';}const extras=[[[3,'off'],[4,'off'],[10,'paid'],[14,'overtime'],[21,'noOt']],[[3,'off'],[4,'off'],[9,'paid'],[18,'overtime'],[22,'noOt']],[[3,'paid'],[10,'off'],[11,'off'],[17,'overtime'],[25,'noOt']],[[4,'off'],[15,'paid'],[20,'overtime'],[23,'noOt']],[[4,'off'],[11,'paid'],[16,'overtime'],[24,'noOt']]];(extras[Math.min(mi,4)]||[]).forEach(([d,s])=>{if(d<=dim&&!isHol(y,m,d))res[mem.uid][d]=s;});});return res;}
-const state={events:members.map((_,i)=>mkEvs(i)),todos:members.map(()=>[{t:'新着リード確認',cat:'事務',done:false,date:todayStr},{t:'架電リスト整理',cat:'架電',done:false,date:todayStr}]),memo:members.map(()=>''),tasks:[{id:1,title:'山田様に架電・アポ確認',cat:'架電',pri:'high',toIdx:0,fromName:MGR,deadline:todayStr,done:false,status:'todo'},{id:2,title:'イエウール新着チェック',cat:'事務',pri:'mid',toIdx:0,fromName:MGR,deadline:mkD(1),done:false},{id:3,title:'鈴木様フォローSMS',cat:'追客',pri:'high',toIdx:2,fromName:'安見',deadline:todayStr,done:false},{id:4,title:'田中様 保留フォロー',cat:'追客',pri:'mid',toIdx:1,fromName:MGR,deadline:mkD(2),done:false},{id:5,title:'チラシ配布エリア確認',cat:'事務',pri:'mid',toIdx:null,fromName:MGR,deadline:mkD(3),done:false},
-{id:6,title:'新着問い合わせ対応（スーモ）',cat:'架電',pri:'high',toIdx:null,fromName:MGR,deadline:mkD(1),done:false},
-{id:7,title:'物件資料の送付（田中様）',cat:'事務',pri:'mid',toIdx:null,fromName:MGR,deadline:mkD(2),done:false},
-{id:8,title:'査定書作成（渋谷区物件）',cat:'事務',pri:'high',toIdx:null,fromName:MGR,deadline:mkD(1),done:false},
-{id:9,title:'反響客リスト整理',cat:'事務',pri:'low',toIdx:null,fromName:MGR,deadline:mkD(3),done:false},
-{id:10,title:'ポータルサイト掲載更新',cat:'事務',pri:'mid',toIdx:null,fromName:MGR,deadline:mkD(2),done:false},
-{id:11,title:'来週の内見アポ確認',cat:'アポ',pri:'high',toIdx:null,fromName:MGR,deadline:mkD(1),done:false},
-{id:12,title:'売却相談フォロー（木村様）',cat:'追客',pri:'mid',toIdx:null,fromName:MGR,deadline:mkD(4),done:false},
-{id:13,title:'火災保険の案内資料準備',cat:'事務',pri:'low',toIdx:null,fromName:MGR,deadline:mkD(5),done:false},
-{id:14,title:'新規エリア開拓ヒアリング',cat:'事務',pri:'mid',toIdx:null,fromName:MGR,deadline:mkD(3),done:false},
-{id:15,title:'契約書類の確認（松本様）',cat:'事務',pri:'high',toIdx:null,fromName:MGR,deadline:todayStr,done:false},
-{id:16,title:'佐藤様へ架電（再アポ）',cat:'架電',pri:'high',toIdx:0,fromName:MGR,deadline:todayStr,done:false},
-{id:17,title:'物件案内資料送付（高橋様）',cat:'事務',pri:'mid',toIdx:0,fromName:MGR,deadline:mkD(1),done:false},
-{id:18,title:'内見後フォロー電話',cat:'追客',pri:'high',toIdx:0,fromName:MGR,deadline:todayStr,done:false},
-{id:19,title:'契約書類の準備（渡辺様）',cat:'事務',pri:'high',toIdx:0,fromName:MGR,deadline:mkD(1),done:false},
-{id:20,title:'週次報告書作成',cat:'事務',pri:'mid',toIdx:0,fromName:MGR,deadline:mkD(2),done:false},
-{id:21,title:'新規問い合わせ架電（伊藤様）',cat:'架電',pri:'high',toIdx:0,fromName:MGR,deadline:mkD(1),done:false},
-{id:22,title:'スーモ掲載物件の写真撮影',cat:'事務',pri:'low',toIdx:0,fromName:MGR,deadline:mkD(5),done:false},
-{id:23,title:'ウォーターサーバー提案（加藤様）',cat:'事務',pri:'mid',toIdx:0,fromName:MGR,deadline:mkD(3),done:false},
-{id:24,title:'火災保険見積り送付',cat:'事務',pri:'mid',toIdx:0,fromName:MGR,deadline:mkD(2),done:false},
-{id:25,title:'中古物件査定（杉並区）',cat:'査定',pri:'high',toIdx:0,fromName:MGR,deadline:mkD(1),done:false},
-{id:26,title:'山本様へ追客メール送信',cat:'追客',pri:'mid',toIdx:1,fromName:MGR,deadline:todayStr,done:false},
-{id:27,title:'物件詳細ヒアリング（中村様）',cat:'査定',pri:'high',toIdx:1,fromName:MGR,deadline:mkD(1),done:false},
-{id:28,title:'ローン相談フォロー（小林様）',cat:'追客',pri:'mid',toIdx:1,fromName:MGR,deadline:mkD(2),done:false},
-{id:29,title:'新着物件マッチング作業',cat:'事務',pri:'low',toIdx:1,fromName:MGR,deadline:mkD(3),done:false},
-{id:30,title:'オーナー向け資料送付',cat:'事務',pri:'mid',toIdx:1,fromName:MGR,deadline:mkD(2),done:false},
-{id:31,title:'架電リスト50件整理',cat:'架電',pri:'high',toIdx:1,fromName:MGR,deadline:todayStr,done:false},
-{id:32,title:'内見アポ取得（吉田様）',cat:'アポ',pri:'high',toIdx:1,fromName:MGR,deadline:mkD(1),done:false},
-{id:33,title:'ネット回線案内（田辺様）',cat:'事務',pri:'mid',toIdx:1,fromName:MGR,deadline:mkD(3),done:false},
-{id:34,title:'買取査定書の作成',cat:'査定',pri:'high',toIdx:1,fromName:MGR,deadline:mkD(1),done:false},
-{id:35,title:'週報入力・提出',cat:'事務',pri:'mid',toIdx:1,fromName:MGR,deadline:mkD(2),done:false},
-{id:36,title:'石井様へ物件提案',cat:'追客',pri:'high',toIdx:2,fromName:MGR,deadline:todayStr,done:false},
-{id:37,title:'内見同行準備（世田谷区）',cat:'訪問',pri:'high',toIdx:2,fromName:MGR,deadline:mkD(1),done:false},
-{id:38,title:'リフォーム業者との打合せ',cat:'事務',pri:'mid',toIdx:2,fromName:MGR,deadline:mkD(2),done:false},
-{id:39,title:'契約前確認書類チェック',cat:'事務',pri:'high',toIdx:2,fromName:MGR,deadline:mkD(1),done:false},
-{id:40,title:'新規顧客ヒアリングシート入力',cat:'事務',pri:'low',toIdx:2,fromName:MGR,deadline:mkD(4),done:false},
-{id:41,title:'松田様へ架電（反響フォロー）',cat:'架電',pri:'high',toIdx:2,fromName:MGR,deadline:todayStr,done:false},
-{id:42,title:'買取物件の現地確認',cat:'査定',pri:'mid',toIdx:2,fromName:MGR,deadline:mkD(2),done:false},
-{id:43,title:'ウォーターサーバー契約書回収',cat:'事務',pri:'mid',toIdx:2,fromName:MGR,deadline:mkD(3),done:false},
-{id:44,title:'競合物件調査レポート',cat:'事務',pri:'low',toIdx:2,fromName:MGR,deadline:mkD(5),done:false},
-{id:45,title:'内見後アンケート回収',cat:'追客',pri:'mid',toIdx:2,fromName:MGR,deadline:mkD(1),done:false},
-{id:46,title:'藤原様へ電話（価格交渉）',cat:'架電',pri:'high',toIdx:3,fromName:MGR,deadline:todayStr,done:false},
-{id:47,title:'仲介物件の重説準備',cat:'事務',pri:'high',toIdx:3,fromName:MGR,deadline:mkD(1),done:false},
-{id:48,title:'お客様へのお礼状作成',cat:'事務',pri:'low',toIdx:3,fromName:MGR,deadline:mkD(3),done:false},
-{id:49,title:'新着物件情報メール配信',cat:'事務',pri:'mid',toIdx:3,fromName:MGR,deadline:mkD(2),done:false},
-{id:50,title:'火災保険の説明資料更新',cat:'事務',pri:'mid',toIdx:3,fromName:MGR,deadline:mkD(4),done:false},
-{id:51,title:'追客リスト見直し・整理',cat:'追客',pri:'mid',toIdx:3,fromName:MGR,deadline:mkD(2),done:false},
-{id:52,title:'市場動向レポート確認',cat:'事務',pri:'low',toIdx:3,fromName:MGR,deadline:mkD(5),done:false},
-{id:53,title:'内見アポ確認（橋本様）',cat:'アポ',pri:'high',toIdx:3,fromName:MGR,deadline:mkD(1),done:false},
-{id:54,title:'リフォーム見積もり取得',cat:'事務',pri:'mid',toIdx:3,fromName:MGR,deadline:mkD(3),done:false},
-{id:55,title:'契約書押印対応（清水様）',cat:'事務',pri:'high',toIdx:3,fromName:MGR,deadline:todayStr,done:false},
-{id:56,title:'中野様へ物件紹介架電',cat:'架電',pri:'high',toIdx:4,fromName:MGR,deadline:todayStr,done:false},
-{id:57,title:'売却物件の写真撮影段取り',cat:'事務',pri:'mid',toIdx:4,fromName:MGR,deadline:mkD(2),done:false},
-{id:58,title:'ネット回線比較表作成',cat:'事務',pri:'low',toIdx:4,fromName:MGR,deadline:mkD(4),done:false},
-{id:59,title:'オーナー様との定期面談準備',cat:'訪問',pri:'mid',toIdx:4,fromName:MGR,deadline:mkD(1),done:false},
-{id:60,title:'買取査定依頼対応（杉本様）',cat:'査定',pri:'high',toIdx:4,fromName:MGR,deadline:mkD(1),done:false},
-{id:61,title:'契約後フォロー電話（竹内様）',cat:'追客',pri:'mid',toIdx:4,fromName:MGR,deadline:mkD(2),done:false},
-{id:62,title:'ポータルサイト反響確認',cat:'事務',pri:'high',toIdx:4,fromName:MGR,deadline:todayStr,done:false},
-{id:63,title:'仲介手数料の計算確認',cat:'事務',pri:'mid',toIdx:4,fromName:MGR,deadline:mkD(3),done:false},
-{id:64,title:'火災保険加入フォロー（村田様）',cat:'事務',pri:'mid',toIdx:4,fromName:MGR,deadline:mkD(2),done:false},
-{id:65,title:'来月の目標設定シート記入',cat:'事務',pri:'low',toIdx:4,fromName:MGR,deadline:mkD(5),done:false}
-,
-{id:66,title:'山田様 初回ヒアリング',cat:'査定',pri:'high',toIdx:0,fromName:MGR,deadline:mkD(-5),done:true},
-{id:67,title:'物件案内（新宿区 2LDK）',cat:'訪問',pri:'mid',toIdx:0,fromName:MGR,deadline:mkD(-4),done:true},
-{id:68,title:'スーモ掲載文の修正',cat:'事務',pri:'low',toIdx:0,fromName:MGR,deadline:mkD(-3),done:true},
-{id:69,title:'田中様へお礼メール送信',cat:'追客',pri:'mid',toIdx:1,fromName:MGR,deadline:mkD(-6),done:true},
-{id:70,title:'買取査定書の作成（世田谷区）',cat:'査定',pri:'high',toIdx:1,fromName:MGR,deadline:mkD(-2),done:true},
-{id:71,title:'火災保険の見積り提出',cat:'事務',pri:'mid',toIdx:1,fromName:MGR,deadline:mkD(-3),done:true},
-{id:72,title:'内見アポ取得（鈴木様）',cat:'アポ',pri:'high',toIdx:2,fromName:MGR,deadline:mkD(-5),done:true},
-{id:73,title:'契約書押印確認（渡辺様）',cat:'事務',pri:'high',toIdx:2,fromName:MGR,deadline:mkD(-2),done:true},
-{id:74,title:'ウォーターサーバー成約処理',cat:'事務',pri:'mid',toIdx:2,fromName:MGR,deadline:mkD(-4),done:true},
-{id:75,title:'架電リスト60件完了',cat:'架電',pri:'high',toIdx:3,fromName:MGR,deadline:mkD(-7),done:true},
-{id:76,title:'重要事項説明書の作成',cat:'事務',pri:'high',toIdx:3,fromName:MGR,deadline:mkD(-3),done:true},
-{id:77,title:'オーナー訪問（中野区）',cat:'訪問',pri:'mid',toIdx:3,fromName:MGR,deadline:mkD(-5),done:true},
-{id:78,title:'新規物件登録（ホームズ）',cat:'事務',pri:'mid',toIdx:4,fromName:MGR,deadline:mkD(-4),done:true},
-{id:79,title:'松本様へ物件紹介架電',cat:'架電',pri:'high',toIdx:4,fromName:MGR,deadline:mkD(-6),done:true},
-{id:80,title:'ネット回線成約フォロー',cat:'事務',pri:'mid',toIdx:4,fromName:MGR,deadline:mkD(-2),done:true},
-{id:81,title:'査定報告書の提出（杉並区）',cat:'査定',pri:'high',toIdx:0,fromName:MGR,deadline:mkD(-8),done:true},
-{id:82,title:'内見後フォロー（高橋様）',cat:'追客',pri:'mid',toIdx:1,fromName:MGR,deadline:mkD(-4),done:true},
-{id:83,title:'物件写真の整理・アップ',cat:'事務',pri:'low',toIdx:2,fromName:MGR,deadline:mkD(-6),done:true},
-{id:84,title:'月次KPI集計',cat:'事務',pri:'mid',toIdx:3,fromName:MGR,deadline:mkD(-8),done:true},
-{id:85,title:'来月の追客計画作成',cat:'事務',pri:'mid',toIdx:4,fromName:MGR,deadline:mkD(-3),done:true}
-],nextId:86};
+const state={events:members.map((_,i)=>mkEvs(i)),todos:members.map(()=>[]),memo:members.map(()=>''),tasks:[],nextId:1};
 let shiftData=mkShiftData();let progTab='count';
 function doLogin(){const uid=document.getElementById('fl-id').value.trim();const pass=document.getElementById('fl-pass').value;const acc=accounts.find(a=>a.uid===uid&&a.pass===pass);const err=document.getElementById('le');if(!acc){err.style.display='block';return;}err.style.display='none';currentUser=acc;showMainApp();}
 document.getElementById('login-btn').onclick=doLogin;
