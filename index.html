@@ -1283,7 +1283,6 @@ function showMainApp(){
     };
   });
 bindEvForm();
-(async()=>{const _ss=localStorage.getItem('ht_session');if(_ss){try{const _accs=await sbGet('accounts','order=uid');if(_accs&&_accs.length>0){accounts.length=0;_accs.sort((a,b)=>{const o=['tochioka','yasumi','sano','tominaga','ban','yoshimura'];return(o.indexOf(a.uid)+99)%100-(o.indexOf(b.uid)+99)%100;}).forEach(a=>accounts.push({uid:a.uid,pass:a.pass,name:a.name,role:a.role,perm:a.perm,color:a.c,inc:a.inc||0,cut:a.cut||0,personal:a.personal}));const _a=accounts.find(a=>a.uid===_ss);if(_a){currentUser=_a;showMainApp();}}}catch(e){}}})();
   // Supabaseからデータ読み込み（非同期）
   loadAllFromDB().then(()=>{
     switchPage(firstPg);
@@ -3257,6 +3256,7 @@ showMainApp=function(){
 };
 // ログイン画面スキップ（復活させる時はこの行を削除）
 
+(async()=>{const _ss=localStorage.getItem('ht_session');if(_ss){try{const _accs=await sbGet('accounts','order=uid');if(_accs&&_accs.length>0){accounts.length=0;_accs.sort((a,b)=>{const o=['tochioka','yasumi','sano','tominaga','ban','yoshimura'];return(o.indexOf(a.uid)+99)%100-(o.indexOf(b.uid)+99)%100;}).forEach(a=>accounts.push({uid:a.uid,pass:a.pass,name:a.name,role:a.role,perm:a.perm,color:a.c,inc:a.inc||0,cut:a.cut||0,personal:a.personal}));const _a=accounts.find(a=>a.uid===_ss);if(_a){currentUser=_a;showMainApp();}}}catch(e){}}})();
 </script>
 </body>
 </html>
