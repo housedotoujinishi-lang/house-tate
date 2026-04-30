@@ -1066,7 +1066,7 @@ function ensureTaskStatus(){
   });
 }
 
-function initGoalData(){staffAccs().forEach(a=>{if(!personalCountGoals[a.uid]){personalCountGoals[a.uid]={...COUNT_DEF[a.role]||COUNT_DEF['エージェント'],...Object.fromEntries(EXTRA_CONTRACTS.map(k=>[k,2]))};}if(!personalCountProgress[a.uid]){personalCountProgress[a.uid]={};ALL_COUNT_KEYS.forEach(k=>{personalCountProgress[a.uid][k]=0;});}if(!personalSalesGoals[a.uid]){const tgts={エージェント:12000000,サポート:5000000,査定担当:8000000};const tgt=tgts[a.role]||8000000;const breakdown={};SALES_CATS.forEach(k=>{breakdown[k]=0;});const sampleBreakdown={仲介:Math.floor(tgt*.4*.65),買取:Math.floor(tgt*.2*.65),リフォーム:Math.floor(tgt*.2*.65),ネット:0,ウォーターサーバー:0,火災保険:0};personalSalesGoals[a.uid]={target:tgt,actual:0,breakdown:sampleBreakdown,counts:{仲介:0,買取:0,リフォーム:0,ネット:0,ウォーターサーバー:0,火災保険:0}};}else if(!personalSalesGoals[a.uid].breakdown){const sg=personalSalesGoals[a.uid];sg.breakdown={};sg.counts={};SALES_CATS.forEach(k=>{sg.breakdown[k]=0;sg.counts[k]=0;});}if(!incAdjustments[a.uid])incAdjustments[a.uid]={};
+function initGoalData(){try{const sg=localStorage.getItem('ht_goals');if(sg)Object.assign(personalCountGoals,JSON.parse(sg));}catch(e){}staffAccs().forEach(a=>{if(!personalCountGoals[a.uid]){personalCountGoals[a.uid]={...COUNT_DEF[a.role]||COUNT_DEF['エージェント'],...Object.fromEntries(EXTRA_CONTRACTS.map(k=>[k,2]))};}if(!personalCountProgress[a.uid]){personalCountProgress[a.uid]={};ALL_COUNT_KEYS.forEach(k=>{personalCountProgress[a.uid][k]=0;});}if(!personalSalesGoals[a.uid]){const tgts={エージェント:12000000,サポート:5000000,査定担当:8000000};const tgt=tgts[a.role]||8000000;const breakdown={};SALES_CATS.forEach(k=>{breakdown[k]=0;});const sampleBreakdown={仲介:Math.floor(tgt*.4*.65),買取:Math.floor(tgt*.2*.65),リフォーム:Math.floor(tgt*.2*.65),ネット:0,ウォーターサーバー:0,火災保険:0};personalSalesGoals[a.uid]={target:tgt,actual:0,breakdown:sampleBreakdown,counts:{仲介:0,買取:0,リフォーム:0,ネット:0,ウォーターサーバー:0,火災保険:0}};}else if(!personalSalesGoals[a.uid].breakdown){const sg=personalSalesGoals[a.uid];sg.breakdown={};sg.counts={};SALES_CATS.forEach(k=>{sg.breakdown[k]=0;sg.counts[k]=0;});}if(!incAdjustments[a.uid])incAdjustments[a.uid]={};
     if(!salesReports[a.uid]){
       const y=today.getFullYear(),m=String(today.getMonth()+1).padStart(2,'0');
       const sg=personalSalesGoals[a.uid];const bd=sg.breakdown||{};
@@ -1235,15 +1235,7 @@ function showMainApp(){
         personalCountGoals[uid][key]=+inp.value;
       });
       // Supabase保存：accountsのgoals列（JSON）
-      const sacc2=staffAccs();
-      for(const a of sacc2){
-        const goals=JSON.stringify(personalCountGoals[a.uid]||{});
-        await fetch(`${SB_URL}/rest/v1/accounts?uid=eq.${a.uid}`,{method:'PATCH',headers:{apikey:SB_KEY,Authorization:'Bearer '+SB_KEY,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify({goals})});
-      }
-      document.getElementById('goal-edit-overlay').remove();
-      renderGoalPage();
-      showToast('目標を保存しました');
-    };
+      localStorage.setItem('ht_goals',JSON.stringify(personalCountGoals));
   });
   // インセン調整モーダル
   document.getElementById('adj-inc-btn')?.addEventListener('click',()=>{
