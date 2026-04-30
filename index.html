@@ -1194,7 +1194,7 @@ function showMainApp(){
     if(mi>=0){selectedMembers.clear();selectedMembers.add(mi);}
   }
   initGoalData();
-  inject1MonthData();
+  // inject1MonthData();
   const firstPg=tabs[0][0];
   switchPage(firstPg);
   bindEvForm();
@@ -2498,7 +2498,7 @@ function inject1MonthData(){const y=today.getFullYear(),mo=today.getMonth();cons
   ].forEach(([mi,d,sh,sm,eh,em,title,cat])=>addEv(mi,d,sh,sm,eh,em,title,cat));
 
   // ── 顧客テストデータ ──
-  if(customers.length>0)return;
+  if(true)return;
   const mkH2=(date,type,result,memo,staffName)=>({date,type,result,memo,staffName,uid:'yasumi',ts:Date.now()});
   customers=[
     {id:'c001',type:'買い',name:'山田 太郎',phone:'090-1234-5678',email:'yamada@gmail.com',address:'大阪市北区天満1-2-3',note:'3LDK 3500万以内 南向き必須',status:'追客中',staffUid:'yasumi',source:'スーモ',nextContact:'2026-04-30',ts:0,history:[mkH2('2026-04-10','架電','通話済み(継続)','購入意欲高め。内見希望','安見'),mkH2('2026-04-17','架電','折り返し待ち','不在、留守電あり','安見'),mkH2('2026-04-24','訪問','通話済み(継続)','内見完了。価格交渉あり','安見')]},
@@ -3170,7 +3170,7 @@ showMainApp=function(){
   if('Notification' in window&&Notification.permission==='granted'){notifGranted=true;scheduleNotifCheck();}
 };
 // ログイン画面スキップ（復活させる時はこの行を削除）
-(function(){const acc=accounts.find(a=>a.uid==='tochika');if(acc){currentUser=acc;showMainApp();}})();
+
 </script>
 </body>
 </html>
