@@ -1203,30 +1203,32 @@ function showMainApp(){
   // 目標設定モーダル
   document.getElementById('edit-goals-btn')?.addEventListener('click',()=>{
     const sacc=staffAccs();
-    let h='<div style="padding:4px 0 12px"><b style="font-size:15px">月次目標設定</b></div>';
+    let h='<div style="margin-bottom:16px"><b style="font-size:16px">📋 月次目標設定</b><div style="font-size:12px;color:var(--t2);margin-top:2px">各スタッフの月間目標件数を設定します</div></div>';
+    h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">';
     sacc.forEach(a=>{
       const g=personalCountGoals[a.uid]||{};
-      h+=`<div style="margin-bottom:14px;padding:10px;background:var(--bg2);border-radius:8px">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-          <span style="width:32px;height:32px;border-radius:50%;background:${a.c};display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700">${a.name[0]}</span>
-          <b>${a.name}</b><small style="color:var(--t2)">${a.role}</small>
+      h+=`<div style="background:var(--bg2);border:1px solid var(--bo);border-radius:10px;padding:12px;box-shadow:0 1px 4px rgba(0,0,0,.08)">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--bo)">
+          <span style="width:34px;height:34px;border-radius:50%;background:${a.c};display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:700;flex-shrink:0">${a.name[0]}</span>
+          <div><div style="font-weight:700;font-size:13px">${a.name}</div><div style="font-size:11px;color:var(--t2)">${a.role}</div></div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
-          <label style="font-size:12px">架電目標<input class="fi2 goal-inp" data-uid="${a.uid}" data-key="架電" type="number" min="0" value="${g['架電']??60}" style="margin-top:2px"></label>
-          <label style="font-size:12px">追客目標<input class="fi2 goal-inp" data-uid="${a.uid}" data-key="追客" type="number" min="0" value="${g['追客']??30}" style="margin-top:2px"></label>
-          <label style="font-size:12px">アポ目標<input class="fi2 goal-inp" data-uid="${a.uid}" data-key="アポ" type="number" min="0" value="${g['アポ']??5}" style="margin-top:2px"></label>
-          <label style="font-size:12px">契約目標<input class="fi2 goal-inp" data-uid="${a.uid}" data-key="契約" type="number" min="0" value="${g['契約']??3}" style="margin-top:2px"></label>
+          <label style="display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--t2)">📞 架電<input class="fi2 goal-inp" data-uid="${a.uid}" data-key="架電" type="number" min="0" value="${g['架電']??60}" style="margin-top:0;font-size:13px"></label>
+          <label style="display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--t2)">👣 追客<input class="fi2 goal-inp" data-uid="${a.uid}" data-key="追客" type="number" min="0" value="${g['追客']??30}" style="margin-top:0;font-size:13px"></label>
+          <label style="display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--t2)">📅 アポ<input class="fi2 goal-inp" data-uid="${a.uid}" data-key="アポ" type="number" min="0" value="${g['アポ']??5}" style="margin-top:0;font-size:13px"></label>
+          <label style="display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--t2)">✍️ 契約<input class="fi2 goal-inp" data-uid="${a.uid}" data-key="契約" type="number" min="0" value="${g['契約']??3}" style="margin-top:0;font-size:13px"></label>
         </div>
       </div>`;
     });
-    h+=`<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
+    h+='</div>';
+    h+=`<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
       <button class="gbtn" onclick="document.getElementById('goal-edit-overlay').remove()">キャンセル</button>
       <button class="gbtn" style="background:var(--navy);color:#fff" id="save-goals-btn">保存する</button>
     </div>`;
     const ov=document.createElement('div');
     ov.id='goal-edit-overlay';
-    ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center';
-    ov.innerHTML=`<div style="background:var(--bg1);border-radius:12px;padding:20px;width:480px;max-height:80vh;overflow-y:auto">${h}</div>`;
+    ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+    ov.innerHTML=`<div style="background:var(--bg1);border-radius:14px;padding:24px;width:min(680px,100%);max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.3)">${h}</div>`;
     document.body.appendChild(ov);
     document.getElementById('save-goals-btn').onclick=async()=>{
       document.querySelectorAll('.goal-inp').forEach(inp=>{
@@ -1242,27 +1244,29 @@ function showMainApp(){
   // インセン調整モーダル
   document.getElementById('adj-inc-btn')?.addEventListener('click',()=>{
     const sacc=staffAccs();
-    let h='<div style="padding:4px 0 12px"><b style="font-size:15px">インセンティブ調整</b></div>';
+    let h='<div style="margin-bottom:16px"><b style="font-size:16px">💰 インセンティブ調整</b><div style="font-size:12px;color:var(--t2);margin-top:2px">各スタッフのインセン率とカット額を設定します</div></div>';
+    h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">';
     sacc.forEach(a=>{
-      h+=`<div style="margin-bottom:12px;padding:10px;background:var(--bg2);border-radius:8px">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-          <span style="width:32px;height:32px;border-radius:50%;background:${a.c};display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700">${a.name[0]}</span>
-          <b>${a.name}</b><small style="color:var(--t2)">${a.role}</small>
+      h+=`<div style="background:var(--bg2);border:1px solid var(--bo);border-radius:10px;padding:12px;box-shadow:0 1px 4px rgba(0,0,0,.08)">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--bo)">
+          <span style="width:34px;height:34px;border-radius:50%;background:${a.c};display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:700;flex-shrink:0">${a.name[0]}</span>
+          <div><div style="font-weight:700;font-size:13px">${a.name}</div><div style="font-size:11px;color:var(--t2)">${a.role}</div></div>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
-          <label style="font-size:12px">インセン率(%)<input class="fi2 inc-inp" data-uid="${a.uid}" data-key="inc" type="number" min="0" max="100" step="0.1" value="${a.inc}" style="margin-top:2px"></label>
-          <label style="font-size:12px">カット(万円)<input class="fi2 inc-inp" data-uid="${a.uid}" data-key="cut" type="number" min="0" value="${Math.round(a.cut/10000)}" style="margin-top:2px"></label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <label style="display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--t2)">インセン率(%)<input class="fi2 inc-inp" data-uid="${a.uid}" data-key="inc" type="number" min="0" max="100" step="0.1" value="${a.inc}" style="margin-top:0;font-size:13px"></label>
+          <label style="display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--t2)">カット(万円)<input class="fi2 inc-inp" data-uid="${a.uid}" data-key="cut" type="number" min="0" value="${Math.round(a.cut/10000)}" style="margin-top:0;font-size:13px"></label>
         </div>
       </div>`;
     });
-    h+=`<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
+    h+='</div>';
+    h+=`<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
       <button class="gbtn" onclick="document.getElementById('inc-edit-overlay').remove()">キャンセル</button>
       <button class="gbtn" style="background:var(--navy);color:#fff" id="save-inc-btn">保存する</button>
     </div>`;
     const ov=document.createElement('div');
     ov.id='inc-edit-overlay';
-    ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center';
-    ov.innerHTML=`<div style="background:var(--bg1);border-radius:12px;padding:20px;width:440px;max-height:80vh;overflow-y:auto">${h}</div>`;
+    ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+    ov.innerHTML=`<div style="background:var(--bg1);border-radius:14px;padding:24px;width:min(580px,100%);max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.3)">${h}</div>`;
     document.body.appendChild(ov);
     document.getElementById('save-inc-btn').onclick=async()=>{
       document.querySelectorAll('.inc-inp').forEach(inp=>{
