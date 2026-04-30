@@ -1213,10 +1213,10 @@ function showMainApp(){
           <div><div style="font-weight:700;font-size:13px">${a.name}</div><div style="font-size:11px;color:var(--t2)">${a.role}</div></div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
-          <label style="display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--t2);padding:6px 8px;border-radius:6px;">📞 架電<input class="fi2 goal-inp" data-uid="${a.uid}" data-key="架電" type="number" min="0" value="${g['架電']??60}" style="margin-top:0;font-size:13px"></label>
-          <label style="display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--t2);padding:6px 8px;border-radius:6px;">👣 追客<input class="fi2 goal-inp" data-uid="${a.uid}" data-key="追客" type="number" min="0" value="${g['追客']??30}" style="margin-top:0;font-size:13px"></label>
-          <label style="display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--t2);padding:6px 8px;border-radius:6px;">📅 アポ<input class="fi2 goal-inp" data-uid="${a.uid}" data-key="アポ" type="number" min="0" value="${g['アポ']??5}" style="margin-top:0;font-size:13px"></label>
-          <label style="display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--t2);padding:6px 8px;border-radius:6px;">✍️ 契約<input class="fi2 goal-inp" data-uid="${a.uid}" data-key="契約" type="number" min="0" value="${g['契約']??3}" style="margin-top:0;font-size:13px"></label>
+          <label style="display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--t2);background:var(--s2);padding:6px 8px;border-radius:6px;border:1px solid var(--bo);">📞 架電<input class="fi2 goal-inp" data-uid="${a.uid}" data-key="架電" type="number" min="0" value="${g['架電']??60}" style="margin-top:0;font-size:13px"></label>
+          <label style="display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--t2);background:var(--s2);padding:6px 8px;border-radius:6px;border:1px solid var(--bo);">👣 追客<input class="fi2 goal-inp" data-uid="${a.uid}" data-key="追客" type="number" min="0" value="${g['追客']??30}" style="margin-top:0;font-size:13px"></label>
+          <label style="display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--t2);background:var(--s2);padding:6px 8px;border-radius:6px;border:1px solid var(--bo);">📅 アポ<input class="fi2 goal-inp" data-uid="${a.uid}" data-key="アポ" type="number" min="0" value="${g['アポ']??5}" style="margin-top:0;font-size:13px"></label>
+          <label style="display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--t2);background:var(--s2);padding:6px 8px;border-radius:6px;border:1px solid var(--bo);">✍️ 契約<input class="fi2 goal-inp" data-uid="${a.uid}" data-key="契約" type="number" min="0" value="${g['契約']??3}" style="margin-top:0;font-size:13px"></label>
         </div>
       </div>`;
     });
@@ -1253,8 +1253,8 @@ function showMainApp(){
           <div><div style="font-weight:700;font-size:13px">${a.name}</div><div style="font-size:11px;color:var(--t2)">${a.role}</div></div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-          <label style="display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--t2);padding:6px 8px;border-radius:6px;">インセン率(%)<input class="fi2 inc-inp" data-uid="${a.uid}" data-key="inc" type="number" min="0" max="100" step="0.1" value="${a.inc}" style="margin-top:0;font-size:13px"></label>
-          <label style="display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--t2);padding:6px 8px;border-radius:6px;">カット(万円)<input class="fi2 inc-inp" data-uid="${a.uid}" data-key="cut" type="number" min="0" value="${Math.round(a.cut/10000)}" style="margin-top:0;font-size:13px"></label>
+          <label style="display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--t2);background:var(--s2);padding:6px 8px;border-radius:6px;border:1px solid var(--bo);">インセン率(%)<input class="fi2 inc-inp" data-uid="${a.uid}" data-key="inc" type="number" min="0" max="100" step="0.1" value="${a.inc}" style="margin-top:0;font-size:13px"></label>
+          <label style="display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--t2);background:var(--s2);padding:6px 8px;border-radius:6px;border:1px solid var(--bo);">カット(万円)<input class="fi2 inc-inp" data-uid="${a.uid}" data-key="cut" type="number" min="0" value="${Math.round(a.cut/10000)}" style="margin-top:0;font-size:13px"></label>
         </div>
       </div>`;
     });
