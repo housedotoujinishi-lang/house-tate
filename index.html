@@ -1207,7 +1207,7 @@ function showMainApp(){
     h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">';
     sacc.forEach(a=>{
       const g=personalCountGoals[a.uid]||{};
-      h+=`<div style="background:var(--bg2);border:1px solid var(--bo);border-radius:10px;padding:12px;box-shadow:0 1px 4px rgba(0,0,0,.08)">
+      h+=`<div style="background:var(--s1);border:1px solid var(--bo);border-radius:10px;padding:12px;box-shadow:0 1px 4px rgba(0,0,0,.08)">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--bo)">
           <span style="width:34px;height:34px;border-radius:50%;background:${a.c};display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:700;flex-shrink:0">${a.name[0]}</span>
           <div><div style="font-weight:700;font-size:13px">${a.name}</div><div style="font-size:11px;color:var(--t2)">${a.role}</div></div>
@@ -1247,7 +1247,7 @@ function showMainApp(){
     let h='<div style="margin-bottom:16px"><b style="font-size:16px">💰 インセンティブ調整</b><div style="font-size:12px;color:var(--t2);margin-top:2px">各スタッフのインセン率とカット額を設定します</div></div>';
     h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">';
     sacc.forEach(a=>{
-      h+=`<div style="background:var(--bg2);border:1px solid var(--bo);border-radius:10px;padding:12px;box-shadow:0 1px 4px rgba(0,0,0,.08)">
+      h+=`<div style="background:var(--s1);border:1px solid var(--bo);border-radius:10px;padding:12px;box-shadow:0 1px 4px rgba(0,0,0,.08)">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--bo)">
           <span style="width:34px;height:34px;border-radius:50%;background:${a.c};display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:700;flex-shrink:0">${a.name[0]}</span>
           <div><div style="font-weight:700;font-size:13px">${a.name}</div><div style="font-size:11px;color:var(--t2)">${a.role}</div></div>
