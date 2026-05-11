@@ -1012,14 +1012,7 @@ const BONUS_DEF={
   other_king:{name:'その他王',desc:'ネット・ウォーターサーバー・火災保険の件数トップ',amount:5000,icon:'🏆'},
 };
 
-let accounts=[
-  {uid:'tochioka',pass:'admin2024',name:'杤岡',role:'店長',perm:'admin',c:MC[0],inc:0,cut:0,personal:false},
-  {uid:'yasumi',pass:'ht0001',name:'安見',role:'エージェント',perm:'staff',c:MC[0],inc:3,cut:600000,personal:true},
-  {uid:'sano',pass:'ht0002',name:'佐野',role:'エージェント',perm:'staff',c:MC[1],inc:3,cut:600000,personal:false},
-  {uid:'tominaga',pass:'ht0003',name:'冨永',role:'エージェント',perm:'staff',c:MC[2],inc:2.5,cut:500000,personal:false},
-  {uid:'ban',pass:'ht0004',name:'伴',role:'サポート',perm:'staff',c:MC[3],inc:2,cut:400000,personal:false},
-  {uid:'yoshimura',pass:'ht0005',name:'芳村',role:'管理者',perm:'admin',c:MC[4],inc:2.5,cut:500000,personal:true},
-];
+let accounts=[];
 let currentUser=null;
 function staffAccs(){return accounts;} // 全員がチームメンバー
 function isMgr(perm){return perm==='admin';}
