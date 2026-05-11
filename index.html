@@ -2578,22 +2578,7 @@ function inject1MonthData(){const y=today.getFullYear(),mo=today.getMonth();cons
   // ── 顧客テストデータ ──
   if(true)return;
   const mkH2=(date,type,result,memo,staffName)=>({date,type,result,memo,staffName,uid:'yasumi',ts:Date.now()});
-  customers=[
-    {id:'c001',type:'買い',name:'山田 太郎',phone:'090-1234-5678',email:'yamada@gmail.com',address:'大阪市北区天満1-2-3',note:'3LDK 3500万以内 南向き必須',status:'追客中',staffUid:'yasumi',source:'スーモ',nextContact:'2026-04-30',ts:0,history:[mkH2('2026-04-10','架電','通話済み(継続)','購入意欲高め。内見希望','安見'),mkH2('2026-04-17','架電','折り返し待ち','不在、留守電あり','安見'),mkH2('2026-04-24','訪問','通話済み(継続)','内見完了。価格交渉あり','安見')]},
-    {id:'c002',type:'買い',name:'佐藤 健二',phone:'070-3456-7890',email:'sato.k@icloud.com',address:'吹田市江坂町3-1',note:'一戸建て 土地付き 4LDK ローン審査OK',status:'申込中',staffUid:'sano',source:'紹介',nextContact:'2026-04-29',ts:0,history:[mkH2('2026-04-05','架電','通話済み(継続)','資金計画相談','佐野'),mkH2('2026-04-12','来店','通話済み(継続)','物件絞り込み中','佐野'),mkH2('2026-04-20','訪問','アポ獲得','江坂戸建て気に入り','佐野'),mkH2('2026-04-27','架電','通話済み(継続)','申込完了。来週契約予定','佐野')]},
-    {id:'c003',type:'買い',name:'鈴木 美香',phone:'090-4567-8901',email:'suzuki@ezweb.ne.jp',address:'豊中市曽根東町1-4',note:'2LDK 2000万台 単身購入',status:'追客中',staffUid:'sano',source:'アットホーム',nextContact:'2026-04-30',ts:0,history:[mkH2('2026-04-14','架電','留守電あり','留守電残し','佐野'),mkH2('2026-04-25','架電','折り返し待ち','折り返し依頼','佐野')]},
-    {id:'c004',type:'買い',name:'高橋 誠',phone:'080-5678-9012',email:'takahashi@yahoo.co.jp',address:'東大阪市荒本北2-6',note:'3LDK 購入済み',status:'決済済み',staffUid:'tominaga',source:'スーモ',nextContact:'',ts:0,history:[mkH2('2026-04-01','架電','アポ獲得','早期購入希望','冨永'),mkH2('2026-04-08','来店','通話済み(継続)','物件即断','冨永'),mkH2('2026-04-15','契約','通話済み(継続)','売買契約 3450万','冨永'),mkH2('2026-04-22','架電','通話済み(継続)','決済準備確認','冨永')]},
-    {id:'c005',type:'買い',name:'伊藤 隆',phone:'070-6789-0123',email:'ito@nifty.com',address:'守口市大日東町5-2',note:'投資用マンション 利回り5%以上 現金購入可',status:'内見済み',staffUid:'tominaga',source:'スーモ',nextContact:'2026-05-01',ts:0,history:[mkH2('2026-04-20','架電','通話済み(継続)','投資目的。複数物件検討','冨永'),mkH2('2026-04-26','来店','通話済み(継続)','内見予約3件','冨永')]},
-    {id:'c006',type:'買い',name:'松田 拓也',phone:'080-8901-2345',email:'matsuda@softbank.ne.jp',address:'茨木市駅前4-6',note:'中古マンション リノベ希望 2500万以下',status:'追客中',staffUid:'ban',source:'ホームズ',nextContact:'2026-04-30',ts:0,history:[mkH2('2026-04-15','架電','アポ獲得','内見アポ取得','伴'),mkH2('2026-04-22','訪問','通話済み(継続)','内見後。検討中','伴')]},
-    {id:'c007',type:'買い',name:'中村 博',phone:'090-0123-4567',email:'nakamura@gmail.com',address:'寝屋川市本町1-8',note:'土地購入＋注文住宅 50坪以上希望',status:'追客中',staffUid:'yoshimura',source:'アットホーム',nextContact:'2026-05-02',ts:0,history:[mkH2('2026-04-23','架電','連絡なし','初回架電 不在','芳村'),mkH2('2026-04-28','架電','折り返し待ち','折り返し依頼','芳村')]},
-    {id:'c008',type:'買い',name:'小林 雄大',phone:'080-1234-0987',email:'kobayashi@au.com',address:'大阪市住吉区長居西2-1',note:'新築戸建て 4000万以内 南向き',status:'追客中',staffUid:'yasumi',source:'スーモ',nextContact:'2026-04-29',ts:0,history:[mkH2('2026-04-28','架電','通話済み(継続)','来週内見確約','安見')]},
-    {id:'c009',type:'売り',name:'田中 恵子',phone:'080-2345-6789',email:'tanaka.k@docomo.ne.jp',address:'大阪市中央区本町2-5',note:'マンション売却 5000万以上 3LDK 築8年',status:'媒介中',staffUid:'yasumi',source:'ホームズ',nextContact:'2026-05-02',ts:0,history:[mkH2('2026-04-08','架電','アポ獲得','今月中に売りたい','安見'),mkH2('2026-04-15','査定','通話済み(継続)','4800万提示','安見'),mkH2('2026-04-22','来店','通話済み(継続)','媒介契約締結','安見')]},
-    {id:'c010',type:'売り',name:'木村 さおり',phone:'070-9012-3456',email:'kimura.s@outlook.jp',address:'枚方市禁野本町2-3',note:'実家売却 兄弟3人合意済み 戸建て 築35年',status:'媒介中',staffUid:'yoshimura',source:'紹介',nextContact:'2026-05-03',ts:0,history:[mkH2('2026-04-12','架電','通話済み(継続)','査定希望','芳村'),mkH2('2026-04-19','査定','通話済み(継続)','3200万提示','芳村'),mkH2('2026-04-26','来店','通話済み(継続)','媒介契約締結','芳村')]},
-    {id:'c011',type:'売り',name:'渡辺 裕子',phone:'090-7890-1234',email:'watanabe@icloud.com',address:'堺市堺区南瓦町3-1',note:'相続物件売却 1R 早急に売りたい',status:'査定済み',staffUid:'ban',source:'自社HP',nextContact:'2026-04-29',ts:0,history:[mkH2('2026-04-21','架電','アポ獲得','相続税対策 早期売却','伴'),mkH2('2026-04-25','査定','通話済み(継続)','1800万提示 了承','伴')]},
-    {id:'c012',type:'売り',name:'加藤 真由美',phone:'070-2345-1098',email:'kato.m@yahoo.co.jp',address:'摂津市鳥飼本町1-4',note:'離婚に伴う売却 戸建て 価格優先',status:'追客中',staffUid:'sano',source:'ホームズ',nextContact:'2026-04-30',ts:0,history:[mkH2('2026-04-22','架電','通話済み(継続)','査定依頼','佐野')]},
-    {id:'c013',type:'売り',name:'森田 直樹',phone:'090-3456-2109',email:'morita@gmail.com',address:'吹田市千里山東1-5',note:'買い替えのため売却 4LDK 同時決済希望',status:'媒介中',staffUid:'tominaga',source:'紹介',nextContact:'2026-05-01',ts:0,history:[mkH2('2026-04-10','来店','通話済み(継続)','買い替え相談','冨永'),mkH2('2026-04-18','査定','通話済み(継続)','4500万提示','冨永'),mkH2('2026-04-24','来店','通話済み(継続)','媒介契約締結','冨永')]},
-    {id:'c014',type:'売り',name:'上田 慎吾',phone:'080-4567-3210',email:'ueda@softbank.ne.jp',address:'茨木市上野町1-25',note:'転勤のため売却 2LDK 築15年',status:'他決',staffUid:'yoshimura',source:'スーモ',nextContact:'',ts:0,history:[mkH2('2026-04-15','架電','通話済み(継続)','急ぎ売却希望','芳村'),mkH2('2026-04-20','架電','断られた','他社で媒介契約済み','芳村')]},
-  ];
+  customers=[];
 }
 
 function render(){if(document.getElementById('page-cal')?.classList.contains('on'))renderCalNav();renderPeriod();renderFilterPills();renderKPI();renderTodoStrip();if(layoutMode==='both'){renderCal();if(curV!=='day')renderPoolPreview();}renderTaskBoard();const mi=singleMi()>=0?singleMi():0;const memoEl=document.getElementById('memo');if(memoEl)memoEl.value=state.memo[mi]||'';}
@@ -2965,7 +2950,7 @@ function showAddCustomerModal(){
   mttlAfter(bg,`
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
       <div><div class="mflbl">顧客名 *</div><input class="mfinp" id="ac-name" placeholder="山田 太郎"/></div>
-      <div><div class="mflbl">電話番号</div><input class="mfinp" id="ac-phone" placeholder="090-0000-0000" type="tel"/></div>
+// removed hardcoded phone-like sample
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px">
       <div><div class="mflbl">種別 *</div>
