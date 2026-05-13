@@ -797,12 +797,15 @@ body.task-dragging [data-id]:not(.dragging-this){opacity:1!important}
     <div class="bn-tab-wrap" onclick="switchPage('crm')"><button class="bn-tab" data-bnpg="crm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>顧客</button></div>
   </nav>
 </div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 // ═══════════════════════════════════════
 // Supabase 連携
 // ═══════════════════════════════════════
 const SB_URL = 'https://roybwsamxrklvoxyduxg.supabase.co';
 const SB_KEY = 'sb_publishable_Nj0MUR1p-VYGYsF39tnkXA_j7c-5xfm';
+
+const sb = window.supabase.createClient(SB_URL, SB_KEY);
 
 async function sbGet(table, params='') {
   const r = await fetch(`${SB_URL}/rest/v1/${table}?${params}`, {
@@ -1153,11 +1156,11 @@ function mkEvs(mi){return [];const pats_disabled=[[{t:'朝礼',cat:'社内MTG',d
 function mkShiftData(){const{y,m}=shiftMo;const dim=new Date(y,m+1,0).getDate(),res={};members.forEach((mem,mi)=>{res[mem.uid]={};for(let d=1;d<=dim;d++){const dow=new Date(y,m,d).getDay();res[mem.uid][d]='work';}const extras=[[[3,'off'],[4,'off'],[10,'paid'],[14,'overtime'],[21,'noOt']],[[3,'off'],[4,'off'],[9,'paid'],[18,'overtime'],[22,'noOt']],[[3,'paid'],[10,'off'],[11,'off'],[17,'overtime'],[25,'noOt']],[[4,'off'],[15,'paid'],[20,'overtime'],[23,'noOt']],[[4,'off'],[11,'paid'],[16,'overtime'],[24,'noOt']]];(extras[Math.min(mi,4)]||[]).forEach(([d,s])=>{if(d<=dim&&!isHol(y,m,d))res[mem.uid][d]=s;});});return res;}
 const state={events:members.map((_,i)=>mkEvs(i)),todos:members.map(()=>[]),memo:members.map(()=>''),tasks:[],nextId:1};
 let shiftData=mkShiftData();let progTab='count';
-function doLogin(){const uid=document.getElementById('fl-id').value.trim();const pass=document.getElementById('fl-pass').value;const acc=accounts.find(a=>a.uid===uid&&a.pass===pass);const err=document.getElementById('le');if(!acc){err.style.display='block';return;}err.style.display='none';currentUser=acc;localStorage.setItem('ht_session',acc.uid);showMainApp();}
+async function doLogin(){const email=document.getElementById('fl-id').value.trim();const pass=document.getElementById('fl-pass').value;const err=document.getElementById('le');try{const{data:authData,error:authErr}=await sb.auth.signInWithPassword({email,password:pass});if(authErr||!authData?.user){err.style.display='block';return;}const{data:prof,error:profErr}=await sb.from('profiles').select('*').eq('id',authData.user.id).maybeSingle();if(profErr||!prof){err.style.display='block';return;}err.style.display='none';currentUser={uid:prof.id,name:prof.name||'admin',role:prof.role||'admin',perm:prof.perm||'admin',c:prof.c||'#0a3d7c',inc:prof.inc||0,cut:prof.cut||0,personal:prof.personal!==false};showMainApp();}catch(e){err.style.display='block';}}
 document.getElementById('login-btn').onclick=doLogin;
 document.getElementById('fl-pass').onkeydown=e=>{if(e.key==='Enter')doLogin();};
 document.getElementById('fl-id').onkeydown=e=>{if(e.key==='Enter')document.getElementById('fl-pass').focus();};
-document.getElementById('logout-btn').onclick=()=>{currentUser=null;localStorage.removeItem('ht_session');if(clockTimer)clearInterval(clockTimer);document.getElementById('main-app').style.display='none';document.getElementById('login-screen').style.display='block';document.getElementById('bottom-nav').style.display='none';document.getElementById('fl-id').value='';document.getElementById('fl-pass').value='';document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));};
+document.getElementById('logout-btn').onclick=async()=>{try{await sb.auth.signOut();}catch(e){}currentUser=null;localStorage.removeItem('ht_session');if(clockTimer)clearInterval(clockTimer);document.getElementById('main-app').style.display='none';document.getElementById('login-screen').style.display='block';document.getElementById('bottom-nav').style.display='none';document.getElementById('fl-id').value='';document.getElementById('fl-pass').value='';document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));};
 function showMainApp(){
   document.getElementById('login-screen').style.display='none';
   document.getElementById('main-app').style.display='block';
@@ -3234,7 +3237,7 @@ showMainApp=function(){
 };
 // ログイン画面スキップ（復活させる時はこの行を削除）
 
-(async()=>{const _ss=localStorage.getItem('ht_session');if(_ss){try{const _accs=await sbGet('accounts','order=uid');if(_accs&&_accs.length>0){accounts.length=0;_accs.sort((a,b)=>{const o=['tochioka','yasumi','sano','tominaga','ban','yoshimura'];return(o.indexOf(a.uid)+99)%100-(o.indexOf(b.uid)+99)%100;}).forEach(a=>accounts.push({uid:a.uid,pass:a.pass,name:a.name,role:a.role,perm:a.perm,color:a.c,inc:a.inc||0,cut:a.cut||0,personal:a.personal}));const _a=accounts.find(a=>a.uid===_ss);if(_a){currentUser=_a;showMainApp();}}}catch(e){}}})();
+(async()=>{try{const{data:{session}}=await sb.auth.getSession();if(session?.user){const{data:prof}=await sb.from('profiles').select('*').eq('id',session.user.id).maybeSingle();if(prof){currentUser={uid:prof.id,name:prof.name||'admin',role:prof.role||'admin',perm:prof.perm||'admin',c:prof.c||'#0a3d7c',inc:prof.inc||0,cut:prof.cut||0,personal:prof.personal!==false};showMainApp();}}}catch(e){}})();
 </script>
 </body>
 </html>
