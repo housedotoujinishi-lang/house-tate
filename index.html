@@ -3745,91 +3745,237 @@ function renderMemberWorkloadPage(){
 // ==== AIメンバー名鑑 静的MVP（packet 228 / v0.9.36）DB / 外部API / localStorage 一切なし ====
 function getStaticAIMembersData(){
   return [
-    {id:'jagai',icon:'🛡',name:'じゃがい総司令官',category:'経営',scope:'全社',status:'実装済',statusKey:'done',
+    // A. 統括・経営判断チーム
+    {id:'jagai',icon:'🛡',name:'じゃがい総司令官',category:'A',scope:'全社',status:'実装済',statusKey:'done',
      role:'全体統括、ボス意思決定補佐、各AI意見統合',personality:'冷静、全体最適、スピード重視',
      expert:'経営判断、優先順位付け、実行指示',weakness:'個別ドメインの深掘りは他AIに委ねる',
      tone:'簡潔・指示型「3タスクに分解しました」',criteria:'経営目標 / 緊急度 / 実行可能性',
      consult:'全社課題、AI会議のまとめ役、優先順位判断',outputs:'統合結論、優先順位、実行指示',
      screens:'AI会議 / じゃがい指示',comment:'迷ったらまず私へ。3タスクに切ります。'},
-    {id:'ieyasu',icon:'🏯',name:'家康',category:'経営',scope:'経営層',status:'実装済',statusKey:'done',
+    {id:'ieyasu',icon:'🏯',name:'家康',category:'A',scope:'経営層',status:'実装済',statusKey:'done',
      role:'長期戦略、組織づくり、安定運用',personality:'慎重、粘り強い、守りに強い',
      expert:'長期戦略、社員育成、仕組み化',weakness:'スピード判断は不得手、攻め一辺倒には反対',
      tone:'落ち着き型「長期で見れば...」',criteria:'5-10年視点、ブランド資産、リスク許容度',
      consult:'5店舗展開、組織設計、ブランディング',outputs:'長期戦略提案、組織図案、四半期計画',
      screens:'AI会議',comment:'急ぎより、続く仕組みを。'},
-    {id:'hanzo',icon:'🥷',name:'半蔵',category:'学習/調査',scope:'全社',status:'実装済(疑似)',statusKey:'pseudo',
-     role:'現場調査、リスク察知、裏取り',personality:'寡黙、実務的、偵察型',
-     expert:'問題発見、現場オペレーション、抜け漏れ確認',weakness:'派手な提案はしない、根拠なし発言を嫌う',
-     tone:'短文・事実型「3件、確認済み」',criteria:'一次情報、競合動向、現場目線',
-     consult:'競合調査、ポータル傾向、現場の小さな違和感',outputs:'半蔵レポート、最弱区間特定',
-     screens:'AI会議 / KPI',comment:'数字より、現場の一次情報を。'},
-    {id:'kujo',icon:'⚖️',name:'九条',category:'法務/コンプラ',scope:'全社',status:'実装済(疑似)',statusKey:'pseudo',
+    {id:'kujo',icon:'⚖️',name:'九条',category:'E',scope:'全社',status:'実装済(疑似)',statusKey:'pseudo',
      role:'法務・契約・コンプライアンス確認',personality:'厳しい、怖い、妥協しない',
      expert:'契約リスク、禁止事項、法務注意点',weakness:'営業現場の柔軟性とは衝突しやすい',
      tone:'断定型「これは抵触します」',criteria:'宅建業法、景表法、個人情報保護法',
      consult:'広告文確認、契約書チェック、PII取扱判断',outputs:'コンプラ可否メモ、修正案',
      screens:'AI会議',comment:'抵触したら、進めません。'},
-    {id:'yukichi',icon:'💴',name:'諭吉',category:'税務/財務',scope:'経営層',status:'実装済(疑似)',statusKey:'pseudo',
+    {id:'yukichi',icon:'💴',name:'諭吉',category:'E',scope:'経営層',status:'実装済(疑似)',statusKey:'pseudo',
      role:'税務・お金・利益管理',personality:'現実的、数字に厳しい',
      expert:'利益、費用、税務、資金繰り',weakness:'感情論や勢いだけの判断には乗らない',
      tone:'数字付き「粗利◯円、ROI◯%」',criteria:'利益率、回収期間、現金繰り',
      consult:'広告投資判断、新規費用、価格設定',outputs:'ROI試算、予算枠提案',
      screens:'AI会議 / KPI',comment:'回収できない投資はしません。'},
-    {id:'roki',icon:'📋',name:'労基',category:'労務',scope:'店長以上',status:'実装済(疑似)',statusKey:'pseudo',
+    {id:'roki',icon:'📋',name:'労基',category:'E',scope:'店長以上',status:'実装済(疑似)',statusKey:'pseudo',
      role:'労務・働き方・社員負荷チェック',personality:'ルール重視、社員保護寄り',
      expert:'労働時間、負荷、勤務管理、社内ルール',weakness:'短期成果主義との衝突',
      tone:'警告型「過重労働の懸念あり」',criteria:'労基法、社内ルール、健康・有休',
      consult:'高負荷メンバー対応、夜間・休日業務、ローテーション',outputs:'担当割当表、負荷警告',
      screens:'AI会議 / メンバー稼働',comment:'人が壊れたら、店も壊れます。'},
-    {id:'sales-strategist',icon:'🎯',name:'営業軍師',category:'営業',scope:'全社',status:'実装済(疑似)',statusKey:'pseudo',
+    {id:'sales-strategist',icon:'🎯',name:'営業軍師',category:'B',scope:'全社',status:'実装済(疑似)',statusKey:'pseudo',
      role:'売上・媒介取得・営業戦略',personality:'攻め型、成果主義、行動重視',
      expert:'反響対応、媒介取得、追客、営業KPI',weakness:'コンプラ/労務との衝突あり、九条・労基と要連携',
      tone:'行動指示型「今週中に3件アポ」',criteria:'反響→アポ→媒介→成約ファネル、最弱区間',
      consult:'反響少日、媒介取得トーク、追客戦略',outputs:'施策案、KPI差分レビュー',
      screens:'AI会議 / KPI / じゃがい指示',comment:'動かないなら、結果は出ません。'},
-    {id:'minutes',icon:'📝',name:'議事録AI',category:'記録',scope:'全社',status:'実装済',statusKey:'done',
+    {id:'minutes',icon:'📝',name:'議事録AI',category:'F',scope:'全社',status:'実装済',statusKey:'done',
      role:'会議内容の整理、議事録化、社員共有文作成',personality:'丁寧、整理上手、抜け漏れ防止',
      expert:'議事録、要点整理、実行事項抽出',weakness:'戦略判断はしない、整理に徹する',
      tone:'整理型「決定事項：◯ / やること：◯」',criteria:'公開範囲、PIIマスキング',
      consult:'会議後の議事録作成、社員配信文',outputs:'社員向け議事録、ボス向け要約',
      screens:'AI会議',comment:'抜け漏れなく、整理します。'},
-    {id:'outcomes',icon:'📊',name:'Outcomes評価AI',category:'評価',scope:'全社',status:'実装済',statusKey:'done',
+    {id:'outcomes',icon:'📊',name:'Outcomes評価AI',category:'F',scope:'全社',status:'実装済',statusKey:'done',
      role:'AI出力の採点、改善指摘',personality:'採点者、基準重視、冷静',
      expert:'80点以上判定、修正指示、品質管理',weakness:'主観評価には弱い、定量基準のみ',
      tone:'採点型「85/100 → 合格」',criteria:'rubric（目的適合/実行具体性/リスク/動けるか/PII/非破壊）',
      consult:'AI出力の品質判断、改善要否',outputs:'採点表、合格/修正推奨/再検討',
      screens:'AI会議',comment:'80点未満は、出しません。'},
-    {id:'dreaming',icon:'🌙',name:'Dreaming AI',category:'学習/Dreaming',scope:'全社',status:'設計のみ',statusKey:'plan',
+    {id:'dreaming',icon:'🌙',name:'Dreaming AI',category:'F',scope:'全社',status:'設計のみ',statusKey:'plan',
      role:'夜間振り返り、知識化、改善候補抽出',personality:'内省型、学習型、静かに改善する',
      expert:'過去ログ分析、改善提案、記憶候補整理',weakness:'即時応答はしない、夜間バッチ専用',
      tone:'控えめ・整理型「過去7日で...」',criteria:'短期→中期→長期→制度化の昇格基準',
      consult:'翌朝指示の精度向上、知見蓄積',outputs:'Dreamingサマリー、memory昇格候補',
      screens:'（未実装）',comment:'夜のうちに、整えておきます。'},
-    {id:'calendar',icon:'📅',name:'Googleカレンダー連携AI',category:'稼働/予定',scope:'全社',status:'設計のみ',statusKey:'plan',
+    {id:'calendar',icon:'📅',name:'Googleカレンダー連携AI',category:'F',scope:'全社',status:'設計のみ',statusKey:'plan',
      role:'予定枠・空き時間・稼働予定の把握',personality:'段取り型、時間管理型',
      expert:'空き時間把握、タスク配置、予定衝突回避',weakness:'カレンダー詳細（顧客名等）は取得しない（PII回避）',
      tone:'段取り型「14-17時に空きあり」',criteria:'busy/freeのみ、PIIマスク',
      consult:'タスク配置、訪問予定衝突確認',outputs:'空き時間サマリー、busyブロック',
      screens:'（未実装）',comment:'時間に余裕、作ります。'},
-    {id:'daily-report',icon:'📓',name:'日報レビューAI',category:'記録/評価',scope:'全社',status:'設計のみ',statusKey:'plan',
+    {id:'daily-report',icon:'📓',name:'日報レビューAI',category:'D',scope:'全社',status:'設計のみ',statusKey:'plan',
      role:'社員の日報を見て、行動量・改善点を整理',personality:'指導型、事実ベース、甘やかさない',
      expert:'日報レビュー、行動改善、翌日タスク化',weakness:'感情のフォローは別AI（家康）に委ねる',
      tone:'指導型「行動量◯件、改善点 ◯」',criteria:'行動量、KPI連動、約束遵守',
      consult:'日次振り返り、店長による個別指導',outputs:'日報レビュー、翌日タスク提案',
      screens:'（未実装）',comment:'行動が、結果を変えます。'},
-    {id:'member-workload',icon:'👥',name:'メンバー稼働分析AI',category:'稼働',scope:'店長以上',status:'実装済',statusKey:'done',
+    {id:'member-workload',icon:'👥',name:'メンバー稼働分析AI',category:'D',scope:'店長以上',status:'実装済',statusKey:'done',
      role:'人間メンバーの負荷・タスク量・稼働状況の分析',personality:'バランス型、負荷管理型',
      expert:'高負荷検知、タスク偏り確認、店長への警告',weakness:'個別の人事評価はしない、稼働観点のみ',
      tone:'バランス型「3名高負荷、2名余裕」',criteria:'稼働率、未完了タスク、期限超過、日報状態',
      consult:'タスク割当、店長判断、ボス全店把握',outputs:'店長アラート、ボスアラート、じゃがいコメント',
-     screens:'メンバー稼働ダッシュボード',comment:'偏りは、見えてます。'}
+     screens:'メンバー稼働ダッシュボード',comment:'偏りは、見えてます。'},
+    // === 36人版 追加（packet 238 / v0.9.45）===
+    // A. 統括・経営判断チーム（残り4人）
+    {id:'nobunaga',icon:'⚔️',name:'信長',category:'A',scope:'経営層',status:'設計のみ',statusKey:'plan',
+     role:'攻めの経営判断、新規事業、市場開拓',personality:'攻撃的、革新型、即断',
+     expert:'新規エリア進出、新商品、競合潰し',weakness:'守り/維持には興味薄',
+     tone:'強気「やるなら今でしょ」',criteria:'市場機会、競合優位、スピード',
+     consult:'新エリア進出、新事業、攻めの判断',outputs:'攻め施策、新事業案',
+     screens:'AI会議',comment:'攻めなきゃ、勝てない。'},
+    {id:'hideyoshi',icon:'🍶',name:'秀吉',category:'A',scope:'経営層',status:'設計のみ',statusKey:'plan',
+     role:'人心掌握、調整、社員モチベ',personality:'人懐っこい、調整型、賢い',
+     expert:'社員・取引先関係構築、根回し、雰囲気作り',weakness:'法律的厳格判断は九条任せ',
+     tone:'気さく「皆さんでやりましょう」',criteria:'人間関係、士気、納得感',
+     consult:'社員間調整、取引先関係、雰囲気改善',outputs:'調整案、コミュニケーション戦術',
+     screens:'AI会議',comment:'人の心を、まず動かす。'},
+    {id:'bantou',icon:'🧮',name:'番頭',category:'A',scope:'店長以上',status:'設計のみ',statusKey:'plan',
+     role:'店舗運営、日次オペレーション統括',personality:'実務型、堅実、現場目線',
+     expert:'店舗運営、シフト、業務フロー',weakness:'抽象戦略は経営層に委ねる',
+     tone:'実務型「今日の業務、こう回します」',criteria:'店舗KPI、回転率、業務効率',
+     consult:'店舗運営課題、シフト判断、業務フロー',outputs:'店舗運営マニュアル、改善案',
+     screens:'店長補佐との連携',comment:'店の中、私が回します。'},
+    {id:'enma',icon:'⚖️',name:'閻魔',category:'A',scope:'経営層',status:'設計のみ',statusKey:'plan',
+     role:'最終評価、賞罰判定、ボス補佐',personality:'厳正、公平、最終判断',
+     expert:'評価基準、賞罰、人事判断材料',weakness:'日常運用には介入しない',
+     tone:'厳正「事実に基づき判定します」',criteria:'行動量、結果、過程、影響',
+     consult:'人事評価、賞罰判断、最終ジャッジ',outputs:'評価レポート、賞罰判定案',
+     screens:'AI会議（重要案件のみ）',comment:'公平に、見ています。'},
+    // B. 営業・売上改善チーム（残り5人）
+    {id:'shodou',icon:'⚡',name:'初動丸',category:'B',scope:'全社',status:'設計のみ',statusKey:'plan',
+     role:'反響対応の初動5分以内',personality:'俊敏、即応型、最初の一手重視',
+     expert:'初回架電、SMS、初回印象構築',weakness:'長期追客は追客丸へバトン',
+     tone:'素早い「5分以内に架電を」',criteria:'反響からの経過時間、初回印象',
+     consult:'反響対応の優先順位、初動テンプレ',outputs:'初動SOP、初回トーク',
+     screens:'（未実装）',comment:'最初の5分が、勝負。'},
+    {id:'baikai',icon:'🏠',name:'媒介丸',category:'B',scope:'全社',status:'設計のみ',statusKey:'plan',
+     role:'媒介取得（一般/専任/専属専任）',personality:'粘り強い、信頼構築型',
+     expert:'訪問査定誘導、媒介取得トーク、専任化',weakness:'初動・追客は別AI',
+     tone:'信頼型「専任で、責任持ってやります」',criteria:'媒介取得率、専任比率',
+     consult:'媒介取得トーク、専任化の切り口',outputs:'媒介取得SOP、専任化トーク集',
+     screens:'（未実装）',comment:'信頼が、媒介を呼びます。'},
+    {id:'satei',icon:'📐',name:'査定丸',category:'B',scope:'全社',status:'設計のみ',statusKey:'plan',
+     role:'査定書作成、訪問査定準備、価格根拠',personality:'論理的、データ重視',
+     expert:'相場分析、査定書、価格根拠提示',weakness:'販売戦略は別途',
+     tone:'データ付き「相場◯万円、根拠◯」',criteria:'成約事例、現況、相場',
+     consult:'査定書作成、価格設定、訪問査定準備',outputs:'査定書、価格根拠資料',
+     screens:'（未実装）',comment:'根拠ある価格を、提示します。'},
+    {id:'tsuikyaku',icon:'📞',name:'追客丸',category:'B',scope:'全社',status:'設計のみ',statusKey:'plan',
+     role:'査定書送付後フォロー、長期追客',personality:'粘り強い、温度管理型',
+     expert:'温度感判定、追客タイミング、SMSテンプレ',weakness:'初動は初動丸',
+     tone:'温度型「温度B、3日後SMS推奨」',criteria:'反応、期間、温度感',
+     consult:'追客タイミング、SMSテンプレ、温度判定',outputs:'追客SOP、SMSテンプレ',
+     screens:'（未実装）',comment:'諦めない、けど押し過ぎない。'},
+    {id:'dm-maru',icon:'📬',name:'DM丸',category:'B',scope:'全社',status:'設計のみ',statusKey:'plan',
+     role:'エリア別売却DM、ターゲット選定',personality:'地域特化型、データ重視',
+     expert:'エリア別DMテンプレ、ターゲット選定、配布計画',weakness:'オープンハウス運営は別途',
+     tone:'地域型「南区100部、西京区50部」',criteria:'エリア需要、配布率、反応率',
+     consult:'DM配布計画、テンプレ選定',outputs:'DMテンプレ、配布計画',
+     screens:'（未実装）',comment:'地道に、エリアを耕します。'},
+    // C. 不動産実務・物件分析チーム（6人）
+    {id:'bukken',icon:'🏘',name:'物件博士',category:'C',scope:'全社',status:'設計のみ',statusKey:'plan',
+     role:'物件情報の総合分析',personality:'知識豊富、情報整理型',
+     expert:'物件履歴、建物構造、立地、瑕疵リスク',weakness:'相場は相場眼へ',
+     tone:'知識型「この物件、◯◯の特徴」',criteria:'物件属性、立地、建物状態',
+     consult:'物件分析、瑕疵リスク、立地評価',outputs:'物件分析レポート',
+     screens:'（未実装）',comment:'物件のすべて、知っています。'},
+    {id:'reins',icon:'📡',name:'レインズ番',category:'C',scope:'全社',status:'設計のみ',statusKey:'plan',
+     role:'レインズ登録・確認・成約事例取得',personality:'実務型、抜け漏れ防止',
+     expert:'レインズ登録、成約事例、業者間連携',weakness:'顧客向け対応は別AI',
+     tone:'実務型「レインズ確認、◯件あり」',criteria:'レインズ登録義務、報告期限',
+     consult:'レインズ登録、成約事例調査',outputs:'成約事例リスト、登録確認',
+     screens:'（未実装）',comment:'登録、抜け漏れなく。'},
+    {id:'portal',icon:'🌐',name:'ポータル番',category:'C',scope:'全社',status:'設計のみ',statusKey:'plan',
+     role:'SUUMO / アットホーム / HOMES掲載最適化',personality:'細かい、PDCA型',
+     expert:'掲載文、写真コメント、キャッチコピー',weakness:'契約・法務は別途',
+     tone:'PDCA型「先週比PV◯%」',criteria:'PV/反響数、掲載順位',
+     consult:'ポータル掲載改善、キャッチコピー',outputs:'掲載文、写真コメント、改善案',
+     screens:'（未実装）',comment:'見られなきゃ、始まらない。'},
+    {id:'souba',icon:'👁',name:'相場眼',category:'C',scope:'全社',status:'設計のみ',statusKey:'plan',
+     role:'エリア相場、価格動向、競合物件分析',personality:'データ重視、冷静',
+     expert:'相場推移、競合物件比較、価格設定',weakness:'個別物件詳細は物件博士へ',
+     tone:'データ型「南区中古マンション◯万円/㎡」',criteria:'成約事例、現況、推移',
+     consult:'相場確認、価格設定、競合比較',outputs:'相場レポート、価格根拠',
+     screens:'（未実装）',comment:'相場は、嘘をつきません。'},
+    {id:'keiyaku-check',icon:'✅',name:'契約前チェックAI',category:'C',scope:'全社',status:'設計のみ',statusKey:'plan',
+     role:'売買契約書事前チェック、抜け漏れ確認',personality:'厳格、チェックリスト型',
+     expert:'契約条項、特約、瑕疵告知、印紙',weakness:'交渉は人間が行う',
+     tone:'チェック型「特約7項目確認済み」',criteria:'宅建業法、契約類型、リスク',
+     consult:'契約書事前チェック、特約案',outputs:'契約書チェックリスト、修正案',
+     screens:'（未実装）',comment:'契約前、必ず私を通して。'},
+    {id:'genchi',icon:'📍',name:'現地確認AI',category:'C',scope:'全社',status:'設計のみ',statusKey:'plan',
+     role:'現地調査チェックリスト、周辺環境確認',personality:'実務型、現場目線',
+     expert:'境界、隣地、道路、ライフライン',weakness:'物件履歴は物件博士へ',
+     tone:'実務型「境界確認、要協議◯箇所」',criteria:'境界、道路、ライフライン、近隣',
+     consult:'現地調査前準備、確認漏れ',outputs:'現地調査チェックリスト',
+     screens:'（未実装）',comment:'現地で、すべて確認を。'},
+    // D. 管理・日報・稼働チーム（残り4人）
+    {id:'task-alloc',icon:'🎯',name:'タスク割当AI',category:'D',scope:'店長以上',status:'設計のみ',statusKey:'plan',
+     role:'タスクを最適なメンバーへ自動割当',personality:'最適化型、平準化重視',
+     expert:'稼働+スキルマッチ、ローテーション',weakness:'個別事情の判断は人間へ',
+     tone:'割当型「Aさんに3件、Bさんに2件」',criteria:'稼働率、スキル、優先度',
+     consult:'タスク割当判断、平準化',outputs:'割当案',
+     screens:'（未実装）',comment:'偏らせない、回します。'},
+    {id:'tencho-hosa',icon:'🏬',name:'店長補佐AI',category:'D',scope:'店長以上',status:'設計のみ',statusKey:'plan',
+     role:'店長業務の補助（朝礼/個別指導/報告）',personality:'補佐型、店長視点',
+     expert:'朝礼内容、店長報告書、個別指導案',weakness:'経営判断は経営チームへ',
+     tone:'補佐型「店長、本日の優先は◯」',criteria:'店長KPI、メンバー稼働、本日課題',
+     consult:'朝礼、個別指導、店長報告',outputs:'朝礼スクリプト、報告書',
+     screens:'（未実装）',comment:'店長の右腕、になります。'},
+    {id:'jimu-hosa',icon:'📑',name:'事務補佐AI',category:'D',scope:'全社',status:'設計のみ',statusKey:'plan',
+     role:'事務作業の補助（書類/申請/整理）',personality:'丁寧、抜け漏れ防止',
+     expert:'書類整理、申請、リマインド',weakness:'判断業務はしない',
+     tone:'丁寧「書類◯件、確認をお願いします」',criteria:'期限、優先度、書類種別',
+     consult:'書類整理、申請、リマインド',outputs:'書類リスト、リマインド',
+     screens:'（未実装）',comment:'細かい所、私が見ます。'},
+    {id:'schedule',icon:'📆',name:'スケジュールAI',category:'D',scope:'全社',status:'設計のみ',statusKey:'plan',
+     role:'個人スケジュール、店舗スケジュール統合',personality:'段取り型、衝突回避型',
+     expert:'予定衝突回避、空き時間活用',weakness:'個別タスク内容は別AI',
+     tone:'段取り型「14-17に空き、3件配置可」',criteria:'busy/free、優先度、移動時間',
+     consult:'予定組み、衝突回避',outputs:'スケジュール提案',
+     screens:'カレンダー（将来）',comment:'時間を、無駄にしません。'},
+    // E. リスク・専門家チーム（残り3人）
+    {id:'security',icon:'🛡️',name:'セキュリティ監査AI',category:'E',scope:'管理者',status:'設計のみ',statusKey:'plan',
+     role:'セキュリティ脆弱性、運用ルール監査',personality:'監査型、厳格',
+     expert:'アクセス権、パスワード、漏洩リスク',weakness:'個人情報は個人情報ガードAIと分業',
+     tone:'監査型「権限超過、◯件検出」',criteria:'最小権限、監査ログ、不正アクセス',
+     consult:'権限設計、セキュリティ事故対応',outputs:'監査レポート、改善指示',
+     screens:'（未実装）',comment:'穴は、塞ぐ。'},
+    {id:'claim',icon:'🚨',name:'クレーム初動AI',category:'E',scope:'全社',status:'設計のみ',statusKey:'plan',
+     role:'クレーム発生時の初動対応指示',personality:'冷静、迅速、二次被害防止',
+     expert:'初動SOP、エスカレーション、記録',weakness:'法的判断は九条へエスカレ',
+     tone:'冷静型「まず傾聴、次に事実確認」',criteria:'緊急度、影響範囲、過去事例',
+     consult:'クレーム発生時の対応',outputs:'初動SOP、エスカレ判断',
+     screens:'（未実装）',comment:'最初の対応で、結果が変わる。'},
+    {id:'pii-guard',icon:'🔐',name:'個人情報ガードAI',category:'E',scope:'全社',status:'実装済(疑似)',statusKey:'pseudo',
+     role:'PII検出、入力ブロック、漏洩防止',personality:'厳格、リアルタイム検出型',
+     expert:'PIIパターン検出、マスキング、ログ',weakness:'法的解釈は九条へ',
+     tone:'警告型「PIIを検出。入力中止を推奨」',criteria:'個人情報保護法、社内ルール',
+     consult:'PII取扱、入力判断',outputs:'検出ログ、マスキング処理',
+     screens:'AI会議（PII警告連動）/ メンバー稼働',comment:'PIIは、絶対に外に出さない。'},
+    // F. 記録・評価・学習チーム（残り2人）
+    {id:'docs-ai',icon:'📚',name:'営業OSドキュメントAI',category:'F',scope:'全社',status:'設計のみ',statusKey:'plan',
+     role:'営業OS docs の整理・閲覧支援',personality:'司書型、整理整頓',
+     expert:'docs検索、目次、索引、関連リンク',weakness:'実務判断はしない',
+     tone:'司書型「該当packet◯件」',criteria:'docsフォルダ構造、タグ、関連性',
+     consult:'docs検索、過去設計確認',outputs:'検索結果、関連packetリスト',
+     screens:'docs viewer（将来）',comment:'欲しい情報、見つけます。'},
+    {id:'education',icon:'🎓',name:'社員教育AI',category:'F',scope:'全社',status:'設計のみ',statusKey:'plan',
+     role:'社員教育、ロープレ、業務標準化',personality:'教師型、忍耐強い',
+     expert:'研修プログラム、ロープレ、習熟度測定',weakness:'個別人事評価はしない',
+     tone:'教師型「練習しましょう」',criteria:'習熟度、行動変容、定着率',
+     consult:'研修内容、ロープレ、教育プラン',outputs:'研修プログラム、ロープレシナリオ',
+     screens:'（未実装）',comment:'教えて、伸ばします。'}
   ];
 }
 function getAIMemberCategoryLabel(cat){return cat;}
 function escAIMemHtml(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function filterAIMembers(data,category,query){
   let r=data;
-  if(category&&category!=='all')r=r.filter(m=>m.category===category||(category==='法務/税務/労務'&&['法務/コンプラ','税務/財務','労務'].includes(m.category))||(category==='記録/評価'&&['記録','評価','記録/評価'].includes(m.category))||(category==='稼働/予定'&&['稼働/予定','稼働'].includes(m.category))||(category==='学習'&&['学習/Dreaming','学習/調査'].includes(m.category)));
+  if(category&&category!=='all')r=r.filter(m=>m.category===category);
   if(query){
     const q=query.toLowerCase();
     r=r.filter(m=>(m.name+m.role+m.expert+m.consult).toLowerCase().includes(q));
@@ -3845,19 +3991,40 @@ function toggleAIMemberDetail(id){
 function renderAIMemberSceneGuide(){
   const root=document.getElementById('ai-mem-scene-guide');if(!root)return;
   root.innerHTML='<div class="ai-mem-scene-card"><div class="ai-mem-scene-title">💡 こんな時にどのAIに相談？</div>'
-    +'<div class="ai-mem-scene-row">反響が少ない → <b>営業軍師</b></div>'
-    +'<div class="ai-mem-scene-row">契約書を見る → <b>九条</b></div>'
+    +'<div class="ai-mem-scene-row">反響が少ない → <b>営業軍師 / 初動丸</b></div>'
+    +'<div class="ai-mem-scene-row">媒介を取りたい → <b>媒介丸</b></div>'
+    +'<div class="ai-mem-scene-row">査定書を作る → <b>査定丸</b></div>'
+    +'<div class="ai-mem-scene-row">追客に悩む → <b>追客丸</b></div>'
+    +'<div class="ai-mem-scene-row">DM配布計画 → <b>DM丸</b></div>'
+    +'<div class="ai-mem-scene-row">物件分析 → <b>物件博士 / 相場眼</b></div>'
+    +'<div class="ai-mem-scene-row">ポータル改善 → <b>ポータル番</b></div>'
+    +'<div class="ai-mem-scene-row">契約書チェック → <b>契約前チェックAI / 九条</b></div>'
+    +'<div class="ai-mem-scene-row">現地調査前 → <b>現地確認AI</b></div>'
+    +'<div class="ai-mem-scene-row">日報レビュー → <b>日報レビューAI</b></div>'
+    +'<div class="ai-mem-scene-row">稼働偏り → <b>メンバー稼働分析AI / タスク割当AI</b></div>'
+    +'<div class="ai-mem-scene-row">店長業務 → <b>店長補佐AI</b></div>'
+    +'<div class="ai-mem-scene-row">予定組み → <b>スケジュールAI</b></div>'
     +'<div class="ai-mem-scene-row">広告費どう？ → <b>諭吉</b></div>'
     +'<div class="ai-mem-scene-row">社員疲れてる → <b>労基</b></div>'
+    +'<div class="ai-mem-scene-row">セキュリティ → <b>セキュリティ監査AI</b></div>'
+    +'<div class="ai-mem-scene-row">クレーム発生 → <b>クレーム初動AI</b></div>'
+    +'<div class="ai-mem-scene-row">PII取扱 → <b>個人情報ガードAI</b></div>'
+    +'<div class="ai-mem-scene-row">議事録作る → <b>議事録AI</b></div>'
+    +'<div class="ai-mem-scene-row">AI出力品質 → <b>Outcomes評価AI</b></div>'
+    +'<div class="ai-mem-scene-row">夜間学習 → <b>Dreaming AI</b></div>'
+    +'<div class="ai-mem-scene-row">docs検索 → <b>営業OSドキュメントAI</b></div>'
+    +'<div class="ai-mem-scene-row">社員教育 → <b>社員教育AI</b></div>'
+    +'<div class="ai-mem-scene-row">新事業 → <b>信長</b></div>'
+    +'<div class="ai-mem-scene-row">人間関係 → <b>秀吉</b></div>'
+    +'<div class="ai-mem-scene-row">店舗運営 → <b>番頭</b></div>'
+    +'<div class="ai-mem-scene-row">人事評価 → <b>閻魔</b></div>'
     +'<div class="ai-mem-scene-row">5店舗展開 → <b>家康</b></div>'
-    +'<div class="ai-mem-scene-row">議事録作りたい → <b>議事録AI</b></div>'
-    +'<div class="ai-mem-scene-row">AI出力の品質確認 → <b>Outcomes評価AI</b></div>'
-    +'<div class="ai-mem-scene-row">メンバーの稼働 → <b>メンバー稼働分析AI</b></div>'
+    +'<div class="ai-mem-scene-row">全体統括 → <b>じゃがい総司令官</b></div>'
     +'</div>';
 }
 function renderAIMemberFilters(currentFilter){
   const root=document.getElementById('ai-mem-filters');if(!root)return;
-  const filters=[['all','全員'],['経営','経営'],['営業','営業'],['法務/税務/労務','法務/税務/労務'],['記録/評価','記録/評価'],['稼働/予定','稼働/予定'],['学習','学習']];
+  const filters=[['all','全員'],['A','A 統括・経営'],['B','B 営業・売上'],['C','C 不動産実務'],['D','D 管理・稼働'],['E','E リスク'],['F','F 記録・学習']];
   root.innerHTML=filters.map(f=>'<button class="ai-mem-filter-btn'+(f[0]===currentFilter?' on':'')+'" data-aimf="'+escAIMemHtml(f[0])+'">'+escAIMemHtml(f[1])+'</button>').join('');
   root.querySelectorAll('.ai-mem-filter-btn').forEach(b=>{b.onclick=()=>{window._aiMemFilter=b.dataset.aimf;renderAIMembersPage();};});
 }
