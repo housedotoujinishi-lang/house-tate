@@ -767,7 +767,7 @@ body.task-dragging [data-id]:not(.dragging-this){opacity:1!important}
       <div class="shlegend"><div class="slg"><div class="slgc" style="background:var(--navy-lt2);color:var(--navy);border-color:var(--navy)">出</div>出勤</div><div class="slg"><div class="slgc" style="background:var(--gold-lt2);color:#856900;border-color:var(--gold2)">半</div>半日</div><div class="slg"><div class="slgc" style="background:#ffe0b2;color:#e65100;border-color:#ff9800">残</div>残業</div><div class="slg"><div class="slgc" style="background:var(--gr-lt);color:#065f46;border-color:#10b981">有</div>有給</div><div class="slg"><div class="slgc" style="background:var(--gold-lt);color:#856900;border-color:var(--gold2)">定</div>ノー残業</div><div class="slg"><div class="slgc" style="background:var(--s3);color:var(--t3);border-color:var(--bo)">休</div>休み</div><div class="slg" style="margin-left:auto;font-size:9px;color:var(--t3)">クリックで切り替え</div></div>
     </div>
   </div>
-  <div class="page" id="page-crm">
+  <div class="page" id="page-crm" hidden>
     <div id="crm-content" style="padding:14px 16px"></div>
   </div>
   <div class="page" id="page-report">
@@ -794,7 +794,7 @@ body.task-dragging [data-id]:not(.dragging-this){opacity:1!important}
     <div class="bn-tab-wrap" style="position:relative" onclick="switchPage('cal')"><button class="bn-tab" data-bnpg="cal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>タスク</button><span class="bn-badge" id="bn-badge-cal" style="display:none"></span></div>
     <div class="bn-tab-wrap" onclick="switchPage('shift')"><button class="bn-tab" data-bnpg="shift"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>シフト</button></div>
     <div class="bn-tab-wrap" onclick="switchPage('goal')"><button class="bn-tab" data-bnpg="goal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>KPI</button></div>
-    <div class="bn-tab-wrap" onclick="switchPage('crm')"><button class="bn-tab" data-bnpg="crm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>顧客</button></div>
+    <div class="bn-tab-wrap" style="display:none" onclick="switchPage('crm')"><button class="bn-tab" data-bnpg="crm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>顧客</button></div>
   </nav>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -1177,8 +1177,8 @@ function showMainApp(){
   if(isHighPerm){rb.textContent=roleLabel;rb.style.cssText='background:var(--gold);color:var(--navy);padding:1px 6px;border-radius:7px;font-size:9px;font-weight:800';}
   else{rb.textContent='スタッフ';rb.style.cssText='background:rgba(255,255,255,.15);color:#fff;padding:1px 6px;border-radius:7px;font-size:9px;font-weight:700';}
   const tabs=isHighPerm
-    ?[['dash','🏠 ホーム'],['accounts','👑 管理'],['kintai','🕐 勤怠'],['cal','📅 カレンダー/タスク'],['shift','📋 シフト'],['goal','🎯 目標KPI'],['crm','👥 顧客管理'],['report','📊 月次レポート']]
-    :[['dash','🏠 ホーム'],['kintai','🕐 勤怠'],['cal','📅 カレンダー/タスク'],['shift','📋 シフト'],['goal','🎯 目標KPI'],['crm','👥 顧客管理']];
+    ?[['dash','🏠 ホーム'],['accounts','👑 管理'],['kintai','🕐 勤怠'],['cal','📅 カレンダー/タスク'],['shift','📋 シフト'],['goal','🎯 目標KPI'],['report','📊 月次レポート']]
+    :[['dash','🏠 ホーム'],['kintai','🕐 勤怠'],['cal','📅 カレンダー/タスク'],['shift','📋 シフト'],['goal','🎯 目標KPI']];
   tabs.forEach(([pg,lbl],idx)=>{
     const b=document.createElement('button');
     b.className='ntab'+(idx===0?' on':'');b.dataset.pg=pg;b.textContent=lbl;
@@ -1282,7 +1282,7 @@ bindEvForm();
   loadAllFromDB().then(()=>{
     switchPage(firstPg);
     if(document.getElementById('page-cal')?.classList.contains('on'))render();
-    if(document.getElementById('page-crm')?.classList.contains('on'))renderCRMPage();
+    // CRM page disabled (packet 138, v0.8.47): if(document.getElementById('page-crm')?.classList.contains('on'))renderCRMPage();
   });
   // スタッフはカレンダー初期表示
   if(!isHighPerm){
