@@ -5875,6 +5875,427 @@ function renderTodaySalesPsychologyWidget(){
   window.renderDash=function(){const r=orig.apply(this,arguments);try{renderTodaySalesPsychologyWidget();}catch(e){}return r;};
 })();
 // ==== ここまで packet 335 営業心理学マメ知識大辞典 ====
+
+// ==== packet 342 朝礼5分シリーズ 静的MVP ====
+const SP_MORNING_CHECK_LS_KEY='jagai_sales_psy_morning_check_ids';
+const SP_MORNING_LAST_DATE_LS_KEY='jagai_sales_psy_morning_last_date';
+function _spMorningCheckState(){
+  try{const x=JSON.parse(localStorage.getItem(SP_MORNING_CHECK_LS_KEY)||'{}');const today=new Date().toISOString().slice(0,10);if(x.date===today)return x;}catch(e){}
+  return {date:new Date().toISOString().slice(0,10),ids:[]};
+}
+function _spToggleMorningCheck(id){
+  const s=_spMorningCheckState();
+  if(s.ids.includes(id))s.ids=s.ids.filter(x=>x!==id);else s.ids.push(id);
+  try{localStorage.setItem(SP_MORNING_CHECK_LS_KEY,JSON.stringify(s));}catch(e){}
+  return s.ids.includes(id);
+}
+function _spMorningSeriesFor(t){
+  // 今日のテーマに対応する3ポイント / 問いかけ / 30秒ロープレ / 実践チェック を生成
+  return {
+    points:['ポイント1：'+t.oneLine,'ポイント2：'+t.howToUse,'ポイント3：'+t.todayAction],
+    question:'今日この心理学を、どんな場面で使えそうですか？',
+    rolePlay:{ng:t.ngExample,ok:t.okExample,scene:'OK 例を 30 秒で声に出して練習しましょう'},
+    todayChecks:[
+      {id:'mc-action',label:t.todayAction},
+      {id:'mc-ok',label:'OK 例を 1 回声に出して練習した'},
+      {id:'mc-applied',label:'今日の商談 / 架電 / 追客で実際に使った'}
+    ]
+  };
+}
+function renderMorningMeetingSection(){
+  const todayEl=document.getElementById('sp-today');if(!todayEl)return;
+  // 既存「今日のカード」の下に append
+  const old=document.getElementById('sp-morning-meeting');if(old)old.remove();
+  const t=_spTodayTip();
+  const series=_spMorningSeriesFor(t);
+  const state=_spMorningCheckState();
+  const e=_spEsc;
+  const div=document.createElement('div');
+  div.id='sp-morning-meeting';
+  div.style.cssText='background:#fff;border:2px solid #f59e0b;border-radius:8px;padding:12px;margin-bottom:12px;';
+  let h='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">'
+    +'<div style="font-size:13px;font-weight:800;color:#92400e;">📣 朝礼 5 分シリーズ（店長向け）</div>'
+    +'<div style="font-size:10px;color:#666;">本日テーマ：'+e(t.keyword)+'</div>'
+    +'</div>'
+    +'<div style="background:#fffbeb;padding:8px;border-radius:4px;margin-bottom:6px;"><div style="font-size:11px;color:#92400e;font-weight:700;">店長が話す 3 ポイント</div>'
+    +series.points.map(p=>'<div style="font-size:12px;margin-top:2px;">・'+e(p)+'</div>').join('')+'</div>'
+    +'<div style="background:#eff6ff;padding:8px;border-radius:4px;margin-bottom:6px;"><div style="font-size:11px;color:#1e40af;font-weight:700;">今日の問いかけ</div><div style="font-size:12px;margin-top:2px;">'+e(series.question)+'</div></div>'
+    +'<div style="background:#f0fdf4;padding:8px;border-radius:4px;margin-bottom:6px;"><div style="font-size:11px;color:#166534;font-weight:700;">30 秒ロープレ</div>'
+    +'<div style="font-size:11px;color:#b91c1c;margin-top:2px;">NG：'+e(series.rolePlay.ng)+'</div>'
+    +'<div style="font-size:11px;color:#166534;">OK：'+e(series.rolePlay.ok)+'</div>'
+    +'<div style="font-size:11px;color:#444;margin-top:2px;">'+e(series.rolePlay.scene)+'</div>'
+    +'</div>'
+    +'<div style="background:#fef3c7;padding:8px;border-radius:4px;"><div style="font-size:11px;color:#92400e;font-weight:700;">今日の実践チェック</div>';
+  series.todayChecks.forEach(c=>{
+    const k=t.id+':'+c.id;const checked=state.ids.includes(k);
+    h+='<label style="display:flex;align-items:center;gap:6px;font-size:12px;margin-top:4px;cursor:pointer;">'
+      +'<input type="checkbox" data-spmc="'+e(k)+'"'+(checked?' checked':'')+'>'+e(c.label)+'</label>';
+  });
+  h+='</div>'
+    +'<div style="margin-top:8px;display:flex;gap:8px;justify-content:flex-end;">'
+    +'<button onclick="showSalesPsyDetail(\''+e(t.id)+'\')" style="font-size:11px;padding:4px 10px;background:#0a3d7c;color:#fff;border:0;border-radius:4px;cursor:pointer;">カード詳細</button>'
+    +'</div>';
+  div.innerHTML=h;
+  todayEl.parentNode.insertBefore(div,todayEl.nextSibling);
+  div.querySelectorAll('[data-spmc]').forEach(cb=>{cb.onchange=()=>_spToggleMorningCheck(cb.dataset.spmc);});
+}
+(function patchRenderSalesPsychologyMorning(){
+  const orig=window.renderSalesPsychologyPage;if(typeof orig!=='function')return;
+  window.renderSalesPsychologyPage=function(){const r=orig.apply(this,arguments);try{renderMorningMeetingSection();}catch(e){}return r;};
+})();
+// ==== ここまで packet 342 朝礼5分シリーズ ====
+
+// ==== packet 344 あなたの担当秘書 AI ホーム widget ====
+function _personalSecretaryFor(u){
+  if(!u)return {sec:'未定',icon:'❓',role:'',phrase:'担当秘書 AI は未設定です。',note:''};
+  const map=getPersonalSecretaryMapping();
+  // 1. perm = admin/owner かつ name 一致なし → admin row
+  // 2. name 一致を優先
+  const byName=map.find(m=>m.ownerName===u.name);if(byName)return {sec:byName.secretary,icon:byName.secretaryIcon,role:byName.ownerRole,phrase:_secretaryPhrase(byName.secretary),note:byName.note};
+  if(u.perm==='admin'||u.perm==='owner'){const a=map.find(m=>m.ownerName==='admin');if(a)return {sec:a.secretary,icon:a.secretaryIcon,role:a.ownerRole,phrase:_secretaryPhrase(a.secretary),note:a.note};}
+  return {sec:'未設定',icon:'❓',role:u.role||'',phrase:'担当秘書 AI は未設定です。',note:''};
+}
+function _secretaryPhrase(name){
+  return ({
+    'ソルティ':'ボス判断に必要な情報を整理します。',
+    '加藤鷹':'店長として未完了と店舗全体を確認しましょう。',
+    '三上悠亜':'今日の反響と追客予定を先に処理しましょう。',
+    '紅音ほたる':'営業タスクの完了漏れを確認しましょう。',
+    '木村拓哉':'勤怠・書類・店舗連絡を整えましょう。',
+    '土方歳三':'未完了、抜け漏れ、危険操作を確認します。',
+    '未定':'担当秘書 AI は未設定です。'
+  })[name]||'本日もお疲れさまです。';
+}
+function renderPersonalSecretaryHomeWidget(){
+  const dash=document.getElementById('page-dash');if(!dash)return;
+  const old=dash.querySelector('.jagai-personal-secretary-widget');if(old)old.remove();
+  const s=_personalSecretaryFor(currentUser);
+  const e=_spEsc;
+  const wrap=document.createElement('div');
+  wrap.className='jagai-personal-secretary-widget';
+  wrap.style.cssText='margin:10px 14px;padding:12px;background:linear-gradient(135deg,#ecfdf5,#d1fae5);border-radius:8px;border-left:4px solid #10b981;';
+  wrap.innerHTML='<div style="font-size:11px;color:#065f46;font-weight:700;">👤 あなたの担当秘書 AI</div>'
+    +'<div style="font-size:15px;font-weight:800;color:#0a3d7c;margin-top:2px;">'+e(s.icon)+' '+e(s.sec)+'</div>'
+    +'<div style="font-size:11px;color:#444;margin-top:2px;">'+e(s.phrase)+'</div>'
+    +(s.note?'<div style="font-size:10px;color:#666;margin-top:2px;">ℹ '+e(s.note)+'</div>':'');
+  // 既存の中心6名 widget の前に挿入（widget 上部に配置）
+  const firstChild=dash.firstChild;
+  if(firstChild&&firstChild.nodeType===1){dash.insertBefore(wrap,firstChild);}else{dash.appendChild(wrap);}
+}
+(function patchRenderDashPersonalSecretary(){
+  const orig=window.renderDash;if(typeof orig!=='function')return;
+  window.renderDash=function(){const r=orig.apply(this,arguments);try{renderPersonalSecretaryHomeWidget();}catch(e){}return r;};
+})();
+// ==== ここまで packet 344 担当秘書 AI ホーム widget ====
+
+// ==== packet 343 + 345 ホーム司令塔化 + 役職別ホーム ====
+function _userKind(u){
+  if(!u)return 'unknown';
+  if(u.perm==='admin'||u.perm==='owner')return 'admin';
+  const role=u.role||'';
+  if(role.indexOf('店長')>=0)return 'manager';
+  if(role.indexOf('事務')>=0||role.indexOf('サポート')>=0)return 'support';
+  if(role.indexOf('エージェント')>=0)return 'agent';
+  return 'staff';
+}
+function renderCommandCenterHeader(){
+  const dash=document.getElementById('page-dash');if(!dash)return;
+  const old=dash.querySelector('.jagai-cmd-center-header');if(old)old.remove();
+  const kind=_userKind(currentUser);
+  const e=_spEsc;
+  // 役職別ラベル
+  const labels={admin:'🛡 全社司令塔ビュー',manager:'🏪 店舗司令塔ビュー',support:'🗂 サポート司令塔ビュー',agent:'⚡ エージェント司令塔ビュー',staff:'📋 スタッフビュー',unknown:''};
+  const hints={
+    admin:'全体状況・未完了・店舗運営・営業行動・コンプライアンス確認をここに集約',
+    manager:'エージェント未完了・追客漏れ・勤怠・店舗ルーティンを優先確認',
+    support:'勤怠・書類・契約準備・店舗連絡・ポータル掲載補助を優先',
+    agent:'反響・架電・追客・査定書・次回連絡を本日中に処理',
+    staff:''
+  };
+  const wrap=document.createElement('div');
+  wrap.className='jagai-cmd-center-header';
+  wrap.style.cssText='margin:10px 14px;padding:10px 12px;background:linear-gradient(135deg,#1e3a8a,#0a3d7c);color:#fff;border-radius:8px;';
+  wrap.innerHTML='<div style="font-size:11px;opacity:.85;">'+e(labels[kind]||'')+'</div>'
+    +'<div style="font-size:14px;font-weight:700;margin-top:2px;">'+e(currentUser?.name||'ゲスト')+' さん（'+e(currentUser?.role||'-')+'）</div>'
+    +'<div style="font-size:11px;opacity:.9;margin-top:4px;">'+e(hints[kind]||'')+'</div>';
+  // 担当秘書 widget の直後に挿入
+  const sec=dash.querySelector('.jagai-personal-secretary-widget');
+  if(sec)sec.parentNode.insertBefore(wrap,sec.nextSibling);else{const first=dash.firstChild;if(first)dash.insertBefore(wrap,first);else dash.appendChild(wrap);}
+}
+function renderRoleBasedFocusList(){
+  const dash=document.getElementById('page-dash');if(!dash)return;
+  const old=dash.querySelector('.jagai-role-focus-list');if(old)old.remove();
+  const kind=_userKind(currentUser);
+  const items={
+    admin:['全社未完了件数','ルーティン店舗全体完了率','店長確認待ち','勤怠修正件数','営業行動カウンター（全社）','九条鞍馬警告','AI 会議提案'],
+    manager:['エージェント別未完了','本日店舗ルーティン','勤怠修正待ち','追客漏れ','店長確認待ち','ルーティン完了率'],
+    agent:['本日の自分タスク','自分の本日ルーティン','新規反響確認','査定書作成','架電','SMS / LINE 追客','次回連絡予定','今日の営業心理学'],
+    support:['勤怠','書類確認','契約準備','店舗連絡','ポータル掲載補助','店舗ルーティン'],
+    staff:['本日タスク','本日ルーティン']
+  };
+  const list=items[kind]||[];
+  if(!list.length)return;
+  const e=_spEsc;
+  const wrap=document.createElement('div');
+  wrap.className='jagai-role-focus-list';
+  wrap.style.cssText='margin:10px 14px;padding:10px 12px;background:#fff;border:1px solid #e5e7eb;border-radius:8px;';
+  let h='<div style="font-size:11px;color:#666;font-weight:700;">📌 今日の優先確認</div>'
+    +'<ol style="font-size:12px;padding-left:18px;margin:6px 0 0;">'
+    +list.map(x=>'<li style="margin-bottom:2px;">'+e(x)+'</li>').join('')
+    +'</ol>'
+    +'<div style="font-size:10px;color:#888;margin-top:6px;">※ 各項目の数値表示は将来 packet で接続。現状は表示順序の確定のみ。</div>';
+  wrap.innerHTML=h;
+  const header=dash.querySelector('.jagai-cmd-center-header');
+  if(header)header.parentNode.insertBefore(wrap,header.nextSibling);
+  else dash.appendChild(wrap);
+}
+(function patchRenderDashCommand(){
+  const orig=window.renderDash;if(typeof orig!=='function')return;
+  window.renderDash=function(){const r=orig.apply(this,arguments);try{renderCommandCenterHeader();}catch(e){}try{renderRoleBasedFocusList();}catch(e){}return r;};
+})();
+// ==== ここまで packet 343 + 345 ====
+
+// ==== packet 347 営業行動カウンター 静的MVP ====
+const SA_COUNTER_LS_KEY='jagai_sales_action_counter';
+function _saCounters(){
+  return [
+    {id:'phone',label:'📞 架電',unit:'件'},
+    {id:'sms',label:'💬 SMS',unit:'通'},
+    {id:'line',label:'💚 LINE 追客',unit:'通'},
+    {id:'app',label:'📄 査定書作成',unit:'件'},
+    {id:'next',label:'📅 次回連絡登録',unit:'件'},
+    {id:'unhandled',label:'⚠ 未対応反響',unit:'件'},
+    {id:'nodate',label:'🗓 次回未設定',unit:'件'},
+    {id:'mandate',label:'🤝 媒介見込',unit:'件'}
+  ];
+}
+function _saState(){
+  try{const x=JSON.parse(localStorage.getItem(SA_COUNTER_LS_KEY)||'{}');const today=new Date().toISOString().slice(0,10);if(x.date===today)return x;}catch(e){}
+  return {date:new Date().toISOString().slice(0,10),counts:{}};
+}
+function _saSet(id,v){
+  const s=_saState();
+  if(v<0)v=0;
+  s.counts[id]=v;
+  try{localStorage.setItem(SA_COUNTER_LS_KEY,JSON.stringify(s));}catch(e){}
+}
+function renderSalesActionCounterWidget(targetContainerSelector,asAdmin){
+  const containers=document.querySelectorAll(targetContainerSelector);
+  containers.forEach(c=>{
+    const old=c.querySelector('.jagai-sa-counter');if(old)old.remove();
+    const s=_saState();const list=_saCounters();
+    const wrap=document.createElement('div');
+    wrap.className='jagai-sa-counter';
+    wrap.style.cssText='margin:10px 14px;padding:10px 12px;background:#fff;border:1px solid #e5e7eb;border-radius:8px;';
+    let h='<div style="display:flex;justify-content:space-between;align-items:center;"><div style="font-size:11px;font-weight:700;color:#666;">🎯 営業行動カウンター（'+(asAdmin?'全社':'自分')+'）</div>'
+      +'<button data-sareset="1" style="font-size:10px;padding:2px 8px;background:#fee2e2;color:#b91c1c;border:0;border-radius:4px;cursor:pointer;">本日リセット</button>'
+      +'</div>'
+      +'<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-top:6px;">';
+    list.forEach(it=>{
+      const v=s.counts[it.id]||0;
+      h+='<div style="display:flex;justify-content:space-between;align-items:center;border:1px solid #f1f5f9;padding:4px 6px;border-radius:4px;">'
+        +'<div style="font-size:11px;flex:1;">'+it.label+'</div>'
+        +'<button data-sadec="'+it.id+'" style="font-size:11px;padding:1px 6px;background:#f1f5f9;border:0;border-radius:3px;cursor:pointer;">−</button>'
+        +'<div style="font-size:13px;font-weight:700;color:#0a3d7c;min-width:24px;text-align:center;">'+v+'</div>'
+        +'<button data-sainc="'+it.id+'" style="font-size:11px;padding:1px 6px;background:#dbeafe;color:#1e40af;border:0;border-radius:3px;cursor:pointer;">＋</button>'
+        +'<div style="font-size:10px;color:#888;margin-left:3px;">'+it.unit+'</div>'
+        +'</div>';
+    });
+    h+='</div>'
+      +'<div style="font-size:10px;color:#888;margin-top:6px;">※ LocalStorage に件数のみ保存。顧客情報・氏名・電話番号は保存していません。</div>';
+    wrap.innerHTML=h;
+    c.appendChild(wrap);
+    wrap.querySelectorAll('[data-sainc]').forEach(b=>{b.onclick=()=>{const id=b.dataset.sainc;const s=_saState();_saSet(id,(s.counts[id]||0)+1);renderSalesActionCounterWidget(targetContainerSelector,asAdmin);};});
+    wrap.querySelectorAll('[data-sadec]').forEach(b=>{b.onclick=()=>{const id=b.dataset.sadec;const s=_saState();_saSet(id,Math.max(0,(s.counts[id]||0)-1));renderSalesActionCounterWidget(targetContainerSelector,asAdmin);};});
+    wrap.querySelector('[data-sareset]').onclick=()=>{if(!confirm('本日の営業行動カウンターをリセットしますか？'))return;try{localStorage.removeItem(SA_COUNTER_LS_KEY);}catch(e){}renderSalesActionCounterWidget(targetContainerSelector,asAdmin);};
+  });
+}
+(function patchRenderDashSalesAction(){
+  const orig=window.renderDash;if(typeof orig!=='function')return;
+  window.renderDash=function(){const r=orig.apply(this,arguments);try{const k=_userKind(currentUser);renderSalesActionCounterWidget('#page-dash',k==='admin'||k==='manager');}catch(e){}return r;};
+})();
+(function patchRenderTaskBoardSalesAction(){
+  const orig=window.renderTaskBoard;if(typeof orig!=='function')return;
+  window.renderTaskBoard=function(){const r=orig.apply(this,arguments);try{const k=_userKind(currentUser);renderSalesActionCounterWidget('#page-cal',k==='admin'||k==='manager');}catch(e){}return r;};
+})();
+// ==== ここまで packet 347 営業行動カウンター ====
+
+// ==== packet 346 ハウステイト実務ルーティンテンプレ 補強 ====
+// 既存 _getDefaultRoutineTemplates の追加項目を merge する
+function _hatateRoutineAddons(){
+  return {
+    daily:[
+      {id:'r-d-ht-1',title:'イエウール反響確認',target:'店舗全体',priority:'high',time:'09:00',duration:10,memo:'イエウール経由の新規反響'},
+      {id:'r-d-ht-2',title:'住まいステップ反響確認',target:'店舗全体',priority:'high',time:'09:05',duration:10,memo:''},
+      {id:'r-d-ht-3',title:'おうちクラベル反響確認',target:'店舗全体',priority:'high',time:'09:10',duration:10,memo:''},
+      {id:'r-d-ht-4',title:'未対応反響 0 確認',target:'店長',priority:'high',time:'17:30',duration:10,memo:''},
+      {id:'r-d-ht-5',title:'次回連絡日未設定チェック',target:'店長',priority:'high',time:'17:40',duration:10,memo:''},
+      {id:'r-d-ht-6',title:'査定書未送付チェック',target:'店長',priority:'high',time:'17:50',duration:10,memo:''},
+      {id:'r-d-ht-7',title:'明日の予定確認',target:'店舗全体',priority:'mid',time:'18:00',duration:5,memo:''}
+    ],
+    weekly:[
+      {id:'r-w-ht-1',title:'レインズ新規確認',target:'店長',priority:'high',weekday:1,memo:''},
+      {id:'r-w-ht-2',title:'価格変更候補確認',target:'店長',priority:'high',weekday:3,memo:''},
+      {id:'r-w-ht-3',title:'媒介取得見込整理',target:'店長',priority:'high',weekday:4,memo:''},
+      {id:'r-w-ht-4',title:'チラシ候補物件確認',target:'店舗全体',priority:'mid',weekday:2,memo:''}
+    ],
+    monthly:[
+      {id:'r-m-ht-1',title:'媒介数・反響数確認',target:'店長',priority:'high',day:1,memo:''},
+      {id:'r-m-ht-2',title:'未完了棚卸し',target:'店長',priority:'high',day:28,memo:''}
+    ],
+    flows:[
+      {id:'f-hanbai',title:'販売開始フロー',steps:['媒介締結','レインズ登録','ポータル掲載','写真撮影','図面作成','チラシ作成','SNS 投稿']},
+      {id:'f-keishou',title:'決済・引渡しフロー',steps:['残代金確認','ローン実行確認','登記書類準備','設備引継','鍵引渡','残置物確認','管理組合通知']},
+      {id:'f-kintai-fix',title:'勤怠修正フロー',steps:['修正前時刻確認','修正後時刻入力','修正理由記載','店長承認','事務確認','履歴保存']},
+      {id:'f-portal',title:'ポータル掲載フロー',steps:['物件情報入力','写真選定','キャッチコピー作成','SUUMO 掲載','アットホーム掲載','HOMES 掲載','掲載確認']},
+      {id:'f-tsuikyaku',title:'追客フロー',steps:['反響確認','即電話','SMS 送信','査定書送付','次回連絡予定','1-3-7-14 追客','温度感記録']},
+      {id:'f-price-change',title:'価格変更提案フロー',steps:['市況確認','成約事例確認','売主面談予約','根拠資料準備','価格変更提案','合意取得','レインズ・ポータル更新']}
+    ]
+  };
+}
+// _getDefaultRoutineTemplates を override：既存 + 追加分を merge
+(function patchGetDefaultRoutineTemplates(){
+  const orig=window._getDefaultRoutineTemplates;if(typeof orig!=='function')return;
+  window._getDefaultRoutineTemplates=function(){
+    const base=orig.apply(this,arguments);
+    const add=_hatateRoutineAddons();
+    return {
+      daily:[].concat(base.daily||[],add.daily||[]),
+      weekly:[].concat(base.weekly||[],add.weekly||[]),
+      monthly:[].concat(base.monthly||[],add.monthly||[]),
+      flows:[].concat(base.flows||[],add.flows||[])
+    };
+  };
+})();
+// ==== ここまで packet 346 ====
+
+// ==== packet 352 業務フロー → タスク一括展開 静的MVP ====
+const SP_FLOW_TASKS_LS_KEY='jagai_flow_generated_tasks_v1';
+function _flowTasksState(){
+  try{const x=JSON.parse(localStorage.getItem(SP_FLOW_TASKS_LS_KEY)||'{}');return x&&typeof x==='object'?x:{};}catch(e){return {};}
+}
+function _saveFlowTasksState(s){try{localStorage.setItem(SP_FLOW_TASKS_LS_KEY,JSON.stringify(s));}catch(e){}}
+function expandFlowToTasks(flowId){
+  const tmpl=getStaticRoutineTemplates();
+  const f=(tmpl.flows||[]).find(x=>x.id===flowId);if(!f){alert('対象フローが見つかりません。');return;}
+  const date=new Date().toISOString().slice(0,10);
+  const s=_flowTasksState();
+  if(!s[date])s[date]={};
+  if(!s[date][flowId])s[date][flowId]={title:f.title,tasks:[]};
+  // 既存タスクがあれば一旦初期化（重複防止）
+  s[date][flowId].tasks=f.steps.map((step,i)=>({id:flowId+'-'+date+'-'+(i+1),step:step,done:false,priority:i<2?'high':'mid'}));
+  _saveFlowTasksState(s);
+  alert('「'+f.title+'」を本日のタスクとして '+f.steps.length+' 件展開しました。タスクボードに表示されます。');
+  try{if(document.getElementById('page-cal')?.classList.contains('on'))renderTaskBoard();}catch(e){}
+  try{renderRoutinePage();}catch(e){}
+}
+function _toggleFlowTaskDone(date,flowId,taskId){
+  const s=_flowTasksState();
+  if(!s[date]||!s[date][flowId])return;
+  s[date][flowId].tasks=s[date][flowId].tasks.map(t=>t.id===taskId?Object.assign({},t,{done:!t.done}):t);
+  _saveFlowTasksState(s);
+}
+function renderFlowExpandedTasks(container){
+  if(!container)return;
+  const old=container.querySelector('.tb-flow-section');if(old)old.remove();
+  const date=new Date().toISOString().slice(0,10);
+  const s=_flowTasksState();const todayFlows=s[date]||{};
+  const keys=Object.keys(todayFlows);if(!keys.length)return;
+  const e=_spEsc;
+  const sec=document.createElement('div');sec.className='tb-flow-section';
+  sec.style.cssText='margin:10px 0;padding:10px;background:#fefce8;border:1px solid #fde68a;border-radius:6px;';
+  let h='<div style="font-size:12px;font-weight:700;color:#854d0e;">📂 本日の業務フロータスク</div>';
+  keys.forEach(flowId=>{
+    const fl=todayFlows[flowId];
+    const done=fl.tasks.filter(t=>t.done).length;const total=fl.tasks.length;
+    h+='<div style="margin-top:8px;background:#fff;border:1px solid #fde68a;border-radius:4px;padding:6px 8px;">'
+      +'<div style="font-size:12px;font-weight:700;color:#0a3d7c;">'+e(fl.title)+'（'+done+' / '+total+'）</div>';
+    fl.tasks.forEach(t=>{
+      const pri=t.priority==='high'?' style="color:#b91c1c;font-weight:700;"':'';
+      h+='<label style="display:flex;align-items:center;gap:6px;font-size:11px;margin-top:2px;cursor:pointer;'+(t.done?'opacity:0.5;text-decoration:line-through;':'')+'">'
+        +'<input type="checkbox" data-flowtask="'+e(flowId)+':'+e(t.id)+'"'+(t.done?' checked':'')+'>'
+        +'<span'+pri+'>'+e(t.step)+'</span></label>';
+    });
+    h+='</div>';
+  });
+  sec.innerHTML=h;
+  container.appendChild(sec);
+  sec.querySelectorAll('[data-flowtask]').forEach(cb=>{cb.onchange=()=>{const[flowId,taskId]=cb.dataset.flowtask.split(':');_toggleFlowTaskDone(date,flowId,taskId);if(document.getElementById('page-cal')?.classList.contains('on'))renderTaskBoard();};});
+}
+// ルーティン flows タブにタスク化ボタン差込
+(function patchRenderRoutinePageFlowExpand(){
+  const orig=window.renderRoutinePage;if(typeof orig!=='function')return;
+  window.renderRoutinePage=function(){
+    const r=orig.apply(this,arguments);
+    try{
+      const tab=window._routineTab||'today';
+      if(tab!=='flows')return r;
+      const contentEl=document.getElementById('routine-content');if(!contentEl)return r;
+      // 既存 flow card にタスク化ボタンを差込（一度だけ）
+      contentEl.querySelectorAll('.routine-flow-card').forEach(card=>{
+        if(card.querySelector('.routine-flow-expand-btn'))return;
+        // 対応 flow を逆引き：title 一致
+        const titleEl=card.querySelector('.routine-flow-title');
+        if(!titleEl)return;
+        const tmpl=getStaticRoutineTemplates();
+        const ttl=(titleEl.textContent||'').replace(/^📋 /,'').trim();
+        const f=(tmpl.flows||[]).find(x=>x.title===ttl);
+        if(!f)return;
+        const btn=document.createElement('button');
+        btn.className='routine-flow-expand-btn';
+        btn.style.cssText='margin-top:6px;font-size:11px;padding:4px 10px;background:#0a3d7c;color:#fff;border:0;border-radius:4px;cursor:pointer;';
+        btn.textContent='📋 本日のタスクに展開';
+        btn.onclick=()=>{if(!canEditRoutines(currentUser)){alert('展開権限がありません。');return;}expandFlowToTasks(f.id);};
+        card.appendChild(btn);
+      });
+    }catch(e){}
+    return r;
+  };
+})();
+// タスクボード末尾にフロー展開タスクを表示
+(function patchRenderTaskBoardFlow(){
+  const orig=window.renderTaskBoard;if(typeof orig!=='function')return;
+  window.renderTaskBoard=function(){const r=orig.apply(this,arguments);try{renderFlowExpandedTasks(document.getElementById('page-cal'));}catch(e){}return r;};
+})();
+// ==== ここまで packet 352 業務フロー一括展開 ====
+
+// ==== packet 348 勤怠修正履歴・理由欄 UI（静的MVP、表示枠のみ）====
+function renderKintaiEditHistoryWidget(){
+  const pg=document.getElementById('page-kintai');if(!pg)return;
+  const old=pg.querySelector('.jagai-kintai-edit-history');if(old)old.remove();
+  const u=currentUser;
+  const canFix=!!u&&(u.perm==='admin'||u.perm==='owner'||(u.role||'').match(/店長|事務|サポート/));
+  const e=_spEsc;
+  const wrap=document.createElement('div');
+  wrap.className='jagai-kintai-edit-history';
+  wrap.style.cssText='margin:14px 14px;padding:12px;background:#fff;border:1px solid #e5e7eb;border-radius:8px;';
+  let h='<div style="font-size:12px;font-weight:700;color:#666;">🕒 勤怠修正履歴・理由欄（静的 MVP）</div>'
+    +'<div style="font-size:10px;color:#888;margin-bottom:8px;">※ UI 枠のみ。実データ連携は将来 packet。個人情報は保存しません。</div>';
+  if(!canFix){
+    h+='<div style="font-size:11px;color:#b91c1c;padding:8px;background:#fef2f2;border-radius:4px;">あなたの権限では修正できません。修正申請のみ可能です。</div>'
+      +'<button style="margin-top:6px;font-size:11px;padding:4px 10px;background:#fef3c7;color:#92400e;border:0;border-radius:4px;cursor:pointer;" onclick="alert(\'修正申請機能は将来 packet で実装予定です。\');">📝 修正申請（将来）</button>';
+  }else{
+    h+='<table style="width:100%;font-size:11px;border-collapse:collapse;"><thead><tr style="background:#f1f5f9;"><th style="border:1px solid #e2e8f0;padding:4px;">日</th><th style="border:1px solid #e2e8f0;padding:4px;">修正前</th><th style="border:1px solid #e2e8f0;padding:4px;">修正後</th><th style="border:1px solid #e2e8f0;padding:4px;">理由</th><th style="border:1px solid #e2e8f0;padding:4px;">修正者</th><th style="border:1px solid #e2e8f0;padding:4px;">状態</th></tr></thead>'
+      +'<tbody><tr><td colspan="6" style="border:1px solid #e2e8f0;padding:8px;text-align:center;color:#888;">修正履歴はまだありません。実データ連携は将来 packet。</td></tr></tbody></table>'
+      +'<div style="font-size:11px;font-weight:700;color:#666;margin-top:12px;">勤怠修正フォーム（静的 UI 枠）</div>'
+      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px;">'
+      +'<label style="font-size:11px;">修正前時刻<input type="time" disabled style="width:100%;padding:4px;border:1px solid #ccc;border-radius:3px;"></label>'
+      +'<label style="font-size:11px;">修正後時刻<input type="time" disabled style="width:100%;padding:4px;border:1px solid #ccc;border-radius:3px;"></label>'
+      +'</div>'
+      +'<label style="font-size:11px;display:block;margin-top:6px;">修正理由（必須）<textarea disabled rows="2" placeholder="例：朝の打刻忘れ / システム不調 / 客先直行直帰" style="width:100%;padding:4px;border:1px solid #ccc;border-radius:3px;font-size:11px;"></textarea></label>'
+      +'<div style="display:flex;gap:6px;margin-top:6px;">'
+      +'<label style="font-size:11px;flex:1;">店長確認<select disabled style="width:100%;padding:4px;"><option>未確認</option><option>確認済</option></select></label>'
+      +'<label style="font-size:11px;flex:1;">事務確認<select disabled style="width:100%;padding:4px;"><option>未確認</option><option>確認済</option></select></label>'
+      +'</div>'
+      +'<button disabled style="margin-top:8px;font-size:11px;padding:6px 12px;background:#9ca3af;color:#fff;border:0;border-radius:4px;cursor:not-allowed;">💾 保存（将来 packet）</button>';
+  }
+  pg.appendChild(wrap);
+}
+(function patchSwitchPageKintaiEditHistory(){
+  const orig=window.switchPage;if(typeof orig!=='function')return;
+  window.switchPage=function(pg){const r=orig.apply(this,arguments);try{if(pg==='kintai')renderKintaiEditHistoryWidget();}catch(e){}return r;};
+})();
+// ==== ここまで packet 348 勤怠修正履歴 UI ====
 </script>
 </body>
 </html>
