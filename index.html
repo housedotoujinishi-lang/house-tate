@@ -3829,9 +3829,265 @@ function renderMemberWorkloadPage(){
 
 // ==== AIメンバー名鑑 静的MVP（packet 228 / v0.9.36）DB / 外部API / localStorage 一切なし ====
 function getStaticAIMembersData(){
+  // ==== 35 人最適編成版（packet 277 / v0.9.80）司令部6 / 秘書室4 / 営業9 / 制作7 / 開発6 + 外部ボード3 ====
   return [
-    // A. 統括・経営判断チーム
-    {id:'jagai',icon:'🛡',name:'じゃがい総司令官',category:'A',scope:'全社',status:'実装済',statusKey:'done',
+    // 司令部（6）
+    {id:'oda-nobunaga',icon:'⚔️',name:'織田信長',category:'cmd',scope:'経営層',status:'設計のみ',statusKey:'plan',
+     role:'最終優先順位 / TOP3決定 / 攻めの判断',personality:'攻撃的、革新型、即断、強気',
+     expert:'新規エリア進出、新事業、競合潰し、優先順位',weakness:'守り重視/維持',
+     tone:'強気「やるなら今でしょ」',criteria:'市場機会、競合優位、スピード',
+     consult:'攻めの判断、新エリア進出、TOP3決定',outputs:'優先順位TOP3、攻め施策、新事業案',
+     screens:'AI会議 / じゃがい指示',feature:'意思決定支援、優先順位提案',
+     comment:'攻めなきゃ、勝てない。中心6名。'},
+    {id:'toyotomi-hideyoshi',icon:'🍶',name:'豊臣秀吉',category:'cmd',scope:'全社',status:'実装済(疑似)',statusKey:'pseudo',
+     role:'営業司令塔 / 人心掌握',personality:'人懐っこい、調整型、賢い、根回し',
+     expert:'営業戦略統括、社員モチベ、取引先関係構築',weakness:'法律的厳格判断は九条任せ',
+     tone:'気さく「皆さんでやりましょう」',criteria:'人間関係、士気、納得感、営業KPI',
+     consult:'営業統括、社員間調整、取引先関係',outputs:'営業戦略案、調整案',
+     screens:'AI会議 / KPI / じゃがい指示',feature:'営業統括、初動5分対応、媒介取得',
+     comment:'人の心を、まず動かす。中心6名。'},
+    {id:'edison',icon:'💡',name:'トーマス・エジソン',category:'cmd',scope:'全社',status:'設計のみ',statusKey:'plan',
+     role:'開発・自動化司令塔',personality:'実験型、執念深い、量産思考',
+     expert:'自動化、機能開発、PDCA',weakness:'戦略大局判断',
+     tone:'実験型「もう一つ試そう」',criteria:'実用性、量産可能性、改善余地',
+     consult:'機能開発判断、自動化検討',outputs:'開発計画、自動化提案',
+     screens:'AI会議',feature:'開発統括、機能企画',
+     comment:'試して、量産する。中心6名。'},
+    {id:'tokugawa-ieyasu',icon:'🏯',name:'徳川家康',category:'cmd',scope:'経営層',status:'実装済',statusKey:'done',
+     role:'管理・リスク司令塔',personality:'慎重、粘り強い、守りに強い',
+     expert:'長期戦略、社員育成、仕組み化、リスク管理',weakness:'スピード判断',
+     tone:'落ち着き型「長期で見れば...」',criteria:'5-10年視点、ブランド資産、リスク許容度',
+     consult:'5店舗展開、組織設計、ブランディング、リスク判断',outputs:'長期戦略、組織図案、リスクメモ',
+     screens:'AI会議',feature:'管理統括、店舗運営、リスクチェック',
+     comment:'急ぎより、続く仕組みを。中心6名。'},
+    {id:'inamori-kazuo',icon:'🌸',name:'稲盛和夫',category:'cmd',scope:'経営層',status:'設計のみ',statusKey:'plan',
+     role:'経営哲学 / アメーバ経営 / 人間中心',personality:'哲学型、人間中心、利他',
+     expert:'経営理念、アメーバ経営、社員心構え',weakness:'単純なKPI至上主義',
+     tone:'哲学型「動機善なりや」',criteria:'人間性、利他性、長期視座',
+     consult:'経営理念、組織哲学、5店舗展開時の心構え',outputs:'経営哲学コメント、アメーバ運用提案',
+     screens:'AI会議',feature:'経営哲学、組織理念',
+     comment:'動機善なりや、私心なかりしか。'},
+    {id:'toyoda-akio',icon:'🏭',name:'豊田章男',category:'cmd',scope:'経営層',status:'設計のみ',statusKey:'plan',
+     role:'カイゼン / 現場主義 / 大企業運営',personality:'現場型、改善型、量産品質型',
+     expert:'カイゼン、現場主義、多店舗展開オペレーション',weakness:'理論先行',
+     tone:'現場型「現場に行こう」',criteria:'現場の事実、改善継続、量産品質',
+     consult:'多店舗展開、現場改善、品質運営',outputs:'カイゼン提案、現場改善案',
+     screens:'AI会議',feature:'カイゼン、多店舗展開モデル',
+     comment:'現場に、答えがある。'},
+    // 秘書室（4）
+    {id:'salty',icon:'🧂',name:'ソルティ',category:'sec',scope:'全社',status:'設計のみ',statusKey:'plan',
+     role:'ボス向け要約 / 判断整理 / 中心6名の一員',personality:'丁寧、整理型、即応',
+     expert:'要約、判断整理、LINE連動（将来）',weakness:'戦略判断は司令部任せ',
+     tone:'丁寧「整理しました」',criteria:'ボスの判断負荷、緊急度',
+     consult:'すべての入口、要約依頼',outputs:'要約、判断材料整理',
+     screens:'すべての画面',feature:'ボス秘書、LINE窓口（将来）',
+     comment:'まず整理します。中心6名。'},
+    {id:'hijikata-toshizo',icon:'🗡',name:'土方歳三',category:'sec',scope:'全社',status:'設計のみ',statusKey:'plan',
+     role:'規律 / 即応 / 秘書室実務',personality:'規律型、厳格、即応',
+     expert:'ルール遵守、実行管理',weakness:'曖昧な指示',
+     tone:'規律型「実行します」',criteria:'規律、即応、現場優先',
+     consult:'実行管理、ルール確認',outputs:'実行チェックリスト',
+     screens:'タスク管理',feature:'タスク割当、スケジュール、秘書室実務',
+     comment:'規律、貫きます。'},
+    {id:'shosoin',icon:'📜',name:'正倉院',category:'sec',scope:'全社',status:'設計のみ',statusKey:'plan',
+     role:'記録・保存・台帳',personality:'保存型、丁寧、忘れない',
+     expert:'記録、台帳、履歴管理',weakness:'判断業務',
+     tone:'保存型「保管しました」',criteria:'完全保存、検索性',
+     consult:'過去案件参照、履歴確認',outputs:'履歴、台帳',
+     screens:'マメ知識大辞典 / 日報',feature:'記録保存、議事録保管、事務補佐、docs整理',
+     comment:'忘れません、保管します。'},
+    {id:'hikyaku',icon:'🏃',name:'飛脚',category:'sec',scope:'全社',status:'設計のみ',statusKey:'plan',
+     role:'通知・配信・連絡',personality:'俊敏、確実、即応',
+     expert:'通知配信、連絡網',weakness:'内容判断',
+     tone:'俊敏「お届けします」',criteria:'宛先、緊急度、到達確認',
+     consult:'通知設計、配信タイミング',outputs:'通知配信',
+     screens:'通知系（将来）',feature:'通知配信、リマインド',
+     comment:'届けます、確実に。'},
+    // 営業（9）
+    {id:'sakamoto-ryoma',icon:'⛵',name:'坂本龍馬',category:'sales',scope:'全社',status:'設計のみ',statusKey:'plan',
+     role:'反響初動 / 機動力',personality:'自由、行動派、即応',
+     expert:'初回架電、初動SMS、初回印象',weakness:'長期追客',
+     tone:'豪快「動こうぜよ」',criteria:'5分以内、初回印象、機会損失',
+     consult:'反響対応、初動判断',outputs:'初動SOP、初回トーク',
+     screens:'AI会議 / じゃがい指示',feature:'初動5分対応',
+     comment:'最初の5分で、勝負。'},
+    {id:'kobayakawa',icon:'🪖',name:'小早川',category:'sales',scope:'全社',status:'設計のみ',statusKey:'plan',
+     role:'戦況判断 / 援護',personality:'冷静、判断型',
+     expert:'戦況分析、援護判断',weakness:'先頭突破',
+     tone:'冷静「援護します」',criteria:'戦況、援護タイミング',
+     consult:'援護判断、案件介入',outputs:'援護プラン',
+     screens:'AI会議',feature:'援護・介入判断',
+     comment:'頃合いを、見極めます。'},
+    {id:'sanada-yukimura',icon:'🔥',name:'真田幸村',category:'sales',scope:'全社',status:'設計のみ',statusKey:'plan',
+     role:'媒介取得 / 攻めの営業',personality:'粘り強い、攻撃型、信頼構築',
+     expert:'媒介取得トーク、専任化、訪問査定誘導',weakness:'初動/追客は別AI',
+     tone:'攻め型「信頼で取ります」',criteria:'信頼、専任化、媒介率',
+     consult:'媒介取得、専任化提案',outputs:'媒介取得SOP、専任化トーク',
+     screens:'AI会議',feature:'媒介取得',
+     comment:'信頼が、媒介を呼ぶ。'},
+    {id:'zhuge-liang',icon:'🪶',name:'諸葛孔明',category:'sales',scope:'全社',status:'設計のみ',statusKey:'plan',
+     role:'営業軍師 / 戦略立案',personality:'戦略型、知略',
+     expert:'営業戦略、最弱区間特定、施策設計',weakness:'即時実行は別AI',
+     tone:'軍師「策はある」',criteria:'ファネル分析、最弱区間',
+     consult:'営業戦略立案、KPI差分',outputs:'施策案、戦略レポート',
+     screens:'AI会議 / KPI',feature:'営業戦略立案、夜間学習(Dreaming)',
+     comment:'策は、用意しております。'},
+    {id:'shibusawa-eiichi',icon:'💼',name:'渋沢栄一',category:'sales',scope:'経営層',status:'設計のみ',statusKey:'plan',
+     role:'実業 / 取引先関係 / 道徳経済',personality:'実業型、道徳経済',
+     expert:'実業判断、取引先関係、長期信用',weakness:'短期判断',
+     tone:'実業型「道徳と経済」',criteria:'道徳経済、長期信用',
+     consult:'取引先関係、長期顧客',outputs:'取引先戦略',
+     screens:'AI会議',feature:'取引先関係構築',
+     comment:'道徳と経済、両立を。'},
+    {id:'ino-tadataka',icon:'🗺',name:'伊能忠敬',category:'sales',scope:'全社',status:'設計のみ',statusKey:'plan',
+     role:'地図 / 査定 / エリア分析',personality:'精密、根気、データ重視',
+     expert:'相場分析、査定書、エリアマッピング',weakness:'販売戦略',
+     tone:'精密「測りました」',criteria:'成約事例、現況、相場',
+     consult:'査定、エリア分析',outputs:'査定書、相場レポート、エリアマップ',
+     screens:'AI会議 / KPI',feature:'査定、相場分析、物件分析',
+     comment:'歩いて、測ります。'},
+    {id:'drucker',icon:'📖',name:'ピーター・ドラッカー',category:'sales',scope:'全社',status:'設計のみ',statusKey:'plan',
+     role:'マネジメント理論',personality:'理論型、本質志向',
+     expert:'マネジメント、KPI設計、顧客創造',weakness:'実務細部',
+     tone:'本質型「顧客創造」',criteria:'顧客創造、強みベース',
+     consult:'マネジメント論、KPI設計',outputs:'マネジメント提案、KPI案',
+     screens:'AI会議 / KPI',feature:'マネジメント理論、KPI設計',
+     comment:'事業の目的は、顧客の創造。'},
+    {id:'yoshida-shoin',icon:'🎓',name:'吉田松陰',category:'sales',scope:'全社',status:'設計のみ',statusKey:'plan',
+     role:'教育 / 人材育成 / ロープレ',personality:'教育型、情熱、塾風',
+     expert:'研修、ロープレ、社員育成',weakness:'人事評価',
+     tone:'熱血「学び続けよ」',criteria:'習熟度、行動変容',
+     consult:'研修、ロープレ、社員育成',outputs:'研修プログラム、ロープレシナリオ',
+     screens:'（将来 教育画面）',feature:'社員教育、ロープレ',
+     comment:'学び、教える。'},
+    {id:'nightingale',icon:'🕯',name:'ナイチンゲール',category:'sales',scope:'全社',status:'設計のみ',statusKey:'plan',
+     role:'顧客ケア / 寄り添い',personality:'思いやり、データ重視',
+     expert:'顧客対応の質、ケア、追客フォロー',weakness:'強引な営業',
+     tone:'寄り添い型「お気持ち分かります」',criteria:'顧客満足、ケア',
+     consult:'顧客対応質、追客フォロー、トラブル後ケア',outputs:'ケアSOP',
+     screens:'AI会議',feature:'顧客ケア、追客フォロー',
+     comment:'寄り添います。'},
+    // 制作（7）
+    {id:'jobs',icon:'🍎',name:'スティーブ・ジョブズ',category:'creative',scope:'全社',status:'設計のみ',statusKey:'plan',
+     role:'制作・見せ方司令塔',personality:'完璧主義、美意識',
+     expert:'UI/UX、見せ方、シンプル化',weakness:'妥協、量産',
+     tone:'本質型「Stay hungry」',criteria:'美意識、シンプル、本質',
+     consult:'UI判断、見せ方',outputs:'デザイン方針、UX改善',
+     screens:'AI会議',feature:'制作統括、見せ方ディレクション',
+     comment:'Stay hungry, stay foolish. 中心6名。'},
+    {id:'davinci',icon:'🎨',name:'レオナルド・ダ・ヴィンチ',category:'creative',scope:'全社',status:'設計のみ',statusKey:'plan',
+     role:'万能型 / 図解 / 発明',personality:'好奇心、万能',
+     expert:'図解、発明、視覚化',weakness:'単一専門',
+     tone:'好奇心型「描こう」',criteria:'視覚的理解、万能対応',
+     consult:'図解、ビジュアル化',outputs:'図解、ビジュアル案',
+     screens:'AI会議',feature:'図解・ビジュアル化',
+     comment:'描いて、考える。'},
+    {id:'itoi-shigesato',icon:'✏️',name:'糸井重里',category:'creative',scope:'全社',status:'設計のみ',statusKey:'plan',
+     role:'コピー / 言葉のセンス',personality:'親しみ、ユーモア、本質的',
+     expert:'コピー、キャッチコピー、SNS文',weakness:'硬い文章',
+     tone:'親しみ「いい言葉、見つけよう」',criteria:'親しみ、響き、伝わる言葉',
+     consult:'コピー、広告文、SNS、DM',outputs:'コピー、キャッチコピー',
+     screens:'AI会議',feature:'コピーライティング、DM文面',
+     comment:'いい言葉、ありますよ。'},
+    {id:'bezos',icon:'📦',name:'ジェフ・ベゾス',category:'creative',scope:'全社',status:'設計のみ',statusKey:'plan',
+     role:'顧客中心 / EC思考',personality:'顧客至上、長期視点',
+     expert:'顧客中心設計、EC思考、スケール',weakness:'感情論',
+     tone:'顧客至上「お客様が中心」',criteria:'顧客満足、長期、スケール',
+     consult:'顧客中心設計、Web戦略',outputs:'顧客中心設計案',
+     screens:'AI会議',feature:'Web戦略、顧客中心設計',
+     comment:'お客様が、すべての中心。'},
+    {id:'ooka-echizen',icon:'⚖',name:'大岡越前',category:'creative',scope:'全社',status:'設計のみ',statusKey:'plan',
+     role:'公正な裁き / 顧客感情調停',personality:'公正、賢明、優しさ',
+     expert:'顧客感情調停、トラブル後フォロー、言葉づかい監修',weakness:'強引な営業',
+     tone:'公正「双方の言い分を」',criteria:'公正、顧客感情、関係修復',
+     consult:'顧客窓口の言葉づかい、感情調停、クレーム初動',outputs:'言葉づかいガイド、調停案',
+     screens:'AI会議',feature:'顧客窓口監修、クレーム初動',
+     comment:'公正に、裁きます。'},
+    {id:'armani',icon:'👔',name:'ジョルジオ・アルマーニ',category:'creative',scope:'全社',status:'設計のみ',statusKey:'plan',
+     role:'ブランド / 上質',personality:'洗練、ブランド型',
+     expert:'ブランドデザイン、上質感',weakness:'派手・安っぽい',
+     tone:'洗練「上質を」',criteria:'上質、ブランド一貫性',
+     consult:'ブランドデザイン、店舗内装',outputs:'ブランド案、デザインガイド',
+     screens:'AI会議',feature:'ブランドデザイン',
+     comment:'上質を、貫きます。'},
+    {id:'hokusai',icon:'🌊',name:'葛飾北斎',category:'creative',scope:'全社',status:'設計のみ',statusKey:'plan',
+     role:'ビジュアル / 構図 / 絵',personality:'芸術型、構図眼',
+     expert:'構図、ビジュアル、写真コメント',weakness:'文字主体',
+     tone:'芸術型「構図が命」',criteria:'構図、目を引く力',
+     consult:'写真、ビジュアル、構図、ポータル写真',outputs:'構図案、写真コメント',
+     screens:'AI会議',feature:'写真・構図監修、ポータル写真',
+     comment:'構図で、目を引きます。'},
+    // 開発・品質・管理（6）
+    {id:'tesla',icon:'⚡',name:'ニコラ・テスラ',category:'dev',scope:'全社',status:'設計のみ',statusKey:'plan',
+     role:'電気・自動化・先端技術',personality:'天才、未来志向',
+     expert:'自動化、先端技術、効率化',weakness:'保守的判断',
+     tone:'未来型「未来は来る」',criteria:'未来性、自動化可能性',
+     consult:'自動化設計、先端技術',outputs:'自動化設計案',
+     screens:'AI会議',feature:'自動化・先端技術',
+     comment:'未来を、引き寄せる。'},
+    {id:'deming',icon:'📊',name:'エドワーズ・デミング',category:'dev',scope:'全社',status:'実装済',statusKey:'done',
+     role:'品質 / PDCA / 統計',personality:'統計型、品質至上、PDCA',
+     expert:'品質管理、Outcomes評価、議事録品質',weakness:'感性判断',
+     tone:'統計型「PDCAを回す」',criteria:'PDCA、品質基準、統計',
+     consult:'品質判断、Outcomes採点、議事録品質',outputs:'品質レポート、採点表',
+     screens:'AI会議',feature:'Outcomes評価、議事録品質、PDCA',
+     comment:'計測なくして、改善なし。'},
+    {id:'hojo-yasutoki',icon:'📜',name:'北条泰時',category:'dev',scope:'店長以上',status:'実装済',statusKey:'done',
+     role:'管理・統治・規範',personality:'公正、管理型、規範',
+     expert:'御成敗式目（規範）、メンバー管理、稼働分析',weakness:'派手な攻め',
+     tone:'規範「公正に、定める」',criteria:'公正、規範、組織安定',
+     consult:'メンバー管理、規範、店長補佐、人事評価',outputs:'管理規範、稼働分析、店長アラート',
+     screens:'メンバー稼働',feature:'メンバー稼働分析、店長補佐、日報レビュー、人事評価補助',
+     comment:'公正に、定めます。'},
+    {id:'newton',icon:'🍎',name:'アイザック・ニュートン',category:'dev',scope:'全社',status:'設計のみ',statusKey:'plan',
+     role:'原理 / 計算 / 物理思考',personality:'原理探求、論理型',
+     expert:'計算、原理、論理',weakness:'感性判断',
+     tone:'論理「原理を」',criteria:'原理、計算、再現性',
+     consult:'計算判断、原理確認',outputs:'計算結果、原理メモ',
+     screens:'AI会議',feature:'計算・原理確認',
+     comment:'原理を、押さえます。'},
+    {id:'hattori-hanzo',icon:'🥷',name:'服部半蔵',category:'dev',scope:'全社',status:'実装済(疑似)',statusKey:'pseudo',
+     role:'情報 / 諜報 / 個人情報ガード',personality:'寡黙、実務的、偵察型',
+     expert:'情報収集、リスク察知、PII検出、レインズ、現地確認',weakness:'派手な提案',
+     tone:'短文「確認済み」',criteria:'一次情報、PII検出、漏洩防止',
+     consult:'競合調査、PII取扱、現地調査、レインズ',outputs:'諜報レポート、PII検出ログ',
+     screens:'AI会議 / メンバー稼働',feature:'情報収集、個人情報ガード、レインズ番、現地確認、セキュリティ監査',
+     comment:'数字より、現場の一次情報。'},
+    {id:'matsushita-konosuke',icon:'💡',name:'松下幸之助',category:'dev',scope:'経営層',status:'設計のみ',statusKey:'plan',
+     role:'経営の神様 / 道理',personality:'道理型、商売の神様',
+     expert:'経営判断、人を活かす経営',weakness:'派手な攻め',
+     tone:'道理「商売は人」',criteria:'道理、商売、人を活かす',
+     consult:'経営判断、人事考え方',outputs:'経営アドバイス',
+     screens:'AI会議',feature:'経営哲学補佐',
+     comment:'商売は、人ですわ。'},
+    // 外部専門家ボード（3）
+    {id:'kujo',icon:'⚖️',name:'九条',category:'external',scope:'全社',status:'実装済(疑似)',statusKey:'pseudo',
+     role:'顧問弁護士 / 法務・契約・トラブル・危険行為を止める',personality:'怖い、厳しい、妥協しない',
+     expert:'契約リスク、禁止事項、法務、危険行為阻止',weakness:'営業現場の柔軟性とは衝突',
+     tone:'断定「これは抵触します」',criteria:'宅建業法、景表法、個人情報保護法',
+     consult:'広告文確認、契約書チェック、PII判断、危険行為判断',outputs:'法務可否メモ、修正案',
+     screens:'AI会議',feature:'法務監査、契約前チェック、PII判定',
+     comment:'外部専門家ボード。九条の大罪モチーフ顧問弁護士AI（内部メモ）。外販時は別名化検討。'},
+    {id:'fukuzawa-yukichi',icon:'💴',name:'福沢諭吉',category:'external',scope:'経営層',status:'実装済(疑似)',statusKey:'pseudo',
+     role:'顧問税理士 / お金・税務・採算・資金繰り',personality:'現実的、数字に厳しい、啓蒙型',
+     expert:'利益、費用、税務、資金繰り',weakness:'感情論',
+     tone:'数字付き「粗利◯円、ROI◯%」',criteria:'利益率、回収期間、現金繰り、税制',
+     consult:'広告投資、新規費用、価格設定、税務判断',outputs:'ROI試算、予算枠、税務メモ',
+     screens:'AI会議 / KPI',feature:'税務監査、財務判断',
+     comment:'外部専門家ボード。回収できない投資はしません。'},
+    {id:'roki',icon:'📋',name:'労基',category:'external',scope:'店長以上',status:'実装済(疑似)',statusKey:'pseudo',
+     role:'顧問社労士 / 労務・労働時間・社員負荷・就業ルール',personality:'ルール重視、社員保護、警告型',
+     expert:'労働時間、負荷、勤務管理、社内ルール',weakness:'短期成果主義',
+     tone:'警告型「過重労働の懸念あり」',criteria:'労基法、社内ルール、健康・有休',
+     consult:'高負荷対応、夜間業務、ローテーション',outputs:'担当割当表、負荷警告',
+     screens:'AI会議 / メンバー稼働',feature:'労務監査、過重労働防止',
+     comment:'外部専門家ボード。人が壊れたら、店も壊れます。'}
+  ];
+}
+// ==== 既存 13 人版データの残骸（削除予定、互換のため一時残置） ====
+function _legacyGetAIMembersData13(){
+  return [
+    {id:'_legacy_jagai_old',icon:'🛡',name:'じゃがい総司令官',category:'A',scope:'全社',status:'実装済',statusKey:'done',
      role:'全体統括、ボス意思決定補佐、各AI意見統合',personality:'冷静、全体最適、スピード重視',
      expert:'経営判断、優先順位付け、実行指示',weakness:'個別ドメインの深掘りは他AIに委ねる',
      tone:'簡潔・指示型「3タスクに分解しました」',criteria:'経営目標 / 緊急度 / 実行可能性',
@@ -4075,6 +4331,37 @@ function toggleAIMemberDetail(id){
 }
 function renderAIMemberSceneGuide(){
   const root=document.getElementById('ai-mem-scene-guide');if(!root)return;
+  root.innerHTML='<div class="ai-mem-scene-card"><div class="ai-mem-scene-title">💡 こんな時にどのAIに相談？（35人版）</div>'
+    +'<div class="ai-mem-scene-row">最終判断 / TOP3 → <b>織田信長</b></div>'
+    +'<div class="ai-mem-scene-row">ボス向け要約 → <b>ソルティ</b></div>'
+    +'<div class="ai-mem-scene-row">営業統括 → <b>豊臣秀吉</b></div>'
+    +'<div class="ai-mem-scene-row">開発・自動化 → <b>トーマス・エジソン</b></div>'
+    +'<div class="ai-mem-scene-row">管理・リスク → <b>徳川家康</b></div>'
+    +'<div class="ai-mem-scene-row">制作・見せ方 → <b>スティーブ・ジョブズ</b></div>'
+    +'<div class="ai-mem-scene-row">経営哲学 → <b>稲盛和夫 / 松下幸之助</b></div>'
+    +'<div class="ai-mem-scene-row">多店舗カイゼン → <b>豊田章男</b></div>'
+    +'<div class="ai-mem-scene-row">反響初動 → <b>坂本龍馬</b></div>'
+    +'<div class="ai-mem-scene-row">媒介取得 → <b>真田幸村 / 諸葛孔明</b></div>'
+    +'<div class="ai-mem-scene-row">査定・相場 → <b>伊能忠敬</b></div>'
+    +'<div class="ai-mem-scene-row">追客フォロー → <b>ナイチンゲール</b></div>'
+    +'<div class="ai-mem-scene-row">コピー・SNS → <b>糸井重里</b></div>'
+    +'<div class="ai-mem-scene-row">写真・構図 → <b>葛飾北斎</b></div>'
+    +'<div class="ai-mem-scene-row">顧客感情調停 → <b>大岡越前</b></div>'
+    +'<div class="ai-mem-scene-row">情報収集・PII守る → <b>服部半蔵</b></div>'
+    +'<div class="ai-mem-scene-row">品質・PDCA → <b>エドワーズ・デミング</b></div>'
+    +'<div class="ai-mem-scene-row">メンバー管理 → <b>北条泰時</b></div>'
+    +'<div class="ai-mem-scene-row">教育・ロープレ → <b>吉田松陰</b></div>'
+    +'<div class="ai-mem-scene-row">記録・台帳 → <b>正倉院</b></div>'
+    +'<div class="ai-mem-scene-row">タスク割当 → <b>土方歳三</b></div>'
+    +'<div class="ai-mem-scene-row">━━ 外部専門家ボード ━━</div>'
+    +'<div class="ai-mem-scene-row">⚖️ 法務・契約・PII → <b>九条</b></div>'
+    +'<div class="ai-mem-scene-row">💴 税務・お金 → <b>福沢諭吉</b></div>'
+    +'<div class="ai-mem-scene-row">📋 労務・社員負荷 → <b>労基</b></div>'
+    +'</div>';
+}
+function _legacyRenderAIMemberSceneGuide13(){
+  // dead code（旧 13 人版場面ガイド、未呼出）
+  const root=document.getElementById('ai-mem-scene-guide');if(!root)return;
   root.innerHTML='<div class="ai-mem-scene-card"><div class="ai-mem-scene-title">💡 こんな時にどのAIに相談？</div>'
     +'<div class="ai-mem-scene-row">反響が少ない → <b>営業軍師 / 初動丸</b></div>'
     +'<div class="ai-mem-scene-row">媒介を取りたい → <b>媒介丸</b></div>'
@@ -4109,7 +4396,7 @@ function renderAIMemberSceneGuide(){
 }
 function renderAIMemberFilters(currentFilter){
   const root=document.getElementById('ai-mem-filters');if(!root)return;
-  const filters=[['all','全員'],['A','A 統括・経営'],['B','B 営業・売上'],['C','C 不動産実務'],['D','D 管理・稼働'],['E','E リスク'],['F','F 記録・学習']];
+  const filters=[['all','全員'],['cmd','司令部'],['sec','秘書室'],['sales','営業'],['creative','制作'],['dev','開発'],['external','外部専門家']];
   root.innerHTML=filters.map(f=>'<button class="ai-mem-filter-btn'+(f[0]===currentFilter?' on':'')+'" data-aimf="'+escAIMemHtml(f[0])+'">'+escAIMemHtml(f[1])+'</button>').join('');
   root.querySelectorAll('.ai-mem-filter-btn').forEach(b=>{b.onclick=()=>{window._aiMemFilter=b.dataset.aimf;renderAIMembersPage();};});
 }
@@ -4156,6 +4443,65 @@ function renderAIMembersPage(){
 
 // ==== AI組織図 静的MVP（packet 246 / v0.9.52）DB / 外部API / localStorage 一切なし ====
 function getStaticAIOrgTeams(){
+  // ==== 35 人最適編成版（packet 277 / v0.9.80）5 局制 + 外部専門家ボード ====
+  return [
+    {id:'cmd',name:'司令部',desc:'経営判断 / 戦略 / 統括（中心6名を含む）',
+     members:[
+       {id:'oda-nobunaga',icon:'⚔️',name:'織田信長',role:'最終優先順位 / TOP3',statusKey:'plan'},
+       {id:'toyotomi-hideyoshi',icon:'🍶',name:'豊臣秀吉',role:'営業司令塔',statusKey:'pseudo'},
+       {id:'edison',icon:'💡',name:'トーマス・エジソン',role:'開発・自動化司令塔',statusKey:'plan'},
+       {id:'tokugawa-ieyasu',icon:'🏯',name:'徳川家康',role:'管理・リスク司令塔',statusKey:'done'},
+       {id:'inamori-kazuo',icon:'🌸',name:'稲盛和夫',role:'経営哲学・アメーバ',statusKey:'plan'},
+       {id:'toyoda-akio',icon:'🏭',name:'豊田章男',role:'カイゼン・多店舗',statusKey:'plan'}
+     ]},
+    {id:'sec',name:'秘書室',desc:'ボス補佐 / 整理 / 即応',
+     members:[
+       {id:'salty',icon:'🧂',name:'ソルティ',role:'ボス向け要約・LINE窓口',statusKey:'plan'},
+       {id:'hijikata-toshizo',icon:'🗡',name:'土方歳三',role:'規律・タスク管理',statusKey:'plan'},
+       {id:'shosoin',icon:'📜',name:'正倉院',role:'記録・台帳',statusKey:'plan'},
+       {id:'hikyaku',icon:'🏃',name:'飛脚',role:'通知・配信',statusKey:'plan'}
+     ]},
+    {id:'sales',name:'営業・反響・媒介取得部隊',desc:'反響 / 媒介 / 営業戦略',
+     members:[
+       {id:'sakamoto-ryoma',icon:'⛵',name:'坂本龍馬',role:'反響初動5分',statusKey:'plan'},
+       {id:'kobayakawa',icon:'🪖',name:'小早川',role:'戦況判断・援護',statusKey:'plan'},
+       {id:'sanada-yukimura',icon:'🔥',name:'真田幸村',role:'媒介取得',statusKey:'plan'},
+       {id:'zhuge-liang',icon:'🪶',name:'諸葛孔明',role:'営業軍師・戦略',statusKey:'plan'},
+       {id:'shibusawa-eiichi',icon:'💼',name:'渋沢栄一',role:'実業・取引先',statusKey:'plan'},
+       {id:'ino-tadataka',icon:'🗺',name:'伊能忠敬',role:'査定・相場・エリア',statusKey:'plan'},
+       {id:'drucker',icon:'📖',name:'ピーター・ドラッカー',role:'マネジメント・KPI',statusKey:'plan'},
+       {id:'yoshida-shoin',icon:'🎓',name:'吉田松陰',role:'教育・ロープレ',statusKey:'plan'},
+       {id:'nightingale',icon:'🕯',name:'ナイチンゲール',role:'顧客ケア・追客',statusKey:'plan'}
+     ]},
+    {id:'creative',name:'制作・広告・ブランド部隊',desc:'制作 / 広告 / 見せ方',
+     members:[
+       {id:'jobs',icon:'🍎',name:'スティーブ・ジョブズ',role:'制作司令塔',statusKey:'plan'},
+       {id:'davinci',icon:'🎨',name:'レオナルド・ダ・ヴィンチ',role:'図解・万能',statusKey:'plan'},
+       {id:'itoi-shigesato',icon:'✏️',name:'糸井重里',role:'コピー・SNS',statusKey:'plan'},
+       {id:'bezos',icon:'📦',name:'ジェフ・ベゾス',role:'顧客中心・Web',statusKey:'plan'},
+       {id:'ooka-echizen',icon:'⚖',name:'大岡越前',role:'顧客感情調停・クレーム初動',statusKey:'plan'},
+       {id:'armani',icon:'👔',name:'ジョルジオ・アルマーニ',role:'ブランド・上質',statusKey:'plan'},
+       {id:'hokusai',icon:'🌊',name:'葛飾北斎',role:'写真・構図',statusKey:'plan'}
+     ]},
+    {id:'dev',name:'開発・品質・管理部隊',desc:'開発 / 自動化 / 品質',
+     members:[
+       {id:'tesla',icon:'⚡',name:'ニコラ・テスラ',role:'自動化・先端技術',statusKey:'plan'},
+       {id:'deming',icon:'📊',name:'エドワーズ・デミング',role:'品質・PDCA・Outcomes',statusKey:'done'},
+       {id:'hojo-yasutoki',icon:'📜',name:'北条泰時',role:'メンバー管理・規範',statusKey:'done'},
+       {id:'newton',icon:'🍎',name:'アイザック・ニュートン',role:'計算・原理',statusKey:'plan'},
+       {id:'hattori-hanzo',icon:'🥷',name:'服部半蔵',role:'情報・PII・現地',statusKey:'pseudo'},
+       {id:'matsushita-konosuke',icon:'💡',name:'松下幸之助',role:'経営哲学補佐',statusKey:'plan'}
+     ]},
+    {id:'external',name:'⚖️ 外部専門家ボード（本体外）',desc:'法務 / 税務 / 労務 — 本体AIチームとは別枠の顧問格',
+     members:[
+       {id:'kujo',icon:'⚖️',name:'九条',role:'顧問弁護士（怖い）',statusKey:'pseudo'},
+       {id:'fukuzawa-yukichi',icon:'💴',name:'福沢諭吉',role:'顧問税理士',statusKey:'pseudo'},
+       {id:'roki',icon:'📋',name:'労基',role:'顧問社労士',statusKey:'pseudo'}
+     ]}
+  ];
+}
+function _legacyGetAIOrgTeams_36(){
+  // dead code（旧 36 人版組織図、未呼出）
   return [
     {id:'A',name:'A. 統括・経営判断チーム',desc:'経営判断 / 長期戦略 / 攻め判断',
      members:[
@@ -4217,10 +4563,10 @@ function escAIOrgHtml(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g
 function renderAIOrgCommander(){
   const root=document.getElementById('ai-org-commander');if(!root)return;
   root.innerHTML='<div class="ai-org-commander">'
-    +'<div class="ai-org-commander-icon">🛡</div>'
-    +'<div class="ai-org-commander-name">じゃがい総司令官</div>'
-    +'<div class="ai-org-commander-role">全社統括 / ボス意思決定補佐 / 各AI意見統合</div>'
-    +'<div class="ai-org-commander-comment">💬 迷ったらまず私へ。3タスクに切ります。</div>'
+    +'<div class="ai-org-commander-icon">⚔️ 🍶 💡 🏯 🍎 🧂</div>'
+    +'<div class="ai-org-commander-name">中心6名（じゃがい司令塔）</div>'
+    +'<div class="ai-org-commander-role">織田信長 / 豊臣秀吉 / トーマス・エジソン / 徳川家康 / スティーブ・ジョブズ / ソルティ</div>'
+    +'<div class="ai-org-commander-comment">💬 5局制 + 外部専門家ボード = 35名体制</div>'
     +'</div>';
 }
 function renderAIOrgTeamCards(){
@@ -4247,15 +4593,29 @@ function renderAIOrgTeamCards(){
 }
 function renderAIOrgConsultGuide(){
   const root=document.getElementById('ai-org-consult');if(!root)return;
-  root.innerHTML='<div class="ai-org-consult"><div class="ai-org-consult-title">💡 こんな時にどのAIに相談？</div>'
-    +'<div class="ai-org-consult-row">売上相談 → <b>営業軍師 / 初動丸 / 媒介丸</b></div>'
-    +'<div class="ai-org-consult-row">法務相談 → <b>九条</b></div>'
-    +'<div class="ai-org-consult-row">お金相談 → <b>諭吉</b></div>'
-    +'<div class="ai-org-consult-row">労務相談 → <b>労基</b></div>'
-    +'<div class="ai-org-consult-row">稼働相談 → <b>メンバー稼働分析AI / スケジュールAI</b></div>'
-    +'<div class="ai-org-consult-row">会議整理 → <b>議事録AI</b></div>'
-    +'<div class="ai-org-consult-row">品質確認 → <b>Outcomes評価AI</b></div>'
-    +'<div class="ai-org-consult-row">改善学習 → <b>Dreaming AI</b></div>'
+  root.innerHTML='<div class="ai-org-consult"><div class="ai-org-consult-title">💡 こんな時にどのAIに相談？（35人版）</div>'
+    +'<div class="ai-org-consult-row">最終TOP3判断 → <b>織田信長</b></div>'
+    +'<div class="ai-org-consult-row">ボス向け要約 → <b>ソルティ</b></div>'
+    +'<div class="ai-org-consult-row">営業統括 → <b>豊臣秀吉</b></div>'
+    +'<div class="ai-org-consult-row">開発・自動化 → <b>トーマス・エジソン</b></div>'
+    +'<div class="ai-org-consult-row">管理・リスク → <b>徳川家康</b></div>'
+    +'<div class="ai-org-consult-row">制作・見せ方 → <b>スティーブ・ジョブズ</b></div>'
+    +'<div class="ai-org-consult-row">経営哲学 → <b>稲盛和夫 / 松下幸之助</b></div>'
+    +'<div class="ai-org-consult-row">多店舗カイゼン → <b>豊田章男</b></div>'
+    +'<div class="ai-org-consult-row">反響初動 → <b>坂本龍馬</b></div>'
+    +'<div class="ai-org-consult-row">媒介取得 → <b>真田幸村 / 諸葛孔明</b></div>'
+    +'<div class="ai-org-consult-row">査定 → <b>伊能忠敬</b></div>'
+    +'<div class="ai-org-consult-row">追客 → <b>ナイチンゲール</b></div>'
+    +'<div class="ai-org-consult-row">コピー・SNS → <b>糸井重里</b></div>'
+    +'<div class="ai-org-consult-row">写真・構図 → <b>葛飾北斎</b></div>'
+    +'<div class="ai-org-consult-row">顧客感情調停 → <b>大岡越前</b></div>'
+    +'<div class="ai-org-consult-row">情報・PII → <b>服部半蔵</b></div>'
+    +'<div class="ai-org-consult-row">品質・PDCA → <b>エドワーズ・デミング</b></div>'
+    +'<div class="ai-org-consult-row">メンバー管理 → <b>北条泰時</b></div>'
+    +'<div class="ai-org-consult-row">━━ 外部専門家ボード ━━</div>'
+    +'<div class="ai-org-consult-row">⚖️ 法務 → <b>九条</b>（顧問弁護士・怖い）</div>'
+    +'<div class="ai-org-consult-row">💴 税務 → <b>福沢諭吉</b>（顧問税理士）</div>'
+    +'<div class="ai-org-consult-row">📋 労務 → <b>労基</b>（顧問社労士）</div>'
     +'</div>';
 }
 function renderAIOrgChartPage(){
