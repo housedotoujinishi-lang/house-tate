@@ -786,6 +786,67 @@ body.task-dragging [data-id]:not(.dragging-this){opacity:1!important}
       <div id="goal-content"></div>
     </div>
   </div>
+  <style>
+.ai-team-card{background:#fff;border:1px solid #e0e0e0;border-radius:10px;padding:16px;margin:0 0 14px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.ai-team-lbl{display:block;font-size:11px;font-weight:700;color:#444;margin:10px 0 4px}
+.ai-team-card label.ai-team-lbl:first-child{margin-top:0}
+.ai-team-input{width:100%;padding:8px 10px;border:1px solid #ccc;border-radius:6px;font-size:13px;font-family:inherit;box-sizing:border-box;background:#fff;color:#222}
+.ai-team-input:focus{outline:none;border-color:#0a3d7c}
+textarea.ai-team-input{resize:vertical;min-height:60px}
+.ai-team-warn{margin:12px 0;padding:10px 12px;background:#fff3cd;border:1px solid #ffc107;border-radius:6px;color:#856404;font-size:12px;line-height:1.5}
+.ai-team-btn{display:block;width:100%;margin-top:14px;padding:12px;background:#0a3d7c;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:800;cursor:pointer}
+.ai-team-btn:hover{opacity:.9}
+.ai-team-btn:disabled{opacity:.5;cursor:not-allowed}
+.ai-team-section{background:#fff;border:1px solid #e0e0e0;border-radius:10px;padding:14px 16px;margin:0 0 12px}
+.ai-team-section-title{font-size:13px;font-weight:800;color:#0a3d7c;margin:0 0 10px;padding-bottom:6px;border-bottom:2px solid #c9a23d}
+.ai-team-role{background:#f8f9fb;border-left:3px solid #0a3d7c;padding:10px 12px;margin:0 0 8px;border-radius:0 6px 6px 0;font-size:12px}
+.ai-team-role-name{font-weight:800;color:#0a3d7c;margin:0 0 4px;font-size:12px}
+.ai-team-role-row{margin:3px 0;color:#333;line-height:1.5}
+.ai-team-role-row b{color:#555}
+.ai-team-task{background:#f8f9fb;padding:10px 12px;border-radius:6px;margin:0 0 6px;font-size:12px;border-left:3px solid #c9a23d}
+.ai-team-score-card{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:#f8f9fb;border-radius:6px;margin:0 0 6px;font-size:12px}
+.ai-team-score-total{font-size:22px;font-weight:800;text-align:center;padding:10px;border-radius:8px;margin:0 0 12px}
+.ai-team-score-pass{background:#d4edda;color:#155724}
+.ai-team-score-rev{background:#fff3cd;color:#856404}
+.ai-team-score-fail{background:#f8d7da;color:#721c24}
+.ai-team-copy-btn{display:inline-block;padding:6px 12px;background:#fff;color:#0a3d7c;border:1px solid #0a3d7c;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;margin:8px 0 0}
+.ai-team-copy-btn:hover{background:#0a3d7c;color:#fff}
+.ai-team-mini-note{font-size:11px;color:#666;line-height:1.4;margin:4px 0}
+  </style>
+  <div class="page" id="page-aiteam">
+    <div style="padding:14px 14px 80px;max-width:760px;margin:0 auto">
+      <h2 style="font-size:18px;color:#0a3d7c;margin:0 0 4px;font-weight:800">🧠 じゃがいAI会議</h2>
+      <div style="font-size:11px;color:#666;margin-bottom:14px">議題を入力すると、AIチームが会議形式で整理します（静的MVP・DB保存なし）</div>
+      <div class="ai-team-card">
+        <label class="ai-team-lbl" for="ai-team-topic">議題</label>
+        <textarea id="ai-team-topic" rows="3" class="ai-team-input" placeholder="例：南区の反響を月50件まで増やしたい"></textarea>
+        <label class="ai-team-lbl" for="ai-team-biz">対象事業</label>
+        <select id="ai-team-biz" class="ai-team-input">
+          <option>ハウステイト</option><option>マックステイト</option><option>Jアセット</option><option>グループ全体</option>
+        </select>
+        <label class="ai-team-lbl" for="ai-team-purpose">目的</label>
+        <select id="ai-team-purpose" class="ai-team-input">
+          <option>売上改善</option><option>業務改善</option><option>社内教育</option><option>採用</option><option>システム改善</option><option>クレーム対応</option><option>その他</option>
+        </select>
+        <label class="ai-team-lbl" for="ai-team-urgency">緊急度</label>
+        <select id="ai-team-urgency" class="ai-team-input">
+          <option>高</option><option selected>中</option><option>低</option>
+        </select>
+        <label class="ai-team-lbl" for="ai-team-visibility">公開範囲</label>
+        <select id="ai-team-visibility" class="ai-team-input">
+          <option value="boss_only">boss_only（ボスのみ）</option>
+          <option value="management" selected>management（管理層）</option>
+          <option value="all_staff">all_staff（全社員）</option>
+        </select>
+        <label class="ai-team-lbl" for="ai-team-expected">期待する成果物</label>
+        <textarea id="ai-team-expected" rows="2" class="ai-team-input" placeholder="例：来週から動ける具体タスク3〜5件"></textarea>
+        <div id="ai-team-pii-warn" class="ai-team-warn" hidden></div>
+        <p class="ai-team-mini-note">⚠ 入力内容はDB／localStorageに保存されません。リロードで消えます。<br>顧客名・電話・メール・住所・物件住所などのPIIは入力しないでください。</p>
+        <button id="ai-team-start" class="ai-team-btn">🚀 AI会議を開始</button>
+      </div>
+      <div id="ai-team-result"></div>
+    </div>
+  </div>
 </div>
 
   <nav id="bottom-nav" style="display:none">
@@ -794,6 +855,7 @@ body.task-dragging [data-id]:not(.dragging-this){opacity:1!important}
     <div class="bn-tab-wrap" style="position:relative" onclick="switchPage('cal')"><button class="bn-tab" data-bnpg="cal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>タスク</button><span class="bn-badge" id="bn-badge-cal" style="display:none"></span></div>
     <div class="bn-tab-wrap" onclick="switchPage('shift')"><button class="bn-tab" data-bnpg="shift"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>シフト</button></div>
     <div class="bn-tab-wrap" onclick="switchPage('goal')"><button class="bn-tab" data-bnpg="goal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>KPI</button></div>
+    <div class="bn-tab-wrap" onclick="switchPage('aiteam')"><button class="bn-tab" data-bnpg="aiteam"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9 9h.01"/><path d="M15 9h.01"/><path d="M8 15a4 4 0 0 0 8 0"/></svg>AI会議</button></div>
     <div class="bn-tab-wrap" style="display:none" onclick="switchPage('crm')"><button class="bn-tab" data-bnpg="crm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>顧客</button></div>
   </nav>
 </div>
@@ -1177,8 +1239,8 @@ function showMainApp(){
   if(isHighPerm){rb.textContent=roleLabel;rb.style.cssText='background:var(--gold);color:var(--navy);padding:1px 6px;border-radius:7px;font-size:9px;font-weight:800';}
   else{rb.textContent='スタッフ';rb.style.cssText='background:rgba(255,255,255,.15);color:#fff;padding:1px 6px;border-radius:7px;font-size:9px;font-weight:700';}
   const tabs=isHighPerm
-    ?[['dash','🏠 ホーム'],['accounts','👑 管理'],['kintai','🕐 勤怠'],['cal','📅 カレンダー/タスク'],['shift','📋 シフト'],['goal','🎯 目標KPI'],['report','📊 月次レポート']]
-    :[['dash','🏠 ホーム'],['kintai','🕐 勤怠'],['cal','📅 カレンダー/タスク'],['shift','📋 シフト'],['goal','🎯 目標KPI']];
+    ?[['dash','🏠 ホーム'],['accounts','👑 管理'],['kintai','🕐 勤怠'],['cal','📅 カレンダー/タスク'],['shift','📋 シフト'],['goal','🎯 目標KPI'],['report','📊 月次レポート'],['aiteam','🧠 AI会議']]
+    :[['dash','🏠 ホーム'],['kintai','🕐 勤怠'],['cal','📅 カレンダー/タスク'],['shift','📋 シフト'],['goal','🎯 目標KPI'],['aiteam','🧠 AI会議']];
   tabs.forEach(([pg,lbl],idx)=>{
     const b=document.createElement('button');
     b.className='ntab'+(idx===0?' on':'');b.dataset.pg=pg;b.textContent=lbl;
@@ -1294,7 +1356,7 @@ bindEvForm();
   }
 }
 
-function switchPage(pg){document.querySelectorAll('.ntab').forEach(b=>b.classList.toggle('on',b.dataset.pg===pg));document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));const pgEl=document.getElementById(`page-${pg}`);if(pgEl)pgEl.classList.add('on');if(pg==='dash')renderDash();if(pg==='accounts')renderAccList();if(pg==='kintai'){ktViewUid=currentUser.perm==='admin'?null:currentUser.uid;renderKintaiPage();}if(pg==='cal')render();if(pg==='shift')renderShift();if(pg==='goal'){initGoalData();renderGoalPage();}if(pg==='crm')renderCRMPage();if(pg==='report')renderReportPage();}
+function switchPage(pg){document.querySelectorAll('.ntab').forEach(b=>b.classList.toggle('on',b.dataset.pg===pg));document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));const pgEl=document.getElementById(`page-${pg}`);if(pgEl)pgEl.classList.add('on');if(pg==='dash')renderDash();if(pg==='accounts')renderAccList();if(pg==='kintai'){ktViewUid=currentUser.perm==='admin'?null:currentUser.uid;renderKintaiPage();}if(pg==='cal')render();if(pg==='shift')renderShift();if(pg==='goal'){initGoalData();renderGoalPage();}if(pg==='crm')renderCRMPage();if(pg==='report')renderReportPage();if(pg==='aiteam')renderAITeamPage();}
 function mkModal(id,barColor,title){const ex=document.getElementById(id);if(ex)ex.remove();const bg=document.createElement('div');bg.className='mbg';bg.id=id;bg.innerHTML=`<div class="modal"><div class="mbar" style="background:${barColor}"></div><button class="mclose" id="${id}-c">✕</button><div class="mttl">${title}</div><div class="macts"></div></div>`;document.body.appendChild(bg);document.getElementById(`${id}-c`).onclick=()=>bg.remove();bg.onclick=e=>{if(e.target===bg)bg.remove();};return bg;}
 function mttlAfter(bg,html){bg.querySelector('.mttl').insertAdjacentHTML('afterend',html);}
 function macts(bg,html){bg.querySelector('.macts').innerHTML=html;}
@@ -3209,6 +3271,243 @@ showMainApp=function(){
 // ログイン画面スキップ（復活させる時はこの行を削除）
 
 (async()=>{try{const{data:{session}}=await sb.auth.getSession();if(session?.user){const{data:prof}=await sb.from('profiles').select('*').eq('id',session.user.id).maybeSingle();if(prof){currentUser={uid:prof.id,name:prof.name||'admin',role:prof.role||'admin',perm:prof.perm||'admin',c:prof.c||'#0a3d7c',inc:prof.inc||0,cut:prof.cut||0,personal:prof.personal!==false};showMainApp();}}}catch(e){}})();
+
+// ==== AIチーム会議 静的MVP（packet 200 / v0.9.10）DB / 外部API / localStorage / fetch 一切なし ====
+function detectSensitiveMeetingInput(text){
+  if(!text)return null;
+  const checks=[
+    {pat:/\d{2,4}-\d{2,4}-\d{3,4}|0\d{9,10}/,msg:'電話番号らしき文字列'},
+    {pat:/[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/,msg:'メールアドレスらしき文字列'},
+    {pat:/(京都市|大阪市|東京都|横浜市|神戸市|名古屋市)[^\s]{2,}(区|町|丁目|番地|号)/,msg:'住所らしき文字列'},
+    {pat:/[一-龥]{2,5}(様|さん)/,msg:'お客様名らしき記述'}
+  ];
+  for(const c of checks){if(c.pat.test(text))return c.msg;}
+  return null;
+}
+function bindAITeamPiiWarn(){
+  const ids=['ai-team-topic','ai-team-expected'];
+  const warn=document.getElementById('ai-team-pii-warn');
+  if(!warn)return;
+  const check=()=>{
+    let found=null;
+    for(const id of ids){const v=document.getElementById(id)?.value||'';const r=detectSensitiveMeetingInput(v);if(r){found=r;break;}}
+    if(found){warn.textContent='⚠ '+found+' を検出しました。このAI会議には顧客名・電話番号・住所・メールなどの個人情報を入力しないでください。案件は匿名IDや媒体名で表現してください（入力はDBに保存されませんが、画面上では他社員が見る可能性があります）。';warn.hidden=false;}else{warn.hidden=true;}
+  };
+  ids.forEach(id=>{const el=document.getElementById(id);if(el)el.oninput=check;});
+}
+function renderAITeamPage(){
+  const root=document.getElementById('ai-team-result');if(root)root.innerHTML='';
+  bindAITeamPiiWarn();
+  const btn=document.getElementById('ai-team-start');
+  if(btn)btn.onclick=startAIMeeting;
+}
+function startAIMeeting(){
+  const topic=document.getElementById('ai-team-topic').value.trim();
+  if(!topic){alert('議題を入力してください');return;}
+  const meeting={
+    topic,
+    biz:document.getElementById('ai-team-biz').value,
+    purpose:document.getElementById('ai-team-purpose').value,
+    urgency:document.getElementById('ai-team-urgency').value,
+    visibility:document.getElementById('ai-team-visibility').value,
+    expected:document.getElementById('ai-team-expected').value.trim()
+  };
+  const agents=buildPseudoAgentOutputs(meeting);
+  const integrated=buildIntegratedSummary(meeting,agents);
+  const tasks=buildGeneratedTasks(meeting);
+  const outcome=buildOutcomeReview(meeting,tasks);
+  const staff=buildStaffMinutes(meeting,integrated,tasks);
+  const boss=buildBossSummary(meeting,integrated,tasks,outcome);
+  renderAIMeetingResult({meeting,agents,integrated,tasks,outcome,staff,boss});
+}
+function buildPseudoAgentOutputs(m){
+  return [
+    {name:'じゃがい総司令官',color:'#0a3d7c',
+     viewpoint:'議題を3タスクに分解し、優先順位と担当を仮割当する。',
+     opinion:'「'+m.purpose+'」の議題なので、まず実行可能な範囲を切り出すべき。',
+     risk:'抽象議論で終わるリスク。具体タスク化必須。',
+     plan:'目的・実行・採点の3層で会議を進行する。',
+     next:'各AIの観点を集約し、統合結論で締める。'},
+    {name:'家康（経営戦略）',color:'#5e3b1f',
+     viewpoint:'長期視点と全社最適。',
+     opinion:m.biz+'のブランド資産と、5店舗展開ロードマップを踏まえて判断する必要あり。',
+     risk:'短期施策に寄ると、長期ブランドを毀損する恐れ。',
+     plan:'長期と短期を同時に動かす二段ロケット方針。',
+     next:'四半期計画への組込検討。'},
+    {name:'半蔵（情報・諜報）',color:'#2d5f3f',
+     viewpoint:'競合と市場の動き、データソース確認。',
+     opinion:'同エリアの他社動向、ポータル掲載状況、反響傾向を可視化すべき。',
+     risk:'根拠なし発言。データなしの仮説は危険。',
+     plan:'3日以内に市場サンプル収集→可視化。',
+     next:'半蔵レポートを次回会議の入力に。'},
+    {name:'九条（法務・コンプラ）',color:'#7a4b2b',
+     viewpoint:'宅建業法・個人情報・広告規制。',
+     opinion:'施策が宅建業法・景表法・個人情報保護法に抵触しない確認が必要。',
+     risk:'PIIを画面/外部に流す経路の見落とし。',
+     plan:'公開範囲='+m.visibility+'。社員向け議事録はPIIマスク前提。',
+     next:'重要決定は記録に残す。'},
+    {name:'諭吉（財務）',color:'#704214',
+     viewpoint:'費用対効果、投資回収、現金繰り。',
+     opinion:'施策に必要な広告費・人件費・期待リターンの粗試算が必要。',
+     risk:'コストだけ膨らんでKPIが動かない。',
+     plan:'最小投資で効果検証→拡大の段階運用。',
+     next:'予算枠の事前合意。'},
+    {name:'労基（労務・人事）',color:'#3b3b6e',
+     viewpoint:'稼働時間・有給・健康・教育。',
+     opinion:'実行タスクが特定メンバーに偏ると過重労働リスク。',
+     risk:'夜間／休日業務の常態化。',
+     plan:'タスクは複数担当でローテーション設計。',
+     next:'稼働モニタリングに連携。'},
+    {name:'営業軍師（営業戦略）',color:'#1f4e8a',
+     viewpoint:'反響→アポ→媒介→成約のファネル最適化。',
+     opinion:'「'+m.purpose+'」の議題は、ファネルのどの段階に効くか明確にすべき。',
+     risk:'広く浅い施策はKPIを動かさない。',
+     plan:'最弱区間に絞った打ち手を1〜2本実行。',
+     next:'1週間後にKPI差分レビュー。'},
+    {name:'議事録AI',color:'#444',
+     viewpoint:'整理・要約・配信。',
+     opinion:'会議内容を社員向けとボス向けで分離して配布する。',
+     risk:'公開範囲ミス・PII漏れ。',
+     plan:'公開範囲='+m.visibility+'に従って配信先を制御。',
+     next:'議事録テキストをコピー可能形式で提示。'}
+  ];
+}
+function buildIntegratedSummary(m,agents){
+  return {
+    purpose:m.purpose+'（議題：'+m.topic.slice(0,80)+'）',
+    conclusion:'本議題は '+m.urgency+' 緊急度。'+m.biz+'のファネル内、'+m.purpose+'が最弱区間と仮定し、'+(m.expected||'実行可能な3〜5タスク')+'を生成する。',
+    priority:m.urgency==='高'?'今週中に着手・即実行':m.urgency==='中'?'2週間以内に着手・段階実行':'1ヶ月以内に着手・優先度低',
+    method:'家康（長期）×営業軍師（短期）の二段運用、九条（コンプラ）と労基（労務）でガード、諭吉（財務）で投資判断。',
+    caution:'PIIは入力・記録・配信のいずれにも乗せない。本MVPはDB保存なし。'
+  };
+}
+function buildGeneratedTasks(m){
+  return [
+    {title:m.biz+'：'+m.purpose+'の最弱区間を特定（半蔵レポート）',assignee:'店長 / 営業軍師連携',due:'+3日',priority:'高',deliverable:'最弱区間1枚レポート'},
+    {title:'最弱区間に向けた具体施策案を3案作成',assignee:'営業軍師',due:'+5日',priority:'高',deliverable:'施策3案＋粗予算'},
+    {title:'費用対効果の試算（諭吉観点）',assignee:'諭吉（経理連携）',due:'+5日',priority:'中',deliverable:'ROI仮試算'},
+    {title:'法令・公開範囲チェック（九条）',assignee:'九条',due:'+2日',priority:'高',deliverable:'コンプラ可否メモ'},
+    {title:'実施タスクの担当割当＋稼働平準化',assignee:'労基 / 店長',due:'+7日',priority:'中',deliverable:'担当割当表'},
+    {title:'1週間後 KPI差分レビュー会議',assignee:'じゃがい総司令官',due:'+14日',priority:'中',deliverable:'差分レビューサマリー'}
+  ];
+}
+function buildOutcomeReview(m,tasks){
+  const piiHit=detectSensitiveMeetingInput(m.topic+' '+(m.expected||''));
+  const factors=[
+    {name:'目的適合',score:m.topic.length>15?16:10,max:20},
+    {name:'実行具体性',score:tasks.length>=5?17:10,max:20},
+    {name:'リスク配慮',score:14,max:20},
+    {name:'社員が動けるか',score:tasks.length>=5?14:9,max:15},
+    {name:'no-customer-data遵守',score:piiHit?5:15,max:15},
+    {name:'既存運用非破壊',score:10,max:10}
+  ];
+  const total=factors.reduce((s,f)=>s+f.score,0);
+  const status=total>=80?'合格':total>=60?'修正推奨':'再検討';
+  return {factors,total,status};
+}
+function buildStaffMinutes(m,integrated,tasks){
+  return {
+    decision:integrated.conclusion,
+    todo:tasks.slice(0,5).map(t=>t.title),
+    assignee:tasks.slice(0,5).map(t=>t.assignee),
+    due:tasks.slice(0,5).map(t=>t.due),
+    caution:'本議事録には個人情報を書きません。社員間で共有する場合も、顧客名・電話・住所は記載しないでください。',
+    visibility:m.visibility
+  };
+}
+function buildBossSummary(m,integrated,tasks,outcome){
+  return {
+    biz:m.biz,purpose:m.purpose,urgency:m.urgency,
+    decision_point:'最弱区間特定（+3日）に対する着手承認',
+    profitability:'最小投資で検証→拡大の段階運用前提',
+    risk:'特定メンバー偏りリスク／PII混入リスク',
+    next_approval:'施策3案提出（+5日）レビュー、ROI試算（+5日）',
+    outcome_status:outcome.status+'（'+outcome.total+'/100）'
+  };
+}
+function escAITeamHtml(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function renderAIMeetingResult(r){
+  const root=document.getElementById('ai-team-result');if(!root)return;
+  const e=escAITeamHtml;
+  let h='';
+  h+='<div class="ai-team-section"><div class="ai-team-section-title">📌 議題サマリー</div>';
+  h+='<div class="ai-team-mini-note"><b>議題：</b>'+e(r.meeting.topic)+'</div>';
+  h+='<div class="ai-team-mini-note"><b>対象：</b>'+e(r.meeting.biz)+' / <b>目的：</b>'+e(r.meeting.purpose)+' / <b>緊急度：</b>'+e(r.meeting.urgency)+' / <b>公開：</b>'+e(r.meeting.visibility)+'</div>';
+  if(r.meeting.expected)h+='<div class="ai-team-mini-note"><b>期待成果物：</b>'+e(r.meeting.expected)+'</div>';
+  h+='</div>';
+  h+='<div class="ai-team-section"><div class="ai-team-section-title">🧠 AIチーム発言（8ロール）</div>';
+  r.agents.forEach(a=>{
+    h+='<div class="ai-team-role" style="border-left-color:'+e(a.color)+'">';
+    h+='<div class="ai-team-role-name">'+e(a.name)+'</div>';
+    h+='<div class="ai-team-role-row"><b>観点：</b>'+e(a.viewpoint)+'</div>';
+    h+='<div class="ai-team-role-row"><b>意見：</b>'+e(a.opinion)+'</div>';
+    h+='<div class="ai-team-role-row"><b>リスク：</b>'+e(a.risk)+'</div>';
+    h+='<div class="ai-team-role-row"><b>実行案：</b>'+e(a.plan)+'</div>';
+    h+='<div class="ai-team-role-row"><b>次アクション：</b>'+e(a.next)+'</div>';
+    h+='</div>';
+  });
+  h+='</div>';
+  h+='<div class="ai-team-section"><div class="ai-team-section-title">🎯 統合結論</div>';
+  h+='<div class="ai-team-role-row"><b>目的：</b>'+e(r.integrated.purpose)+'</div>';
+  h+='<div class="ai-team-role-row"><b>結論：</b>'+e(r.integrated.conclusion)+'</div>';
+  h+='<div class="ai-team-role-row"><b>優先順位：</b>'+e(r.integrated.priority)+'</div>';
+  h+='<div class="ai-team-role-row"><b>実行方針：</b>'+e(r.integrated.method)+'</div>';
+  h+='<div class="ai-team-role-row"><b>注意点：</b>'+e(r.integrated.caution)+'</div>';
+  h+='</div>';
+  h+='<div class="ai-team-section"><div class="ai-team-section-title">✅ 実行タスク</div>';
+  r.tasks.forEach((t,i)=>{
+    h+='<div class="ai-team-task"><b>'+(i+1)+'. '+e(t.title)+'</b><br>';
+    h+='<span class="ai-team-mini-note">担当：'+e(t.assignee)+' / 期限：'+e(t.due)+' / 優先度：'+e(t.priority)+' / 成果物：'+e(t.deliverable)+'</span></div>';
+  });
+  h+='<button class="ai-team-copy-btn" onclick="copyAIMeetingText(\'tasks\')">📋 タスクをコピー</button>';
+  h+='</div>';
+  const cls=r.outcome.status==='合格'?'ai-team-score-pass':r.outcome.status==='修正推奨'?'ai-team-score-rev':'ai-team-score-fail';
+  h+='<div class="ai-team-section"><div class="ai-team-section-title">📊 Outcomes 簡易採点</div>';
+  h+='<div class="ai-team-score-total '+cls+'">'+r.outcome.total+' / 100　【'+e(r.outcome.status)+'】</div>';
+  r.outcome.factors.forEach(f=>{
+    h+='<div class="ai-team-score-card"><span>'+e(f.name)+'</span><span><b>'+f.score+'</b> / '+f.max+'</span></div>';
+  });
+  h+='</div>';
+  h+='<div class="ai-team-section"><div class="ai-team-section-title">📝 社員向け議事録（公開範囲：'+e(r.staff.visibility)+'）</div>';
+  h+='<div class="ai-team-role-row"><b>決定事項：</b>'+e(r.staff.decision)+'</div>';
+  h+='<div class="ai-team-role-row"><b>やること：</b></div><ol style="margin:4px 0 4px 22px;padding:0;font-size:12px;color:#333">';
+  r.staff.todo.forEach(t=>{h+='<li style="margin:3px 0">'+e(t)+'</li>';});
+  h+='</ol>';
+  h+='<div class="ai-team-role-row"><b>担当候補：</b>'+r.staff.assignee.map(e).join(' / ')+'</div>';
+  h+='<div class="ai-team-role-row"><b>期限：</b>'+r.staff.due.map(e).join(' / ')+'</div>';
+  h+='<div class="ai-team-role-row"><b>注意：</b>'+e(r.staff.caution)+'</div>';
+  h+='<button class="ai-team-copy-btn" onclick="copyAIMeetingText(\'staff\')">📋 議事録をコピー</button>';
+  h+='</div>';
+  h+='<div class="ai-team-section"><div class="ai-team-section-title">👑 ボス向け要約</div>';
+  h+='<div class="ai-team-role-row"><b>対象：</b>'+e(r.boss.biz)+' / '+e(r.boss.purpose)+' / 緊急度：'+e(r.boss.urgency)+'</div>';
+  h+='<div class="ai-team-role-row"><b>経営判断ポイント：</b>'+e(r.boss.decision_point)+'</div>';
+  h+='<div class="ai-team-role-row"><b>収益性：</b>'+e(r.boss.profitability)+'</div>';
+  h+='<div class="ai-team-role-row"><b>リスク：</b>'+e(r.boss.risk)+'</div>';
+  h+='<div class="ai-team-role-row"><b>次に承認すべきこと：</b>'+e(r.boss.next_approval)+'</div>';
+  h+='<div class="ai-team-role-row"><b>採点：</b>'+e(r.boss.outcome_status)+'</div>';
+  h+='<button class="ai-team-copy-btn" onclick="copyAIMeetingText(\'boss\')">📋 ボス向け要約をコピー</button>';
+  h+='</div>';
+  h+='<div class="ai-team-mini-note" style="text-align:center;color:#999;margin:18px 0">※ 本会議はDBおよびlocalStorageに保存されません。リロードで消えます。</div>';
+  root.innerHTML=h;
+  window._lastAIMeeting=r;
+}
+function copyAIMeetingText(type){
+  const r=window._lastAIMeeting;if(!r){alert('会議データがありません');return;}
+  let t='';
+  if(type==='staff'){
+    t='【じゃがいAI会議 議事録】\n対象：'+r.meeting.biz+' / 目的：'+r.meeting.purpose+'\n決定：'+r.staff.decision+'\n\nやること：\n'+r.staff.todo.map((x,i)=>(i+1)+'. '+x).join('\n')+'\n\n担当：'+r.staff.assignee.join(' / ')+'\n期限：'+r.staff.due.join(' / ')+'\n\n注意：'+r.staff.caution;
+  }else if(type==='tasks'){
+    t='【AI会議 タスク】\n'+r.tasks.map((x,i)=>(i+1)+'. '+x.title+'（'+x.assignee+' / '+x.due+' / '+x.priority+'）').join('\n');
+  }else if(type==='boss'){
+    t='【ボス向け要約】\n対象：'+r.boss.biz+' / '+r.boss.purpose+' / 緊急度：'+r.boss.urgency+'\n判断点：'+r.boss.decision_point+'\n収益性：'+r.boss.profitability+'\nリスク：'+r.boss.risk+'\n次承認：'+r.boss.next_approval+'\n採点：'+r.boss.outcome_status;
+  }
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(t).then(()=>{try{showToast('コピーしました');}catch(e){alert('コピーしました');}}).catch(()=>{alert('コピー失敗。テキストを手動選択してください。\n\n'+t);});
+  }else{
+    alert(t);
+  }
+}
+// ==== ここまで packet 200 AIチーム静的MVP ====
 </script>
 </body>
 </html>
