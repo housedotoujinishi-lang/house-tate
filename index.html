@@ -3519,7 +3519,7 @@ function buildPseudoAgentOutputs(m){
      risk:'根拠なし発言。データなしの仮説は危険。',
      plan:'3日以内に市場サンプル収集→可視化。',
      next:'半蔵レポートを次回会議の入力に。'},
-    {name:'九条（法務・コンプラ）',color:'#7a4b2b',
+    {name:'九条鞍馬（法務・コンプラ）',color:'#7a4b2b',
      viewpoint:'宅建業法・個人情報・広告規制。',
      opinion:'施策が宅建業法・景表法・個人情報保護法に抵触しない確認が必要。',
      risk:'PIIを画面/外部に流す経路の見落とし。',
@@ -3556,7 +3556,7 @@ function buildIntegratedSummary(m,agents){
     purpose:m.purpose+'（議題：'+m.topic.slice(0,80)+'）',
     conclusion:'本議題は '+m.urgency+' 緊急度。'+m.biz+'のファネル内、'+m.purpose+'が最弱区間と仮定し、'+(m.expected||'実行可能な3〜5タスク')+'を生成する。',
     priority:m.urgency==='高'?'今週中に着手・即実行':m.urgency==='中'?'2週間以内に着手・段階実行':'1ヶ月以内に着手・優先度低',
-    method:'家康（長期）×営業軍師（短期）の二段運用、九条（コンプラ）と労基（労務）でガード、諭吉（財務）で投資判断。',
+    method:'家康（長期）×営業軍師（短期）の二段運用、九条鞍馬（コンプラ）と労基（労務）でガード、諭吉（財務）で投資判断。',
     caution:'PIIは入力・記録・配信のいずれにも乗せない。本MVPはDB保存なし。'
   };
 }
@@ -3565,7 +3565,7 @@ function buildGeneratedTasks(m){
     {title:m.biz+'：'+m.purpose+'の最弱区間を特定（半蔵レポート）',assignee:'店長 / 営業軍師連携',due:'+3日',priority:'高',deliverable:'最弱区間1枚レポート'},
     {title:'最弱区間に向けた具体施策案を3案作成',assignee:'営業軍師',due:'+5日',priority:'高',deliverable:'施策3案＋粗予算'},
     {title:'費用対効果の試算（諭吉観点）',assignee:'諭吉（経理連携）',due:'+5日',priority:'中',deliverable:'ROI仮試算'},
-    {title:'法令・公開範囲チェック（九条）',assignee:'九条',due:'+2日',priority:'高',deliverable:'コンプラ可否メモ'},
+    {title:'法令・公開範囲チェック（九条鞍馬）',assignee:'九条鞍馬',due:'+2日',priority:'高',deliverable:'コンプラ可否メモ'},
     {title:'実施タスクの担当割当＋稼働平準化',assignee:'労基 / 店長',due:'+7日',priority:'中',deliverable:'担当割当表'},
     {title:'1週間後 KPI差分レビュー会議',assignee:'じゃがい総司令官',due:'+14日',priority:'中',deliverable:'差分レビューサマリー'}
   ];
@@ -3841,7 +3841,7 @@ function getStaticAIMembersData(){
      comment:'攻めなきゃ、勝てない。中心6名。'},
     {id:'toyotomi-hideyoshi',icon:'🍶',name:'豊臣秀吉',category:'cmd',scope:'全社',status:'実装済(疑似)',statusKey:'pseudo',
      role:'営業司令塔 / 人心掌握',personality:'人懐っこい、調整型、賢い、根回し',
-     expert:'営業戦略統括、社員モチベ、取引先関係構築',weakness:'法律的厳格判断は九条任せ',
+     expert:'営業戦略統括、社員モチベ、取引先関係構築',weakness:'法律的厳格判断は九条鞍馬任せ',
      tone:'気さく「皆さんでやりましょう」',criteria:'人間関係、士気、納得感、営業KPI',
      consult:'営業統括、社員間調整、取引先関係',outputs:'営業戦略案、調整案',
      screens:'AI会議 / KPI / じゃがい指示',feature:'営業統括、初動5分対応、媒介取得',
@@ -4061,13 +4061,13 @@ function getStaticAIMembersData(){
      screens:'AI会議',feature:'経営哲学補佐',
      comment:'商売は、人ですわ。'},
     // 外部専門家ボード（3）
-    {id:'kujo',icon:'⚖️',name:'九条',category:'external',scope:'全社',status:'実装済(疑似)',statusKey:'pseudo',
+    {id:'kujo',icon:'⚖️',name:'九条鞍馬',category:'external',scope:'全社',status:'実装済(疑似)',statusKey:'pseudo',
      role:'顧問弁護士 / 法務・契約・トラブル・危険行為を止める',personality:'怖い、厳しい、妥協しない',
      expert:'契約リスク、禁止事項、法務、危険行為阻止',weakness:'営業現場の柔軟性とは衝突',
      tone:'断定「これは抵触します」',criteria:'宅建業法、景表法、個人情報保護法',
      consult:'広告文確認、契約書チェック、PII判断、危険行為判断',outputs:'法務可否メモ、修正案',
      screens:'AI会議',feature:'法務監査、契約前チェック、PII判定',
-     comment:'外部専門家ボード。九条の大罪モチーフ顧問弁護士AI（内部メモ）。外販時は別名化検討。'},
+     comment:'外部専門家ボード。「九条の大罪」モチーフ顧問弁護士AI（内部メモ）。外販時は別名化検討。'},
     {id:'fukuzawa-yukichi',icon:'💴',name:'福沢諭吉',category:'external',scope:'経営層',status:'実装済(疑似)',statusKey:'pseudo',
      role:'顧問税理士 / お金・税務・採算・資金繰り',personality:'現実的、数字に厳しい、啓蒙型',
      expert:'利益、費用、税務、資金繰り',weakness:'感情論',
@@ -4354,7 +4354,7 @@ function renderAIMemberSceneGuide(){
     +'<div class="ai-mem-scene-row">記録・台帳 → <b>正倉院</b></div>'
     +'<div class="ai-mem-scene-row">タスク割当 → <b>土方歳三</b></div>'
     +'<div class="ai-mem-scene-row">━━ 外部専門家ボード ━━</div>'
-    +'<div class="ai-mem-scene-row">⚖️ 法務・契約・PII → <b>九条</b></div>'
+    +'<div class="ai-mem-scene-row">⚖️ 法務・契約・PII → <b>九条鞍馬</b></div>'
     +'<div class="ai-mem-scene-row">💴 税務・お金 → <b>福沢諭吉</b></div>'
     +'<div class="ai-mem-scene-row">📋 労務・社員負荷 → <b>労基</b></div>'
     +'</div>';
@@ -4370,7 +4370,7 @@ function _legacyRenderAIMemberSceneGuide13(){
     +'<div class="ai-mem-scene-row">DM配布計画 → <b>DM丸</b></div>'
     +'<div class="ai-mem-scene-row">物件分析 → <b>物件博士 / 相場眼</b></div>'
     +'<div class="ai-mem-scene-row">ポータル改善 → <b>ポータル番</b></div>'
-    +'<div class="ai-mem-scene-row">契約書チェック → <b>契約前チェックAI / 九条</b></div>'
+    +'<div class="ai-mem-scene-row">契約書チェック → <b>契約前チェックAI / 九条鞍馬</b></div>'
     +'<div class="ai-mem-scene-row">現地調査前 → <b>現地確認AI</b></div>'
     +'<div class="ai-mem-scene-row">日報レビュー → <b>日報レビューAI</b></div>'
     +'<div class="ai-mem-scene-row">稼働偏り → <b>メンバー稼働分析AI / タスク割当AI</b></div>'
@@ -4494,7 +4494,7 @@ function getStaticAIOrgTeams(){
      ]},
     {id:'external',name:'⚖️ 外部専門家ボード（本体外）',desc:'法務 / 税務 / 労務 — 本体AIチームとは別枠の顧問格',
      members:[
-       {id:'kujo',icon:'⚖️',name:'九条',role:'顧問弁護士（怖い）',statusKey:'pseudo'},
+       {id:'kujo',icon:'⚖️',name:'九条鞍馬',role:'顧問弁護士（怖い）',statusKey:'pseudo'},
        {id:'fukuzawa-yukichi',icon:'💴',name:'福沢諭吉',role:'顧問税理士',statusKey:'pseudo'},
        {id:'roki',icon:'📋',name:'労基',role:'顧問社労士',statusKey:'pseudo'}
      ]}
@@ -4613,7 +4613,7 @@ function renderAIOrgConsultGuide(){
     +'<div class="ai-org-consult-row">品質・PDCA → <b>エドワーズ・デミング</b></div>'
     +'<div class="ai-org-consult-row">メンバー管理 → <b>北条泰時</b></div>'
     +'<div class="ai-org-consult-row">━━ 外部専門家ボード ━━</div>'
-    +'<div class="ai-org-consult-row">⚖️ 法務 → <b>九条</b>（顧問弁護士・怖い）</div>'
+    +'<div class="ai-org-consult-row">⚖️ 法務 → <b>九条鞍馬</b>（顧問弁護士・怖い）</div>'
     +'<div class="ai-org-consult-row">💴 税務 → <b>福沢諭吉</b>（顧問税理士）</div>'
     +'<div class="ai-org-consult-row">📋 労務 → <b>労基</b>（顧問社労士）</div>'
     +'</div>';
@@ -4631,7 +4631,7 @@ function getRealEstateKnowledgeTips(){
   return [
     {tip_id:'tip001',title:'「初動5分以内」の鉄則',category:'営業',cat_group:'営業',difficulty:'beginner',body:'反響を受けたら5分以内に架電。経過時間が長いほど成約率は急降下。',why_important:'他社より早い接触 = 信頼の先取り',action_hint:'反響通知を見たら他業務を一旦止めて架電',related_ai:'初動丸 / 営業軍師',freshness_level:'stable',warning_note:''},
     {tip_id:'tip002',title:'訪問査定に「目的」を持って行く',category:'査定',cat_group:'営業',difficulty:'intermediate',body:'物件を見るだけでなく「媒介取得の判断材料」「売主の温度感確認」を必ず持ち帰る。',why_important:'訪問1件あたりの情報密度が変わる',action_hint:'訪問前に「持ち帰る3項目」を決める',related_ai:'訪問丸 / 媒介丸',freshness_level:'stable',warning_note:''},
-    {tip_id:'tip003',title:'媒介は「専任」を提案する',category:'媒介取得',cat_group:'営業',difficulty:'intermediate',body:'一般媒介は競合発生時に動きづらい。専任化を最初から提案する。',why_important:'販売活動の集中化、レインズ登録義務',action_hint:'媒介説明時、専任のメリットを必ず説明',related_ai:'媒介丸 / 九条',freshness_level:'legal_sensitive',warning_note:'媒介種別の法令詳細は最新の宅建業法を確認'},
+    {tip_id:'tip003',title:'媒介は「専任」を提案する',category:'媒介取得',cat_group:'営業',difficulty:'intermediate',body:'一般媒介は競合発生時に動きづらい。専任化を最初から提案する。',why_important:'販売活動の集中化、レインズ登録義務',action_hint:'媒介説明時、専任のメリットを必ず説明',related_ai:'媒介丸/ 九条鞍馬',freshness_level:'legal_sensitive',warning_note:'媒介種別の法令詳細は最新の宅建業法を確認'},
     {tip_id:'tip004',title:'「お客様の不安」を先回りで言語化',category:'反響対応',cat_group:'営業',difficulty:'beginner',body:'金額・ローン・時期を先に言葉にすると、お客様は話しやすくなる。',why_important:'相談されやすい営業 = 受託率高い',action_hint:'初回面談で「皆さんよく心配されるのは...」と切り出す',related_ai:'営業軍師 / 秀吉',freshness_level:'stable',warning_note:''},
     {tip_id:'tip005',title:'反響少日にやるべき3つ',category:'営業',cat_group:'営業',difficulty:'beginner',body:'既存顧客フォロー / 売却ターゲット開拓DM / 同業者紹介ネットワーク。',why_important:'反響待ちは負け。攻める日に変える',action_hint:'15時時点で反響0なら攻めモード切替',related_ai:'営業軍師 / DM丸',freshness_level:'stable',warning_note:''},
     {tip_id:'tip006',title:'査定書の根拠は3つ',category:'査定',cat_group:'営業',difficulty:'intermediate',body:'成約事例 / 現況差 / 相場推移、を必ず明示。',why_important:'「なんとなく」価格は信頼を失う',action_hint:'査定書1枚目に3根拠を箇条書き',related_ai:'査定丸 / 相場眼',freshness_level:'market_sensitive',warning_note:''},
@@ -4646,22 +4646,22 @@ function getRealEstateKnowledgeTips(){
     {tip_id:'tip015',title:'追客温度感は4段階',category:'追客',cat_group:'営業',difficulty:'intermediate',body:'S(即時) / A(積極) / B(中期) / C(長期)。月次レビュー必須。',why_important:'温度別アクション',action_hint:'CRMではなく自分メモで温度管理',related_ai:'追客丸',freshness_level:'stable',warning_note:''},
     {tip_id:'tip016',title:'「忙しい」は不在ではない',category:'追客',cat_group:'営業',difficulty:'beginner',body:'忙しいと言われたら時間を聞き直す。「○分だけ」が刺さる。',why_important:'諦めない接触機会',action_hint:'「○分だけ」テンプレを準備',related_ai:'追客丸 / 営業軍師',freshness_level:'stable',warning_note:''},
     {tip_id:'tip017',title:'追客の止め時',category:'追客',cat_group:'営業',difficulty:'intermediate',body:'「他社で決めた」「家族で反対」明確NG言質ありで終了。中途半端な追客は印象悪化。',why_important:'精神衛生 + 資源の最適配分',action_hint:'終了基準5つを書き出す',related_ai:'追客丸 / 労基',freshness_level:'stable',warning_note:''},
-    {tip_id:'tip018',title:'重要事項説明は「読む」じゃなく「説明する」',category:'重要事項説明',cat_group:'契約',difficulty:'advanced',body:'条文丸読みは違反リスク。お客様の言葉で理解確認しながら進行。',why_important:'宅建業法遵守',action_hint:'重説中に最低3回「不明点ありますか」',related_ai:'九条 / 契約前チェックAI',freshness_level:'legal_sensitive',warning_note:'宅建業法の最新規定は要確認'},
-    {tip_id:'tip019',title:'契約書チェックは3回',category:'売買契約',cat_group:'契約',difficulty:'intermediate',body:'作成時 / 印刷前 / お客様確認時。',why_important:'誤字・抜けは信頼失墜',action_hint:'契約書チェックリストを用意',related_ai:'契約前チェックAI / 九条',freshness_level:'stable',warning_note:''},
-    {tip_id:'tip020',title:'特約は「リスクの裏返し」',category:'売買契約',cat_group:'契約',difficulty:'advanced',body:'特約が多い = リスクを契約に閉じ込めるための工夫。お客様に意義を必ず説明。',why_important:'トラブル予防',action_hint:'特約ごとに「なぜこの特約か」を書き出す',related_ai:'九条 / 契約前チェックAI',freshness_level:'legal_sensitive',warning_note:''},
+    {tip_id:'tip018',title:'重要事項説明は「読む」じゃなく「説明する」',category:'重要事項説明',cat_group:'契約',difficulty:'advanced',body:'条文丸読みは違反リスク。お客様の言葉で理解確認しながら進行。',why_important:'宅建業法遵守',action_hint:'重説中に最低3回「不明点ありますか」',related_ai:'九条鞍馬 /契約前チェックAI',freshness_level:'legal_sensitive',warning_note:'宅建業法の最新規定は要確認'},
+    {tip_id:'tip019',title:'契約書チェックは3回',category:'売買契約',cat_group:'契約',difficulty:'intermediate',body:'作成時 / 印刷前 / お客様確認時。',why_important:'誤字・抜けは信頼失墜',action_hint:'契約書チェックリストを用意',related_ai:'契約前チェックAI/ 九条鞍馬',freshness_level:'stable',warning_note:''},
+    {tip_id:'tip020',title:'特約は「リスクの裏返し」',category:'売買契約',cat_group:'契約',difficulty:'advanced',body:'特約が多い = リスクを契約に閉じ込めるための工夫。お客様に意義を必ず説明。',why_important:'トラブル予防',action_hint:'特約ごとに「なぜこの特約か」を書き出す',related_ai:'九条鞍馬 /契約前チェックAI',freshness_level:'legal_sensitive',warning_note:''},
     {tip_id:'tip021',title:'印紙税の金額確認',category:'税務',cat_group:'法税労',difficulty:'intermediate',body:'契約金額帯で印紙税が変わる。間違うと面倒。',why_important:'法定費用の正確性',action_hint:'契約前日に印紙税確認',related_ai:'諭吉 / 契約前チェックAI',freshness_level:'tax_sensitive',warning_note:'印紙税は税制改正で変わるため最新確認必要'},
     {tip_id:'tip022',title:'ローン特約日付の余裕',category:'住宅ローン',cat_group:'契約',difficulty:'intermediate',body:'審査期間 + 予備日。タイトに切ると延長申請の手間。',why_important:'契約不履行リスク回避',action_hint:'金融機関の審査期間に+7-10日',related_ai:'契約前チェックAI / 諭吉',freshness_level:'stable',warning_note:''},
-    {tip_id:'tip023',title:'相続物件は「早めに専門家相談」',category:'相続',cat_group:'法税労',difficulty:'advanced',body:'相続登記 + 遺産分割 + 譲渡所得税が絡む。素人判断NG。',why_important:'トラブル予防',action_hint:'相続案件は税理士・司法書士連携前提',related_ai:'諭吉 / 九条',freshness_level:'legal_sensitive',warning_note:'相続税法・相続登記は最新確認必要'},
+    {tip_id:'tip023',title:'相続物件は「早めに専門家相談」',category:'相続',cat_group:'法税労',difficulty:'advanced',body:'相続登記 + 遺産分割 + 譲渡所得税が絡む。素人判断NG。',why_important:'トラブル予防',action_hint:'相続案件は税理士・司法書士連携前提',related_ai:'諭吉/ 九条鞍馬',freshness_level:'legal_sensitive',warning_note:'相続税法・相続登記は最新確認必要'},
     {tip_id:'tip024',title:'贈与は「いつ・いくら」で課税が変わる',category:'贈与',cat_group:'法税労',difficulty:'advanced',body:'年間110万円基礎控除、住宅取得資金贈与の特例等、特例で大きく変わる。',why_important:'節税機会',action_hint:'贈与の話が出たら必ず諭吉+税理士確認',related_ai:'諭吉',freshness_level:'tax_sensitive',warning_note:'税制毎年改正、最新確認必要'},
-    {tip_id:'tip025',title:'京都市は景観条例が厳しい',category:'京都市不動産',cat_group:'エリア',difficulty:'intermediate',body:'高さ・看板・色彩、エリア毎に制限。広告や物件選定で要注意。',why_important:'違反リスク',action_hint:'京都市条例は最新版を年1確認',related_ai:'九条 / ポータル番',freshness_level:'legal_sensitive',warning_note:'景観条例は改正あり、最新確認必要'},
+    {tip_id:'tip025',title:'京都市は景観条例が厳しい',category:'京都市不動産',cat_group:'エリア',difficulty:'intermediate',body:'高さ・看板・色彩、エリア毎に制限。広告や物件選定で要注意。',why_important:'違反リスク',action_hint:'京都市条例は最新版を年1確認',related_ai:'九条鞍馬 /ポータル番',freshness_level:'legal_sensitive',warning_note:'景観条例は改正あり、最新確認必要'},
     {tip_id:'tip026',title:'南区はファミリー層に強い',category:'南区',cat_group:'エリア',difficulty:'beginner',body:'交通アクセス + 公立小中の評判。一戸建てニーズ高。',why_important:'マーケティング軸',action_hint:'南区物件は学区情報を物件資料に',related_ai:'DM丸 / 相場眼',freshness_level:'market_sensitive',warning_note:''},
     {tip_id:'tip027',title:'西京区は閑静+学区人気',category:'西京区',cat_group:'エリア',difficulty:'beginner',body:'洛西エリア。一部地域は学区プレミアム。',why_important:'価格設定の根拠',action_hint:'学区プレミアム物件はキャッチコピー強調',related_ai:'DM丸 / 相場眼 / ポータル番',freshness_level:'market_sensitive',warning_note:''},
-    {tip_id:'tip028',title:'市街化調整区域は再建築要注意',category:'市街化調整区域',cat_group:'エリア',difficulty:'advanced',body:'原則建築不可。例外規定の確認必須。',why_important:'再建築不可は価格に大きく影響',action_hint:'調整区域物件は地目+例外確認',related_ai:'物件博士 / 九条',freshness_level:'legal_sensitive',warning_note:'開発許可基準は自治体により異なる、要確認'},
-    {tip_id:'tip029',title:'農地は農地法',category:'農地',cat_group:'エリア',difficulty:'advanced',body:'農地の売買は農業委員会許可必要。素人判断NG。',why_important:'違反リスク + 取引時間',action_hint:'地目「田」「畑」は農地法確認',related_ai:'九条 / 物件博士',freshness_level:'legal_sensitive',warning_note:'農地法3条・5条の最新確認必要'},
-    {tip_id:'tip030',title:'生産緑地は2022年問題後も継続注意',category:'生産緑地',cat_group:'エリア',difficulty:'advanced',body:'30年特定生産緑地指定で延長。指定状況確認必須。',why_important:'固都税+売却時影響大',action_hint:'京都市の指定状況を最新確認',related_ai:'九条 / 諭吉 / 物件博士',freshness_level:'legal_sensitive',warning_note:'2022年問題後も個別状況確認必要'},
-    {tip_id:'tip031',title:'連棟長屋は再建築要件確認',category:'連棟',cat_group:'エリア',difficulty:'advanced',body:'単独取り壊し不可、接道要件等。',why_important:'再建築可否で価格2倍違う',action_hint:'連棟物件は建築士確認',related_ai:'物件博士 / 現地確認AI / 九条',freshness_level:'legal_sensitive',warning_note:''},
-    {tip_id:'tip032',title:'ハウスドゥFCルール遵守',category:'ハウスドゥ運用',cat_group:'運用',difficulty:'intermediate',body:'商標 / 広告ルール / 報告義務、各種FC規約あり。',why_important:'FC規約違反は契約解除リスク',action_hint:'FC本部資料を3ヶ月毎確認',related_ai:'番頭 / 九条',freshness_level:'review_quarterly',warning_note:''},
-    {tip_id:'tip033',title:'no-customer-data 方針',category:'no-customer-data',cat_group:'教育',difficulty:'beginner',body:'AI会議・議事録・メンバー稼働、すべての画面で顧客名・電話・住所は入力しない・保存しない・表示しない。',why_important:'個人情報保護法遵守+漏洩リスク回避',action_hint:'AIに話すときも案件IDで表現',related_ai:'個人情報ガードAI / 九条',freshness_level:'stable',warning_note:''},
+    {tip_id:'tip028',title:'市街化調整区域は再建築要注意',category:'市街化調整区域',cat_group:'エリア',difficulty:'advanced',body:'原則建築不可。例外規定の確認必須。',why_important:'再建築不可は価格に大きく影響',action_hint:'調整区域物件は地目+例外確認',related_ai:'物件博士/ 九条鞍馬',freshness_level:'legal_sensitive',warning_note:'開発許可基準は自治体により異なる、要確認'},
+    {tip_id:'tip029',title:'農地は農地法',category:'農地',cat_group:'エリア',difficulty:'advanced',body:'農地の売買は農業委員会許可必要。素人判断NG。',why_important:'違反リスク + 取引時間',action_hint:'地目「田」「畑」は農地法確認',related_ai:'九条鞍馬 /物件博士',freshness_level:'legal_sensitive',warning_note:'農地法3条・5条の最新確認必要'},
+    {tip_id:'tip030',title:'生産緑地は2022年問題後も継続注意',category:'生産緑地',cat_group:'エリア',difficulty:'advanced',body:'30年特定生産緑地指定で延長。指定状況確認必須。',why_important:'固都税+売却時影響大',action_hint:'京都市の指定状況を最新確認',related_ai:'九条鞍馬 /諭吉 / 物件博士',freshness_level:'legal_sensitive',warning_note:'2022年問題後も個別状況確認必要'},
+    {tip_id:'tip031',title:'連棟長屋は再建築要件確認',category:'連棟',cat_group:'エリア',difficulty:'advanced',body:'単独取り壊し不可、接道要件等。',why_important:'再建築可否で価格2倍違う',action_hint:'連棟物件は建築士確認',related_ai:'物件博士 / 現地確認AI/ 九条鞍馬',freshness_level:'legal_sensitive',warning_note:''},
+    {tip_id:'tip032',title:'ハウスドゥFCルール遵守',category:'ハウスドゥ運用',cat_group:'運用',difficulty:'intermediate',body:'商標 / 広告ルール / 報告義務、各種FC規約あり。',why_important:'FC規約違反は契約解除リスク',action_hint:'FC本部資料を3ヶ月毎確認',related_ai:'番頭/ 九条鞍馬',freshness_level:'review_quarterly',warning_note:''},
+    {tip_id:'tip033',title:'no-customer-data 方針',category:'no-customer-data',cat_group:'教育',difficulty:'beginner',body:'AI会議・議事録・メンバー稼働、すべての画面で顧客名・電話・住所は入力しない・保存しない・表示しない。',why_important:'個人情報保護法遵守+漏洩リスク回避',action_hint:'AIに話すときも案件IDで表現',related_ai:'個人情報ガードAI/ 九条鞍馬',freshness_level:'stable',warning_note:''},
     {tip_id:'tip034',title:'AI会議は議題ベースで使う',category:'AI活用',cat_group:'教育',difficulty:'beginner',body:'「○の議題を分解して」「タスク化して」と指示するとAIチームが整理する。',why_important:'AIを使いこなす習慣化',action_hint:'今日1件はAI会議で議題整理',related_ai:'じゃがい総司令官 / 議事録AI',freshness_level:'stable',warning_note:''},
     {tip_id:'tip035',title:'日報は事実+数字',category:'日報',cat_group:'運用',difficulty:'beginner',body:'「頑張った」ではなく「架電5件、アポ1件、訪問1件」。',why_important:'レビューの精度',action_hint:'日報入力時に数字3つ必須',related_ai:'日報レビューAI',freshness_level:'stable',warning_note:''},
     {tip_id:'tip036',title:'店長は「数字」と「人」を両方見る',category:'店長管理',cat_group:'運用',difficulty:'intermediate',body:'KPIだけ見ると人が壊れる。メンバー稼働も毎週確認。',why_important:'5店舗展開の継続可能性',action_hint:'週1でメンバー稼働画面確認',related_ai:'店長補佐AI / 労基 / メンバー稼働分析AI',freshness_level:'stable',warning_note:''},
