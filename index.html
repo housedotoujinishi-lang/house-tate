@@ -882,7 +882,49 @@ textarea.ai-team-input{resize:vertical;min-height:60px}
 .ai-mem-detail{display:none;margin-top:8px;padding-top:8px;border-top:1px dashed #ccc}
 .ai-mem-detail.open{display:block}
 .ai-mem-note{font-size:11px;color:#666;background:#f8f9fb;padding:8px 10px;border-radius:6px;margin:0 0 12px;line-height:1.5}
+.ai-org-commander{background:linear-gradient(135deg,#0a3d7c 0%,#1f4e8a 100%);color:#fff;border-radius:12px;padding:16px;margin:0 0 14px;text-align:center;box-shadow:0 2px 6px rgba(10,61,124,.3);border:2px solid #c9a23d}
+.ai-org-commander-icon{font-size:36px;line-height:1}
+.ai-org-commander-name{font-size:16px;font-weight:800;margin:6px 0 4px}
+.ai-org-commander-role{font-size:11px;color:rgba(255,255,255,.85);margin:0 0 6px}
+.ai-org-commander-comment{font-size:11px;color:#ffe9a8;font-style:italic}
+.ai-org-tree-line{text-align:center;color:#999;font-size:18px;margin:0 0 4px}
+.ai-org-team{background:#fff;border:1px solid #e0e0e0;border-radius:10px;margin:0 0 10px;overflow:hidden}
+.ai-org-team-head{padding:10px 14px;color:#fff;font-weight:800;font-size:13px;display:flex;justify-content:space-between;align-items:center;cursor:pointer}
+.ai-org-team-head.A{background:#0a3d7c}
+.ai-org-team-head.B{background:#c9a23d}
+.ai-org-team-head.C{background:#2d5f3f}
+.ai-org-team-head.D{background:#3b8ac4}
+.ai-org-team-head.E{background:#b22a2a}
+.ai-org-team-head.F{background:#3b3b6e}
+.ai-org-team-toggle{font-size:14px}
+.ai-org-team-desc{font-size:11px;color:#666;padding:8px 14px 4px}
+.ai-org-team-body{padding:6px 10px 12px}
+.ai-org-ai-row{display:flex;align-items:center;gap:8px;padding:8px 10px;background:#f8f9fb;border-radius:6px;margin:0 0 5px;font-size:12px}
+.ai-org-ai-icon{font-size:18px;flex-shrink:0}
+.ai-org-ai-text{flex:1}
+.ai-org-ai-name{font-weight:800;color:#222;font-size:12px}
+.ai-org-ai-role{font-size:10px;color:#666;margin-top:2px}
+.ai-org-ai-status{font-size:9px;padding:2px 6px;border-radius:8px;color:#fff;flex-shrink:0}
+.ai-org-ai-status.done{background:#2d8a4f}
+.ai-org-ai-status.pseudo{background:#0a3d7c}
+.ai-org-ai-status.plan{background:#c97a1a}
+.ai-org-consult{background:#fffbe6;border:1px solid #ffd54f;border-radius:8px;padding:12px;margin:14px 0 0;font-size:12px}
+.ai-org-consult-title{font-weight:800;color:#5a4400;margin:0 0 8px;font-size:13px}
+.ai-org-consult-row{margin:4px 0;color:#444;line-height:1.6}
+.ai-org-consult-row b{color:#0a3d7c}
+.ai-org-note{font-size:11px;color:#666;background:#f8f9fb;padding:8px 10px;border-radius:6px;margin:0 0 12px;line-height:1.5}
   </style>
+  <div class="page" id="page-ai-org">
+    <div style="padding:14px 14px 80px;max-width:760px;margin:0 auto">
+      <h2 style="font-size:18px;color:#0a3d7c;margin:0 0 4px;font-weight:800">🏢 AI組織図</h2>
+      <div style="font-size:11px;color:#666;margin-bottom:12px">じゃがいAIチーム36人の全体構造と相談先を確認します（静的MVP・DB保存なし）</div>
+      <div class="ai-org-note">ℹ AI組織図は相談先を確認するための画面です。顧客名・住所・電話番号などは入力・表示しません。</div>
+      <div id="ai-org-commander"></div>
+      <div class="ai-org-tree-line">│</div>
+      <div id="ai-org-teams"></div>
+      <div id="ai-org-consult"></div>
+    </div>
+  </div>
   <div class="page" id="page-ai-members">
     <div style="padding:14px 14px 80px;max-width:760px;margin:0 auto">
       <h2 style="font-size:18px;color:#0a3d7c;margin:0 0 4px;font-weight:800">🤖 AIメンバー名鑑</h2>
@@ -950,6 +992,7 @@ textarea.ai-team-input{resize:vertical;min-height:60px}
     <div class="bn-tab-wrap" onclick="switchPage('aiteam')"><button class="bn-tab" data-bnpg="aiteam"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9 9h.01"/><path d="M15 9h.01"/><path d="M8 15a4 4 0 0 0 8 0"/></svg>AI会議</button></div>
     <div class="bn-tab-wrap" onclick="switchPage('member-workload')"><button class="bn-tab" data-bnpg="member-workload"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>稼働</button></div>
     <div class="bn-tab-wrap" onclick="switchPage('ai-members')"><button class="bn-tab" data-bnpg="ai-members"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg>AI名鑑</button></div>
+    <div class="bn-tab-wrap" onclick="switchPage('ai-org')"><button class="bn-tab" data-bnpg="ai-org"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="6" rx="1"/><rect x="3" y="14" width="6" height="6" rx="1"/><rect x="15" y="14" width="6" height="6" rx="1"/><path d="M12 8v3"/><path d="M6 14v-3h12v3"/></svg>組織図</button></div>
     <div class="bn-tab-wrap" style="display:none" onclick="switchPage('crm')"><button class="bn-tab" data-bnpg="crm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>顧客</button></div>
   </nav>
 </div>
@@ -1333,8 +1376,8 @@ function showMainApp(){
   if(isHighPerm){rb.textContent=roleLabel;rb.style.cssText='background:var(--gold);color:var(--navy);padding:1px 6px;border-radius:7px;font-size:9px;font-weight:800';}
   else{rb.textContent='スタッフ';rb.style.cssText='background:rgba(255,255,255,.15);color:#fff;padding:1px 6px;border-radius:7px;font-size:9px;font-weight:700';}
   const tabs=isHighPerm
-    ?[['dash','🏠 ホーム'],['accounts','👑 管理'],['kintai','🕐 勤怠'],['cal','📅 カレンダー/タスク'],['shift','📋 シフト'],['goal','🎯 目標KPI'],['report','📊 月次レポート'],['aiteam','🧠 AI会議'],['member-workload','👥 メンバー稼働'],['ai-members','🤖 AI名鑑']]
-    :[['dash','🏠 ホーム'],['kintai','🕐 勤怠'],['cal','📅 カレンダー/タスク'],['shift','📋 シフト'],['goal','🎯 目標KPI'],['aiteam','🧠 AI会議'],['member-workload','👥 メンバー稼働'],['ai-members','🤖 AI名鑑']];
+    ?[['dash','🏠 ホーム'],['accounts','👑 管理'],['kintai','🕐 勤怠'],['cal','📅 カレンダー/タスク'],['shift','📋 シフト'],['goal','🎯 目標KPI'],['report','📊 月次レポート'],['aiteam','🧠 AI会議'],['member-workload','👥 メンバー稼働'],['ai-members','🤖 AI名鑑'],['ai-org','🏢 AI組織図']]
+    :[['dash','🏠 ホーム'],['kintai','🕐 勤怠'],['cal','📅 カレンダー/タスク'],['shift','📋 シフト'],['goal','🎯 目標KPI'],['aiteam','🧠 AI会議'],['member-workload','👥 メンバー稼働'],['ai-members','🤖 AI名鑑'],['ai-org','🏢 AI組織図']];
   tabs.forEach(([pg,lbl],idx)=>{
     const b=document.createElement('button');
     b.className='ntab'+(idx===0?' on':'');b.dataset.pg=pg;b.textContent=lbl;
@@ -1450,7 +1493,7 @@ bindEvForm();
   }
 }
 
-function switchPage(pg){document.querySelectorAll('.ntab').forEach(b=>b.classList.toggle('on',b.dataset.pg===pg));document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));const pgEl=document.getElementById(`page-${pg}`);if(pgEl)pgEl.classList.add('on');if(pg==='dash')renderDash();if(pg==='accounts')renderAccList();if(pg==='kintai'){ktViewUid=currentUser.perm==='admin'?null:currentUser.uid;renderKintaiPage();}if(pg==='cal')render();if(pg==='shift')renderShift();if(pg==='goal'){initGoalData();renderGoalPage();}if(pg==='crm')renderCRMPage();if(pg==='report')renderReportPage();if(pg==='aiteam')renderAITeamPage();if(pg==='member-workload')renderMemberWorkloadPage();if(pg==='ai-members')renderAIMembersPage();}
+function switchPage(pg){document.querySelectorAll('.ntab').forEach(b=>b.classList.toggle('on',b.dataset.pg===pg));document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));const pgEl=document.getElementById(`page-${pg}`);if(pgEl)pgEl.classList.add('on');if(pg==='dash')renderDash();if(pg==='accounts')renderAccList();if(pg==='kintai'){ktViewUid=currentUser.perm==='admin'?null:currentUser.uid;renderKintaiPage();}if(pg==='cal')render();if(pg==='shift')renderShift();if(pg==='goal'){initGoalData();renderGoalPage();}if(pg==='crm')renderCRMPage();if(pg==='report')renderReportPage();if(pg==='aiteam')renderAITeamPage();if(pg==='member-workload')renderMemberWorkloadPage();if(pg==='ai-members')renderAIMembersPage();if(pg==='ai-org')renderAIOrgChartPage();}
 function mkModal(id,barColor,title){const ex=document.getElementById(id);if(ex)ex.remove();const bg=document.createElement('div');bg.className='mbg';bg.id=id;bg.innerHTML=`<div class="modal"><div class="mbar" style="background:${barColor}"></div><button class="mclose" id="${id}-c">✕</button><div class="mttl">${title}</div><div class="macts"></div></div>`;document.body.appendChild(bg);document.getElementById(`${id}-c`).onclick=()=>bg.remove();bg.onclick=e=>{if(e.target===bg)bg.remove();};return bg;}
 function mttlAfter(bg,html){bg.querySelector('.mttl').insertAdjacentHTML('afterend',html);}
 function macts(bg,html){bg.querySelector('.macts').innerHTML=html;}
@@ -4068,6 +4111,117 @@ function renderAIMembersPage(){
   if(searchEl&&!searchEl._aimBound){searchEl._aimBound=true;searchEl.oninput=()=>{renderAIMemberCards(filterAIMembers(getStaticAIMembersData(),window._aiMemFilter||'all',searchEl.value),window._aiMemExpanded);};}
 }
 // ==== ここまで packet 228 AIメンバー名鑑 静的MVP ====
+
+// ==== AI組織図 静的MVP（packet 246 / v0.9.52）DB / 外部API / localStorage 一切なし ====
+function getStaticAIOrgTeams(){
+  return [
+    {id:'A',name:'A. 統括・経営判断チーム',desc:'経営判断 / 長期戦略 / 攻め判断',
+     members:[
+       {id:'jagai',icon:'🛡',name:'じゃがい総司令官',role:'全体統括、ボス補佐',statusKey:'done'},
+       {id:'ieyasu',icon:'🏯',name:'家康',role:'長期戦略、組織づくり',statusKey:'done'},
+       {id:'nobunaga',icon:'⚔️',name:'信長',role:'攻めの経営、新規事業',statusKey:'plan'},
+       {id:'hideyoshi',icon:'🍶',name:'秀吉',role:'人心掌握、調整',statusKey:'plan'},
+       {id:'bantou',icon:'🧮',name:'番頭',role:'店舗運営、日次オペ',statusKey:'plan'},
+       {id:'enma',icon:'⚖️',name:'閻魔',role:'最終評価、賞罰判定',statusKey:'plan'}
+     ]},
+    {id:'B',name:'B. 営業・売上改善チーム',desc:'反響対応 / 媒介取得 / 追客 / DM',
+     members:[
+       {id:'sales-strategist',icon:'🎯',name:'営業軍師',role:'売上・営業戦略',statusKey:'pseudo'},
+       {id:'shodou',icon:'⚡',name:'初動丸',role:'反響初動5分以内',statusKey:'plan'},
+       {id:'baikai',icon:'🏠',name:'媒介丸',role:'媒介取得',statusKey:'plan'},
+       {id:'satei',icon:'📐',name:'査定丸',role:'査定書作成',statusKey:'plan'},
+       {id:'tsuikyaku',icon:'📞',name:'追客丸',role:'査定後フォロー',statusKey:'plan'},
+       {id:'dm-maru',icon:'📬',name:'DM丸',role:'エリア別DM',statusKey:'plan'}
+     ]},
+    {id:'C',name:'C. 不動産実務・物件分析チーム',desc:'物件 / レインズ / ポータル / 相場',
+     members:[
+       {id:'bukken',icon:'🏘',name:'物件博士',role:'物件総合分析',statusKey:'plan'},
+       {id:'reins',icon:'📡',name:'レインズ番',role:'レインズ登録',statusKey:'plan'},
+       {id:'portal',icon:'🌐',name:'ポータル番',role:'ポータル掲載最適化',statusKey:'plan'},
+       {id:'souba',icon:'👁',name:'相場眼',role:'相場・競合分析',statusKey:'plan'},
+       {id:'keiyaku-check',icon:'✅',name:'契約前チェックAI',role:'契約書事前チェック',statusKey:'plan'},
+       {id:'genchi',icon:'📍',name:'現地確認AI',role:'現地調査チェックリスト',statusKey:'plan'}
+     ]},
+    {id:'D',name:'D. 管理・日報・稼働チーム',desc:'日報 / 稼働 / タスク / 店長補佐',
+     members:[
+       {id:'daily-report',icon:'📓',name:'日報レビューAI',role:'日報レビュー',statusKey:'plan'},
+       {id:'member-workload',icon:'👥',name:'メンバー稼働分析AI',role:'稼働分析',statusKey:'done'},
+       {id:'task-alloc',icon:'🎯',name:'タスク割当AI',role:'タスク自動割当',statusKey:'plan'},
+       {id:'tencho-hosa',icon:'🏬',name:'店長補佐AI',role:'店長業務補佐',statusKey:'plan'},
+       {id:'jimu-hosa',icon:'📑',name:'事務補佐AI',role:'事務作業補佐',statusKey:'plan'},
+       {id:'schedule',icon:'📆',name:'スケジュールAI',role:'予定統合',statusKey:'plan'}
+     ]},
+    {id:'E',name:'E. リスク・専門家チーム',desc:'法務 / 税務 / 労務 / セキュリティ',
+     members:[
+       {id:'kujo',icon:'⚖️',name:'九条',role:'法務・コンプラ',statusKey:'pseudo'},
+       {id:'yukichi',icon:'💴',name:'諭吉',role:'税務・財務',statusKey:'pseudo'},
+       {id:'roki',icon:'📋',name:'労基',role:'労務・働き方',statusKey:'pseudo'},
+       {id:'security',icon:'🛡️',name:'セキュリティ監査AI',role:'セキュリティ監査',statusKey:'plan'},
+       {id:'claim',icon:'🚨',name:'クレーム初動AI',role:'クレーム初動',statusKey:'plan'},
+       {id:'pii-guard',icon:'🔐',name:'個人情報ガードAI',role:'PII検出',statusKey:'pseudo'}
+     ]},
+    {id:'F',name:'F. 記録・評価・学習チーム',desc:'議事録 / 評価 / Dreaming / 教育',
+     members:[
+       {id:'minutes',icon:'📝',name:'議事録AI',role:'議事録化',statusKey:'done'},
+       {id:'outcomes',icon:'📊',name:'Outcomes評価AI',role:'AI出力採点',statusKey:'done'},
+       {id:'dreaming',icon:'🌙',name:'Dreaming AI',role:'夜間学習',statusKey:'plan'},
+       {id:'calendar',icon:'📅',name:'Googleカレンダー連携AI',role:'予定枠把握',statusKey:'plan'},
+       {id:'docs-ai',icon:'📚',name:'営業OSドキュメントAI',role:'docs整理・検索',statusKey:'plan'},
+       {id:'education',icon:'🎓',name:'社員教育AI',role:'研修・ロープレ',statusKey:'plan'}
+     ]}
+  ];
+}
+function escAIOrgHtml(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function renderAIOrgCommander(){
+  const root=document.getElementById('ai-org-commander');if(!root)return;
+  root.innerHTML='<div class="ai-org-commander">'
+    +'<div class="ai-org-commander-icon">🛡</div>'
+    +'<div class="ai-org-commander-name">じゃがい総司令官</div>'
+    +'<div class="ai-org-commander-role">全社統括 / ボス意思決定補佐 / 各AI意見統合</div>'
+    +'<div class="ai-org-commander-comment">💬 迷ったらまず私へ。3タスクに切ります。</div>'
+    +'</div>';
+}
+function renderAIOrgTeamCards(){
+  const root=document.getElementById('ai-org-teams');if(!root)return;
+  const e=escAIOrgHtml;
+  const teams=getStaticAIOrgTeams();
+  const statusLabel={done:'実装済',pseudo:'実装済(疑似)',plan:'設計のみ',todo:'未着手'};
+  let h='';
+  teams.forEach(t=>{
+    h+='<div class="ai-org-team">';
+    h+='<div class="ai-org-team-head '+e(t.id)+'"><span>'+e(t.name)+'</span><span class="ai-org-team-toggle">'+t.members.length+'人</span></div>';
+    h+='<div class="ai-org-team-desc">'+e(t.desc)+'</div>';
+    h+='<div class="ai-org-team-body">';
+    t.members.forEach(m=>{
+      h+='<div class="ai-org-ai-row">';
+      h+='<div class="ai-org-ai-icon">'+e(m.icon)+'</div>';
+      h+='<div class="ai-org-ai-text"><div class="ai-org-ai-name">'+e(m.name)+'</div><div class="ai-org-ai-role">'+e(m.role)+'</div></div>';
+      h+='<div class="ai-org-ai-status '+e(m.statusKey)+'">'+e(statusLabel[m.statusKey]||m.statusKey)+'</div>';
+      h+='</div>';
+    });
+    h+='</div></div>';
+  });
+  root.innerHTML=h;
+}
+function renderAIOrgConsultGuide(){
+  const root=document.getElementById('ai-org-consult');if(!root)return;
+  root.innerHTML='<div class="ai-org-consult"><div class="ai-org-consult-title">💡 こんな時にどのAIに相談？</div>'
+    +'<div class="ai-org-consult-row">売上相談 → <b>営業軍師 / 初動丸 / 媒介丸</b></div>'
+    +'<div class="ai-org-consult-row">法務相談 → <b>九条</b></div>'
+    +'<div class="ai-org-consult-row">お金相談 → <b>諭吉</b></div>'
+    +'<div class="ai-org-consult-row">労務相談 → <b>労基</b></div>'
+    +'<div class="ai-org-consult-row">稼働相談 → <b>メンバー稼働分析AI / スケジュールAI</b></div>'
+    +'<div class="ai-org-consult-row">会議整理 → <b>議事録AI</b></div>'
+    +'<div class="ai-org-consult-row">品質確認 → <b>Outcomes評価AI</b></div>'
+    +'<div class="ai-org-consult-row">改善学習 → <b>Dreaming AI</b></div>'
+    +'</div>';
+}
+function renderAIOrgChartPage(){
+  renderAIOrgCommander();
+  renderAIOrgTeamCards();
+  renderAIOrgConsultGuide();
+}
+// ==== ここまで packet 246 AI組織図 静的MVP ====
 </script>
 </body>
 </html>
