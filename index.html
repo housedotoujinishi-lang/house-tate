@@ -812,7 +812,56 @@ textarea.ai-team-input{resize:vertical;min-height:60px}
 .ai-team-copy-btn{display:inline-block;padding:6px 12px;background:#fff;color:#0a3d7c;border:1px solid #0a3d7c;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;margin:8px 0 0}
 .ai-team-copy-btn:hover{background:#0a3d7c;color:#fff}
 .ai-team-mini-note{font-size:11px;color:#666;line-height:1.4;margin:4px 0}
+.mw-summary{background:#fff;border:1px solid #e0e0e0;border-radius:10px;padding:12px 14px;margin:0 0 12px;font-size:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.mw-summary-cell{background:#f8f9fb;padding:8px 10px;border-radius:6px}
+.mw-summary-lbl{font-size:10px;color:#777;margin:0 0 2px}
+.mw-summary-val{font-size:16px;font-weight:800;color:#0a3d7c}
+.mw-summary-val.warn{color:#b22a2a}
+.mw-filters{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px}
+.mw-filter-btn{padding:6px 12px;background:#fff;color:#0a3d7c;border:1px solid #0a3d7c;border-radius:14px;font-size:11px;font-weight:700;cursor:pointer}
+.mw-filter-btn.on{background:#0a3d7c;color:#fff}
+.mw-alert{background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:10px 12px;margin:0 0 12px;font-size:12px;color:#856404}
+.mw-alert.boss{background:#f8d7da;border-color:#dc3545;color:#721c24}
+.mw-alert-title{font-weight:800;margin:0 0 4px}
+.mw-card{background:#fff;border:1px solid #e0e0e0;border-radius:10px;padding:14px 16px;margin:0 0 12px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.mw-card-head{display:flex;align-items:center;gap:8px;margin:0 0 8px}
+.mw-avatar{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:12px;flex-shrink:0}
+.mw-name{font-size:13px;font-weight:800;color:#222;flex:1}
+.mw-status{font-size:10px;font-weight:800;padding:3px 8px;border-radius:10px;color:#fff;flex-shrink:0}
+.mw-status.yoyu{background:#2d8a4f}
+.mw-status.tekisei{background:#0a3d7c}
+.mw-status.kouhuka{background:#c97a1a}
+.mw-status.choka{background:#b22a2a}
+.mw-pills{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 8px}
+.mw-pill{font-size:10px;font-weight:700;padding:2px 8px;border-radius:8px}
+.mw-pill.position{background:#e8eef7;color:#0a3d7c}
+.mw-pill.permission{background:#f0e6d2;color:#7a5510}
+.mw-bar-wrap{margin:6px 0}
+.mw-bar-row{display:flex;align-items:center;gap:8px;font-size:11px;color:#444}
+.mw-bar-bg{flex:1;height:8px;background:#e8eaef;border-radius:4px;overflow:hidden;position:relative}
+.mw-bar-fill{height:100%;background:#0a3d7c;border-radius:4px;transition:width .3s}
+.mw-bar-fill.over{background:#b22a2a}
+.mw-bar-val{font-size:11px;font-weight:800;color:#0a3d7c;min-width:38px;text-align:right}
+.mw-bar-val.over{color:#b22a2a}
+.mw-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:8px 0}
+.mw-stat{text-align:center;background:#f8f9fb;padding:6px;border-radius:6px}
+.mw-stat-lbl{font-size:9px;color:#777;margin:0 0 2px}
+.mw-stat-val{font-size:13px;font-weight:800;color:#222}
+.mw-stat-val.warn{color:#b22a2a}
+.mw-comment{background:#f8f9fb;border-left:3px solid #c9a23d;padding:8px 10px;margin:8px 0 0;border-radius:0 6px 6px 0;font-size:11px;color:#555;line-height:1.5}
+.mw-note{font-size:11px;color:#666;background:#f8f9fb;padding:8px 10px;border-radius:6px;margin:0 0 12px;line-height:1.5}
   </style>
+  <div class="page" id="page-member-workload">
+    <div style="padding:14px 14px 80px;max-width:760px;margin:0 auto">
+      <h2 style="font-size:18px;color:#0a3d7c;margin:0 0 4px;font-weight:800">👥 メンバー稼働</h2>
+      <div style="font-size:11px;color:#666;margin-bottom:12px">メンバーごとのタスク量・日報状況・稼働負荷を確認します（静的 MVP・DB 保存なし）</div>
+      <div class="mw-note">ℹ この画面では顧客名・住所・電話番号などは表示しません。メンバーの稼働量と行動量のみを確認します。</div>
+      <div id="mw-summary"></div>
+      <div id="mw-alerts"></div>
+      <div id="mw-filters" class="mw-filters"></div>
+      <div id="mw-cards"></div>
+    </div>
+  </div>
   <div class="page" id="page-aiteam">
     <div style="padding:14px 14px 80px;max-width:760px;margin:0 auto">
       <h2 style="font-size:18px;color:#0a3d7c;margin:0 0 4px;font-weight:800">🧠 じゃがいAI会議</h2>
@@ -856,6 +905,7 @@ textarea.ai-team-input{resize:vertical;min-height:60px}
     <div class="bn-tab-wrap" onclick="switchPage('shift')"><button class="bn-tab" data-bnpg="shift"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>シフト</button></div>
     <div class="bn-tab-wrap" onclick="switchPage('goal')"><button class="bn-tab" data-bnpg="goal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>KPI</button></div>
     <div class="bn-tab-wrap" onclick="switchPage('aiteam')"><button class="bn-tab" data-bnpg="aiteam"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9 9h.01"/><path d="M15 9h.01"/><path d="M8 15a4 4 0 0 0 8 0"/></svg>AI会議</button></div>
+    <div class="bn-tab-wrap" onclick="switchPage('member-workload')"><button class="bn-tab" data-bnpg="member-workload"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>稼働</button></div>
     <div class="bn-tab-wrap" style="display:none" onclick="switchPage('crm')"><button class="bn-tab" data-bnpg="crm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>顧客</button></div>
   </nav>
 </div>
@@ -1239,8 +1289,8 @@ function showMainApp(){
   if(isHighPerm){rb.textContent=roleLabel;rb.style.cssText='background:var(--gold);color:var(--navy);padding:1px 6px;border-radius:7px;font-size:9px;font-weight:800';}
   else{rb.textContent='スタッフ';rb.style.cssText='background:rgba(255,255,255,.15);color:#fff;padding:1px 6px;border-radius:7px;font-size:9px;font-weight:700';}
   const tabs=isHighPerm
-    ?[['dash','🏠 ホーム'],['accounts','👑 管理'],['kintai','🕐 勤怠'],['cal','📅 カレンダー/タスク'],['shift','📋 シフト'],['goal','🎯 目標KPI'],['report','📊 月次レポート'],['aiteam','🧠 AI会議']]
-    :[['dash','🏠 ホーム'],['kintai','🕐 勤怠'],['cal','📅 カレンダー/タスク'],['shift','📋 シフト'],['goal','🎯 目標KPI'],['aiteam','🧠 AI会議']];
+    ?[['dash','🏠 ホーム'],['accounts','👑 管理'],['kintai','🕐 勤怠'],['cal','📅 カレンダー/タスク'],['shift','📋 シフト'],['goal','🎯 目標KPI'],['report','📊 月次レポート'],['aiteam','🧠 AI会議'],['member-workload','👥 メンバー稼働']]
+    :[['dash','🏠 ホーム'],['kintai','🕐 勤怠'],['cal','📅 カレンダー/タスク'],['shift','📋 シフト'],['goal','🎯 目標KPI'],['aiteam','🧠 AI会議'],['member-workload','👥 メンバー稼働']];
   tabs.forEach(([pg,lbl],idx)=>{
     const b=document.createElement('button');
     b.className='ntab'+(idx===0?' on':'');b.dataset.pg=pg;b.textContent=lbl;
@@ -1356,7 +1406,7 @@ bindEvForm();
   }
 }
 
-function switchPage(pg){document.querySelectorAll('.ntab').forEach(b=>b.classList.toggle('on',b.dataset.pg===pg));document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));const pgEl=document.getElementById(`page-${pg}`);if(pgEl)pgEl.classList.add('on');if(pg==='dash')renderDash();if(pg==='accounts')renderAccList();if(pg==='kintai'){ktViewUid=currentUser.perm==='admin'?null:currentUser.uid;renderKintaiPage();}if(pg==='cal')render();if(pg==='shift')renderShift();if(pg==='goal'){initGoalData();renderGoalPage();}if(pg==='crm')renderCRMPage();if(pg==='report')renderReportPage();if(pg==='aiteam')renderAITeamPage();}
+function switchPage(pg){document.querySelectorAll('.ntab').forEach(b=>b.classList.toggle('on',b.dataset.pg===pg));document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));const pgEl=document.getElementById(`page-${pg}`);if(pgEl)pgEl.classList.add('on');if(pg==='dash')renderDash();if(pg==='accounts')renderAccList();if(pg==='kintai'){ktViewUid=currentUser.perm==='admin'?null:currentUser.uid;renderKintaiPage();}if(pg==='cal')render();if(pg==='shift')renderShift();if(pg==='goal'){initGoalData();renderGoalPage();}if(pg==='crm')renderCRMPage();if(pg==='report')renderReportPage();if(pg==='aiteam')renderAITeamPage();if(pg==='member-workload')renderMemberWorkloadPage();}
 function mkModal(id,barColor,title){const ex=document.getElementById(id);if(ex)ex.remove();const bg=document.createElement('div');bg.className='mbg';bg.id=id;bg.innerHTML=`<div class="modal"><div class="mbar" style="background:${barColor}"></div><button class="mclose" id="${id}-c">✕</button><div class="mttl">${title}</div><div class="macts"></div></div>`;document.body.appendChild(bg);document.getElementById(`${id}-c`).onclick=()=>bg.remove();bg.onclick=e=>{if(e.target===bg)bg.remove();};return bg;}
 function mttlAfter(bg,html){bg.querySelector('.mttl').insertAdjacentHTML('afterend',html);}
 function macts(bg,html){bg.querySelector('.macts').innerHTML=html;}
@@ -3508,6 +3558,145 @@ function copyAIMeetingText(type){
   }
 }
 // ==== ここまで packet 200 AIチーム静的MVP ====
+
+// ==== メンバー稼働ダッシュボード 静的MVP（packet 213 / v0.9.22）DB / 外部API / localStorage 一切なし ====
+function getStaticMemberWorkloadData(){
+  return [
+    {id:'mw-1',name:'査定担当',position:'査定担当',permission:'一般',color:'#5b6b8a',today_capacity_hours:8,planned_hours:4.5,workload_percent:56,open_tasks:3,overdue_tasks:0,report_status:'入力済',weekly_hours:28.0},
+    {id:'mw-2',name:'店長',position:'店長',permission:'店長',color:'#0a3d7c',today_capacity_hours:8,planned_hours:6.8,workload_percent:85,open_tasks:8,overdue_tasks:1,report_status:'入力済',weekly_hours:38.5},
+    {id:'mw-3',name:'エージェントA',position:'エージェント',permission:'一般',color:'#1f4e8a',today_capacity_hours:8,planned_hours:7.5,workload_percent:94,open_tasks:11,overdue_tasks:2,report_status:'部分入力',weekly_hours:42.0},
+    {id:'mw-4',name:'エージェントB',position:'エージェント',permission:'一般',color:'#7a2b3a',today_capacity_hours:8,planned_hours:8.6,workload_percent:108,open_tasks:16,overdue_tasks:4,report_status:'未入力',weekly_hours:52.0},
+    {id:'mw-5',name:'サポート',position:'サポート',permission:'事務',color:'#2d8a4f',today_capacity_hours:8,planned_hours:5.2,workload_percent:65,open_tasks:4,overdue_tasks:0,report_status:'対象外',weekly_hours:30.5}
+  ];
+}
+function calcWorkloadStatus(percent,open,overdue){
+  let taskLevel=1;
+  if(open>=15||overdue>=3)taskLevel=4;
+  else if(open>=10)taskLevel=3;
+  else if(open>=5)taskLevel=2;
+  let workLevel=1;
+  if(percent>=101)workLevel=4;
+  else if(percent>=86)workLevel=3;
+  else if(percent>=61)workLevel=2;
+  const level=Math.max(taskLevel,workLevel);
+  return ['余裕','適正','高負荷','超過'][level-1];
+}
+function getJagaiWorkloadComment(m){
+  const st=calcWorkloadStatus(m.workload_percent,m.open_tasks,m.overdue_tasks);
+  if(st==='超過')return '本日は超過状態。明日午前にタスク巻き戻し、別メンバーへ振替を推奨。';
+  if(st==='高負荷'){
+    if(m.report_status==='未入力')return '高負荷＋日報未入力。19 時前に日報リマインドを推奨。';
+    if(m.overdue_tasks>=1)return '高負荷＋期限超過あり。優先順位の再確認を推奨。';
+    return '高負荷状態。新規割当は控えめが妥当。';
+  }
+  if(st==='適正'){
+    if(m.report_status==='未入力')return '稼働は適正だが日報未入力。19 時前に入力を。';
+    return '稼働は適正。今日の最弱区間タスクを 1 件追加可。';
+  }
+  if(m.report_status==='対象外')return '余裕あり。サポート業務継続。';
+  return '余裕あり。午後の空き時間で新規反響対応またはタスク先行着手を推奨。';
+}
+function filterMemberWorkload(data,filter){
+  if(!filter||filter==='all')return data;
+  if(filter==='high')return data.filter(m=>{const s=calcWorkloadStatus(m.workload_percent,m.open_tasks,m.overdue_tasks);return s==='高負荷'||s==='超過';});
+  if(filter==='no-report')return data.filter(m=>m.report_status==='未入力'||m.report_status==='部分入力');
+  if(filter==='overdue')return data.filter(m=>m.overdue_tasks>=1);
+  return data.filter(m=>m.position===filter);
+}
+function escMwHtml(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function renderWorkloadSummary(data){
+  const root=document.getElementById('mw-summary');if(!root)return;
+  const totalPlanned=data.reduce((s,m)=>s+m.planned_hours,0);
+  const totalCapacity=data.reduce((s,m)=>s+m.today_capacity_hours,0);
+  const highCount=data.filter(m=>{const s=calcWorkloadStatus(m.workload_percent,m.open_tasks,m.overdue_tasks);return s==='高負荷'||s==='超過';}).length;
+  const noReportCount=data.filter(m=>m.report_status==='未入力').length;
+  const overdueTotal=data.reduce((s,m)=>s+m.overdue_tasks,0);
+  const highCls=highCount>=2?'warn':'';
+  const noRepCls=noReportCount>=1?'warn':'';
+  const ovdCls=overdueTotal>=5?'warn':'';
+  root.innerHTML='<div class="mw-summary">'
+    +'<div class="mw-summary-cell"><div class="mw-summary-lbl">本日の総稼働予定</div><div class="mw-summary-val">'+totalPlanned.toFixed(1)+'h / '+totalCapacity.toFixed(0)+'h</div></div>'
+    +'<div class="mw-summary-cell"><div class="mw-summary-lbl">高負荷メンバー</div><div class="mw-summary-val '+highCls+'">'+highCount+' 名</div></div>'
+    +'<div class="mw-summary-cell"><div class="mw-summary-lbl">日報未入力</div><div class="mw-summary-val '+noRepCls+'">'+noReportCount+' 名</div></div>'
+    +'<div class="mw-summary-cell"><div class="mw-summary-lbl">期限超過タスク</div><div class="mw-summary-val '+ovdCls+'">'+overdueTotal+' 件</div></div>'
+    +'</div>';
+}
+function renderWorkloadAlerts(data){
+  const root=document.getElementById('mw-alerts');if(!root)return;
+  const e=escMwHtml;
+  let h='';
+  const tencho=data.filter(m=>{
+    const s=calcWorkloadStatus(m.workload_percent,m.open_tasks,m.overdue_tasks);
+    return s==='超過'||(s==='高負荷'&&m.overdue_tasks>=1)||m.report_status==='未入力';
+  });
+  if(tencho.length){
+    h+='<div class="mw-alert"><div class="mw-alert-title">🚨 店長確認すべきメンバー（'+tencho.length+' 名）</div>';
+    tencho.forEach(m=>{
+      const s=calcWorkloadStatus(m.workload_percent,m.open_tasks,m.overdue_tasks);
+      const reasons=[];
+      if(s==='超過')reasons.push('超過 '+m.workload_percent+'%');
+      else if(s==='高負荷')reasons.push('高負荷 '+m.workload_percent+'%');
+      if(m.overdue_tasks>=1)reasons.push('期限超過 '+m.overdue_tasks+' 件');
+      if(m.report_status==='未入力')reasons.push('日報未入力');
+      h+='<div>・'+e(m.name)+'：'+reasons.map(e).join(' / ')+'</div>';
+    });
+    h+='</div>';
+  }
+  const boss=data.filter(m=>{const s=calcWorkloadStatus(m.workload_percent,m.open_tasks,m.overdue_tasks);return s==='超過'||(s==='高負荷'&&m.workload_percent>=95);});
+  if(boss.length){
+    h+='<div class="mw-alert boss"><div class="mw-alert-title">👑 ボス向け 高負荷アラート（'+boss.length+' 名）</div>';
+    boss.forEach(m=>{
+      h+='<div>・'+e(m.name)+'：稼働 '+m.workload_percent+'% / 未完了 '+m.open_tasks+' / 超過 '+m.overdue_tasks+'</div>';
+    });
+    h+='</div>';
+  }
+  root.innerHTML=h;
+}
+function renderWorkloadFilters(currentFilter){
+  const root=document.getElementById('mw-filters');if(!root)return;
+  const filters=[['all','全員'],['high','高負荷'],['no-report','日報未入力'],['overdue','期限超過'],['店長','店長'],['エージェント','エージェント'],['サポート','サポート'],['査定担当','査定担当']];
+  root.innerHTML=filters.map(f=>'<button class="mw-filter-btn'+(f[0]===currentFilter?' on':'')+'" data-mwf="'+escMwHtml(f[0])+'">'+escMwHtml(f[1])+'</button>').join('');
+  root.querySelectorAll('.mw-filter-btn').forEach(b=>{b.onclick=()=>{window._mwFilter=b.dataset.mwf;renderMemberWorkloadPage();};});
+}
+function renderMemberWorkloadCards(data){
+  const root=document.getElementById('mw-cards');if(!root)return;
+  const e=escMwHtml;
+  if(!data.length){root.innerHTML='<div class="mw-note">該当メンバーがいません。</div>';return;}
+  let h='';
+  data.forEach(m=>{
+    const st=calcWorkloadStatus(m.workload_percent,m.open_tasks,m.overdue_tasks);
+    const stCls={'余裕':'yoyu','適正':'tekisei','高負荷':'kouhuka','超過':'choka'}[st];
+    const over=m.workload_percent>100;
+    const barWidth=Math.min(m.workload_percent,100);
+    const overWidth=over?Math.min(m.workload_percent-100,20):0;
+    const repIcon={'入力済':'✅','部分入力':'🟡','未入力':'❌','対象外':'—'}[m.report_status]||'';
+    const ovdCls=m.overdue_tasks>=1?'warn':'';
+    const wkCls=m.weekly_hours>=40?'warn':'';
+    h+='<div class="mw-card">';
+    h+='<div class="mw-card-head"><div class="mw-avatar" style="background:'+e(m.color)+'">'+e(m.name[0])+'</div><div class="mw-name">'+e(m.name)+'</div><div class="mw-status '+stCls+'">'+e(st)+'</div></div>';
+    h+='<div class="mw-pills"><span class="mw-pill position">'+e(m.position)+'</span><span class="mw-pill permission">'+e(m.permission)+'</span></div>';
+    h+='<div class="mw-bar-wrap"><div class="mw-bar-row"><span style="min-width:38px">稼働率</span><div class="mw-bar-bg"><div class="mw-bar-fill'+(over?' over':'')+'" style="width:'+barWidth+'%"></div></div><span class="mw-bar-val'+(over?' over':'')+'">'+m.workload_percent+'%</span></div></div>';
+    h+='<div class="mw-stats">';
+    h+='<div class="mw-stat"><div class="mw-stat-lbl">本日予定</div><div class="mw-stat-val">'+m.planned_hours.toFixed(1)+'h</div></div>';
+    h+='<div class="mw-stat"><div class="mw-stat-lbl">未完了</div><div class="mw-stat-val">'+m.open_tasks+'</div></div>';
+    h+='<div class="mw-stat"><div class="mw-stat-lbl">期限超過</div><div class="mw-stat-val '+ovdCls+'">'+m.overdue_tasks+'</div></div>';
+    h+='<div class="mw-stat"><div class="mw-stat-lbl">週稼働</div><div class="mw-stat-val '+wkCls+'">'+m.weekly_hours.toFixed(1)+'h</div></div>';
+    h+='</div>';
+    h+='<div class="mw-stat" style="text-align:left;padding:8px 10px"><span style="font-size:10px;color:#777">日報：</span><span style="font-weight:800">'+repIcon+' '+e(m.report_status)+'</span></div>';
+    h+='<div class="mw-comment">💬 じゃがい：'+e(getJagaiWorkloadComment(m))+'</div>';
+    h+='</div>';
+  });
+  root.innerHTML=h;
+}
+function renderMemberWorkloadPage(){
+  const all=getStaticMemberWorkloadData();
+  const filter=window._mwFilter||'all';
+  renderWorkloadSummary(all);
+  renderWorkloadAlerts(all);
+  renderWorkloadFilters(filter);
+  renderMemberWorkloadCards(filterMemberWorkload(all,filter));
+}
+// ==== ここまで packet 213 メンバー稼働ダッシュボード 静的MVP ====
 </script>
 </body>
 </html>
