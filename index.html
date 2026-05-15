@@ -966,7 +966,45 @@ textarea.ai-team-input{resize:vertical;min-height:60px}
 .jagai-c6-name{font-weight:800;color:#0a3d7c;flex-shrink:0}
 .jagai-c6-comment{color:#444;flex:1}
 .jagai-kujo-warn{background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:10px 12px;margin:0 0 10px;font-size:11px;color:#5a4400;line-height:1.5}
+.routine-summary{background:#fff;border:1px solid #e0e0e0;border-radius:10px;padding:12px 14px;margin:0 0 12px;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.routine-summary-cell{background:#f8f9fb;padding:8px 10px;border-radius:6px}
+.routine-summary-lbl{font-size:10px;color:#777;margin:0 0 2px}
+.routine-summary-val{font-size:16px;font-weight:800;color:#0a3d7c}
+.routine-tabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 12px}
+.routine-tab-btn{padding:7px 14px;background:#fff;color:#0a3d7c;border:1px solid #0a3d7c;border-radius:14px;font-size:12px;font-weight:700;cursor:pointer}
+.routine-tab-btn.on{background:#0a3d7c;color:#fff}
+.routine-add-btn{display:block;width:100%;padding:10px;background:#c9a23d;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:800;cursor:pointer;margin:0 0 12px}
+.routine-card{background:#fff;border-left:4px solid #0a3d7c;border-radius:0 8px 8px 0;padding:10px 12px;margin:0 0 8px;font-size:12px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.routine-card.done{opacity:.55;border-left-color:#2d8a4f}
+.routine-card.pri-high{border-left-color:#b22a2a}
+.routine-card.pri-mid{border-left-color:#c97a1a}
+.routine-card.pri-low{border-left-color:#666}
+.routine-card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin:0 0 4px}
+.routine-card-title{font-weight:800;color:#222;font-size:13px;flex:1}
+.routine-card-meta{font-size:10px;color:#666;margin:3px 0}
+.routine-card-actions{display:flex;gap:6px;margin:6px 0 0}
+.routine-action-btn{flex:1;padding:5px;background:#fff;color:#2d8a4f;border:1px solid #2d8a4f;border-radius:5px;font-size:10px;font-weight:700;cursor:pointer}
+.routine-action-btn.skip{color:#888;border-color:#888}
+.routine-action-btn.done-mark{background:#2d8a4f;color:#fff}
+.routine-target-pill{display:inline-block;font-size:9px;padding:2px 6px;border-radius:7px;background:#e8eef7;color:#0a3d7c;margin-right:4px}
+.routine-time-pill{display:inline-block;font-size:9px;padding:2px 6px;border-radius:7px;background:#fff3cd;color:#856404;margin-right:4px}
+.routine-flow-card{background:#fff;border:2px solid #c9a23d;border-radius:10px;padding:12px 14px;margin:0 0 10px;font-size:12px}
+.routine-flow-title{font-weight:800;color:#0a3d7c;font-size:13px;margin:0 0 6px}
+.routine-flow-step{margin:3px 0;padding:5px 8px;background:#f8f9fb;border-radius:4px;font-size:11px;color:#444}
+.routine-flow-step::before{content:'▸ ';color:#c9a23d;font-weight:800}
+.routine-note{font-size:11px;color:#666;background:#f8f9fb;padding:8px 10px;border-radius:6px;margin:0 0 12px;line-height:1.5}
   </style>
+  <div class="page" id="page-routine">
+    <div style="padding:14px 14px 80px;max-width:760px;margin:0 auto">
+      <h2 style="font-size:18px;color:#0a3d7c;margin:0 0 4px;font-weight:800">📋 ルーティン業務</h2>
+      <div style="font-size:11px;color:#666;margin-bottom:12px">店舗の毎日・毎週・毎月の業務と業務フローを管理します（静的MVP）</div>
+      <div class="routine-note">ℹ 顧客情報・社員実名は保存しません。担当は役職ベースです。</div>
+      <div id="routine-summary"></div>
+      <div id="routine-tabs" class="routine-tabs"></div>
+      <button id="routine-add-btn" class="routine-add-btn">＋ 新規ルーティンを作成</button>
+      <div id="routine-content"></div>
+    </div>
+  </div>
   <div class="page" id="page-realestate-knowledge">
     <div style="padding:14px 14px 80px;max-width:760px;margin:0 auto">
       <h2 style="font-size:18px;color:#0a3d7c;margin:0 0 4px;font-weight:800">📚 不動産マメ知識大辞典</h2>
@@ -1058,6 +1096,7 @@ textarea.ai-team-input{resize:vertical;min-height:60px}
     <div class="bn-tab-wrap" onclick="switchPage('ai-members')"><button class="bn-tab" data-bnpg="ai-members"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg>AI名鑑</button></div>
     <div class="bn-tab-wrap" onclick="switchPage('ai-org')"><button class="bn-tab" data-bnpg="ai-org"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="6" rx="1"/><rect x="3" y="14" width="6" height="6" rx="1"/><rect x="15" y="14" width="6" height="6" rx="1"/><path d="M12 8v3"/><path d="M6 14v-3h12v3"/></svg>組織図</button></div>
     <div class="bn-tab-wrap" onclick="switchPage('realestate-knowledge')"><button class="bn-tab" data-bnpg="realestate-knowledge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>マメ知識</button></div>
+    <div class="bn-tab-wrap" onclick="switchPage('routine')"><button class="bn-tab" data-bnpg="routine"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><polyline points="9 14 11 16 15 12"/></svg>ルーティン</button></div>
     <div class="bn-tab-wrap" style="display:none" onclick="switchPage('crm')"><button class="bn-tab" data-bnpg="crm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>顧客</button></div>
   </nav>
 </div>
@@ -1452,8 +1491,8 @@ function showMainApp(){
   if(isHighPerm){rb.textContent=roleLabel;rb.style.cssText='background:var(--gold);color:var(--navy);padding:1px 6px;border-radius:7px;font-size:9px;font-weight:800';}
   else{rb.textContent='スタッフ';rb.style.cssText='background:rgba(255,255,255,.15);color:#fff;padding:1px 6px;border-radius:7px;font-size:9px;font-weight:700';}
   const tabs=isHighPerm
-    ?[['dash','🏠 ホーム'],['accounts','👑 管理'],['kintai','🕐 勤怠'],['cal','📅 カレンダー/タスク'],['shift','📋 シフト'],['goal','🎯 目標KPI'],['report','📊 月次レポート'],['aiteam','🧠 AI会議'],['member-workload','👥 メンバー稼働'],['ai-members','🤖 AI名鑑'],['ai-org','🏢 AI組織図'],['realestate-knowledge','📚 マメ知識']]
-    :[['dash','🏠 ホーム'],['kintai','🕐 勤怠'],['cal','📅 カレンダー/タスク'],['shift','📋 シフト'],['goal','🎯 目標KPI'],['aiteam','🧠 AI会議'],['member-workload','👥 メンバー稼働'],['ai-members','🤖 AI名鑑'],['ai-org','🏢 AI組織図'],['realestate-knowledge','📚 マメ知識']];
+    ?[['dash','🏠 ホーム'],['accounts','👑 管理'],['kintai','🕐 勤怠'],['cal','📅 カレンダー/タスク'],['shift','📋 シフト'],['goal','🎯 目標KPI'],['report','📊 月次レポート'],['aiteam','🧠 AI会議'],['member-workload','👥 メンバー稼働'],['ai-members','🤖 AI名鑑'],['ai-org','🏢 AI組織図'],['realestate-knowledge','📚 マメ知識'],['routine','📋 ルーティン']]
+    :[['dash','🏠 ホーム'],['kintai','🕐 勤怠'],['cal','📅 カレンダー/タスク'],['shift','📋 シフト'],['goal','🎯 目標KPI'],['aiteam','🧠 AI会議'],['member-workload','👥 メンバー稼働'],['ai-members','🤖 AI名鑑'],['ai-org','🏢 AI組織図'],['realestate-knowledge','📚 マメ知識'],['routine','📋 ルーティン']];
   tabs.forEach(([pg,lbl],idx)=>{
     const b=document.createElement('button');
     b.className='ntab'+(idx===0?' on':'');b.dataset.pg=pg;b.textContent=lbl;
@@ -1569,7 +1608,7 @@ bindEvForm();
   }
 }
 
-function switchPage(pg){document.querySelectorAll('.ntab').forEach(b=>b.classList.toggle('on',b.dataset.pg===pg));document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));const pgEl=document.getElementById(`page-${pg}`);if(pgEl)pgEl.classList.add('on');if(pg==='dash')renderDash();if(pg==='accounts')renderAccList();if(pg==='kintai'){ktViewUid=currentUser.perm==='admin'?null:currentUser.uid;renderKintaiPage();}if(pg==='cal')render();if(pg==='shift')renderShift();if(pg==='goal'){initGoalData();renderGoalPage();}if(pg==='crm')renderCRMPage();if(pg==='report')renderReportPage();if(pg==='aiteam')renderAITeamPage();if(pg==='member-workload')renderMemberWorkloadPage();if(pg==='ai-members')renderAIMembersPage();if(pg==='ai-org')renderAIOrgChartPage();if(pg==='realestate-knowledge')renderRealEstateKnowledgePage();}
+function switchPage(pg){document.querySelectorAll('.ntab').forEach(b=>b.classList.toggle('on',b.dataset.pg===pg));document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));const pgEl=document.getElementById(`page-${pg}`);if(pgEl)pgEl.classList.add('on');if(pg==='dash')renderDash();if(pg==='accounts')renderAccList();if(pg==='kintai'){ktViewUid=currentUser.perm==='admin'?null:currentUser.uid;renderKintaiPage();}if(pg==='cal')render();if(pg==='shift')renderShift();if(pg==='goal'){initGoalData();renderGoalPage();}if(pg==='crm')renderCRMPage();if(pg==='report')renderReportPage();if(pg==='aiteam')renderAITeamPage();if(pg==='member-workload')renderMemberWorkloadPage();if(pg==='ai-members')renderAIMembersPage();if(pg==='ai-org')renderAIOrgChartPage();if(pg==='realestate-knowledge')renderRealEstateKnowledgePage();if(pg==='routine')renderRoutinePage();}
 function mkModal(id,barColor,title){const ex=document.getElementById(id);if(ex)ex.remove();const bg=document.createElement('div');bg.className='mbg';bg.id=id;bg.innerHTML=`<div class="modal"><div class="mbar" style="background:${barColor}"></div><button class="mclose" id="${id}-c">✕</button><div class="mttl">${title}</div><div class="macts"></div></div>`;document.body.appendChild(bg);document.getElementById(`${id}-c`).onclick=()=>bg.remove();bg.onclick=e=>{if(e.target===bg)bg.remove();};return bg;}
 function mttlAfter(bg,html){bg.querySelector('.mttl').insertAdjacentHTML('afterend',html);}
 function macts(bg,html){bg.querySelector('.macts').innerHTML=html;}
@@ -4900,6 +4939,190 @@ function renderJagaiHomeWidgets(){
   dashEl.appendChild(wrap);
 }
 // ==== ここまで packet 313 高優先UX改善 ====
+
+// ==== packet 315 タスク入力・ルーティン業務・業務フロー 静的MVP（担当役職ベース、顧客情報なし）====
+const ROUTINE_LS_KEY='jagai_task_routine_static_mvp';
+const ROUTINE_DONE_LS_KEY='jagai_task_routine_done_today';
+function getStaticRoutineTemplates(){
+  return {
+    daily:[
+      {id:'r-d-store-1',title:'朝の反響確認',target:'店舗全体',priority:'high',time:'09:00',duration:15,memo:'Gmail/LINE/ポータルの反響を確認'},
+      {id:'r-d-store-2',title:'Gmail/LINE/ポータル通知確認',target:'店舗全体',priority:'high',time:'09:15',duration:10,memo:''},
+      {id:'r-d-store-3',title:'本日の来店・査定予定確認',target:'店舗全体',priority:'mid',time:'09:30',duration:10,memo:''},
+      {id:'r-d-store-4',title:'未対応顧客確認',target:'店舗全体',priority:'high',time:'10:00',duration:15,memo:''},
+      {id:'r-d-store-5',title:'店舗清掃',target:'店舗全体',priority:'mid',time:'09:00',duration:15,memo:''},
+      {id:'r-d-store-6',title:'18時時点の未完了確認',target:'店舗全体',priority:'high',time:'18:00',duration:10,memo:''},
+      {id:'r-d-mgr-1',title:'エージェント活動確認',target:'店長',priority:'high',time:'10:00',duration:20,memo:''},
+      {id:'r-d-mgr-2',title:'追客漏れ確認',target:'店長',priority:'high',time:'14:00',duration:15,memo:''},
+      {id:'r-d-mgr-3',title:'査定進捗確認',target:'店長',priority:'mid',time:'15:00',duration:15,memo:''},
+      {id:'r-d-mgr-4',title:'店舗全体の未完了確認',target:'店長',priority:'high',time:'18:00',duration:10,memo:''},
+      {id:'r-d-agt-1',title:'新規反響確認',target:'エージェント',priority:'high',time:'09:00',duration:10,memo:'5分以内に架電'},
+      {id:'r-d-agt-2',title:'架電',target:'エージェント',priority:'high',time:'10:00',duration:60,memo:''},
+      {id:'r-d-agt-3',title:'SMS/LINE追客',target:'エージェント',priority:'mid',time:'14:00',duration:30,memo:''},
+      {id:'r-d-agt-4',title:'査定書作成',target:'エージェント',priority:'mid',time:'15:00',duration:60,memo:''},
+      {id:'r-d-agt-5',title:'次回連絡予定登録',target:'エージェント',priority:'high',time:'17:30',duration:10,memo:''},
+      {id:'r-d-agt-6',title:'活動履歴入力',target:'エージェント',priority:'mid',time:'18:00',duration:15,memo:''},
+      {id:'r-d-sup-1',title:'書類確認',target:'サポート',priority:'mid',time:'10:00',duration:30,memo:''},
+      {id:'r-d-sup-2',title:'勤怠確認',target:'事務',priority:'high',time:'10:00',duration:15,memo:''},
+      {id:'r-d-sup-3',title:'店舗連絡事項確認',target:'サポート',priority:'mid',time:'09:30',duration:10,memo:''},
+      {id:'r-d-sup-4',title:'契約関連資料整理',target:'事務',priority:'mid',time:'14:00',duration:30,memo:''},
+      {id:'r-d-sup-5',title:'ポータル掲載補助',target:'サポート',priority:'low',time:'15:00',duration:30,memo:''}
+    ],
+    weekly:[
+      {id:'r-w-1',title:'月曜：今週の査定・媒介目標確認',target:'店長',priority:'high',weekday:1,memo:''},
+      {id:'r-w-2',title:'火曜：ポータル掲載状況確認',target:'店舗全体',priority:'mid',weekday:2,memo:''},
+      {id:'r-w-3',title:'木曜：追客リスト棚卸し',target:'エージェント',priority:'high',weekday:4,memo:''},
+      {id:'r-w-4',title:'金曜：未対応・期限切れ確認',target:'店長',priority:'high',weekday:5,memo:''},
+      {id:'r-w-5',title:'土曜：週末来店・案内準備',target:'店舗全体',priority:'mid',weekday:6,memo:''},
+      {id:'r-w-6',title:'日曜：翌週準備',target:'店長',priority:'low',weekday:0,memo:''}
+    ],
+    monthly:[
+      {id:'r-m-1',title:'月初：前月数字確認',target:'店長',priority:'high',day:1,memo:''},
+      {id:'r-m-2',title:'月初：今月目標設定',target:'店長',priority:'high',day:1,memo:''},
+      {id:'r-m-3',title:'月中：進捗確認',target:'店長',priority:'mid',day:15,memo:''},
+      {id:'r-m-4',title:'月末：締め作業',target:'事務',priority:'high',day:30,memo:''},
+      {id:'r-m-5',title:'月末：未完了棚卸し',target:'店長',priority:'high',day:30,memo:''}
+    ],
+    flows:[
+      {id:'f-shitei',title:'査定依頼フロー',steps:['反響確認','即電話','SMS送信','査定情報入力','机上査定作成','査定書送付','追客予定登録','次回連絡日設定']},
+      {id:'f-baikai',title:'媒介取得フロー',steps:['媒介契約書作成','レインズ登録','ポータル掲載','写真撮影','図面作成','販売開始','週次報告','価格見直し提案']},
+      {id:'f-keiyaku',title:'契約前後フロー',steps:['買付確認','ローン確認','重説準備','契約書準備','決済準備','引渡し確認']}
+    ]
+  };
+}
+function getRoutineDoneIds(){
+  try{
+    const all=JSON.parse(localStorage.getItem(ROUTINE_DONE_LS_KEY)||'{}');
+    const today=new Date().toISOString().slice(0,10);
+    if(all.date===today)return all.ids||[];
+    return [];
+  }catch(e){return [];}
+}
+function markRoutineDone(id){
+  const today=new Date().toISOString().slice(0,10);
+  let all={date:today,ids:[]};
+  try{const x=JSON.parse(localStorage.getItem(ROUTINE_DONE_LS_KEY)||'{}');if(x.date===today)all=x;}catch(e){}
+  if(!all.ids.includes(id))all.ids.push(id);
+  localStorage.setItem(ROUTINE_DONE_LS_KEY,JSON.stringify(all));
+  renderRoutinePage();
+}
+function unmarkRoutineDone(id){
+  const today=new Date().toISOString().slice(0,10);
+  let all={date:today,ids:[]};
+  try{const x=JSON.parse(localStorage.getItem(ROUTINE_DONE_LS_KEY)||'{}');if(x.date===today)all=x;}catch(e){}
+  all.ids=all.ids.filter(x=>x!==id);
+  localStorage.setItem(ROUTINE_DONE_LS_KEY,JSON.stringify(all));
+  renderRoutinePage();
+}
+function escRoutineHtml(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function renderRoutinePage(){
+  const tmpl=getStaticRoutineTemplates();
+  const tab=window._routineTab||'today';
+  // Tabs
+  const tabsEl=document.getElementById('routine-tabs');if(tabsEl){
+    const tabs=[['today','今日'],['weekly','毎週'],['monthly','毎月'],['flows','業務フロー']];
+    tabsEl.innerHTML=tabs.map(t=>'<button class="routine-tab-btn'+(t[0]===tab?' on':'')+'" data-rtab="'+t[0]+'">'+t[1]+'</button>').join('');
+    tabsEl.querySelectorAll('.routine-tab-btn').forEach(b=>{b.onclick=()=>{window._routineTab=b.dataset.rtab;renderRoutinePage();};});
+  }
+  // Summary
+  const doneIds=getRoutineDoneIds();
+  const today=tmpl.daily;
+  const doneCount=today.filter(r=>doneIds.includes(r.id)).length;
+  const totalToday=today.length;
+  const rate=totalToday>0?Math.round(doneCount/totalToday*100):0;
+  const sumEl=document.getElementById('routine-summary');if(sumEl){
+    sumEl.innerHTML='<div class="routine-summary">'
+      +'<div class="routine-summary-cell"><div class="routine-summary-lbl">本日実行率</div><div class="routine-summary-val">'+rate+'%</div></div>'
+      +'<div class="routine-summary-cell"><div class="routine-summary-lbl">完了 / 全体</div><div class="routine-summary-val">'+doneCount+' / '+totalToday+'</div></div>'
+      +'<div class="routine-summary-cell"><div class="routine-summary-lbl">毎週ルーティン</div><div class="routine-summary-val">'+tmpl.weekly.length+'</div></div>'
+      +'<div class="routine-summary-cell"><div class="routine-summary-lbl">業務フロー</div><div class="routine-summary-val">'+tmpl.flows.length+'</div></div>'
+      +'</div>';
+  }
+  // Content
+  const contentEl=document.getElementById('routine-content');if(!contentEl)return;
+  const e=escRoutineHtml;
+  let h='';
+  if(tab==='flows'){
+    tmpl.flows.forEach(f=>{
+      h+='<div class="routine-flow-card"><div class="routine-flow-title">📋 '+e(f.title)+'</div>';
+      f.steps.forEach(s=>{h+='<div class="routine-flow-step">'+e(s)+'</div>';});
+      h+='</div>';
+    });
+  }else{
+    const list=tab==='today'?tmpl.daily:tab==='weekly'?tmpl.weekly:tmpl.monthly;
+    list.forEach(r=>{
+      const isDone=tab==='today'&&doneIds.includes(r.id);
+      const priCls=r.priority==='high'?'pri-high':r.priority==='mid'?'pri-mid':'pri-low';
+      h+='<div class="routine-card '+priCls+(isDone?' done':'')+'">';
+      h+='<div class="routine-card-head"><div class="routine-card-title">'+e(r.title)+'</div></div>';
+      h+='<div class="routine-card-meta"><span class="routine-target-pill">'+e(r.target)+'</span>';
+      if(r.time)h+='<span class="routine-time-pill">⏰ '+e(r.time)+'</span>';
+      if(r.duration)h+='<span class="routine-time-pill">⏱ '+r.duration+'分</span>';
+      if(r.weekday!==undefined)h+='<span class="routine-time-pill">'+['日','月','火','水','木','金','土'][r.weekday]+'曜</span>';
+      if(r.day)h+='<span class="routine-time-pill">'+r.day+'日</span>';
+      h+='</div>';
+      if(r.memo)h+='<div class="routine-card-meta">📝 '+e(r.memo)+'</div>';
+      if(tab==='today'){
+        h+='<div class="routine-card-actions">';
+        if(isDone){h+='<button class="routine-action-btn skip" data-rid="'+e(r.id)+'" data-raction="undo">↩ 戻す</button>';}
+        else{h+='<button class="routine-action-btn done-mark" data-rid="'+e(r.id)+'" data-raction="done">✓ 完了</button>';}
+        h+='</div>';
+      }
+      h+='</div>';
+    });
+  }
+  contentEl.innerHTML=h;
+  contentEl.querySelectorAll('[data-raction]').forEach(b=>{
+    b.onclick=()=>{
+      if(b.dataset.raction==='done')markRoutineDone(b.dataset.rid);
+      else unmarkRoutineDone(b.dataset.rid);
+    };
+  });
+  const addBtn=document.getElementById('routine-add-btn');
+  if(addBtn)addBtn.onclick=()=>{alert('新規ルーティン作成（将来実装）：現状は静的テンプレートのみ。');};
+}
+// ==== ここまで packet 315 ルーティン業務 静的MVP ====
+
+// ==== packet 319 担当秘書AIマッピング（社内ツール表示OK、顧客情報・key類は引き続き禁止）====
+function getPersonalSecretaryMapping(){
+  return [
+    {ownerName:'admin',ownerRole:'管理者／テストアカウント',secretary:'土方歳三',secretaryIcon:'🗡',note:'管理者用テストアカウント（実務担当者ではない）'},
+    {ownerName:'芳村',ownerRole:'査定担当 / admin同等',secretary:'ソルティ',secretaryIcon:'🧂',note:'ボス専属・秘書室トップ・統括秘書AI'},
+    {ownerName:'杤岡',ownerRole:'店長',secretary:'加藤鷹',secretaryIcon:'🎩',note:'店長担当秘書AI'},
+    {ownerName:'安見',ownerRole:'エージェント',secretary:'三上悠亜',secretaryIcon:'💼',note:'エージェント担当秘書AI'},
+    {ownerName:'佐野',ownerRole:'エージェント',secretary:'紅音ほたる',secretaryIcon:'🌹',note:'エージェント担当秘書AI'},
+    {ownerName:'冨永',ownerRole:'エージェント',secretary:'未定',secretaryIcon:'❓',note:'ボス未指定（未定のまま）'},
+    {ownerName:'伴',ownerRole:'サポート／事務',secretary:'木村拓哉',secretaryIcon:'⭐',note:'サポート・事務担当秘書AI'}
+  ];
+}
+function renderPersonalSecretaryMappingTable(rootId){
+  const root=document.getElementById(rootId);if(!root)return;
+  const e=escAIOrgHtml;
+  const data=getPersonalSecretaryMapping();
+  let h='<div class="ai-org-secretary-map">'
+    +'<div class="ai-org-secretary-title">👥 社員別 担当秘書AIマッピング（社内ツール表示）</div>'
+    +'<div class="ai-org-secretary-intro">各社員に専属の担当秘書AIが付きます。顧客情報・パスワード・APIキー等は表示しません。</div>'
+    +'<table class="ai-org-secretary-table">'
+    +'<thead><tr><th>社員</th><th>役職</th><th>担当秘書AI</th><th>備考</th></tr></thead>'
+    +'<tbody>';
+  data.forEach(m=>{
+    h+='<tr><td><b>'+e(m.ownerName)+'</b></td><td>'+e(m.ownerRole)+'</td><td>'+e(m.secretaryIcon)+' <b>'+e(m.secretary)+'</b></td><td>'+e(m.note)+'</td></tr>';
+  });
+  h+='</tbody></table>'
+    +'<div class="ai-org-secretary-note">ℹ 顧客情報・パスワード・APIキー・UUID・メール等は表示しません。社内ツール用の担当秘書AI表示のみです。</div>'
+    +'</div>';
+  root.innerHTML+=h;
+}
+// 既存 renderAIOrgSecretaryMap の後に社員別マッピング表を追加描画
+(function patchAIOrgSecretaryMap(){
+  const orig=window.renderAIOrgSecretaryMap;
+  if(typeof orig!=='function')return;
+  window.renderAIOrgSecretaryMap=function(){
+    orig.apply(this,arguments);
+    renderPersonalSecretaryMappingTable('ai-org-secretary-map');
+  };
+})();
+// ==== ここまで packet 319 担当秘書AIマッピング ====
 </script>
 </body>
 </html>
