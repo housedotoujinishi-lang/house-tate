@@ -913,6 +913,15 @@ textarea.ai-team-input{resize:vertical;min-height:60px}
 .ai-org-consult-row{margin:4px 0;color:#444;line-height:1.6}
 .ai-org-consult-row b{color:#0a3d7c}
 .ai-org-note{font-size:11px;color:#666;background:#f8f9fb;padding:8px 10px;border-radius:6px;margin:0 0 12px;line-height:1.5}
+.ai-org-secretary-map{background:#fff;border:2px solid #c9a23d;border-radius:10px;padding:14px;margin:14px 0;font-size:12px}
+.ai-org-secretary-title{font-weight:800;color:#0a3d7c;font-size:14px;margin:0 0 6px}
+.ai-org-secretary-intro{font-size:11px;color:#555;margin:0 0 10px;line-height:1.5}
+.ai-org-secretary-table{width:100%;border-collapse:collapse;font-size:11px}
+.ai-org-secretary-table thead{background:#0a3d7c;color:#fff}
+.ai-org-secretary-table th,.ai-org-secretary-table td{padding:6px 8px;border:1px solid #e0e0e0;text-align:left;vertical-align:top}
+.ai-org-secretary-table th{font-size:10px;font-weight:800}
+.ai-org-secretary-table tr:nth-child(even){background:#f8f9fb}
+.ai-org-secretary-note{font-size:10px;color:#856404;background:#fff3cd;padding:6px 8px;border-radius:6px;margin:8px 0 0;line-height:1.5}
 .rek-home-wrap{background:#fff;border:1px solid #e0e0e0;border-radius:10px;padding:14px 16px;margin:12px 0;box-shadow:0 1px 3px rgba(0,0,0,.04)}
 .rek-home-title{font-size:14px;font-weight:800;color:#0a3d7c;margin:0 0 6px}
 .rek-home-count{font-size:11px;color:#666;margin:0 0 10px}
@@ -963,6 +972,7 @@ textarea.ai-team-input{resize:vertical;min-height:60px}
       <div id="ai-org-commander"></div>
       <div class="ai-org-tree-line">│</div>
       <div id="ai-org-teams"></div>
+      <div id="ai-org-secretary-map"></div>
       <div id="ai-org-consult"></div>
     </div>
   </div>
@@ -3876,33 +3886,33 @@ function getStaticAIMembersData(){
      comment:'現場に、答えがある。'},
     // 秘書室（4）
     {id:'salty',icon:'🧂',name:'ソルティ',category:'sec',scope:'全社',status:'設計のみ',statusKey:'plan',
-     role:'ボス向け要約 / 判断整理 / 中心6名の一員',personality:'丁寧、整理型、即応',
-     expert:'要約、判断整理、LINE連動（将来）',weakness:'戦略判断は司令部任せ',
+     role:'統括秘書AI / ボス向け要約 / 判断整理 / 長文圧縮 / 中心6名',personality:'丁寧、整理型、即応',
+     expert:'要約、判断整理、長文圧縮、LINE連動（将来）',weakness:'戦略判断は司令部任せ',
      tone:'丁寧「整理しました」',criteria:'ボスの判断負荷、緊急度',
-     consult:'すべての入口、要約依頼',outputs:'要約、判断材料整理',
-     screens:'すべての画面',feature:'ボス秘書、LINE窓口（将来）',
-     comment:'まず整理します。中心6名。'},
+     consult:'すべての入口、要約依頼、ボス向け 3 行要約',outputs:'要約、判断材料整理、ボス向けレポート',
+     screens:'すべての画面',feature:'ボス担当秘書、統括秘書AI、LINE窓口（将来）',
+     comment:'まず整理します。中心6名。担当：ボス / 査定担当 / 管理者。'},
     {id:'hijikata-toshizo',icon:'🗡',name:'土方歳三',category:'sec',scope:'全社',status:'設計のみ',statusKey:'plan',
-     role:'規律 / 即応 / 秘書室実務',personality:'規律型、厳格、即応',
-     expert:'ルール遵守、実行管理',weakness:'曖昧な指示',
-     tone:'規律型「実行します」',criteria:'規律、即応、現場優先',
-     consult:'実行管理、ルール確認',outputs:'実行チェックリスト',
-     screens:'タスク管理',feature:'タスク割当、スケジュール、秘書室実務',
-     comment:'規律、貫きます。'},
+     role:'実行管理秘書AI / 規律 / git status / 未完了 / 抜け漏れ管理',personality:'規律型、厳格、即応',
+     expert:'ルール遵守、実行管理、未完了監視、git status 監視',weakness:'曖昧な指示',
+     tone:'規律型「実行します」',criteria:'規律、即応、現場優先、やったか/やってないか',
+     consult:'実行管理、ルール確認、店長業務補佐',outputs:'実行チェックリスト、未完了レポート',
+     screens:'タスク管理 / メンバー稼働',feature:'店長担当秘書、実行管理秘書AI、タスク割当、スケジュール、抜け漏れ管理',
+     comment:'規律、貫きます。担当：店長 / 実行管理強化案件。'},
     {id:'shosoin',icon:'📜',name:'正倉院',category:'sec',scope:'全社',status:'設計のみ',statusKey:'plan',
-     role:'記録・保存・台帳',personality:'保存型、丁寧、忘れない',
-     expert:'記録、台帳、履歴管理',weakness:'判断業務',
-     tone:'保存型「保管しました」',criteria:'完全保存、検索性',
-     consult:'過去案件参照、履歴確認',outputs:'履歴、台帳',
-     screens:'マメ知識大辞典 / 日報',feature:'記録保存、議事録保管、事務補佐、docs整理',
-     comment:'忘れません、保管します。'},
+     role:'承認・議事録秘書AI / 承認履歴 / 決定理由 / 議事録保管',personality:'保存型、丁寧、忘れない',
+     expert:'記録、台帳、履歴管理、承認履歴、決定理由保存',weakness:'判断業務',
+     tone:'保存型「保管しました」',criteria:'完全保存、検索性、決定理由の追跡可能性',
+     consult:'過去案件参照、履歴確認、承認記録、書類整理',outputs:'履歴、台帳、承認記録、議事録',
+     screens:'マメ知識大辞典 / 日報',feature:'サポート担当秘書、事務担当秘書、承認・議事録秘書AI、記録保存、議事録保管、docs整理',
+     comment:'忘れません、保管します。担当：サポート / 事務 / 承認記録案件。'},
     {id:'hikyaku',icon:'🏃',name:'飛脚',category:'sec',scope:'全社',status:'設計のみ',statusKey:'plan',
-     role:'通知・配信・連絡',personality:'俊敏、確実、即応',
-     expert:'通知配信、連絡網',weakness:'内容判断',
-     tone:'俊敏「お届けします」',criteria:'宛先、緊急度、到達確認',
-     consult:'通知設計、配信タイミング',outputs:'通知配信',
-     screens:'通知系（将来）',feature:'通知配信、リマインド',
-     comment:'届けます、確実に。'},
+     role:'リマインド・追跡秘書AI / 期限切れ / ボール所在 / 未対応追跡',personality:'俊敏、確実、即応',
+     expert:'通知配信、連絡網、期限切れ追跡、未対応リマインド、ボール所在管理',weakness:'内容判断',
+     tone:'俊敏「お届けします、ボールはあちらに」',criteria:'宛先、緊急度、到達確認、未対応時間',
+     consult:'通知設計、配信タイミング、エージェント追客抜け漏れ、清掃/宿泊管理現場リマインド',outputs:'通知配信、未完了アラート、ボール所在マップ',
+     screens:'通知系（将来）/ メンバー稼働',feature:'エージェント担当秘書、清掃宿泊管理担当秘書、リマインド・追跡秘書AI、通知配信',
+     comment:'届けます、確実に。担当：エージェント / 清掃 / 宿泊管理 / リマインド全般。'},
     // 営業（9）
     {id:'sakamoto-ryoma',icon:'⛵',name:'坂本龍馬',category:'sales',scope:'全社',status:'設計のみ',statusKey:'plan',
      role:'反響初動 / 機動力',personality:'自由、行動派、即応',
@@ -4621,7 +4631,27 @@ function renderAIOrgConsultGuide(){
 function renderAIOrgChartPage(){
   renderAIOrgCommander();
   renderAIOrgTeamCards();
+  renderAIOrgSecretaryMap();
   renderAIOrgConsultGuide();
+}
+function renderAIOrgSecretaryMap(){
+  const root=document.getElementById('ai-org-secretary-map');if(!root)return;
+  root.innerHTML='<div class="ai-org-secretary-map">'
+    +'<div class="ai-org-secretary-title">📋 担当秘書AIマッピング（役職別）</div>'
+    +'<div class="ai-org-secretary-intro">各役職に「担当秘書AI」が付き、本人のタスク・日報・未完了・リマインド・稼働状況を整理します（顧客情報は扱いません）。</div>'
+    +'<table class="ai-org-secretary-table">'
+    +'<thead><tr><th>役職</th><th>主担当秘書</th><th>補助秘書</th><th>主な担当業務</th></tr></thead>'
+    +'<tbody>'
+    +'<tr><td>ボス</td><td><b>🧂 ソルティ</b></td><td>正倉院 / 土方 / 飛脚</td><td>要約 / 判断整理 / 長文圧縮</td></tr>'
+    +'<tr><td>査定担当 / 管理者</td><td><b>🧂 ソルティ</b></td><td>正倉院 / 土方歳三</td><td>承認記録 + 実行管理</td></tr>'
+    +'<tr><td>店長</td><td><b>🗡 土方歳三</b></td><td>飛脚 / ソルティ</td><td>未完了追跡 + ボス報告要約</td></tr>'
+    +'<tr><td>エージェント</td><td><b>🏃 飛脚</b></td><td>土方歳三</td><td>反響 / タスク / 日報追跡</td></tr>'
+    +'<tr><td>サポート</td><td><b>📜 正倉院</b></td><td>飛脚</td><td>書類記録 + 期限リマインド</td></tr>'
+    +'<tr><td>事務</td><td><b>📜 正倉院</b></td><td>飛脚</td><td>書類期限管理</td></tr>'
+    +'<tr><td>清掃 / 宿泊管理</td><td><b>🏃 飛脚 + 🗡 土方歳三</b></td><td>-</td><td>現場依頼 / 未対応追跡</td></tr>'
+    +'</tbody></table>'
+    +'<div class="ai-org-secretary-note">ℹ 担当秘書AIも顧客名・電話・メール・住所は扱いません。集計件数とステータスのみ。</div>'
+    +'</div>';
 }
 // ==== ここまで packet 246 AI組織図 静的MVP ====
 
