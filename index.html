@@ -1242,7 +1242,7 @@ const WD_ALL=['日','月','火','水','木','金','土'];
 const WDCYC=['work','half','overtime','paid','noOt','off'];
 const SLBL={work:'出',half:'半',overtime:'残',paid:'有',noOt:'定',off:'休'};
 const SCOL={work:{bg:'#d1e3f8',tx:'#0a3d7c'},half:{bg:'#fff3b0',tx:'#856900'},overtime:{bg:'#ffe0b2',tx:'#e65100'},paid:{bg:'#d1fae5',tx:'#065f46'},noOt:{bg:'#fff9e0',tx:'#856900'},off:{bg:'#eef1f7',tx:'#7a8fa8'}};
-const OTL=30;const OTL_UNIT='時間';const MGR='杤岡';
+const OTL=30;const OTL_UNIT='時間';
 const today=new Date();today.setHours(0,0,0,0);
 const todayStr=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
 const tomorrowStr=mkD(1);
@@ -1997,7 +1997,7 @@ function renderDayTimeline(vis,dstr){
 }
 function setupDayEvForm(){['day-ef-s','day-ef-e'].forEach((id,i)=>{const s=document.getElementById(id);if(!s)return;s.innerHTML='';for(let h=8;h<=20;h++){['00','30'].forEach(mn=>{const o=document.createElement('option');o.value=`${h}:${mn}`;o.textContent=`${h}:${mn}`;s.appendChild(o);});}if(i===1)s.value='10:30';});}
 function renderDayRight(){const list=document.getElementById('day-td-list');if(!list)return;const mi=singleMi()>=0?singleMi():0;const dstr=ds(selDate);const todos=(state.todos[mi]||[]).filter(t=>t.date===dstr);if(!todos.length){list.innerHTML='<div style="color:var(--t4);font-size:10px;padding:3px 0">ToDoなし</div>';return;}list.innerHTML='';todos.forEach(td=>{const idx=state.todos[mi].indexOf(td);const cs=CAT_S[td.cat]||CAT_S['その他'];const d=document.createElement('div');d.className='tdi'+(td.done?' done':'');d.innerHTML=`<div class="tick${td.done?' on':''}"></div><span class="tit">${td.t}</span><span class="tibdg" style="background:${cs.bg};color:${cs.tx}">${td.cat}</span><button class="tidel">×</button>`;d.querySelector('.tick').onclick=()=>{state.todos[mi][idx].done=!td.done;renderDayRight();renderTodoStrip();};d.querySelector('.tidel').onclick=e=>{e.stopPropagation();state.todos[mi].splice(idx,1);renderDayRight();renderTodoStrip();};list.appendChild(d);});}
-function renderPoolPreview(){const el=document.getElementById('pool-preview');if(!el)return;const mi=singleMi()>=0?singleMi():0;const ua=state.tasks.filter(p=>p.toIdx===null&&!p.done);if(!ua.length){el.innerHTML='<div style="font-size:10px;color:var(--t4);padding:3px 0">未割当なし</div>';return;}el.innerHTML='';ua.slice(0,3).forEach(p=>{const cs=CAT_S[p.cat]||CAT_S['その他'];const d=document.createElement('div');d.className='pmini';d.innerHTML=`<span style="flex:1;font-size:10px;color:var(--t1);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.title}</span><span style="font-size:9px;padding:1px 5px;border-radius:5px;background:${cs.bg};color:${cs.tx};font-weight:700;flex-shrink:0">${p.cat}</span><button class="pclm">自分に</button>`;d.querySelector('button').onclick=()=>{const t=state.tasks.find(x=>x.id===p.id);if(t){t.toIdx=mi;t.fromName=currentUser?.name||MGR;}if(!state.todos[mi])state.todos[mi]=[];state.todos[mi].push({t:p.title,cat:p.cat,done:false,date:ds(selDate)});renderPoolPreview();renderTodoStrip();renderTaskBoard();};el.appendChild(d);});}
+function renderPoolPreview(){const el=document.getElementById('pool-preview');if(!el)return;const mi=singleMi()>=0?singleMi():0;const ua=state.tasks.filter(p=>p.toIdx===null&&!p.done);if(!ua.length){el.innerHTML='<div style="font-size:10px;color:var(--t4);padding:3px 0">未割当なし</div>';return;}el.innerHTML='';ua.slice(0,3).forEach(p=>{const cs=CAT_S[p.cat]||CAT_S['その他'];const d=document.createElement('div');d.className='pmini';d.innerHTML=`<span style="flex:1;font-size:10px;color:var(--t1);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.title}</span><span style="font-size:9px;padding:1px 5px;border-radius:5px;background:${cs.bg};color:${cs.tx};font-weight:700;flex-shrink:0">${p.cat}</span><button class="pclm">自分に</button>`;d.querySelector('button').onclick=()=>{const t=state.tasks.find(x=>x.id===p.id);if(t){t.toIdx=mi;t.fromName=currentUser?.name||'管理者';}if(!state.todos[mi])state.todos[mi]=[];state.todos[mi].push({t:p.title,cat:p.cat,done:false,date:ds(selDate)});renderPoolPreview();renderTodoStrip();renderTaskBoard();};el.appendChild(d);});}
 function buildTimeOptions(sel,val){sel.innerHTML='';for(let h=0;h<=23;h++){['00','30'].forEach(mn=>{const o=document.createElement('option');o.value=`${h}:${mn}`;o.textContent=`${h}:${mn}`;if(`${h}:${mn}`===val)o.selected=true;sel.appendChild(o);});};}
 function showEvModal(ev,mi){const ex=document.getElementById('evm');if(ex)ex.remove();const m=members[mi]||members[0];const bg=mkModal('evm',m.c,'予定を編集');
 // Build time select options html
@@ -2013,7 +2013,7 @@ macts(bg,'<button class="mbtn mbcl" id="evmc2">閉じる</button><button class="
 document.getElementById('evmc2').onclick=()=>bg.remove();
 document.getElementById('evmd').onclick=()=>{if(state.events[mi])state.events[mi]=state.events[mi].filter(e=>!(e.title===ev.title&&e.date===ev.date&&e.sh===ev.sh&&e.sm===ev.sm));bg.remove();renderCal();};
 const evToTask=document.getElementById('ev-to-task');if(evToTask)evToTask.onclick=()=>{
-  state.tasks.push({id:state.nextId++,title:ev.title,cat:ev.cat,pri:'mid',toIdx:mi,fromName:currentUser?.name||MGR,deadline:ev.date,done:false});
+  state.tasks.push({id:state.nextId++,title:ev.title,cat:ev.cat,pri:'mid',toIdx:mi,fromName:currentUser?.name||'管理者',deadline:ev.date,done:false});
   bg.remove();renderTaskBoard();updateBadges();showToast('タスクに追加しました');
 };
 document.getElementById('evm-save').onclick=()=>{
@@ -2517,7 +2517,7 @@ function showKAddModal(colKey,mi){
       cat:document.getElementById('ka-cat').value,
       pri:document.getElementById('ka-pri').value,
       toIdx:mi>=0?mi:null,
-      fromName:currentUser?.name||MGR,
+      fromName:currentUser?.name||'管理者',
       deadline:document.getElementById('ka-dead').value,
       done:colKey==='done',
       status:colKey,
