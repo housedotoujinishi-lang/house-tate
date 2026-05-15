@@ -993,6 +993,22 @@ textarea.ai-team-input{resize:vertical;min-height:60px}
 .routine-flow-step{margin:3px 0;padding:5px 8px;background:#f8f9fb;border-radius:4px;font-size:11px;color:#444}
 .routine-flow-step::before{content:'▸ ';color:#c9a23d;font-weight:800}
 .routine-note{font-size:11px;color:#666;background:#f8f9fb;padding:8px 10px;border-radius:6px;margin:0 0 12px;line-height:1.5}
+.routine-reset-btn{display:block;width:100%;padding:8px;background:#fff;color:#b22a2a;border:1px dashed #b22a2a;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;margin:0 0 10px}
+.routine-reset-btn:hover{background:#fff5f5}
+.tb-routine-section{background:#fff;border:2px solid #c9a23d;border-radius:10px;padding:12px 14px;margin:14px 8px;font-size:12px}
+.tb-routine-title{font-weight:800;color:#0a3d7c;font-size:13px;margin:0 0 6px;padding-bottom:6px;border-bottom:2px solid #c9a23d;display:flex;justify-content:space-between;align-items:center}
+.tb-routine-link{font-size:10px;color:#0a3d7c;text-decoration:underline;cursor:pointer;font-weight:700;background:none;border:none}
+.tb-routine-empty{font-size:11px;color:#999;text-align:center;padding:8px}
+.tb-routine-card{background:#f8f9fb;border-left:3px solid #0a3d7c;padding:8px 10px;margin:0 0 6px;border-radius:0 5px 5px 0;font-size:11px}
+.tb-routine-card.done{opacity:.5;border-left-color:#2d8a4f}
+.tb-routine-card.pri-high{border-left-color:#b22a2a}
+.tb-routine-card.pri-mid{border-left-color:#c97a1a}
+.tb-routine-row{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.tb-routine-info{flex:1}
+.tb-routine-name{font-weight:800;color:#222;font-size:12px}
+.tb-routine-meta{font-size:9px;color:#666;margin-top:2px}
+.tb-routine-btn{padding:4px 10px;background:#2d8a4f;color:#fff;border:none;border-radius:4px;font-size:10px;font-weight:700;cursor:pointer;flex-shrink:0}
+.tb-routine-btn.undo{background:#fff;color:#888;border:1px solid #888}
   </style>
   <div class="page" id="page-routine">
     <div style="padding:14px 14px 80px;max-width:760px;margin:0 auto">
@@ -1002,6 +1018,7 @@ textarea.ai-team-input{resize:vertical;min-height:60px}
       <div id="routine-summary"></div>
       <div id="routine-tabs" class="routine-tabs"></div>
       <button id="routine-add-btn" class="routine-add-btn">＋ 新規ルーティンを作成</button>
+      <button id="routine-reset-btn" class="routine-reset-btn" style="display:none">🔄 初期ルーティンに戻す（管理者 / 店長 / 事務 / サポート のみ）</button>
       <div id="routine-content"></div>
     </div>
   </div>
@@ -2119,6 +2136,7 @@ function renderTaskBoard(){
     ensureTaskStatus();
     body.style.cssText='padding:8px 4px;overflow:visible;background:transparent;border:none';
     renderKanban(body,myMi,isAdminUser);
+    try{appendRoutineToTaskBoard(body);}catch(e){}
     updateBadges();return;
   }
 
@@ -2376,6 +2394,7 @@ function renderTaskBoard(){
 
 
   body.querySelectorAll('.tchk').forEach(el=>bindChk(el,myMi,isAdminUser));
+  try{appendRoutineToTaskBoard(body);}catch(e){}
   updateBadges();
 }
 
@@ -5081,8 +5100,115 @@ function renderRoutinePage(){
   });
   const addBtn=document.getElementById('routine-add-btn');
   if(addBtn)addBtn.onclick=()=>{alert('新規ルーティン作成（将来実装）：現状は静的テンプレートのみ。');};
+  // packet 323: リセットボタン（管理者/店長/事務/サポートのみ表示）
+  const resetBtn=document.getElementById('routine-reset-btn');
+  if(resetBtn){
+    if(canEditRoutines(currentUser)){
+      resetBtn.style.display='block';
+      resetBtn.onclick=()=>{
+        if(!confirm('編集・追加したルーティンを初期状態に戻します。\n本日の完了状態もリセットされます。\nよろしいですか？'))return;
+        try{localStorage.removeItem(ROUTINE_DONE_LS_KEY);}catch(e){}
+        try{localStorage.removeItem('jagai_task_routine_custom');}catch(e){}
+        alert('ルーティンを初期状態にリセットしました。');
+        renderRoutinePage();
+        // タスクボードも再描画（開かれていれば）
+        try{if(document.getElementById('page-cal')?.classList.contains('on'))renderTaskBoard();}catch(e){}
+      };
+    }else{
+      resetBtn.style.display='none';
+    }
+  }
 }
-// ==== ここまで packet 315 ルーティン業務 静的MVP ====
+// packet 323: ルーティン編集権限判定
+function canEditRoutines(u){
+  if(!u)return false;
+  if(u.perm==='admin'||u.perm==='owner')return true;
+  const role=u.role||'';
+  if(role.indexOf('店長')>=0)return true;
+  if(role.indexOf('事務')>=0||role.indexOf('サポート')>=0)return true;
+  return false;
+}
+// packet 323: 役職別ルーティン抽出（タスクボード用、本日対象）
+function getTodayRoutinesForUser(u){
+  if(!u)return [];
+  const tmpl=getStaticRoutineTemplates();
+  const role=u.role||'';
+  const perm=u.perm||'';
+  const isAdminLike=perm==='admin'||perm==='owner';
+  const isManager=role.indexOf('店長')>=0;
+  const isSupport=role.indexOf('事務')>=0||role.indexOf('サポート')>=0;
+  const isAgent=role.indexOf('エージェント')>=0;
+  // 本日対象：daily + 本日曜日の weekly + 本日該当 monthly
+  const now=new Date();
+  const todayWeekday=now.getDay();
+  const todayDay=now.getDate();
+  let list=[];
+  // daily 全部
+  tmpl.daily.forEach(r=>{
+    const t=r.target;
+    let show=false;
+    if(isAdminLike)show=true;
+    else if(isManager&&['店舗全体','店長','エージェント','事務','サポート'].includes(t))show=true;
+    else if(isSupport&&['店舗全体','事務','サポート'].includes(t))show=true;
+    else if(isAgent&&['店舗全体','エージェント'].includes(t))show=true;
+    if(show)list.push(r);
+  });
+  // weekly：本日曜日
+  tmpl.weekly.forEach(r=>{
+    if(r.weekday!==todayWeekday)return;
+    if(isAdminLike||(isManager&&['店舗全体','店長','エージェント','事務','サポート'].includes(r.target))
+      ||(isSupport&&['店舗全体','事務','サポート'].includes(r.target))
+      ||(isAgent&&['店舗全体','エージェント'].includes(r.target)))list.push(r);
+  });
+  // monthly：本日該当
+  tmpl.monthly.forEach(r=>{
+    if(r.day!==todayDay)return;
+    if(isAdminLike||(isManager&&['店舗全体','店長','エージェント','事務','サポート'].includes(r.target))
+      ||(isSupport&&['店舗全体','事務','サポート'].includes(r.target))
+      ||(isAgent&&['店舗全体','エージェント'].includes(r.target)))list.push(r);
+  });
+  return list;
+}
+// packet 323: タスクボード末尾に「本日のルーティンタスク」枠を追加描画
+function appendRoutineToTaskBoard(body){
+  if(!body)return;
+  // 既存ルーティン枠があれば削除
+  const old=body.querySelector('.tb-routine-section');if(old)old.remove();
+  const list=getTodayRoutinesForUser(currentUser);
+  if(!list.length)return;
+  const doneIds=getRoutineDoneIds();
+  const e=escRoutineHtml;
+  const section=document.createElement('div');
+  section.className='tb-routine-section';
+  const doneCount=list.filter(r=>doneIds.includes(r.id)).length;
+  let h='<div class="tb-routine-title"><span>📋 本日のルーティンタスク（'+doneCount+' / '+list.length+'）</span>'
+    +'<button class="tb-routine-link" onclick="switchPage(\'routine\')">ルーティン編集 →</button></div>';
+  list.forEach(r=>{
+    const isDone=doneIds.includes(r.id);
+    const priCls=r.priority==='high'?'pri-high':r.priority==='mid'?'pri-mid':'';
+    h+='<div class="tb-routine-card '+priCls+(isDone?' done':'')+'">';
+    h+='<div class="tb-routine-row"><div class="tb-routine-info">';
+    h+='<div class="tb-routine-name">'+e(r.title)+'</div>';
+    h+='<div class="tb-routine-meta">'+e(r.target);
+    if(r.time)h+=' / ⏰ '+e(r.time);
+    if(r.duration)h+=' / ⏱ '+r.duration+'分';
+    h+='</div></div>';
+    if(isDone){h+='<button class="tb-routine-btn undo" data-tbrid="'+e(r.id)+'" data-tbraction="undo">↩ 戻す</button>';}
+    else{h+='<button class="tb-routine-btn" data-tbrid="'+e(r.id)+'" data-tbraction="done">✓ 完了</button>';}
+    h+='</div></div>';
+  });
+  section.innerHTML=h;
+  body.appendChild(section);
+  section.querySelectorAll('[data-tbraction]').forEach(b=>{
+    b.onclick=()=>{
+      if(b.dataset.tbraction==='done')markRoutineDone(b.dataset.tbrid);
+      else unmarkRoutineDone(b.dataset.tbrid);
+      // 即時再描画
+      try{renderTaskBoard();}catch(e){}
+    };
+  });
+}
+// ==== ここまで packet 315 + 323 ルーティン業務 + タスクボード連動 ====
 
 // ==== packet 319 担当秘書AIマッピング（社内ツール表示OK、顧客情報・key類は引き続き禁止）====
 function getPersonalSecretaryMapping(){
