@@ -4963,7 +4963,8 @@ function renderJagaiHomeWidgets(){
 // ==== packet 315 タスク入力・ルーティン業務・業務フロー 静的MVP（担当役職ベース、顧客情報なし）====
 const ROUTINE_LS_KEY='jagai_task_routine_static_mvp';
 const ROUTINE_DONE_LS_KEY='jagai_task_routine_done_today';
-function getStaticRoutineTemplates(){
+const ROUTINE_CUSTOM_LS_KEY='jagai_routine_tasks_v1'; // packet 327: 編集UI 本実装
+function _getDefaultRoutineTemplates(){
   return {
     daily:[
       {id:'r-d-store-1',title:'朝の反響確認',target:'店舗全体',priority:'high',time:'09:00',duration:15,memo:'Gmail/LINE/ポータルの反響を確認'},
@@ -5009,6 +5010,17 @@ function getStaticRoutineTemplates(){
       {id:'f-keiyaku',title:'契約前後フロー',steps:['買付確認','ローン確認','重説準備','契約書準備','決済準備','引渡し確認']}
     ]
   };
+}
+// packet 327: ルーティン編集UI 本実装 — custom があれば custom を返す、なければ default
+function getStaticRoutineTemplates(){
+  try{
+    const c=JSON.parse(localStorage.getItem(ROUTINE_CUSTOM_LS_KEY)||'null');
+    if(c&&Array.isArray(c.daily)&&Array.isArray(c.weekly)&&Array.isArray(c.monthly)&&Array.isArray(c.flows))return c;
+  }catch(e){}
+  return _getDefaultRoutineTemplates();
+}
+function saveRoutineTemplates(data){
+  try{localStorage.setItem(ROUTINE_CUSTOM_LS_KEY,JSON.stringify(data));return true;}catch(e){return false;}
 }
 function getRoutineDoneIds(){
   try{
@@ -5070,6 +5082,8 @@ function renderRoutinePage(){
     });
   }else{
     const list=tab==='today'?tmpl.daily:tab==='weekly'?tmpl.weekly:tmpl.monthly;
+    const canEdit=canEditRoutines(currentUser);
+    const tabKind=tab==='today'?'daily':tab;
     list.forEach(r=>{
       const isDone=tab==='today'&&doneIds.includes(r.id);
       const priCls=r.priority==='high'?'pri-high':r.priority==='mid'?'pri-mid':'pri-low';
@@ -5082,6 +5096,14 @@ function renderRoutinePage(){
       if(r.day)h+='<span class="routine-time-pill">'+r.day+'日</span>';
       h+='</div>';
       if(r.memo)h+='<div class="routine-card-meta">📝 '+e(r.memo)+'</div>';
+      // packet 327: 編集 / 複製 / 削除（権限者のみ）
+      if(canEdit){
+        h+='<div class="routine-card-edit-actions">'
+          +'<button class="routine-edit-btn" data-redit="'+e(r.id)+'" data-rkind="'+tabKind+'">✏ 編集</button>'
+          +'<button class="routine-edit-btn" data-rdup="'+e(r.id)+'" data-rkind="'+tabKind+'">📋 複製</button>'
+          +'<button class="routine-edit-btn danger" data-rdel="'+e(r.id)+'" data-rkind="'+tabKind+'">🗑 削除</button>'
+          +'</div>';
+      }
       if(tab==='today'){
         h+='<div class="routine-card-actions">';
         if(isDone){h+='<button class="routine-action-btn skip" data-rid="'+e(r.id)+'" data-raction="undo">↩ 戻す</button>';}
@@ -5098,8 +5120,29 @@ function renderRoutinePage(){
       else unmarkRoutineDone(b.dataset.rid);
     };
   });
+  // packet 327: 編集 / 複製 / 削除 ボタン bind
+  contentEl.querySelectorAll('[data-redit]').forEach(b=>{
+    b.onclick=()=>showRoutineEditModal('edit',b.dataset.rkind,b.dataset.redit);
+  });
+  contentEl.querySelectorAll('[data-rdup]').forEach(b=>{
+    b.onclick=()=>showRoutineEditModal('duplicate',b.dataset.rkind,b.dataset.rdup);
+  });
+  contentEl.querySelectorAll('[data-rdel]').forEach(b=>{
+    b.onclick=()=>deleteRoutineItem(b.dataset.rkind,b.dataset.rdel);
+  });
   const addBtn=document.getElementById('routine-add-btn');
-  if(addBtn)addBtn.onclick=()=>{alert('新規ルーティン作成（将来実装）：現状は静的テンプレートのみ。');};
+  if(addBtn){
+    if(canEditRoutines(currentUser)){
+      addBtn.style.display='';
+      addBtn.onclick=()=>{
+        const kind=(window._routineTab==='today'?'daily':(window._routineTab||'daily'));
+        if(kind==='flows'){alert('業務フローの編集は将来実装です。');return;}
+        showRoutineEditModal('new',kind,null);
+      };
+    }else{
+      addBtn.style.display='none';
+    }
+  }
   // packet 323: リセットボタン（管理者/店長/事務/サポートのみ表示）
   const resetBtn=document.getElementById('routine-reset-btn');
   if(resetBtn){
@@ -5108,7 +5151,8 @@ function renderRoutinePage(){
       resetBtn.onclick=()=>{
         if(!confirm('編集・追加したルーティンを初期状態に戻します。\n本日の完了状態もリセットされます。\nよろしいですか？'))return;
         try{localStorage.removeItem(ROUTINE_DONE_LS_KEY);}catch(e){}
-        try{localStorage.removeItem('jagai_task_routine_custom');}catch(e){}
+        try{localStorage.removeItem(ROUTINE_CUSTOM_LS_KEY);}catch(e){}
+        try{localStorage.removeItem('jagai_task_routine_custom');}catch(e){} // 旧キー後方互換
         alert('ルーティンを初期状態にリセットしました。');
         renderRoutinePage();
         // タスクボードも再描画（開かれていれば）
@@ -5250,6 +5294,287 @@ function renderPersonalSecretaryMappingTable(rootId){
   };
 })();
 // ==== ここまで packet 319 担当秘書AIマッピング ====
+
+// ==== packet 327 ルーティン編集UI 本実装 ====
+function _routineKindLabel(kind){return kind==='daily'?'毎日':kind==='weekly'?'毎週':kind==='monthly'?'毎月':kind;}
+function _findRoutineById(kind,id){
+  const tmpl=getStaticRoutineTemplates();
+  const arr=tmpl[kind]||[];
+  for(let i=0;i<arr.length;i++){if(arr[i].id===id)return {item:arr[i],index:i,arr:arr,tmpl:tmpl};}
+  return null;
+}
+function _newRoutineId(kind){
+  const tmpl=getStaticRoutineTemplates();
+  let n=1;
+  const prefix=kind==='daily'?'r-d-cu-':kind==='weekly'?'r-w-cu-':'r-m-cu-';
+  while((tmpl[kind]||[]).some(r=>r.id===prefix+n))n++;
+  return prefix+n;
+}
+function showRoutineEditModal(mode,kind,id){
+  if(!canEditRoutines(currentUser)){alert('編集権限がありません。');return;}
+  if(kind==='flows'){alert('業務フローの編集は将来実装です。');return;}
+  const modal=document.getElementById('routine-edit-modal');if(!modal)return;
+  let src={id:'',title:'',target:'店舗全体',priority:'mid',time:'',duration:15,memo:'',weekday:undefined,day:undefined};
+  if(mode==='edit'||mode==='duplicate'){
+    const f=_findRoutineById(kind,id);
+    if(!f){alert('対象ルーティンが見つかりません。');return;}
+    src=Object.assign({},f.item);
+    if(mode==='duplicate'){src.id='';src.title=src.title+'（コピー）';}
+  }
+  const titleEl=document.getElementById('rt-edit-modal-title');
+  if(titleEl)titleEl.textContent=(mode==='new'?'新規追加':mode==='edit'?'編集':'複製')+'（'+_routineKindLabel(kind)+'）';
+  const setVal=(id,v)=>{const el=document.getElementById(id);if(el)el.value=(v==null?'':v);};
+  setVal('rt-edit-title',src.title);
+  setVal('rt-edit-target',src.target||'店舗全体');
+  setVal('rt-edit-priority',src.priority||'mid');
+  setVal('rt-edit-time',src.time||'');
+  setVal('rt-edit-duration',src.duration||'');
+  setVal('rt-edit-memo',src.memo||'');
+  setVal('rt-edit-weekday',src.weekday==undefined?'':String(src.weekday));
+  setVal('rt-edit-day',src.day||'');
+  // 種別フィールドの出し分け
+  const wRow=document.getElementById('rt-edit-row-weekday');if(wRow)wRow.style.display=kind==='weekly'?'':'none';
+  const dRow=document.getElementById('rt-edit-row-day');if(dRow)dRow.style.display=kind==='monthly'?'':'none';
+  const tRow=document.getElementById('rt-edit-row-time');if(tRow)tRow.style.display=kind==='daily'?'':'none';
+  // 保存ボタン bind
+  const saveBtn=document.getElementById('rt-edit-save-btn');
+  if(saveBtn){
+    saveBtn.onclick=()=>{
+      const title=(document.getElementById('rt-edit-title').value||'').trim();
+      if(!title){alert('タスク名は必須です。');return;}
+      const target=document.getElementById('rt-edit-target').value||'店舗全体';
+      const priority=document.getElementById('rt-edit-priority').value||'mid';
+      const time=(document.getElementById('rt-edit-time').value||'').trim();
+      const duration=parseInt(document.getElementById('rt-edit-duration').value||'0',10)||0;
+      const memo=(document.getElementById('rt-edit-memo').value||'').trim();
+      const weekdayRaw=document.getElementById('rt-edit-weekday').value;
+      const dayRaw=document.getElementById('rt-edit-day').value;
+      const tmpl=getStaticRoutineTemplates();
+      const arr=tmpl[kind]||[];
+      const newItem={
+        title:title,target:target,priority:priority,memo:memo
+      };
+      if(kind==='daily'){
+        newItem.id=(mode==='edit'?src.id:_newRoutineId(kind));
+        if(time)newItem.time=time;
+        if(duration>0)newItem.duration=duration;
+      }else if(kind==='weekly'){
+        newItem.id=(mode==='edit'?src.id:_newRoutineId(kind));
+        const w=parseInt(weekdayRaw,10);
+        if(!isNaN(w)&&w>=0&&w<=6)newItem.weekday=w;
+        else{alert('曜日を選択してください。');return;}
+      }else if(kind==='monthly'){
+        newItem.id=(mode==='edit'?src.id:_newRoutineId(kind));
+        const d=parseInt(dayRaw,10);
+        if(!isNaN(d)&&d>=1&&d<=31)newItem.day=d;
+        else{alert('日（1〜31）を入力してください。');return;}
+      }
+      // 反映
+      if(mode==='edit'){
+        const idx=arr.findIndex(r=>r.id===src.id);
+        if(idx>=0)arr[idx]=newItem;else arr.push(newItem);
+      }else{
+        arr.push(newItem);
+      }
+      tmpl[kind]=arr;
+      if(!saveRoutineTemplates(tmpl)){alert('保存に失敗しました（localStorage 書込エラー）。');return;}
+      modal.style.display='none';
+      renderRoutinePage();
+      try{if(document.getElementById('page-cal')?.classList.contains('on'))renderTaskBoard();}catch(e){}
+    };
+  }
+  const cancelBtn=document.getElementById('rt-edit-cancel-btn');
+  if(cancelBtn)cancelBtn.onclick=()=>{modal.style.display='none';};
+  modal.style.display='flex';
+}
+function deleteRoutineItem(kind,id){
+  if(!canEditRoutines(currentUser)){alert('削除権限がありません。');return;}
+  if(kind==='flows'){alert('業務フローの編集は将来実装です。');return;}
+  const f=_findRoutineById(kind,id);if(!f){alert('対象が見つかりません。');return;}
+  if(!confirm('「'+f.item.title+'」を削除します。よろしいですか？\n（リセットで復元できます）'))return;
+  const tmpl=f.tmpl;
+  tmpl[kind]=(tmpl[kind]||[]).filter(r=>r.id!==id);
+  if(!saveRoutineTemplates(tmpl)){alert('保存に失敗しました。');return;}
+  renderRoutinePage();
+  try{if(document.getElementById('page-cal')?.classList.contains('on'))renderTaskBoard();}catch(e){}
+}
+// 編集モーダル HTML を body に注入（初回 1 度）
+(function injectRoutineEditModal(){
+  if(document.getElementById('routine-edit-modal'))return;
+  const modal=document.createElement('div');
+  modal.id='routine-edit-modal';
+  modal.style.cssText='display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.55);align-items:center;justify-content:center;padding:16px;';
+  modal.innerHTML=''
+    +'<div style="background:#fff;border-radius:10px;max-width:480px;width:100%;max-height:92vh;overflow:auto;padding:16px;font-size:14px;">'
+    +'<div id="rt-edit-modal-title" style="font-weight:700;font-size:16px;margin-bottom:10px;">編集</div>'
+    +'<div style="display:flex;flex-direction:column;gap:8px;">'
+    +' <label>タスク名 <span style="color:#c00;">*</span><input id="rt-edit-title" type="text" maxlength="60" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;"></label>'
+    +' <label>対象（担当役職）<select id="rt-edit-target" style="width:100%;padding:6px;"><option>店舗全体</option><option>店長</option><option>エージェント</option><option>事務</option><option>サポート</option></select></label>'
+    +' <label>優先度 <select id="rt-edit-priority" style="width:100%;padding:6px;"><option value="high">高</option><option value="mid" selected>中</option><option value="low">低</option></select></label>'
+    +' <div id="rt-edit-row-time"><label>予定時刻（HH:MM）<input id="rt-edit-time" type="text" placeholder="09:00" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;"></label>'
+    +'  <label style="display:block;margin-top:6px;">所要時間（分）<input id="rt-edit-duration" type="number" min="0" max="480" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;"></label></div>'
+    +' <div id="rt-edit-row-weekday" style="display:none;"><label>曜日 <select id="rt-edit-weekday" style="width:100%;padding:6px;"><option value="">選択</option><option value="0">日</option><option value="1">月</option><option value="2">火</option><option value="3">水</option><option value="4">木</option><option value="5">金</option><option value="6">土</option></select></label></div>'
+    +' <div id="rt-edit-row-day" style="display:none;"><label>日（1-31）<input id="rt-edit-day" type="number" min="1" max="31" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;"></label></div>'
+    +' <label>内容メモ／備考 <textarea id="rt-edit-memo" rows="3" maxlength="200" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;"></textarea></label>'
+    +'</div>'
+    +'<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">'
+    +' <button id="rt-edit-cancel-btn" style="padding:8px 14px;background:#eee;border:0;border-radius:4px;cursor:pointer;">キャンセル</button>'
+    +' <button id="rt-edit-save-btn" style="padding:8px 14px;background:#2563eb;color:#fff;border:0;border-radius:4px;cursor:pointer;">💾 保存</button>'
+    +'</div>'
+    +'<div style="font-size:11px;color:#666;margin-top:10px;">※ 顧客情報・パスワード・APIキー・UUID・メール等は入力しないでください。</div>'
+    +'</div>';
+  document.body.appendChild(modal);
+})();
+// 編集ボタン用 inline CSS（追加分のみ）
+(function injectRoutineEditCss(){
+  if(document.getElementById('routine-edit-css'))return;
+  const s=document.createElement('style');s.id='routine-edit-css';
+  s.textContent='.routine-card-edit-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;}'
+    +'.routine-edit-btn{font-size:11px;padding:3px 8px;border:1px solid #cbd5e1;background:#f8fafc;color:#334155;border-radius:4px;cursor:pointer;}'
+    +'.routine-edit-btn:hover{background:#e2e8f0;}'
+    +'.routine-edit-btn.danger{border-color:#fca5a5;background:#fef2f2;color:#b91c1c;}'
+    +'.routine-edit-btn.danger:hover{background:#fee2e2;}'
+    +'.routine-incomplete-alert{margin:10px 0;padding:10px 12px;background:#fff7ed;border-left:4px solid #f97316;border-radius:4px;}'
+    +'.routine-incomplete-alert.severe{background:#fef2f2;border-left-color:#dc2626;}'
+    +'.routine-incomplete-alert .ria-title{font-weight:700;font-size:13px;color:#9a3412;}'
+    +'.routine-incomplete-alert.severe .ria-title{color:#b91c1c;}'
+    +'.routine-incomplete-alert .ria-body{font-size:12px;color:#555;margin-top:4px;}'
+    +'.routine-rate-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px;}'
+    +'.routine-rate-table th,.routine-rate-table td{border:1px solid #e2e8f0;padding:4px 6px;text-align:left;}'
+    +'.routine-rate-table th{background:#f1f5f9;}';
+  document.head.appendChild(s);
+})();
+// ==== ここまで packet 327 ルーティン編集UI 本実装 ====
+
+// ==== packet 329 未完了ルーティン店長アラート ====
+function _allTodayRoutinesFlat(){
+  // 全役職分の本日ルーティンを総当りで取得し、id でユニーク化
+  const tmpl=getStaticRoutineTemplates();
+  const now=new Date();
+  const wd=now.getDay();const day=now.getDate();
+  const out=[];
+  const seen=new Set();
+  (tmpl.daily||[]).forEach(r=>{if(!seen.has(r.id)){seen.add(r.id);out.push(r);}});
+  (tmpl.weekly||[]).forEach(r=>{if(r.weekday===wd&&!seen.has(r.id)){seen.add(r.id);out.push(r);}});
+  (tmpl.monthly||[]).forEach(r=>{if(r.day===day&&!seen.has(r.id)){seen.add(r.id);out.push(r);}});
+  return out;
+}
+function computeRoutineCompletionStats(){
+  const list=_allTodayRoutinesFlat();
+  const doneIds=getRoutineDoneIds();
+  const doneCount=list.filter(r=>doneIds.includes(r.id)).length;
+  const total=list.length;
+  const rate=total>0?Math.round(doneCount/total*100):0;
+  // 役職別
+  const byTarget={};
+  list.forEach(r=>{
+    const t=r.target||'店舗全体';
+    if(!byTarget[t])byTarget[t]={total:0,done:0};
+    byTarget[t].total++;
+    if(doneIds.includes(r.id))byTarget[t].done++;
+  });
+  // 高優先度未完了数
+  const highIncomplete=list.filter(r=>r.priority==='high'&&!doneIds.includes(r.id)).length;
+  return {list:list,total:total,doneCount:doneCount,rate:rate,incomplete:total-doneCount,byTarget:byTarget,highIncomplete:highIncomplete};
+}
+function _shouldShowManagerAlert(u){
+  if(!u)return false;
+  if(u.perm==='admin'||u.perm==='owner')return true;
+  const role=u.role||'';
+  if(role.indexOf('店長')>=0)return true;
+  if(role.indexOf('事務')>=0||role.indexOf('サポート')>=0)return true;
+  return false;
+}
+function renderRoutineIncompleteAlert(container){
+  if(!container)return;
+  // 既存があれば撤去
+  const old=container.querySelector('.routine-incomplete-alert');if(old)old.remove();
+  if(!_shouldShowManagerAlert(currentUser))return;
+  const stats=computeRoutineCompletionStats();
+  if(stats.total===0)return;
+  const hour=new Date().getHours();
+  const severe=hour>=18&&stats.incomplete>0;
+  const wrap=document.createElement('div');
+  wrap.className='routine-incomplete-alert'+(severe?' severe':'');
+  let body='';
+  if(stats.incomplete>0){
+    body+='未完了ルーティン：<b>'+stats.incomplete+'件</b>（うち高優先 '+stats.highIncomplete+' 件）／ 店舗全体ルーティン完了率：<b>'+stats.rate+'%</b>';
+    if(severe)body+='<br>⚠ 18時時点で未完了が残っています。店長確認が必要です。';
+  }else{
+    body+='✅ 本日のルーティンはすべて完了しています（'+stats.doneCount+' / '+stats.total+'）';
+  }
+  wrap.innerHTML='<div class="ria-title">📋 ルーティン進捗</div><div class="ria-body">'+body+'</div>';
+  container.appendChild(wrap);
+}
+// renderDash 末尾に未完了アラート差込
+(function patchRenderDashRoutineAlert(){
+  const orig=window.renderDash;
+  if(typeof orig!=='function')return;
+  window.renderDash=function(){
+    const r=orig.apply(this,arguments);
+    try{
+      const dash=document.getElementById('page-dash');
+      if(dash)renderRoutineIncompleteAlert(dash);
+    }catch(e){}
+    return r;
+  };
+})();
+// renderTaskBoard 末尾でも差込（既存 appendRoutineToTaskBoard と共存）
+(function patchRenderTaskBoardRoutineAlert(){
+  const orig=window.renderTaskBoard;
+  if(typeof orig!=='function')return;
+  window.renderTaskBoard=function(){
+    const r=orig.apply(this,arguments);
+    try{
+      const pcal=document.getElementById('page-cal');
+      if(pcal)renderRoutineIncompleteAlert(pcal);
+    }catch(e){}
+    return r;
+  };
+})();
+// ==== ここまで packet 329 未完了店長アラート ====
+
+// ==== packet 330 ルーティン完了率集計（役職別） ====
+function renderRoutineCompletionRate(){
+  const root=document.getElementById('routine-completion-rate');
+  if(!root)return;
+  const stats=computeRoutineCompletionStats();
+  let h='<div style="font-size:12px;color:#555;margin-top:6px;">'
+    +'店舗全体 本日完了率：<b>'+stats.rate+'%</b>（'+stats.doneCount+' / '+stats.total+'）'
+    +' ／ 高優先未完了：<b>'+stats.highIncomplete+'</b>'
+    +'</div>';
+  // 役職別表
+  const targets=Object.keys(stats.byTarget);
+  if(targets.length){
+    h+='<table class="routine-rate-table"><thead><tr><th>役職</th><th>完了 / 全体</th><th>完了率</th></tr></thead><tbody>';
+    targets.forEach(t=>{
+      const v=stats.byTarget[t];
+      const r=v.total>0?Math.round(v.done/v.total*100):0;
+      h+='<tr><td>'+t+'</td><td>'+v.done+' / '+v.total+'</td><td>'+r+'%</td></tr>';
+    });
+    h+='</tbody></table>';
+  }
+  root.innerHTML=h;
+}
+// renderRoutinePage 末尾に完了率表を差込
+(function patchRenderRoutinePageRate(){
+  const orig=window.renderRoutinePage;
+  if(typeof orig!=='function')return;
+  window.renderRoutinePage=function(){
+    const r=orig.apply(this,arguments);
+    try{
+      // routine-completion-rate コンテナがなければ summary 直下に作る
+      const sumEl=document.getElementById('routine-summary');
+      if(sumEl&&!document.getElementById('routine-completion-rate')){
+        const div=document.createElement('div');div.id='routine-completion-rate';
+        sumEl.parentNode.insertBefore(div,sumEl.nextSibling);
+      }
+      renderRoutineCompletionRate();
+    }catch(e){}
+    return r;
+  };
+})();
+// ==== ここまで packet 330 完了率集計 ====
 </script>
 </body>
 </html>
