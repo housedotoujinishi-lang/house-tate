@@ -1022,10 +1022,22 @@ textarea.ai-team-input{resize:vertical;min-height:60px}
       <div id="routine-content"></div>
     </div>
   </div>
+  <div class="page" id="page-sales-psy">
+    <div style="padding:14px 14px 80px;max-width:760px;margin:0 auto">
+      <h2 style="font-size:18px;color:#0a3d7c;margin:0 0 4px;font-weight:800">🧠 営業心理学マメ知識大辞典</h2>
+      <div style="font-size:11px;color:#666;margin-bottom:12px">心理学・行動経済学・コミュニケーション知識を学ぶ（静的MVP、30件）</div>
+      <div style="font-size:11px;color:#9a3412;background:#fff7ed;border-left:3px solid #f97316;padding:6px 10px;border-radius:4px;margin-bottom:10px">⚠ 営業心理学は、お客様を操作するためではなく、納得して判断していただくための知識として扱います。不安を煽る・嘘・誤認・強引な決断強制はNG。</div>
+      <div id="sp-today"></div>
+      <input id="sp-search" type="text" placeholder="🔍 タイトル / キーワード / カテゴリで検索" style="width:100%;padding:8px 10px;border:1px solid #ccc;border-radius:6px;margin-bottom:8px;font-size:13px;">
+      <div id="sp-filters" style="margin-bottom:10px"></div>
+      <div id="sp-cards"></div>
+    </div>
+  </div>
   <div class="page" id="page-realestate-knowledge">
     <div style="padding:14px 14px 80px;max-width:760px;margin:0 auto">
       <h2 style="font-size:18px;color:#0a3d7c;margin:0 0 4px;font-weight:800">📚 不動産マメ知識大辞典</h2>
       <div style="font-size:11px;color:#666;margin-bottom:12px">営業・査定・媒介・法務・税務・労務の知識を確認します（静的MVP）</div>
+      <div style="margin-bottom:10px"><button onclick="switchPage('sales-psy')" style="font-size:12px;padding:6px 12px;background:#0a3d7c;color:#fff;border:0;border-radius:4px;cursor:pointer">🧠 営業心理学マメ知識大辞典はこちら →</button></div>
       <div class="rek-note">ℹ 顧客名・住所・電話番号などの個人情報は表示しません。法務・税務・労務は注意喚起であり最終判断ではありません。</div>
       <input id="rek-search" class="rek-search" type="text" placeholder="🔍 タイトル / 本文 / カテゴリで検索">
       <div id="rek-filters" class="rek-filters"></div>
@@ -1626,7 +1638,7 @@ bindEvForm();
   }
 }
 
-function switchPage(pg){if(pg==='crm'){pg='dash';/* packet 322: 顧客タブ強制無効化、dash に強制リダイレクト */}document.querySelectorAll('.ntab').forEach(b=>b.classList.toggle('on',b.dataset.pg===pg));document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));const pgEl=document.getElementById(`page-${pg}`);if(pgEl)pgEl.classList.add('on');if(pg==='dash')renderDash();if(pg==='accounts')renderAccList();if(pg==='kintai'){ktViewUid=currentUser.perm==='admin'?null:currentUser.uid;renderKintaiPage();}if(pg==='cal')render();if(pg==='shift')renderShift();if(pg==='goal'){initGoalData();renderGoalPage();}if(pg==='report')renderReportPage();if(pg==='aiteam')renderAITeamPage();if(pg==='member-workload')renderMemberWorkloadPage();if(pg==='ai-members')renderAIMembersPage();if(pg==='ai-org')renderAIOrgChartPage();if(pg==='realestate-knowledge')renderRealEstateKnowledgePage();if(pg==='routine')renderRoutinePage();}
+function switchPage(pg){if(pg==='crm'){pg='dash';/* packet 322: 顧客タブ強制無効化、dash に強制リダイレクト */}document.querySelectorAll('.ntab').forEach(b=>b.classList.toggle('on',b.dataset.pg===pg));document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));const pgEl=document.getElementById(`page-${pg}`);if(pgEl)pgEl.classList.add('on');if(pg==='dash')renderDash();if(pg==='accounts')renderAccList();if(pg==='kintai'){ktViewUid=currentUser.perm==='admin'?null:currentUser.uid;renderKintaiPage();}if(pg==='cal')render();if(pg==='shift')renderShift();if(pg==='goal'){initGoalData();renderGoalPage();}if(pg==='report')renderReportPage();if(pg==='aiteam')renderAITeamPage();if(pg==='member-workload')renderMemberWorkloadPage();if(pg==='ai-members')renderAIMembersPage();if(pg==='ai-org')renderAIOrgChartPage();if(pg==='realestate-knowledge')renderRealEstateKnowledgePage();if(pg==='routine')renderRoutinePage();if(pg==='sales-psy')renderSalesPsychologyPage();}
 function mkModal(id,barColor,title){const ex=document.getElementById(id);if(ex)ex.remove();const bg=document.createElement('div');bg.className='mbg';bg.id=id;bg.innerHTML=`<div class="modal"><div class="mbar" style="background:${barColor}"></div><button class="mclose" id="${id}-c">✕</button><div class="mttl">${title}</div><div class="macts"></div></div>`;document.body.appendChild(bg);document.getElementById(`${id}-c`).onclick=()=>bg.remove();bg.onclick=e=>{if(e.target===bg)bg.remove();};return bg;}
 function mttlAfter(bg,html){bg.querySelector('.mttl').insertAdjacentHTML('afterend',html);}
 function macts(bg,html){bg.querySelector('.macts').innerHTML=html;}
@@ -5575,6 +5587,223 @@ function renderRoutineCompletionRate(){
   };
 })();
 // ==== ここまで packet 330 完了率集計 ====
+
+// ==== packet 335 営業心理学マメ知識大辞典 静的MVP ====
+const SP_READ_LS_KEY='jagai_sales_psy_tip_read_ids';
+const SP_FAV_LS_KEY='jagai_sales_psy_tip_fav_ids';
+const SP_LAST_LS_KEY='jagai_sales_psy_tip_last_opened_date';
+function getSalesPsychologyCategories(){
+  return [
+    {key:'first-contact',label:'初回対応心理学'},
+    {key:'hearing',label:'ヒアリング心理学'},
+    {key:'trust',label:'信頼形成'},
+    {key:'follow-up',label:'追客心理学'},
+    {key:'mandate',label:'媒介取得心理学'},
+    {key:'price-nego',label:'価格交渉心理学'},
+    {key:'closing',label:'クロージング心理学'},
+    {key:'claim',label:'クレーム・不安対応'},
+    {key:'behavior-econ',label:'行動経済学'},
+    {key:'self-mgmt',label:'セルフマネジメント'}
+  ];
+}
+function getSalesPsychologyScenes(){
+  return [
+    {key:'phone',label:'電話'},
+    {key:'follow',label:'追客'},
+    {key:'appraisal',label:'査定'},
+    {key:'visit',label:'訪問'},
+    {key:'mandate',label:'媒介'},
+    {key:'price',label:'価格交渉'},
+    {key:'claim',label:'クレーム'}
+  ];
+}
+function getSalesPsychologyTips(){
+  return [
+    {id:'sp-001',title:'最初の30秒で安心感を作る',category:'first-contact',difficulty:'beginner',scenes:['phone','visit'],keyword:'初頭効果',oneLine:'人は最初の印象を、その後の評価にも引きずりやすい。',howToUse:'電話の冒頭で会社名・名前・問い合わせ理由を短く丁寧に伝える。',realEstateExample:'反響電話の最初の30秒で「会社名 + 名前 + 反響元 + 用件 + 確認許可」を統一トークで言う。',ngExample:'「査定の件で電話しました。今いいですか？」',okExample:'「イエウールよりご売却のお問い合わせをいただきました、ハウスドゥ東寺西の〇〇です。突然のお電話失礼いたします。まずは内容の確認だけ、1〜2分ほどよろしいでしょうか。」',todayAction:'電話の冒頭トークを統一する。',relatedAI:['豊臣秀吉','スティーブ・ジョブズ'],caution:'丁寧すぎて長くなると逆効果。30秒以内に収める。'},
+    {id:'sp-002',title:'電話は声で7割決まる',category:'first-contact',difficulty:'beginner',scenes:['phone'],keyword:'声のトーン',oneLine:'電話では表情が見えないので、声の高さ・速さ・温度が印象を決める。',howToUse:'いつもより半音高く、語尾を落ち着かせて話す。',realEstateExample:'反響直後は緊張で早口になりがち。深呼吸 1 回してから架電。',ngExample:'早口・低テンション・語尾上がり。',okExample:'ゆっくり目・明るく・語尾しっかり。',todayAction:'録音アプリで自分の架電を1本聞き直す。',relatedAI:['豊臣秀吉','ソルティ'],caution:'過剰な明るさは逆効果。落ち着いた誠実さを優先。'},
+    {id:'sp-003',title:'名乗りは「会社名+反響元+名前」の順',category:'first-contact',difficulty:'beginner',scenes:['phone'],keyword:'名乗り方',oneLine:'相手は誰からの電話か分かるまで身構える。',howToUse:'最初の一言で「どこの誰が、何で連絡してきたか」を伝える。',realEstateExample:'「ハウスドゥ東寺西の〇〇です。イエウール経由でのご売却査定のお問い合わせをいただきました。」',ngExample:'「もしもし、〇〇と申しますが…」',okExample:'「ハウスドゥ東寺西の〇〇です。イエウール経由でご売却のお問い合わせをいただきました件です。」',todayAction:'反響元別の冒頭テンプレートを 3 種類作る。',relatedAI:['豊臣秀吉'],caution:'反響元が分からない場合は無理に推測しない。'},
+    {id:'sp-004',title:'「どんな」「なぜ」で本音を引き出す',category:'hearing',difficulty:'beginner',scenes:['phone','visit','appraisal'],keyword:'オープンクエスチョン',oneLine:'はい / いいえで答えられない質問が本音を引き出す。',howToUse:'「どんなご売却理由ですか？」「なぜそのタイミングを？」',realEstateExample:'査定理由のヒアリングで「相続でしょうか？住み替えでしょうか？」とクローズドから入り、合致したら「具体的には？」とオープンへ移行。',ngExample:'「売却急ぎですか？」（クローズドのみ）',okExample:'「ご売却のきっかけは、どのようなご事情ですか？」',todayAction:'今日の架電 1 件をオープンクエスチョンで通す。',relatedAI:['豊臣秀吉','徳川家康'],caution:'いきなり踏み込みすぎるとプライバシー侵害になる。クッション言葉を入れる。'},
+    {id:'sp-005',title:'質問後の沈黙を恐れない',category:'hearing',difficulty:'intermediate',scenes:['phone','visit'],keyword:'沈黙の使い方',oneLine:'相手が考える時間を奪わない。',howToUse:'質問したら 3 秒待つ。自分で答えを埋めない。',realEstateExample:'「ご希望売出価格は？」のあと、相手が考えている沈黙を待つ。先に「3000万くらいですかね？」と言わない。',ngExample:'「ご希望価格は？……あ、3000万くらいですかね？」',okExample:'質問後 3 秒沈黙 → 相手が答える。',todayAction:'今日の商談で「3 秒ルール」を実践する。',relatedAI:['豊臣秀吉','スティーブ・ジョブズ'],caution:'長すぎる沈黙は相手を不安にする。5 秒で言い直す。'},
+    {id:'sp-006',title:'相手の言葉を繰り返す「ミラーリング」',category:'hearing',difficulty:'beginner',scenes:['phone','visit','claim'],keyword:'感情の確認',oneLine:'人は「分かってもらえた」と感じると話が広がる。',howToUse:'相手のキーワードを 1 つ拾って繰り返す。',realEstateExample:'お客様「相続で困っていて」→ 営業「相続でお困りなんですね。具体的にはどのような点でしょうか？」',ngExample:'お客様「相続で困っていて」→ 営業「では査定を進めますね」',okExample:'お客様「相続で困っていて」→ 営業「相続でお困りなんですね。」（3 秒待つ）',todayAction:'今日のヒアリングで 3 回ミラーリングを使う。',relatedAI:['豊臣秀吉','徳川家康'],caution:'機械的に繰り返すと逆効果。共感のトーンで。'},
+    {id:'sp-007',title:'自然な接触回数が信頼を作る',category:'trust',difficulty:'intermediate',scenes:['follow'],keyword:'単純接触効果',oneLine:'人は会えば会うほど（連絡が来るほど）親近感を持つ。',howToUse:'長文 1 通より、短文 3 通。重い情報より軽い情報を頻度高く。',realEstateExample:'査定書送付後、1 週間で「読まれた頃」と「考えた頃」と「決断時期」の 3 タイミングで短い接触。',ngExample:'2 週間音沙汰なし → 突然の長文。',okExample:'5 日後「先日の査定書、ご不明点はございませんか？」短文。',todayAction:'今日中に追客 3 件、短文で送る。',relatedAI:['豊臣秀吉','ソルティ'],caution:'頻度上げすぎは「しつこい」と思われる。1 日 1 接触まで。'},
+    {id:'sp-008',title:'先に役立つ情報を渡す',category:'trust',difficulty:'beginner',scenes:['phone','follow','appraisal'],keyword:'返報性',oneLine:'人は「もらったら返したくなる」。',howToUse:'初回接触で「役立つ情報」を 1 つ無料提供。',realEstateExample:'反響直後に「2025 年の東寺周辺成約事例ベスト 5 をまとめた資料を送っておきます」と先渡し。',ngExample:'最初から「媒介ください」のプッシュ。',okExample:'「無料で簡易査定書をお送りします、ご参考までに」',todayAction:'追客 1 件に先回りで役立つ資料を 1 つ添付。',relatedAI:['豊臣秀吉','スティーブ・ジョブズ'],caution:'過剰な恩着せはNG。「ご参考までに」のトーンで。'},
+    {id:'sp-009',title:'共通点・共感で距離を縮める',category:'trust',difficulty:'intermediate',scenes:['visit','phone'],keyword:'ラポール形成',oneLine:'共通点を見つけると、人は心を開きやすい。',howToUse:'地域・年代・趣味・家族構成などから 1 つ共通点を見つける。',realEstateExample:'訪問査定で「お子様もこの小学校ですか？うちの妹もそうでした」など自然に共通点を出す。',ngExample:'唐突に個人情報を聞き出す。',okExample:'家の中の何気ない物（観葉植物・本など）から自然に話題を作る。',todayAction:'今日の訪問先で共通点を 1 つ見つける。',relatedAI:['豊臣秀吉','ソルティ'],caution:'共通点でっち上げはNG。誠実に。'},
+    {id:'sp-010',title:'しつこくない追客は「短く・複数回」',category:'follow-up',difficulty:'intermediate',scenes:['follow'],keyword:'ザイオンス効果',oneLine:'短い接触を複数回 > 長い接触を 1 回。',howToUse:'1 通あたり 3 行以内。役立つ情報・進捗・お伺いの 3 パターンを使い分ける。',realEstateExample:'査定書送付後の追客：3 日後「ご質問ないですか」→ 1 週後「成約事例追加しました」→ 2 週後「ご決断のタイミングいかがですか」。',ngExample:'毎日同じ「いかがでしょうか」を繰り返す。',okExample:'毎回違う理由で短文。',todayAction:'追客テンプレートを 5 パターンに増やす。',relatedAI:['豊臣秀吉','織田信長'],caution:'反応がない場合は 2 週間スパンに減速。'},
+    {id:'sp-011',title:'「次回〇日に再連絡してよいですか？」',category:'follow-up',difficulty:'beginner',scenes:['phone','follow'],keyword:'小さな合意',oneLine:'相手から「OK」を引き出すと、その後の連絡が楽になる。',howToUse:'毎回の通話の最後に「次回連絡日のお約束」を入れる。',realEstateExample:'「では来週水曜の午後にもう一度お電話してもよろしいですか？」',ngExample:'「またご連絡しますね」（曖昧）',okExample:'「来週水曜の午後 2 時頃にお電話いたします」',todayAction:'今日の架電すべてで次回日時を約束する。',relatedAI:['豊臣秀吉','土方歳三'],caution:'約束したら必ず守る。1 度でも破ると信頼ゼロ。'},
+    {id:'sp-012',title:'質問は 1 通 1 つに絞る',category:'follow-up',difficulty:'beginner',scenes:['follow'],keyword:'返信しやすい文面',oneLine:'相手の負担を減らすと返信率が上がる。',howToUse:'1 通の SMS / LINE に質問は 1 つだけ。',realEstateExample:'NG：「査定書ご覧になりましたか？訪問査定はいかがでしょうか？売出時期はいつ頃を？」OK：「査定書、お目通しいただけましたでしょうか？」のみ。',ngExample:'3 つの質問を 1 通に詰め込む。',okExample:'1 質問 + 選択肢 2 つ。',todayAction:'今日の SMS テンプレートを「1 通 1 質問」に書き直す。',relatedAI:['豊臣秀吉','スティーブ・ジョブズ'],caution:'返信しやすさは返信率に直結する。'},
+    {id:'sp-013',title:'専任 / 専属 / 一般を分かりやすく',category:'mandate',difficulty:'intermediate',scenes:['mandate'],keyword:'比較提示',oneLine:'3 つを比べると違いが分かりやすい。',howToUse:'比較表 1 枚で違いを示す。',realEstateExample:'専属専任 / 専任 / 一般の違いを「報告頻度 / 他社並行 / レインズ登録」軸で表にまとめる。',ngExample:'「専任にしてください」と理由なく押す。',okExample:'「3 種類あります。比較表をご覧ください。」',todayAction:'比較表 A4 1 枚を整える。',relatedAI:['豊臣秀吉','徳川家康','九条鞍馬'],caution:'業法に反する説明はNG（媒介契約は法定書類）。'},
+    {id:'sp-014',title:'「同じエリアで〇件成約」',category:'mandate',difficulty:'beginner',scenes:['mandate','price'],keyword:'社会的証明',oneLine:'人は「他の人もやっている」と判断しやすい。',howToUse:'近隣成約事例を 3〜5 件示す。',realEstateExample:'「ご近隣の東寺西で過去 6 ヶ月に成約事例は 5 件、平均成約期間は 60 日です。」',ngExample:'「うちで売れば早いです」だけ。',okExample:'数字と事例で根拠を示す。',todayAction:'担当エリアの直近成約データを 1 枚にまとめる。',relatedAI:['豊臣秀吉','徳川家康'],caution:'事例は個人特定不可な形で（住所詳細・氏名はNG）。'},
+    {id:'sp-015',title:'デメリットも先に伝える',category:'mandate',difficulty:'advanced',scenes:['mandate','price'],keyword:'納得感の作り方',oneLine:'リスクを先に伝えると信頼が高まる。',howToUse:'メリット 3 + デメリット 1 のセットで提案。',realEstateExample:'専任媒介のメリット（営業集中・他社並行なし）と一緒に、「一般と比べて窓口が 1 社限定になるので、その点だけご了承ください」と明示。',ngExample:'メリットだけ並べて契約後に隠れた制約が出る。',okExample:'「ご検討材料として、デメリットも先に整理してお伝えします」',todayAction:'専任媒介のデメリット説明トークを 30 秒で言える形に。',relatedAI:['徳川家康','九条鞍馬','豊臣秀吉'],caution:'これは「正直営業」の核心。隠すと長期信頼を失う。'},
+    {id:'sp-016',title:'最初に見た価格が判断基準になる',category:'price-nego',difficulty:'intermediate',scenes:['price','appraisal'],keyword:'アンカリング',oneLine:'最初の数字が「基準」として残り続ける。',howToUse:'査定提示の順序を「相場上限 → 中央値 → 推奨売出」で組む。',realEstateExample:'相場 3500〜3800 万円、中央値 3650 万円、推奨売出 3680 万円、と説明することで「3680 万円」が高すぎず安すぎず感じられる。',ngExample:'いきなり「3680 万円が推奨」だけ言う。',okExample:'幅 → 中央値 → 推奨の順で示す。',todayAction:'査定書の数字提示順を見直す。',relatedAI:['豊臣秀吉','徳川家康','九条鞍馬'],caution:'実勢相場と乖離した数字を最初に出すのは違法・倫理違反。'},
+    {id:'sp-017',title:'「100万下げる」より「97%で売れる」',category:'price-nego',difficulty:'intermediate',scenes:['price'],keyword:'フレーミング',oneLine:'同じ内容でも見せ方で受け取り方が変わる。',howToUse:'損失語より残存価値語で。',realEstateExample:'「3800万→3700万に値下げ提案」より「査定額の 97% でご売却の打診を受けています」。',ngExample:'「100 万安くなります」連発。',okExample:'「3700 万でほぼ確実な成約候補があります」',todayAction:'値下げ提案トークを「残存%表現」に書き換える。',relatedAI:['豊臣秀吉','徳川家康'],caution:'事実と異なる誇張表現はNG。'},
+    {id:'sp-018',title:'損は得の 2 倍重い',category:'price-nego',difficulty:'advanced',scenes:['price','mandate'],keyword:'プロスペクト理論',oneLine:'人は「得る喜び」より「失う痛み」を強く感じる。',howToUse:'「今売らないと損する」より「今売ると得られる」を中心に。',realEstateExample:'「金利上昇局面では待つほど買い手が減るリスクもあります」と事実ベースで伝える。',ngExample:'「今売らないと大損です」と煽る。',okExample:'「ご判断材料の 1 つとして、市況リスクも整理しておきます」',todayAction:'価格交渉トークから不安煽り表現を削る。',relatedAI:['徳川家康','九条鞍馬','豊臣秀吉'],caution:'不安煽りはコンプライアンス違反。事実ベースで。'},
+    {id:'sp-019',title:'選択肢は 3 つまでに絞る',category:'closing',difficulty:'beginner',scenes:['mandate','price'],keyword:'決断疲れ',oneLine:'選択肢が多すぎると人は決められなくなる。',howToUse:'「A / B / C どれが近いですか？」',realEstateExample:'売出時期「すぐ / 3 ヶ月以内 / 半年以内」の 3 択で聞く。',ngExample:'「いつでもいいですよ」とフリーで聞く。',okExample:'「3 ヶ月以内 / 半年以内 / 1 年以内、どれが近いですか？」',todayAction:'今日のクロージングで「3 択提示」を 1 回試す。',relatedAI:['豊臣秀吉','スティーブ・ジョブズ'],caution:'押し付けにならないよう「目安として」と添える。'},
+    {id:'sp-020',title:'いきなり媒介ではなく合意の積み重ね',category:'closing',difficulty:'intermediate',scenes:['mandate','follow'],keyword:'小さなYES',oneLine:'小さな同意の連鎖が大きな決断に繋がる。',howToUse:'YES が取れる小さな質問を順に積む。',realEstateExample:'「査定書ご覧いただけましたよね？（YES）」「相場感は伝わりましたか？（YES）」「では訪問査定で正確な値を出させていただけますか？（YES）」',ngExample:'初回電話でいきなり「媒介ください」。',okExample:'5 ステップの小さな合意を踏む。',todayAction:'追客フローの YES ステップを 5 つ設計。',relatedAI:['豊臣秀吉','織田信長'],caution:'相手の本意と異なる YES を誘導しない。'},
+    {id:'sp-021',title:'「ご連絡日のお約束」で期限を作る',category:'closing',difficulty:'beginner',scenes:['phone','follow','mandate'],keyword:'期限設定',oneLine:'期限がないと人は判断を先延ばしする。',howToUse:'「今週中に」より「水曜午後 2 時に確認のお電話」で具体化。',realEstateExample:'「ご検討期間 2 週間でいかがでしょうか。次回は◯月◯日にお電話します」',ngExample:'「ご検討ください、いつでも結構です」',okExample:'「ご検討日時を◯日◯時に決めましょう」',todayAction:'今週の商談すべてに「次回日時」を入れる。',relatedAI:['豊臣秀吉','土方歳三'],caution:'プレッシャーを与える期限はNG。「目安」として。'},
+    {id:'sp-022',title:'まず「ご心配おかけしました」',category:'claim',difficulty:'beginner',scenes:['claim'],keyword:'感情受容',oneLine:'クレームの第一声は「事実説明」ではなく「気持ち受容」。',howToUse:'まず謝意 → 次に事実確認。',realEstateExample:'「ご不便をおかけして大変申し訳ございません。お気持ちお察しいたします。状況をもう一度確認させていただけますか。」',ngExample:'「いえ、それは弊社の責任では…」（即否認）',okExample:'「ご心配おかけしました。お話を伺います。」',todayAction:'クレーム第一声テンプレを 3 種類作る。',relatedAI:['徳川家康','ソルティ','九条鞍馬'],caution:'謝意 ≠ 過失認定。事実確認は別途。'},
+    {id:'sp-023',title:'「事実確認」と「気持ち受け止め」を別に',category:'claim',difficulty:'intermediate',scenes:['claim'],keyword:'事実と感情を分ける',oneLine:'感情と事実を一緒に処理すると話が拗れる。',howToUse:'先に感情、次に事実、最後に対応案。',realEstateExample:'「お気持ちはよく分かりました（感情）。状況を整理させていただきます（事実）。ご対応として◯◯と◯◯のいずれかを提案します（対応）。」',ngExample:'感情と事実を同時に否定する。',okExample:'感情 → 事実 → 対応の 3 段階。',todayAction:'クレーム対応フローを 3 段階に整理。',relatedAI:['徳川家康','九条鞍馬'],caution:'相手の感情を否定しない。'},
+    {id:'sp-024',title:'できないことは早めに正直に',category:'claim',difficulty:'advanced',scenes:['claim','mandate'],keyword:'期待値調整',oneLine:'できない約束は長期信頼を破壊する。',howToUse:'初回接触で「できる範囲」を明確に。',realEstateExample:'「3 ヶ月以内に絶対売れます」とは絶対言わない。「3 ヶ月以内成約事例は◯件あり、確率としては…」',ngExample:'根拠なしに「絶対売れます」。',okExample:'「実績ベースの確率」を示す。',todayAction:'過去の説明で「絶対」を使った箇所を見直す。',relatedAI:['徳川家康','九条鞍馬'],caution:'業法上の誇大表示はNG。'},
+    {id:'sp-025',title:'人は得より損を避けたい',category:'behavior-econ',difficulty:'intermediate',scenes:['price','mandate'],keyword:'損失回避',oneLine:'同じ価値でも「失う」方を強く感じる。',howToUse:'事実ベースのリスク共有のみ。煽りはNG。',realEstateExample:'「市況が動いている時期なので、判断時期の選択肢を整理してお伝えします」',ngExample:'「今売らないと損します」',okExample:'「市況の動向データをご覧いただいた上で判断材料に」',todayAction:'価格提案資料からネガティブ煽りを削除。',relatedAI:['徳川家康','九条鞍馬'],caution:'損失回避を悪用すると不安商法になる。'},
+    {id:'sp-026',title:'人は変化より今を選びやすい',category:'behavior-econ',difficulty:'advanced',scenes:['mandate','follow'],keyword:'現状維持バイアス',oneLine:'「決めない」のが楽なので、人は決めずに先延ばしする。',howToUse:'「決めないことのコスト」を可視化する（事実のみ）。',realEstateExample:'「ご判断を 6 ヶ月先延ばしされる場合、固定資産税◯円・管理費◯円が発生します」と事実だけ整理。',ngExample:'「決めないと損です」連発。',okExample:'「ご判断材料として、待つ場合のコストも整理しておきます」',todayAction:'「待つ場合のコスト」資料を 1 枚作る。',relatedAI:['徳川家康','豊臣秀吉','九条鞍馬'],caution:'数字に裏付けがない場合は使わない。'},
+    {id:'sp-027',title:'自分の家は高く感じやすい',category:'behavior-econ',difficulty:'intermediate',scenes:['appraisal','price'],keyword:'保有効果',oneLine:'人は自分の所有物を客観値より高く評価する。',howToUse:'査定説明前に「相場と所有評価の差」を概念として共有。',realEstateExample:'「一般的に売主様の体感価格と市場価格には差が出やすいです、ご一緒に客観データで確認しましょう」',ngExample:'「希望価格は高すぎますね」とストレートに否定。',okExample:'「客観データと体感価格のギャップを一緒に確認しましょう」',todayAction:'査定説明の冒頭に保有効果説明を入れる。',relatedAI:['徳川家康','豊臣秀吉'],caution:'相手の感情を否定しない。'},
+    {id:'sp-028',title:'断られた後の 5 分ルール',category:'self-mgmt',difficulty:'beginner',scenes:['phone','follow'],keyword:'切り替え',oneLine:'断られた直後は判断力が落ちる。',howToUse:'断られたら 5 分席を立つ。次の架電をすぐ始めない。',realEstateExample:'「お断り」電話の直後はトイレ・水分補給・深呼吸を 5 分。',ngExample:'断られた直後にネガティブな気持ちのまま次の架電。',okExample:'5 分リセット → 次の架電。',todayAction:'断られたタイミングで 5 分タイマーを設定する。',relatedAI:['ソルティ','徳川家康'],caution:'5 分以上引きずると当日の生産性が落ちる。'},
+    {id:'sp-029',title:'1 日 1 件のルーティン化',category:'self-mgmt',difficulty:'beginner',scenes:['follow'],keyword:'習慣化',oneLine:'毎日同じ時刻に同じことをやると習慣になる。',howToUse:'「朝 10 時に反響確認」「14 時に追客 SMS」など時刻固定。',realEstateExample:'ルーティン業務 UI（packet 315）で時刻指定。',ngExample:'「気が向いたら追客」',okExample:'時刻固定 + 完了チェック',todayAction:'追客ルーティンを時刻固定で設定する。',relatedAI:['織田信長','土方歳三'],caution:'習慣化は 21 日継続が目安。'},
+    {id:'sp-030',title:'小さな勝ち癖を作る',category:'self-mgmt',difficulty:'intermediate',scenes:['follow'],keyword:'モチベーション維持',oneLine:'小さな成功体験の積み重ねがやる気を作る。',howToUse:'1 日の小目標（架電 30 件・追客 SMS 10 通など）を「達成可能なライン」で設定。',realEstateExample:'反響対応 1 日 5 件以上、SMS 追客 1 日 10 通以上を「最低ライン」として設定。',ngExample:'達成不可能な大目標 1 つだけ。',okExample:'小目標 3〜5 つを毎日チェック。',todayAction:'今週の小目標を 5 つ書き出す。',relatedAI:['織田信長','ソルティ'],caution:'目標を達成しても燃え尽きしない。'}
+  ];
+}
+function _spEsc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function _spReadIds(){try{const r=JSON.parse(localStorage.getItem(SP_READ_LS_KEY)||'[]');return Array.isArray(r)?r:[];}catch(e){return [];}}
+function _spFavIds(){try{const r=JSON.parse(localStorage.getItem(SP_FAV_LS_KEY)||'[]');return Array.isArray(r)?r:[];}catch(e){return [];}}
+function _spMarkRead(id){const r=_spReadIds();if(!r.includes(id))r.push(id);try{localStorage.setItem(SP_READ_LS_KEY,JSON.stringify(r));}catch(e){}}
+function _spToggleFav(id){let r=_spFavIds();if(r.includes(id))r=r.filter(x=>x!==id);else r.push(id);try{localStorage.setItem(SP_FAV_LS_KEY,JSON.stringify(r));}catch(e){}return r.includes(id);}
+function _spDiffLabel(d){return d==='beginner'?'初級':d==='intermediate'?'中級':d==='advanced'?'上級':d;}
+function _spSceneLabel(k){const s=getSalesPsychologyScenes().find(x=>x.key===k);return s?s.label:k;}
+function _spCatLabel(k){const c=getSalesPsychologyCategories().find(x=>x.key===k);return c?c.label:k;}
+function _spTodayTip(){
+  const tips=getSalesPsychologyTips();
+  const d=new Date();
+  const ymd=d.getFullYear()*10000+(d.getMonth()+1)*100+d.getDate();
+  const idx=ymd%tips.length;
+  return tips[idx];
+}
+function _spFilterState(){
+  if(!window._spFilter)window._spFilter={cat:'',scene:'',diff:'',unreadOnly:false,favOnly:false,q:''};
+  return window._spFilter;
+}
+function renderSalesPsychologyPage(){
+  const root=document.getElementById('page-sales-psy');if(!root)return;
+  const tips=getSalesPsychologyTips();
+  const readIds=_spReadIds();const favIds=_spFavIds();
+  // Today card
+  const todayEl=document.getElementById('sp-today');
+  if(todayEl){
+    const t=_spTodayTip();
+    try{localStorage.setItem(SP_LAST_LS_KEY,new Date().toISOString().slice(0,10));}catch(e){}
+    todayEl.innerHTML='<div style="background:linear-gradient(135deg,#fef3c7,#fde68a);border-radius:8px;padding:12px;margin-bottom:10px;">'
+      +'<div style="font-size:11px;color:#92400e;font-weight:700;">🧠 今日の営業心理学</div>'
+      +'<div style="font-size:15px;font-weight:800;color:#0a3d7c;margin-top:2px;">'+_spEsc(t.title)+'</div>'
+      +'<div style="font-size:12px;color:#444;margin-top:4px;">'+_spEsc(t.oneLine)+'</div>'
+      +'<button onclick="showSalesPsyDetail(\''+_spEsc(t.id)+'\')" style="margin-top:6px;font-size:11px;padding:4px 10px;background:#0a3d7c;color:#fff;border:0;border-radius:4px;cursor:pointer">詳細を見る →</button>'
+      +'</div>';
+  }
+  // Filters
+  const filtersEl=document.getElementById('sp-filters');
+  const st=_spFilterState();
+  if(filtersEl){
+    const cats=getSalesPsychologyCategories();
+    const scenes=getSalesPsychologyScenes();
+    let h='<div style="display:flex;gap:6px;flex-wrap:wrap;font-size:11px;">'
+      +'<select id="sp-f-cat" style="padding:4px 6px;border:1px solid #ccc;border-radius:4px;"><option value="">カテゴリ(全)</option>'
+      +cats.map(c=>'<option value="'+c.key+'"'+(st.cat===c.key?' selected':'')+'>'+c.label+'</option>').join('')+'</select>'
+      +'<select id="sp-f-scene" style="padding:4px 6px;border:1px solid #ccc;border-radius:4px;"><option value="">場面(全)</option>'
+      +scenes.map(s=>'<option value="'+s.key+'"'+(st.scene===s.key?' selected':'')+'>'+s.label+'</option>').join('')+'</select>'
+      +'<select id="sp-f-diff" style="padding:4px 6px;border:1px solid #ccc;border-radius:4px;"><option value="">難易度(全)</option>'
+      +['beginner','intermediate','advanced'].map(d=>'<option value="'+d+'"'+(st.diff===d?' selected':'')+'>'+_spDiffLabel(d)+'</option>').join('')+'</select>'
+      +'<label style="display:inline-flex;align-items:center;gap:3px;"><input type="checkbox" id="sp-f-unread"'+(st.unreadOnly?' checked':'')+'>未読のみ</label>'
+      +'<label style="display:inline-flex;align-items:center;gap:3px;"><input type="checkbox" id="sp-f-fav"'+(st.favOnly?' checked':'')+'>★お気に入り</label>'
+      +'</div>';
+    filtersEl.innerHTML=h;
+    document.getElementById('sp-f-cat').onchange=e=>{st.cat=e.target.value;renderSalesPsychologyPage();};
+    document.getElementById('sp-f-scene').onchange=e=>{st.scene=e.target.value;renderSalesPsychologyPage();};
+    document.getElementById('sp-f-diff').onchange=e=>{st.diff=e.target.value;renderSalesPsychologyPage();};
+    document.getElementById('sp-f-unread').onchange=e=>{st.unreadOnly=e.target.checked;renderSalesPsychologyPage();};
+    document.getElementById('sp-f-fav').onchange=e=>{st.favOnly=e.target.checked;renderSalesPsychologyPage();};
+  }
+  const searchEl=document.getElementById('sp-search');
+  if(searchEl){searchEl.value=st.q||'';searchEl.oninput=e=>{st.q=e.target.value;renderSalesPsychologyPage();};}
+  // Filter list
+  let list=tips.slice();
+  if(st.cat)list=list.filter(t=>t.category===st.cat);
+  if(st.scene)list=list.filter(t=>(t.scenes||[]).includes(st.scene));
+  if(st.diff)list=list.filter(t=>t.difficulty===st.diff);
+  if(st.unreadOnly)list=list.filter(t=>!readIds.includes(t.id));
+  if(st.favOnly)list=list.filter(t=>favIds.includes(t.id));
+  if(st.q){const q=st.q.toLowerCase();list=list.filter(t=>(t.title+t.keyword+t.oneLine+_spCatLabel(t.category)).toLowerCase().indexOf(q)>=0);}
+  // Cards
+  const cardsEl=document.getElementById('sp-cards');
+  if(cardsEl){
+    if(!list.length){cardsEl.innerHTML='<div style="font-size:12px;color:#666;padding:20px;text-align:center;">該当する心理学カードがありません。</div>';return;}
+    let h='<div style="display:grid;grid-template-columns:1fr;gap:8px;">';
+    list.forEach(t=>{
+      const isRead=readIds.includes(t.id);const isFav=favIds.includes(t.id);
+      h+='<div style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:10px;cursor:pointer;'+(isRead?'opacity:0.7;':'')+'" onclick="showSalesPsyDetail(\''+_spEsc(t.id)+'\')">'
+        +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px;">'
+        +'<div style="font-weight:700;font-size:13px;color:#0a3d7c;flex:1;">'+(isFav?'★ ':'')+_spEsc(t.title)+'</div>'
+        +'<span style="font-size:10px;background:#f1f5f9;color:#475569;padding:1px 6px;border-radius:8px;white-space:nowrap;">'+_spEsc(t.keyword)+'</span>'
+        +'</div>'
+        +'<div style="font-size:11px;color:#666;margin-top:4px;">'+_spEsc(t.oneLine)+'</div>'
+        +'<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:6px;">'
+        +'<span style="font-size:10px;background:#e0e7ff;color:#3730a3;padding:1px 6px;border-radius:8px;">'+_spCatLabel(t.category)+'</span>'
+        +'<span style="font-size:10px;background:#fef3c7;color:#92400e;padding:1px 6px;border-radius:8px;">'+_spDiffLabel(t.difficulty)+'</span>'
+        +(t.scenes||[]).map(s=>'<span style="font-size:10px;background:#dcfce7;color:#166534;padding:1px 6px;border-radius:8px;">'+_spSceneLabel(s)+'</span>').join('')
+        +(isRead?'<span style="font-size:10px;color:#9ca3af;padding:1px 6px;">✓既読</span>':'<span style="font-size:10px;background:#fee2e2;color:#b91c1c;padding:1px 6px;border-radius:8px;">未読</span>')
+        +'</div></div>';
+    });
+    h+='</div>';
+    const summary='<div style="font-size:11px;color:#666;margin-bottom:6px;">表示 '+list.length+' / 全'+tips.length+'件 ／ 既読 '+readIds.length+'件 ／ ★ '+favIds.length+'件</div>';
+    cardsEl.innerHTML=summary+h;
+  }
+}
+function showSalesPsyDetail(id){
+  const tips=getSalesPsychologyTips();
+  const t=tips.find(x=>x.id===id);if(!t)return;
+  const isFav=_spFavIds().includes(id);
+  _spMarkRead(id);
+  const ex=document.getElementById('sp-detail-modal');if(ex)ex.remove();
+  const modal=document.createElement('div');
+  modal.id='sp-detail-modal';
+  modal.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:14px;';
+  const e=_spEsc;
+  modal.innerHTML='<div style="background:#fff;border-radius:10px;max-width:540px;width:100%;max-height:92vh;overflow:auto;padding:18px;font-size:13px;">'
+    +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px;">'
+    +' <div><div style="font-size:11px;color:#666;">'+e(_spCatLabel(t.category))+' ／ '+_spDiffLabel(t.difficulty)+'</div>'
+    +'  <div style="font-size:17px;font-weight:800;color:#0a3d7c;">'+e(t.title)+'</div>'
+    +'  <div style="font-size:11px;color:#475569;margin-top:2px;">キーワード：<b>'+e(t.keyword)+'</b></div></div>'
+    +' <button onclick="document.getElementById(\'sp-detail-modal\').remove()" style="font-size:18px;background:0;border:0;cursor:pointer;color:#666;">✕</button>'
+    +'</div>'
+    +'<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px;">'
+    +(t.scenes||[]).map(s=>'<span style="font-size:10px;background:#dcfce7;color:#166534;padding:2px 8px;border-radius:10px;">'+e(_spSceneLabel(s))+'</span>').join('')
+    +'</div>'
+    +'<div style="background:#f8fafc;padding:8px 10px;border-radius:6px;margin-bottom:8px;"><div style="font-size:10px;color:#666;font-weight:700;">ひとことで言うと</div><div style="font-size:13px;margin-top:2px;">'+e(t.oneLine)+'</div></div>'
+    +'<div style="margin-bottom:8px;"><div style="font-size:10px;color:#666;font-weight:700;">使い方</div><div>'+e(t.howToUse)+'</div></div>'
+    +'<div style="margin-bottom:8px;"><div style="font-size:10px;color:#666;font-weight:700;">不動産営業での例</div><div>'+e(t.realEstateExample)+'</div></div>'
+    +'<div style="background:#fef2f2;padding:8px 10px;border-radius:6px;border-left:3px solid #dc2626;margin-bottom:6px;"><div style="font-size:10px;color:#b91c1c;font-weight:700;">NG例</div><div style="font-size:12px;">'+e(t.ngExample)+'</div></div>'
+    +'<div style="background:#f0fdf4;padding:8px 10px;border-radius:6px;border-left:3px solid #16a34a;margin-bottom:8px;"><div style="font-size:10px;color:#166534;font-weight:700;">OK例</div><div style="font-size:12px;">'+e(t.okExample)+'</div></div>'
+    +'<div style="background:#fff7ed;padding:8px 10px;border-radius:6px;border-left:3px solid #f97316;margin-bottom:8px;"><div style="font-size:10px;color:#9a3412;font-weight:700;">今日の実践</div><div style="font-size:12px;">'+e(t.todayAction)+'</div></div>'
+    +'<div style="margin-bottom:6px;"><div style="font-size:10px;color:#666;font-weight:700;">関連 AI</div><div style="font-size:11px;color:#475569;">'+(t.relatedAI||[]).map(a=>e(a)).join(' / ')+'</div></div>'
+    +'<div style="background:#fffbeb;padding:8px 10px;border-radius:6px;margin-bottom:12px;"><div style="font-size:10px;color:#92400e;font-weight:700;">⚠ 注意点</div><div style="font-size:11px;">'+e(t.caution)+'</div></div>'
+    +'<div style="display:flex;gap:8px;justify-content:flex-end;">'
+    +' <button id="sp-fav-btn" onclick="(function(){const v=_spToggleFav(\''+e(t.id)+'\');renderSalesPsychologyPage();document.getElementById(\'sp-fav-btn\').textContent=v?\'★ お気に入り解除\':\'☆ お気に入りに追加\';})()" style="padding:6px 12px;background:#fef3c7;border:1px solid #fde68a;border-radius:4px;cursor:pointer;font-size:12px;">'+(isFav?'★ お気に入り解除':'☆ お気に入りに追加')+'</button>'
+    +' <button onclick="document.getElementById(\'sp-detail-modal\').remove();renderSalesPsychologyPage();" style="padding:6px 12px;background:#0a3d7c;color:#fff;border:0;border-radius:4px;cursor:pointer;font-size:12px;">閉じる</button>'
+    +'</div>'
+    +'</div>';
+  modal.onclick=ev=>{if(ev.target===modal)modal.remove();};
+  document.body.appendChild(modal);
+  renderSalesPsychologyPage();
+}
+// ホーム widget「🧠 今日の営業心理学」
+function renderTodaySalesPsychologyWidget(){
+  const dash=document.getElementById('page-dash');if(!dash)return;
+  const old=dash.querySelector('.jagai-sp-today-widget');if(old)old.remove();
+  const t=_spTodayTip();
+  const e=_spEsc;
+  const wrap=document.createElement('div');
+  wrap.className='jagai-sp-today-widget';
+  wrap.style.cssText='margin:10px 14px;padding:12px;background:linear-gradient(135deg,#ede9fe,#ddd6fe);border-radius:8px;';
+  wrap.innerHTML='<div style="font-size:11px;color:#5b21b6;font-weight:700;">🧠 今日の営業心理学</div>'
+    +'<div style="font-size:14px;font-weight:800;color:#0a3d7c;margin-top:2px;">'+e(t.keyword)+'：'+e(t.title)+'</div>'
+    +'<div style="font-size:11px;color:#444;margin-top:4px;">'+e(t.oneLine)+'</div>'
+    +'<div style="display:flex;gap:6px;margin-top:6px;">'
+    +' <button onclick="showSalesPsyDetail(\''+e(t.id)+'\')" style="font-size:11px;padding:4px 10px;background:#5b21b6;color:#fff;border:0;border-radius:4px;cursor:pointer">詳細を見る</button>'
+    +' <button onclick="switchPage(\'sales-psy\')" style="font-size:11px;padding:4px 10px;background:#fff;color:#5b21b6;border:1px solid #ddd6fe;border-radius:4px;cursor:pointer">辞典を開く →</button>'
+    +'</div>';
+  dash.appendChild(wrap);
+}
+(function patchRenderDashSalesPsy(){
+  const orig=window.renderDash;if(typeof orig!=='function')return;
+  window.renderDash=function(){const r=orig.apply(this,arguments);try{renderTodaySalesPsychologyWidget();}catch(e){}return r;};
+})();
+// ==== ここまで packet 335 営業心理学マメ知識大辞典 ====
 </script>
 </body>
 </html>
