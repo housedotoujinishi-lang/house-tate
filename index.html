@@ -1022,8 +1022,32 @@ textarea.ai-team-input{resize:vertical;min-height:60px}
       <div id="routine-content"></div>
     </div>
   </div>
+  <div class="page" id="page-knowledge-portal">
+    <div style="padding:14px 14px 80px;max-width:760px;margin:0 auto">
+      <div style="display:flex;gap:6px;margin-bottom:10px;">
+        <button onclick="switchPage('dash')" style="font-size:11px;padding:4px 10px;background:#f1f5f9;color:#475569;border:0;border-radius:4px;cursor:pointer;">← ホームに戻る</button>
+      </div>
+      <h2 style="font-size:18px;color:#0a3d7c;margin:0 0 4px;font-weight:800">📚 豆知識・学習辞典ポータル</h2>
+      <div style="font-size:11px;color:#666;margin-bottom:12px">業務に役立つマメ知識・心理学を辞典別に学習できます（社内ツール）</div>
+      <div id="knowledge-portal-cards"></div>
+    </div>
+  </div>
+  <div class="page" id="page-role-knowledge">
+    <div style="padding:14px 14px 80px;max-width:760px;margin:0 auto">
+      <div style="display:flex;gap:6px;margin-bottom:10px;">
+        <button onclick="switchPage('knowledge-portal')" style="font-size:11px;padding:4px 10px;background:#f1f5f9;color:#475569;border:0;border-radius:4px;cursor:pointer;">← 豆知識ポータルに戻る</button>
+        <button onclick="switchPage('dash')" style="font-size:11px;padding:4px 10px;background:#f1f5f9;color:#475569;border:0;border-radius:4px;cursor:pointer;">← ホームに戻る</button>
+      </div>
+      <div id="role-knowledge-header"></div>
+      <div id="role-knowledge-cards"></div>
+    </div>
+  </div>
   <div class="page" id="page-sales-psy">
     <div style="padding:14px 14px 80px;max-width:760px;margin:0 auto">
+      <div style="display:flex;gap:6px;margin-bottom:10px;">
+        <button onclick="switchPage('knowledge-portal')" style="font-size:11px;padding:4px 10px;background:#f1f5f9;color:#475569;border:0;border-radius:4px;cursor:pointer;">← 豆知識ポータルに戻る</button>
+        <button onclick="switchPage('dash')" style="font-size:11px;padding:4px 10px;background:#f1f5f9;color:#475569;border:0;border-radius:4px;cursor:pointer;">← ホームに戻る</button>
+      </div>
       <h2 style="font-size:18px;color:#0a3d7c;margin:0 0 4px;font-weight:800">🧠 営業心理学マメ知識大辞典</h2>
       <div style="font-size:11px;color:#666;margin-bottom:12px">心理学・行動経済学・コミュニケーション知識を学ぶ（静的MVP、30件）</div>
       <div style="font-size:11px;color:#9a3412;background:#fff7ed;border-left:3px solid #f97316;padding:6px 10px;border-radius:4px;margin-bottom:10px">⚠ 営業心理学は、お客様を操作するためではなく、納得して判断していただくための知識として扱います。不安を煽る・嘘・誤認・強引な決断強制はNG。</div>
@@ -1035,6 +1059,10 @@ textarea.ai-team-input{resize:vertical;min-height:60px}
   </div>
   <div class="page" id="page-realestate-knowledge">
     <div style="padding:14px 14px 80px;max-width:760px;margin:0 auto">
+      <div style="display:flex;gap:6px;margin-bottom:10px;">
+        <button onclick="switchPage('knowledge-portal')" style="font-size:11px;padding:4px 10px;background:#f1f5f9;color:#475569;border:0;border-radius:4px;cursor:pointer;">← 豆知識ポータルに戻る</button>
+        <button onclick="switchPage('dash')" style="font-size:11px;padding:4px 10px;background:#f1f5f9;color:#475569;border:0;border-radius:4px;cursor:pointer;">← ホームに戻る</button>
+      </div>
       <h2 style="font-size:18px;color:#0a3d7c;margin:0 0 4px;font-weight:800">📚 不動産マメ知識大辞典</h2>
       <div style="font-size:11px;color:#666;margin-bottom:12px">営業・査定・媒介・法務・税務・労務の知識を確認します（静的MVP）</div>
       <div style="margin-bottom:10px"><button onclick="switchPage('sales-psy')" style="font-size:12px;padding:6px 12px;background:#0a3d7c;color:#fff;border:0;border-radius:4px;cursor:pointer">🧠 営業心理学マメ知識大辞典はこちら →</button></div>
@@ -1124,7 +1152,7 @@ textarea.ai-team-input{resize:vertical;min-height:60px}
     <div class="bn-tab-wrap" onclick="switchPage('member-workload')"><button class="bn-tab" data-bnpg="member-workload"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>稼働</button></div>
     <div class="bn-tab-wrap" onclick="switchPage('ai-members')"><button class="bn-tab" data-bnpg="ai-members"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg>AI名鑑</button></div>
     <div class="bn-tab-wrap" onclick="switchPage('ai-org')"><button class="bn-tab" data-bnpg="ai-org"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="6" rx="1"/><rect x="3" y="14" width="6" height="6" rx="1"/><rect x="15" y="14" width="6" height="6" rx="1"/><path d="M12 8v3"/><path d="M6 14v-3h12v3"/></svg>組織図</button></div>
-    <div class="bn-tab-wrap" onclick="switchPage('realestate-knowledge')"><button class="bn-tab" data-bnpg="realestate-knowledge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>マメ知識</button></div>
+    <div class="bn-tab-wrap" onclick="switchPage('knowledge-portal')"><button class="bn-tab" data-bnpg="knowledge-portal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>マメ知識</button></div>
     <div class="bn-tab-wrap" onclick="switchPage('routine')"><button class="bn-tab" data-bnpg="routine"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><polyline points="9 14 11 16 15 12"/></svg>ルーティン</button></div>
     <!-- packet 322: 顧客タブ強化非表示（DOM残存 + display:none!important + onclick除去 + aria-hidden + tabindex=-1）-->
     <div class="bn-tab-wrap" hidden aria-hidden="true" style="display:none!important;visibility:hidden;pointer-events:none" data-disabled="crm-tab-hidden-packet-322"><button class="bn-tab" data-bnpg="crm" disabled tabindex="-1" style="display:none!important;visibility:hidden;pointer-events:none" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>顧客</button></div>
@@ -1638,7 +1666,7 @@ bindEvForm();
   }
 }
 
-function switchPage(pg){if(pg==='crm'){pg='dash';/* packet 322: 顧客タブ強制無効化、dash に強制リダイレクト */}document.querySelectorAll('.ntab').forEach(b=>b.classList.toggle('on',b.dataset.pg===pg));document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));const pgEl=document.getElementById(`page-${pg}`);if(pgEl)pgEl.classList.add('on');if(pg==='dash')renderDash();if(pg==='accounts')renderAccList();if(pg==='kintai'){ktViewUid=currentUser.perm==='admin'?null:currentUser.uid;renderKintaiPage();}if(pg==='cal')render();if(pg==='shift')renderShift();if(pg==='goal'){initGoalData();renderGoalPage();}if(pg==='report')renderReportPage();if(pg==='aiteam')renderAITeamPage();if(pg==='member-workload')renderMemberWorkloadPage();if(pg==='ai-members')renderAIMembersPage();if(pg==='ai-org')renderAIOrgChartPage();if(pg==='realestate-knowledge')renderRealEstateKnowledgePage();if(pg==='routine')renderRoutinePage();if(pg==='sales-psy')renderSalesPsychologyPage();}
+function switchPage(pg){if(pg==='crm'){pg='dash';/* packet 322: 顧客タブ強制無効化、dash に強制リダイレクト */}document.querySelectorAll('.ntab').forEach(b=>b.classList.toggle('on',b.dataset.pg===pg));document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));const pgEl=document.getElementById(`page-${pg}`);if(pgEl)pgEl.classList.add('on');if(pg==='dash')renderDash();if(pg==='accounts')renderAccList();if(pg==='kintai'){ktViewUid=currentUser.perm==='admin'?null:currentUser.uid;renderKintaiPage();}if(pg==='cal')render();if(pg==='shift')renderShift();if(pg==='goal'){initGoalData();renderGoalPage();}if(pg==='report')renderReportPage();if(pg==='aiteam')renderAITeamPage();if(pg==='member-workload')renderMemberWorkloadPage();if(pg==='ai-members')renderAIMembersPage();if(pg==='ai-org')renderAIOrgChartPage();if(pg==='realestate-knowledge')renderRealEstateKnowledgePage();if(pg==='routine')renderRoutinePage();if(pg==='sales-psy')renderSalesPsychologyPage();if(pg==='knowledge-portal')renderKnowledgePortalPage();if(pg==='role-knowledge')renderRoleKnowledgePage();}
 function mkModal(id,barColor,title){const ex=document.getElementById(id);if(ex)ex.remove();const bg=document.createElement('div');bg.className='mbg';bg.id=id;bg.innerHTML=`<div class="modal"><div class="mbar" style="background:${barColor}"></div><button class="mclose" id="${id}-c">✕</button><div class="mttl">${title}</div><div class="macts"></div></div>`;document.body.appendChild(bg);document.getElementById(`${id}-c`).onclick=()=>bg.remove();bg.onclick=e=>{if(e.target===bg)bg.remove();};return bg;}
 function mttlAfter(bg,html){bg.querySelector('.mttl').insertAdjacentHTML('afterend',html);}
 function macts(bg,html){bg.querySelector('.macts').innerHTML=html;}
@@ -6525,6 +6553,201 @@ function renderMyAssignmentsHomeBadge(){
   window.renderDash=function(){const r=orig.apply(this,arguments);try{renderMyAssignmentsHomeBadge();}catch(e){}return r;};
 })();
 // ==== ここまで packet 357 担当者割当タブ ====
+
+// ==== packet 360 豆知識辞典ポータル + ロール別学習辞典 静的MVP ====
+function _isExecutive(u){if(!u)return false;if(u.perm==='admin'||u.perm==='owner')return true;return false;}
+function _isSuperior(u){if(!u)return false;if(_isExecutive(u))return true;const r=u.role||'';return r.indexOf('店長')>=0;}
+function _isAllSubordinate(u){return true;} // 全員見られる（部下バージョン）
+function getKnowledgeDictionaries(u){
+  return [
+    {id:'realestate',title:'📚 不動産マメ知識',desc:'基礎知識・査定・法規制・売買実務を学ぶ','target':'全員','page':'realestate-knowledge','show':true,color:'#0a3d7c'},
+    {id:'sales-psy',title:'🧠 営業心理学',desc:'電話・追客・媒介提案・価格交渉に使える心理学（100件）',target:'全員',page:'sales-psy',show:true,color:'#5b21b6'},
+    {id:'subordinate',title:'👷 部下バージョン',desc:'現場で信頼される報連相・習慣化・お客様対応（10件）',target:'全員',page:'role-knowledge',mode:'subordinate',show:_isAllSubordinate(u),color:'#15803d'},
+    {id:'superior',title:'👔 上司バージョン',desc:'人を動かす・育てる・指示・確認・褒め方の心理学（10件）',target:'店長 / 管理者 / 経営者',page:'role-knowledge',mode:'superior',show:_isSuperior(u),color:'#0369a1'},
+    {id:'executive',title:'🏛 経営者バージョン',desc:'仕組み作り・採用・評価・権限移譲・組織設計の心理学（10件）',target:'経営者 / 管理者系',page:'role-knowledge',mode:'executive',show:_isExecutive(u),color:'#b45309'}
+  ];
+}
+function renderKnowledgePortalPage(){
+  const root=document.getElementById('knowledge-portal-cards');if(!root)return;
+  const dicts=getKnowledgeDictionaries(currentUser);
+  const e=_spEsc;
+  let h='<div style="display:grid;grid-template-columns:1fr;gap:10px;">';
+  dicts.forEach(d=>{
+    if(!d.show){
+      h+='<div style="background:#f8fafc;border:1px dashed #cbd5e1;border-radius:8px;padding:12px;opacity:0.6;">'
+        +'<div style="font-size:14px;font-weight:700;color:#94a3b8;">'+e(d.title)+'（権限非対応）</div>'
+        +'<div style="font-size:11px;color:#94a3b8;margin-top:4px;">'+e(d.desc)+'</div>'
+        +'<div style="font-size:10px;color:#94a3b8;margin-top:6px;">対象：'+e(d.target)+'（あなたの権限では非表示）</div>'
+        +'</div>';
+      return;
+    }
+    const action=d.mode?'window._roleKnowledgeMode=\''+e(d.mode)+'\';switchPage(\''+e(d.page)+'\')':'switchPage(\''+e(d.page)+'\')';
+    h+='<div style="background:#fff;border:2px solid '+d.color+';border-radius:8px;padding:14px;">'
+      +'<div style="font-size:16px;font-weight:800;color:'+d.color+';">'+e(d.title)+'</div>'
+      +'<div style="font-size:12px;color:#444;margin-top:4px;">'+e(d.desc)+'</div>'
+      +'<div style="font-size:10px;color:#666;margin-top:6px;">対象：'+e(d.target)+'</div>'
+      +'<button onclick="'+action+'" style="margin-top:10px;font-size:12px;padding:6px 14px;background:'+d.color+';color:#fff;border:0;border-radius:4px;cursor:pointer;font-weight:700;">開く →</button>'
+      +'</div>';
+  });
+  h+='</div>'
+    +'<div style="font-size:10px;color:#666;margin-top:12px;">ℹ 権限により表示される辞典が異なります。顧客情報・パスワード・API キー・UUID 等は表示しません。</div>';
+  root.innerHTML=h;
+}
+function getRoleKnowledgeTips(mode){
+  const tips={
+    subordinate:[
+      {id:'sub-001',title:'報連相は事実 → 解釈 → 相談',category:'報連相',difficulty:'beginner',scenes:['general'],keyword:'報連相',oneLine:'順番を守ると伝わる。',howToUse:'事実 → 自分の解釈 → 相談したいことの順。',example:'「査定書未送付 3 件あります（事実）。お客様が急いでいるようです（解釈）。優先順を教えてください（相談）」',ngExample:'「査定書送らないとまずいですよね？」（相談だけ）',okExample:'事実→解釈→相談の三段構成。',todayAction:'今日の報連相 1 件を三段構成で書く。',relatedAI:['豊臣秀吉','土方歳三'],caution:'相談は具体的に。'},
+      {id:'sub-002',title:'追客を忘れない仕組み',category:'習慣化',difficulty:'beginner',scenes:['follow'],keyword:'追客の習慣化',oneLine:'記憶ではなく仕組みで管理。',howToUse:'追客タスクは即タスクボード登録。',example:'電話後すぐに次回連絡日をタスク化。',ngExample:'「今度連絡しよう」と思って忘れる。',okExample:'タスク + リマインダー設定。',todayAction:'未登録の追客タスクを 3 件登録。',relatedAI:['織田信長','土方歳三'],caution:'忘れるのは仕組みの問題。'},
+      {id:'sub-003',title:'ミスは早く報告するほど傷が浅い',category:'報連相',difficulty:'intermediate',scenes:['claim'],keyword:'早期報告',oneLine:'ミスを隠すほど信頼を失う。',howToUse:'発覚した瞬間に上長へ連絡。',example:'査定数字を間違えた → すぐ店長に共有 → 訂正対応へ。',ngExample:'バレないだろうと放置。',okExample:'即報告 + 対応案 + 再発防止。',todayAction:'未報告ミスがあれば今日中に共有。',relatedAI:['徳川家康','土方歳三'],caution:'早報告は評価に直結。'},
+      {id:'sub-004',title:'お客様に安心してもらう「3 つの約束」',category:'お客様対応',difficulty:'beginner',scenes:['phone','visit'],keyword:'安心提供',oneLine:'守れる小さな約束を 3 つ。',howToUse:'時間 / 連絡頻度 / 守秘の 3 点を最初に明示。',example:'「次回連絡日を必ず守ります」「ご相談内容は社内のみで扱います」',ngExample:'抽象的に「お任せください」だけ。',okExample:'具体的な約束 3 点。',todayAction:'初回対応テンプレを更新。',relatedAI:['豊臣秀吉','九条鞍馬'],caution:'守れない約束はしない。'},
+      {id:'sub-005',title:'店長への報告は「3 行」で',category:'報連相',difficulty:'beginner',scenes:['general'],keyword:'簡潔報告',oneLine:'店長の時間を奪わない。',howToUse:'結論 / 状況 / 相談の 3 行。',example:'「契約 1 件決まりそうです。〇〇様、買付検討中。重説日時のご相談です。」',ngExample:'背景を長々説明。',okExample:'結論ファースト 3 行。',todayAction:'今日の報告を 3 行で。',relatedAI:['豊臣秀吉','土方歳三'],caution:'省略しすぎは逆効果。'},
+      {id:'sub-006',title:'断られた後の切り替え 5 分',category:'メンタル',difficulty:'beginner',scenes:['phone','follow'],keyword:'切り替え',oneLine:'引きずると次に影響する。',howToUse:'断られたら 5 分席を立つ。',example:'トイレ → 水分 → 深呼吸 → 次の架電。',ngExample:'断られた直後に次の架電で雰囲気が暗い。',okExample:'5 分リセット。',todayAction:'タイマー 5 分を準備。',relatedAI:['ソルティ','徳川家康'],caution:'引きずるのは仕事の質を下げる。'},
+      {id:'sub-007',title:'自分から動く習慣',category:'習慣化',difficulty:'intermediate',scenes:['general'],keyword:'主体性',oneLine:'指示待ちは信頼を下げる。',howToUse:'1 日 1 件、誰にも言われずやり切る。',example:'「今日この資料を整理しました」と自発報告。',ngExample:'指示があるまで待つ。',okExample:'自発行動 + 報告。',todayAction:'今日 1 件自発行動を決める。',relatedAI:['織田信長','豊臣秀吉'],caution:'勝手判断と主体性は別物。重要事項は確認。'},
+      {id:'sub-008',title:'分からない時は「すぐ聞く」',category:'報連相',difficulty:'beginner',scenes:['general'],keyword:'質問の力',oneLine:'30 分迷うなら 30 秒で聞く。',howToUse:'迷ったら同僚 or 店長に質問。',example:'契約条件で迷う → 即店長確認。',ngExample:'勝手判断で進める。',okExample:'即質問 → 確認 → 行動。',todayAction:'今日 1 つ「分からない」を解消。',relatedAI:['ソルティ','土方歳三'],caution:'同じことを何度も聞かないようメモする。'},
+      {id:'sub-009',title:'お客様の話を遮らない',category:'お客様対応',difficulty:'beginner',scenes:['phone','visit'],keyword:'傾聴',oneLine:'最後まで聞くと信頼される。',howToUse:'相手の話が終わるまで待つ。',example:'お客様の説明を最後まで聞いてから質問。',ngExample:'途中で「それはですね…」と被せる。',okExample:'頷き + 相槌 + 最後に質問。',todayAction:'今日の商談で遮らない練習。',relatedAI:['徳川家康','豊臣秀吉'],caution:'時間制約あれば事前に伝える。'},
+      {id:'sub-010',title:'感謝を言葉にする習慣',category:'お客様対応',difficulty:'beginner',scenes:['general'],keyword:'感謝',oneLine:'「ありがとう」は最強のツール。',howToUse:'1 日 5 回「ありがとう」を意識的に。',example:'同僚に「先日助けてもらって助かりました」',ngExample:'当たり前と思って無感謝。',okExample:'具体的にありがとう。',todayAction:'今日 5 回「ありがとう」を言う。',relatedAI:['ソルティ','スティーブ・ジョブズ'],caution:'形式的にならないよう具体的に。'}
+    ],
+    superior:[
+      {id:'sup-001',title:'指示は「目的 → 手段 → 期限」の順',category:'指示出し',difficulty:'beginner',scenes:['general'],keyword:'指示の三要素',oneLine:'手段だけ言うと部下は応用できない。',howToUse:'なぜ → 何を → いつまで。',example:'「お客様の不安解消のため（目的）、査定書を送る（手段）、明日中に（期限）」',ngExample:'「査定書送っといて」だけ。',okExample:'目的 + 手段 + 期限。',todayAction:'今日の指示 1 件を三要素で。',relatedAI:['豊臣秀吉','織田信長'],caution:'目的を伝えない指示は応用が効かない。'},
+      {id:'sup-002',title:'任せる時は「成功条件」を共有',category:'任せ方',difficulty:'intermediate',scenes:['general'],keyword:'任せる',oneLine:'ゴールが分かれば部下は動ける。',howToUse:'「これが達成できれば成功」を明示。',example:'「この案件は契約締結まで進めば成功」',ngExample:'「うまくやって」と抽象的。',okExample:'成功条件 + チェックポイント。',todayAction:'任せ中案件の成功条件を 3 件書く。',relatedAI:['豊臣秀吉','土方歳三'],caution:'任せて放置は別物。'},
+      {id:'sup-003',title:'進捗確認は「事実」を聞く',category:'進捗確認',difficulty:'intermediate',scenes:['general'],keyword:'事実ベース確認',oneLine:'感想ではなく数字・事実で確認。',howToUse:'「何件 / いつ / 誰が」で聞く。',example:'「今週の架電は何件？」',ngExample:'「順調？」（曖昧）',okExample:'数字で確認 → 課題を一緒に整理。',todayAction:'今日の進捗確認を数字ベースに。',relatedAI:['織田信長','土方歳三'],caution:'感想質問だけだと改善できない。'},
+      {id:'sup-004',title:'詰めずに動かす',category:'指導',difficulty:'advanced',scenes:['general'],keyword:'詰めない指導',oneLine:'詰めると萎縮 → パフォーマンス低下。',howToUse:'「なぜ？」を「どうしたら？」に置換。',example:'「なんでできなかった？」→「どうしたらできる？」',ngExample:'責める口調。',okExample:'解決志向 + 共感。',todayAction:'詰め口調を 1 件「どうしたら」に変換。',relatedAI:['徳川家康','ソルティ'],caution:'結果責任は別途追う。'},
+      {id:'sup-005',title:'褒める時は具体的に',category:'褒め方',difficulty:'beginner',scenes:['general'],keyword:'褒める',oneLine:'抽象的な褒めは響かない。',howToUse:'「いつ・何を・どう」良かったか。',example:'「今日の架電トーク、冒頭 30 秒の名乗りが綺麗でした」',ngExample:'「いいね」だけ。',okExample:'具体的事実 + 価値。',todayAction:'今日 1 人を具体的に褒める。',relatedAI:['ソルティ','スティーブ・ジョブズ'],caution:'お世辞ではなく事実ベース。'},
+      {id:'sup-006',title:'注意は「事 vs 人」を分ける',category:'注意',difficulty:'advanced',scenes:['general'],keyword:'事と人を分ける',oneLine:'人格否定すると関係が壊れる。',howToUse:'「あなたは」より「この件は」。',example:'「この査定書の数字に誤りがあります」（事）',ngExample:'「君はミスが多い」（人）',okExample:'事を指摘 + 改善策。',todayAction:'注意は事ベースで。',relatedAI:['徳川家康','九条鞍馬'],caution:'人格否定はパワハラリスク。'},
+      {id:'sup-007',title:'1on1 は「成果 / 課題 / 支援」',category:'1on1',difficulty:'intermediate',scenes:['general'],keyword:'1on1',oneLine:'30 分で 3 トピック。',howToUse:'今期の成果 / 今ある課題 / 上司の支援。',example:'10 分 × 3 トピックで構成。',ngExample:'雑談だけで終わる。',okExample:'構造化された 1on1。',todayAction:'1on1 アジェンダを準備。',relatedAI:['ソルティ','土方歳三'],caution:'部下の話を聞く時間を多く。'},
+      {id:'sup-008',title:'朝礼は「方向 + 1 つの注力」',category:'朝礼',difficulty:'beginner',scenes:['general'],keyword:'朝礼運営',oneLine:'多すぎる伝達は伝わらない。',howToUse:'今日の方向性 + 注力 1 点。',example:'「今日は反響対応 5 分以内、これだけ徹底」',ngExample:'5 個も 6 個も指示。',okExample:'1 点に絞る。',todayAction:'明日の朝礼の 1 点を決める。',relatedAI:['豊臣秀吉','スティーブ・ジョブズ'],caution:'毎日変えるより、週単位で。'},
+      {id:'sup-009',title:'やる気を落とさない管理',category:'メンタル',difficulty:'advanced',scenes:['general'],keyword:'モチベ管理',oneLine:'未達でも次への期待を示す。',howToUse:'未達結果 + 次回への期待。',example:'「今月は届きませんでしたが、来月のスタートダッシュ期待しています」',ngExample:'結果だけで責める。',okExample:'事実 + 次への一歩。',todayAction:'未達者へのフォロー言葉を準備。',relatedAI:['ソルティ','徳川家康'],caution:'ぬるさとは別物。'},
+      {id:'sup-010',title:'未完了を責めずに改善させる',category:'指導',difficulty:'advanced',scenes:['general'],keyword:'改善志向',oneLine:'責めると隠す、改善志向だと共有する。',howToUse:'「なぜ未完了か → どう仕組み化できるか」。',example:'未完了の原因を一緒に分析 → 仕組み化提案。',ngExample:'「なぜできないんだ！」',okExample:'原因 → 改善 → 仕組み化。',todayAction:'未完了案件 1 件を改善志向で分析。',relatedAI:['徳川家康','土方歳三','エジソン'],caution:'仕組みで解決できないこともある。'}
+    ],
+    executive:[
+      {id:'exe-001',title:'人ではなく仕組みで動く会社',category:'仕組み化',difficulty:'advanced',scenes:['general'],keyword:'仕組み設計',oneLine:'属人化は経営者の負債。',howToUse:'人がいなくても回る業務を増やす。',example:'反響対応フローをルーティン化、誰でも実行可能に。',ngExample:'特定社員に頼り切る。',okExample:'マニュアル + ルーティン + チェック。',todayAction:'属人化業務を 1 件仕組み化候補に。',relatedAI:['エジソン','織田信長'],caution:'仕組み化と画一化は別物。'},
+      {id:'exe-002',title:'評価制度は「見える化 + 説明可能」',category:'評価制度',difficulty:'advanced',scenes:['general'],keyword:'評価',oneLine:'評価が見えないと不信感を生む。',howToUse:'評価基準を文書化 + 共有。',example:'インセン計算式・昇給基準を公開。',ngExample:'評価が経営者の気分。',okExample:'見える化 + 公平性。',todayAction:'評価基準を 1 つ文書化。',relatedAI:['徳川家康','九条鞍馬'],caution:'評価基準は変更しにくい。慎重に。'},
+      {id:'exe-003',title:'圧倒的雇用主義の見せ方',category:'雇用ブランド',difficulty:'advanced',scenes:['general'],keyword:'雇用ブランド',oneLine:'求職者に「ここで働きたい」と思わせる。',howToUse:'休日 / 賞与 / 制度を具体数字で示す。',example:'年間休日 〇 日、賞与 〇 ヶ月、決算賞与有。',ngExample:'「アットホームな職場」（抽象）',okExample:'数字 + 制度 + 事例。',todayAction:'採用ページを数字ベースに改訂候補。',relatedAI:['豊臣秀吉','スティーブ・ジョブズ'],caution:'実態と乖離した宣伝はNG。'},
+      {id:'exe-004',title:'権限移譲は「決裁額」で明示',category:'権限移譲',difficulty:'advanced',scenes:['general'],keyword:'権限移譲',oneLine:'移譲は範囲明示が必須。',howToUse:'店長は〇万円まで決裁可。それ以上は経営者へ。',example:'販管費 5 万まで店長決裁。',ngExample:'「適当に判断して」',okExample:'金額 + 範囲 + 報告タイミング。',todayAction:'店長の決裁範囲を明文化。',relatedAI:['徳川家康','土方歳三'],caution:'権限なしの責任押し付けはNG。'},
+      {id:'exe-005',title:'失敗を早く出させる文化',category:'組織文化',difficulty:'advanced',scenes:['general'],keyword:'早期失敗',oneLine:'失敗を隠すと損失が拡大する。',howToUse:'早期報告者を評価する仕組み。',example:'「ミスを早く共有した人はOK」と公言。',ngExample:'ミスを叱る → 隠蔽文化。',okExample:'失敗共有を歓迎。',todayAction:'失敗共有歓迎メッセージを社内に発信。',relatedAI:['徳川家康','エジソン'],caution:'同じ失敗の繰り返しは別途指導。'},
+      {id:'exe-006',title:'経営者の確証バイアスに注意',category:'意思決定',difficulty:'advanced',scenes:['general'],keyword:'確証バイアス',oneLine:'自分の判断を補強する情報だけ見ていないか。',howToUse:'反対意見も意識的に聞く。',example:'拡大判断時に「やめるべき理由」を 3 つ書き出す。',ngExample:'GOしか考えない。',okExample:'反対意見 + GO/NO-GO 両方検討。',todayAction:'最近の判断 1 件の反対意見を書き出す。',relatedAI:['九条鞍馬','徳川家康'],caution:'最終判断は経営者だが、検討は多角的に。'},
+      {id:'exe-007',title:'採用の見極め「再現性」',category:'採用',difficulty:'advanced',scenes:['general'],keyword:'採用見極め',oneLine:'実績の再現性を確認。',howToUse:'「どんな状況で何を、なぜ達成したか」。',example:'過去成功体験の状況 + 行動 + 結果を STAR で聞く。',ngExample:'雰囲気で採用。',okExample:'再現性確認 + 文化適合。',todayAction:'採用質問テンプレを作成。',relatedAI:['徳川家康','豊臣秀吉'],caution:'最終判断は会わないと分からない。'},
+      {id:'exe-008',title:'幹部育成は「権限 + 失敗許容」',category:'幹部育成',difficulty:'advanced',scenes:['general'],keyword:'幹部育成',oneLine:'権限なしでは育たない、失敗許容なしでは挑戦しない。',howToUse:'店長候補に小さな決裁から任せる。',example:'販促予算 10 万を店長判断に。',ngExample:'すべて経営者判断。',okExample:'段階的権限委譲 + 振り返り。',todayAction:'店長候補に小さな権限を 1 つ移譲。',relatedAI:['徳川家康','織田信長'],caution:'失敗のリスク許容額を決めておく。'},
+      {id:'exe-009',title:'AI 秘書との役割分担',category:'AI 活用',difficulty:'advanced',scenes:['general'],keyword:'AI 分担',oneLine:'AI に任せる業務と人に任せる業務を分ける。',howToUse:'整理・要約・提案候補は AI、最終判断は人。',example:'AI 会議で提案を 8 ロールで生成 → 経営者が判断。',ngExample:'すべて AI 任せ。',okExample:'AI = 草案、人 = 判断。',todayAction:'AI 活用領域を 3 つ整理。',relatedAI:['ソルティ','エジソン','スティーブ・ジョブズ'],caution:'最終責任は人が持つ。'},
+      {id:'exe-010',title:'店長に任せる時の設計',category:'権限移譲',difficulty:'advanced',scenes:['general'],keyword:'店長権限設計',oneLine:'店長に何を任せ、何を任せないかを明確化。',howToUse:'判断 / 数値 / 採用 / 教育 / 報告 の 5 軸で。',example:'採用一次面接は店長、最終は経営者。',ngExample:'全部任せ or 全部不可。',okExample:'5 軸で明文化。',todayAction:'5 軸表を作成。',relatedAI:['徳川家康','土方歳三'],caution:'信頼関係の上での移譲。'}
+    ]
+  };
+  return tips[mode]||[];
+}
+function getRoleKnowledgeHeader(mode){
+  if(mode==='subordinate')return {title:'👷 部下バージョン：現場で信頼される心理学',color:'#15803d',bg:'#f0fdf4'};
+  if(mode==='superior')return {title:'👔 上司バージョン：人を動かす・育てる心理学',color:'#0369a1',bg:'#eff6ff'};
+  if(mode==='executive')return {title:'🏛 経営者バージョン：会社を動かす心理学',color:'#b45309',bg:'#fffbeb'};
+  return {title:'役職別辞典',color:'#0a3d7c',bg:'#fff'};
+}
+function renderRoleKnowledgePage(){
+  const mode=window._roleKnowledgeMode||'subordinate';
+  const u=currentUser;
+  // 権限チェック
+  if(mode==='superior'&&!_isSuperior(u)){
+    document.getElementById('role-knowledge-header').innerHTML='<div style="font-size:13px;color:#b91c1c;padding:14px;background:#fef2f2;border-radius:6px;">この辞典は店長 / 管理者 / 経営者向けです。あなたの権限では閲覧できません。</div>';
+    document.getElementById('role-knowledge-cards').innerHTML='';return;
+  }
+  if(mode==='executive'&&!_isExecutive(u)){
+    document.getElementById('role-knowledge-header').innerHTML='<div style="font-size:13px;color:#b91c1c;padding:14px;background:#fef2f2;border-radius:6px;">この辞典は管理者 / 経営者向けです。あなたの権限では閲覧できません。</div>';
+    document.getElementById('role-knowledge-cards').innerHTML='';return;
+  }
+  const meta=getRoleKnowledgeHeader(mode);
+  const tips=getRoleKnowledgeTips(mode);
+  const e=_spEsc;
+  const headEl=document.getElementById('role-knowledge-header');
+  if(headEl){
+    headEl.innerHTML='<div style="padding:10px 12px;background:'+meta.bg+';border-left:4px solid '+meta.color+';border-radius:4px;margin-bottom:10px;">'
+      +'<div style="font-size:16px;font-weight:800;color:'+meta.color+';">'+e(meta.title)+'</div>'
+      +'<div style="font-size:11px;color:#666;margin-top:2px;">全 '+tips.length+' 件 ／ 操作・煽り・嘘・誤認・強引な決断強制はNG、納得して判断していただくための知識として扱います</div>'
+      +'</div>';
+  }
+  const cardsEl=document.getElementById('role-knowledge-cards');
+  if(!cardsEl)return;
+  let h='<div style="display:grid;grid-template-columns:1fr;gap:8px;">';
+  tips.forEach(t=>{
+    h+='<div style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:10px;cursor:pointer;" onclick="showRoleKnowledgeDetail(\''+e(mode)+'\',\''+e(t.id)+'\')">'
+      +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px;">'
+      +'<div style="font-weight:700;font-size:13px;color:'+meta.color+';flex:1;">'+e(t.title)+'</div>'
+      +'<span style="font-size:10px;background:#f1f5f9;color:#475569;padding:1px 6px;border-radius:8px;white-space:nowrap;">'+e(t.keyword)+'</span>'
+      +'</div>'
+      +'<div style="font-size:11px;color:#666;margin-top:4px;">'+e(t.oneLine)+'</div>'
+      +'<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:6px;">'
+      +'<span style="font-size:10px;background:#e0e7ff;color:#3730a3;padding:1px 6px;border-radius:8px;">'+e(t.category)+'</span>'
+      +'<span style="font-size:10px;background:#fef3c7;color:#92400e;padding:1px 6px;border-radius:8px;">'+_spDiffLabel(t.difficulty)+'</span>'
+      +'</div></div>';
+  });
+  h+='</div>';
+  cardsEl.innerHTML=h;
+}
+function showRoleKnowledgeDetail(mode,id){
+  const tips=getRoleKnowledgeTips(mode);
+  const t=tips.find(x=>x.id===id);if(!t)return;
+  const meta=getRoleKnowledgeHeader(mode);
+  const e=_spEsc;
+  const ex=document.getElementById('role-knowledge-modal');if(ex)ex.remove();
+  const modal=document.createElement('div');
+  modal.id='role-knowledge-modal';
+  modal.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:14px;';
+  modal.innerHTML='<div style="background:#fff;border-radius:10px;max-width:540px;width:100%;max-height:92vh;overflow:auto;padding:18px;font-size:13px;border-top:6px solid '+meta.color+';">'
+    +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px;">'
+    +'<div><div style="font-size:11px;color:#666;">'+e(t.category)+' ／ '+_spDiffLabel(t.difficulty)+'</div>'
+    +'<div style="font-size:17px;font-weight:800;color:'+meta.color+';">'+e(t.title)+'</div>'
+    +'<div style="font-size:11px;color:#475569;margin-top:2px;">キーワード：<b>'+e(t.keyword)+'</b></div></div>'
+    +'<button onclick="document.getElementById(\'role-knowledge-modal\').remove()" style="font-size:18px;background:0;border:0;cursor:pointer;color:#666;">✕</button></div>'
+    +'<div style="background:#f8fafc;padding:8px 10px;border-radius:6px;margin-bottom:8px;"><div style="font-size:10px;color:#666;font-weight:700;">ひとことで言うと</div><div>'+e(t.oneLine)+'</div></div>'
+    +'<div style="margin-bottom:8px;"><div style="font-size:10px;color:#666;font-weight:700;">使い方</div><div>'+e(t.howToUse)+'</div></div>'
+    +'<div style="margin-bottom:8px;"><div style="font-size:10px;color:#666;font-weight:700;">例</div><div>'+e(t.example)+'</div></div>'
+    +'<div style="background:#fef2f2;padding:8px 10px;border-radius:6px;border-left:3px solid #dc2626;margin-bottom:6px;"><div style="font-size:10px;color:#b91c1c;font-weight:700;">NG例</div><div style="font-size:12px;">'+e(t.ngExample)+'</div></div>'
+    +'<div style="background:#f0fdf4;padding:8px 10px;border-radius:6px;border-left:3px solid #16a34a;margin-bottom:8px;"><div style="font-size:10px;color:#166534;font-weight:700;">OK例</div><div style="font-size:12px;">'+e(t.okExample)+'</div></div>'
+    +'<div style="background:#fff7ed;padding:8px 10px;border-radius:6px;border-left:3px solid #f97316;margin-bottom:8px;"><div style="font-size:10px;color:#9a3412;font-weight:700;">今日の実践</div><div style="font-size:12px;">'+e(t.todayAction)+'</div></div>'
+    +'<div style="margin-bottom:6px;"><div style="font-size:10px;color:#666;font-weight:700;">関連 AI</div><div style="font-size:11px;color:#475569;">'+(t.relatedAI||[]).map(a=>e(a)).join(' / ')+'</div></div>'
+    +'<div style="background:#fffbeb;padding:8px 10px;border-radius:6px;margin-bottom:12px;"><div style="font-size:10px;color:#92400e;font-weight:700;">⚠ 注意点</div><div style="font-size:11px;">'+e(t.caution)+'</div></div>'
+    +'<div style="text-align:right;"><button onclick="document.getElementById(\'role-knowledge-modal\').remove()" style="padding:6px 12px;background:'+meta.color+';color:#fff;border:0;border-radius:4px;cursor:pointer;font-size:12px;">閉じる</button></div>'
+    +'</div>';
+  modal.onclick=ev=>{if(ev.target===modal)modal.remove();};
+  document.body.appendChild(modal);
+}
+// ホーム widget「今日の心理学」をロール別表示名に変更
+(function patchTodaySalesPsychologyWidgetRoleLabel(){
+  const orig=window.renderTodaySalesPsychologyWidget;
+  if(typeof orig!=='function')return;
+  window.renderTodaySalesPsychologyWidget=function(){
+    const r=orig.apply(this,arguments);
+    try{
+      const dash=document.getElementById('page-dash');if(!dash)return r;
+      const w=dash.querySelector('.jagai-sp-today-widget');if(!w)return r;
+      const u=currentUser;
+      let label='🧠 今日の営業心理学';
+      let extraBtn='';
+      const e=_spEsc;
+      if(_isExecutive(u)){
+        label='🏛 今日の経営者心理学';
+        extraBtn='<button onclick="window._roleKnowledgeMode=\'executive\';switchPage(\'role-knowledge\')" style="font-size:11px;padding:4px 10px;background:#b45309;color:#fff;border:0;border-radius:4px;cursor:pointer;margin-left:4px;">経営者辞典 →</button>'
+          +'<button onclick="window._roleKnowledgeMode=\'superior\';switchPage(\'role-knowledge\')" style="font-size:11px;padding:4px 10px;background:#0369a1;color:#fff;border:0;border-radius:4px;cursor:pointer;margin-left:4px;">上司辞典 →</button>';
+      }else if(_isSuperior(u)){
+        label='👔 今日の上司心理学';
+        extraBtn='<button onclick="window._roleKnowledgeMode=\'superior\';switchPage(\'role-knowledge\')" style="font-size:11px;padding:4px 10px;background:#0369a1;color:#fff;border:0;border-radius:4px;cursor:pointer;margin-left:4px;">上司辞典 →</button>';
+      }else{
+        label='👷 今日の部下心理学';
+        extraBtn='<button onclick="window._roleKnowledgeMode=\'subordinate\';switchPage(\'role-knowledge\')" style="font-size:11px;padding:4px 10px;background:#15803d;color:#fff;border:0;border-radius:4px;cursor:pointer;margin-left:4px;">部下辞典 →</button>';
+      }
+      // ラベル書換
+      const labelEl=w.querySelector('div');
+      if(labelEl)labelEl.textContent=label;
+      // 追加ボタンを既存ボタン群の右に
+      const btnRow=w.querySelectorAll('button');
+      if(btnRow.length&&!w.querySelector('[data-role-extra]')){
+        const div=document.createElement('span');
+        div.setAttribute('data-role-extra','1');
+        div.innerHTML=extraBtn;
+        btnRow[btnRow.length-1].parentNode.appendChild(div);
+      }
+    }catch(e){}
+    return r;
+  };
+})();
+// ==== ここまで packet 360 辞典ポータル + ロール別辞典 ====
 </script>
 </body>
 </html>
