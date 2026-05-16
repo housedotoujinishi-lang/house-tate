@@ -125,6 +125,51 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-siz
 .voice-btn[disabled]{opacity:.4;cursor:not-allowed}
 .voice-btn-memo{margin-top:4px}
 @keyframes vbpulse{0%,100%{box-shadow:0 0 0 0 rgba(220,38,38,.45)}50%{box-shadow:0 0 0 6px rgba(220,38,38,0)}}
+/* packet 409: AI 相談窓口（ホームカード + モーダル）*/
+.ai-consul-home-card{margin:12px;padding:0;background:linear-gradient(135deg,#0a3d7c 0%,#1e5fa8 100%);border-radius:14px;cursor:pointer;box-shadow:0 3px 10px rgba(10,61,124,.18);transition:transform .15s,box-shadow .15s;color:#fff;overflow:hidden;border:0}
+.ai-consul-home-card:hover{transform:translateY(-1px);box-shadow:0 5px 14px rgba(10,61,124,.28)}
+.ai-consul-home-card:active{transform:translateY(0)}
+.ai-consul-home-card-inner{padding:14px 16px;display:flex;flex-direction:column;gap:6px}
+.ai-consul-home-card-h{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:800}
+.ai-consul-home-card-emoji{font-size:20px}
+.ai-consul-home-card-title{letter-spacing:.5px}
+.ai-consul-home-card-sub{font-size:11px;color:rgba(255,255,255,.88);line-height:1.5}
+.ai-consul-home-card-cta{margin-top:4px;align-self:flex-start;background:rgba(255,255,255,.18);padding:5px 12px;border-radius:10px;font-size:11px;font-weight:700}
+#ai-consul-modal{position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.55);display:none;align-items:flex-start;justify-content:center;padding:20px 12px;overflow-y:auto}
+#ai-consul-modal.open{display:flex}
+.ai-consul-modal-box{background:#fff;border-radius:12px;max-width:560px;width:100%;max-height:calc(100vh - 40px);overflow-y:auto;border-top:6px solid #0a3d7c;display:flex;flex-direction:column}
+.ai-consul-modal-hdr{display:flex;align-items:flex-start;justify-content:space-between;padding:14px 16px 8px;gap:10px;border-bottom:1px solid var(--bo)}
+.ai-consul-modal-hdr-t{font-size:16px;font-weight:800;color:#0a3d7c;line-height:1.4}
+.ai-consul-modal-hdr-s{font-size:11px;color:var(--t3);margin-top:2px;line-height:1.5}
+.ai-consul-modal-close{background:0;border:0;font-size:22px;color:var(--t3);cursor:pointer;padding:4px 10px;line-height:1;min-width:40px;min-height:40px;border-radius:8px}
+.ai-consul-modal-close:hover{background:var(--s2)}
+.ai-consul-modal-body{padding:14px 16px;display:flex;flex-direction:column;gap:8px}
+.ai-consul-cat-btn{display:flex;flex-direction:column;align-items:flex-start;gap:3px;padding:11px 14px;background:var(--s1);border:1.5px solid var(--bo);border-radius:10px;cursor:pointer;text-align:left;width:100%;transition:background .15s,border-color .15s;min-height:48px}
+.ai-consul-cat-btn:hover{background:var(--s2);border-color:#0a3d7c}
+.ai-consul-cat-btn.active{background:#eff6ff;border-color:#0a3d7c}
+.ai-consul-cat-btn-t{font-size:13px;font-weight:700;color:#0a3d7c}
+.ai-consul-cat-btn-ai{font-size:10px;color:#0369a1;font-weight:600}
+.ai-consul-input-area{display:none;flex-direction:column;gap:8px;margin-top:6px;padding:12px;background:#f8fafc;border-radius:8px;border:1px solid var(--bo)}
+.ai-consul-input-area.open{display:flex}
+.ai-consul-input-cat{font-size:12px;font-weight:700;color:#0a3d7c}
+.ai-consul-input-ai{font-size:10px;color:var(--t3)}
+.ai-consul-textarea{width:100%;min-height:96px;padding:9px 11px;border:1.5px solid var(--bo);border-radius:8px;font-size:13px;font-family:inherit;resize:vertical;outline:none;color:var(--t1);background:#fff}
+.ai-consul-textarea:focus{border-color:#0a3d7c}
+.ai-consul-actions{display:flex;gap:6px;flex-wrap:wrap}
+.ai-consul-action-btn{flex:1;min-width:96px;padding:9px 12px;border-radius:8px;border:0;font-size:12px;font-weight:700;cursor:pointer;min-height:40px}
+.ai-consul-action-btn.primary{background:#0a3d7c;color:#fff}
+.ai-consul-action-btn.secondary{background:#c2410c;color:#fff}
+.ai-consul-action-btn.tertiary{background:var(--s2);color:var(--t2);border:1.5px solid var(--bo)}
+.ai-consul-note{font-size:10px;color:var(--t3);margin-top:4px;line-height:1.5}
+@media(max-width:768px){
+  .ai-consul-home-card{margin:10px}
+  .ai-consul-home-card-inner{padding:12px 14px}
+  .ai-consul-home-card-h{font-size:14px}
+  .ai-consul-home-card-sub{font-size:10px}
+  .ai-consul-modal-box{max-height:calc(100vh - 30px)}
+  .ai-consul-cat-btn{min-height:54px;padding:12px 14px}
+  .ai-consul-cat-btn-t{font-size:13px}
+}
 /* packet 408: スマホタップ安全 CSS 共通（既存スタイル無変更、追加のみ）*/
 button,a,[role="button"]{touch-action:manipulation}
 button,a{-webkit-tap-highlight-color:rgba(10,61,124,.12)}
@@ -696,6 +741,17 @@ body.task-dragging [data-id]:not(.dragging-this){opacity:1!important}
 
       <!-- DASHBOARD -->
       <div class="page" id="page-dash">
+        <!-- packet 409: AI 相談窓口（静的MVP、外部 API 接続なし） -->
+        <div id="ai-consul-home-card" class="ai-consul-home-card" role="button" tabindex="0" aria-label="AI 相談窓口を開く">
+          <div class="ai-consul-home-card-inner">
+            <div class="ai-consul-home-card-h">
+              <span class="ai-consul-home-card-emoji">💬</span>
+              <span class="ai-consul-home-card-title">ＡＩ相談窓口</span>
+            </div>
+            <div class="ai-consul-home-card-sub">困ったら、まずここに相談。<br>追客・査定・タスク・予定・文面作成をＡＩチームが整理します。</div>
+            <div class="ai-consul-home-card-cta">▶ 相談する</div>
+          </div>
+        </div>
         <div id="dash-content"></div>
       </div>
   <div class="page" id="page-accounts">
@@ -7775,6 +7831,202 @@ function openEventFormFromCalendar(dateStr,timeStr){
   }
 })();
 // ==== ここまで packet 407 ====
+// ==== packet 409: AI 相談窓口 静的MVP（外部 API 接続なし、localStorage 保存なし） ====
+(function patchAIConsultationCounter(){
+  try{
+    const CATEGORIES = [
+      {key:'today',     label:'今日何をすればいい？',         ai:'ソルティ + 飛脚',                  placeholder:'今日の予定・未完了・気になることを入力してください'},
+      {key:'follow',    label:'追客文面を作りたい',           ai:'豊臣秀吉',                          placeholder:'お客様の状況、送る媒体、伝えたい内容を入力してください'},
+      {key:'appraisal', label:'査定・相場の相談',             ai:'豊臣秀吉 + 徳川家康',                placeholder:'住所、種別、面積、築年数、気になる点を入力してください'},
+      {key:'reply',     label:'お客様への返信相談',           ai:'豊臣秀吉',                          placeholder:'お客様からの文面や返信方針を入力してください'},
+      {key:'task',      label:'タスク・予定を登録したい',     ai:'ソルティ + 飛脚',                   placeholder:'やること、期限、担当者を入力してください'},
+      {key:'manager',   label:'店長に相談する前に整理したい', ai:'ソルティ',                          placeholder:'相談したい内容、困っている点、希望する結論を入力してください'},
+      {key:'howto',     label:'システムの使い方を確認したい', ai:'トーマス・エジソン',                placeholder:'どの画面で何が分からないか入力してください'},
+      {key:'team',      label:'じゃがいＡＩチームに相談したい', ai:'AI チーム全員',                    placeholder:'相談したいテーマを自由に入力してください'}
+    ];
+
+    function el(tag, attrs, children){
+      const e=document.createElement(tag);
+      if(attrs){Object.keys(attrs).forEach(function(k){
+        if(k==='style')e.style.cssText=attrs[k];
+        else if(k==='class')e.className=attrs[k];
+        else if(k.indexOf('data-')===0||k==='role'||k==='aria-label'||k==='tabindex'||k==='placeholder'||k==='id'||k==='type')e.setAttribute(k,attrs[k]);
+        else e[k]=attrs[k];
+      });}
+      if(children){
+        (Array.isArray(children)?children:[children]).forEach(function(c){
+          if(c==null)return;
+          if(typeof c==='string')e.appendChild(document.createTextNode(c));
+          else e.appendChild(c);
+        });
+      }
+      return e;
+    }
+
+    function buildModal(){
+      if(document.getElementById('ai-consul-modal'))return;
+      const overlay = el('div',{id:'ai-consul-modal',role:'dialog','aria-label':'AI 相談窓口'});
+      const box = el('div',{class:'ai-consul-modal-box'});
+      const hdr = el('div',{class:'ai-consul-modal-hdr'});
+      hdr.appendChild(el('div',{},[
+        el('div',{class:'ai-consul-modal-hdr-t'},'💬 ＡＩ相談窓口'),
+        el('div',{class:'ai-consul-modal-hdr-s'},'相談したいカテゴリを選んでください。外部送信されません。')
+      ]));
+      const closeBtn = el('button',{class:'ai-consul-modal-close','aria-label':'閉じる',type:'button'},'✕');
+      closeBtn.addEventListener('click',closeModal);
+      hdr.appendChild(closeBtn);
+      box.appendChild(hdr);
+
+      const body = el('div',{class:'ai-consul-modal-body'});
+      const cats = el('div',{style:'display:flex;flex-direction:column;gap:6px'});
+      CATEGORIES.forEach(function(c){
+        const btn = el('button',{class:'ai-consul-cat-btn',type:'button','data-cat':c.key});
+        btn.appendChild(el('div',{class:'ai-consul-cat-btn-t'},c.label));
+        btn.appendChild(el('div',{class:'ai-consul-cat-btn-ai'},'おすすめ担当ＡＩ：'+c.ai));
+        btn.addEventListener('click',function(){selectCategory(c.key);});
+        cats.appendChild(btn);
+      });
+      body.appendChild(cats);
+
+      const inputArea = el('div',{class:'ai-consul-input-area',id:'ai-consul-input-area'});
+      inputArea.appendChild(el('div',{class:'ai-consul-input-cat',id:'ai-consul-input-cat'}));
+      inputArea.appendChild(el('div',{class:'ai-consul-input-ai',id:'ai-consul-input-ai'}));
+      const ta = el('textarea',{class:'ai-consul-textarea',id:'ai-consul-input',placeholder:''});
+      inputArea.appendChild(ta);
+      const actions = el('div',{class:'ai-consul-actions'});
+      const toTask = el('button',{class:'ai-consul-action-btn primary',type:'button'},'タスクに転記');
+      toTask.addEventListener('click',function(){transferToTask();});
+      const toEvent = el('button',{class:'ai-consul-action-btn secondary',type:'button'},'予定として開く');
+      toEvent.addEventListener('click',function(){transferToEvent();});
+      const toMemo = el('button',{class:'ai-consul-action-btn tertiary',type:'button'},'メモに転記');
+      toMemo.addEventListener('click',function(){transferToMemo();});
+      actions.appendChild(toTask);
+      actions.appendChild(toEvent);
+      actions.appendChild(toMemo);
+      inputArea.appendChild(actions);
+      inputArea.appendChild(el('div',{class:'ai-consul-note'},'※ 入力内容は外部送信されません。localStorage 等への保存もしません。'));
+      body.appendChild(inputArea);
+
+      box.appendChild(body);
+      overlay.appendChild(box);
+      overlay.addEventListener('click',function(ev){if(ev.target===overlay)closeModal();});
+      document.body.appendChild(overlay);
+    }
+
+    let currentCat = null;
+    function openModal(){
+      buildModal();
+      const m=document.getElementById('ai-consul-modal');
+      if(m)m.classList.add('open');
+      currentCat = null;
+      const ia=document.getElementById('ai-consul-input-area'); if(ia)ia.classList.remove('open');
+      try{document.querySelectorAll('.ai-consul-cat-btn.active').forEach(function(b){b.classList.remove('active');});}catch(e){}
+    }
+    function closeModal(){
+      const m=document.getElementById('ai-consul-modal');
+      if(m)m.classList.remove('open');
+      const ta=document.getElementById('ai-consul-input'); if(ta)ta.value='';
+    }
+    function selectCategory(key){
+      const c = CATEGORIES.find(function(x){return x.key===key;});
+      if(!c)return;
+      currentCat = c;
+      try{document.querySelectorAll('.ai-consul-cat-btn').forEach(function(b){
+        b.classList.toggle('active', b.getAttribute('data-cat')===key);
+      });}catch(e){}
+      const cl=document.getElementById('ai-consul-input-cat'); if(cl)cl.textContent='▼ '+c.label;
+      const al=document.getElementById('ai-consul-input-ai'); if(al)al.textContent='おすすめ担当ＡＩ：'+c.ai;
+      const ta=document.getElementById('ai-consul-input'); if(ta){ta.setAttribute('placeholder',c.placeholder);ta.value='';try{ta.focus({preventScroll:true});}catch(e){}}
+      const ia=document.getElementById('ai-consul-input-area'); if(ia)ia.classList.add('open');
+    }
+    function getText(){
+      const ta=document.getElementById('ai-consul-input');
+      return (ta && ta.value) ? ta.value.trim() : '';
+    }
+    function showShortToast(msg){
+      try{
+        const id='ai-consul-toast';
+        const ex=document.getElementById(id); if(ex)ex.remove();
+        const t=document.createElement('div');
+        t.id=id;
+        t.style.cssText='position:fixed;left:50%;bottom:80px;transform:translateX(-50%);z-index:10000;background:rgba(10,61,124,.94);color:#fff;padding:9px 16px;border-radius:18px;font-size:12px;font-weight:600;box-shadow:0 4px 12px rgba(0,0,0,.25);pointer-events:none;max-width:90vw;text-align:center';
+        t.textContent=msg;
+        document.body.appendChild(t);
+        setTimeout(function(){try{t.style.transition='opacity .4s';t.style.opacity='0';}catch(e){}},2600);
+        setTimeout(function(){try{t.remove();}catch(e){}},3100);
+      }catch(e){}
+    }
+    function transferToTask(){
+      const txt=getText();
+      if(!txt){showShortToast('内容を入力してください');return;}
+      try{
+        if(typeof switchPage==='function')switchPage('cal');
+      }catch(e){}
+      setTimeout(function(){
+        try{
+          const form=document.getElementById('tb-form');
+          if(form && form.style.display==='none')form.style.display='block';
+          const ttl=document.getElementById('tf-title');
+          if(ttl){ttl.value=txt;try{ttl.focus({preventScroll:true});}catch(e){}try{ttl.dispatchEvent(new Event('input',{bubbles:true}));}catch(e){}}
+          closeModal();
+          showShortToast('タスク内容に転記しました');
+        }catch(e){closeModal();}
+      },180);
+    }
+    function transferToEvent(){
+      const txt=getText();
+      if(!txt){showShortToast('内容を入力してください');return;}
+      try{if(typeof switchPage==='function')switchPage('cal');}catch(e){}
+      setTimeout(function(){
+        try{
+          const bar=document.getElementById('ev-add-bar');
+          if(bar){bar.style.display='block';try{bar.classList.add('ev-add-bar-open');}catch(e){}}
+          if(typeof setupEvForm==='function'){try{setupEvForm();}catch(e){}}
+          const ef=document.getElementById('ef-t');
+          if(ef){ef.value=txt;try{ef.focus({preventScroll:true});}catch(e){}try{ef.dispatchEvent(new Event('input',{bubbles:true}));}catch(e){}}
+          closeModal();
+          showShortToast('予定タイトルに転記しました');
+        }catch(e){closeModal();}
+      },180);
+    }
+    function transferToMemo(){
+      const txt=getText();
+      if(!txt){showShortToast('内容を入力してください');return;}
+      try{if(typeof switchPage==='function')switchPage('cal');}catch(e){}
+      setTimeout(function(){
+        try{
+          const bar=document.getElementById('ev-add-bar');
+          if(bar){bar.style.display='block';try{bar.classList.add('ev-add-bar-open');}catch(e){}}
+          const m=document.getElementById('memo');
+          if(m){
+            const cur=m.value||'';
+            m.value = cur ? (cur + (cur.endsWith('\n')?'':'\n') + txt) : txt;
+            try{m.focus({preventScroll:true});}catch(e){}
+            try{m.dispatchEvent(new Event('input',{bubbles:true}));}catch(e){}
+          }
+          closeModal();
+          showShortToast('メモに追記しました');
+        }catch(e){closeModal();}
+      },180);
+    }
+
+    function init(){
+      const card=document.getElementById('ai-consul-home-card');
+      if(!card)return;
+      if(card.dataset.p409Bound==='1')return;
+      card.dataset.p409Bound='1';
+      card.addEventListener('click',openModal);
+      card.addEventListener('keydown',function(ev){
+        if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();openModal();}
+      });
+    }
+    if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);
+    else init();
+  }catch(e){
+    try{console.warn('packet 409 AI consultation counter init error:',e);}catch(e2){}
+  }
+})();
+// ==== ここまで packet 409 ====
 </script>
 </body>
 </html>
