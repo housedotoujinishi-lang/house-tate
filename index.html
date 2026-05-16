@@ -1032,6 +1032,24 @@ textarea.ai-team-input{resize:vertical;min-height:60px}
       <div id="knowledge-portal-cards"></div>
     </div>
   </div>
+  <div class="page" id="page-knowledge-candidate-box">
+    <div style="padding:14px 14px 80px;max-width:760px;margin:0 auto">
+      <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;">
+        <button onclick="switchPage('knowledge-portal')" style="font-size:11px;padding:4px 10px;background:#f1f5f9;color:#475569;border:0;border-radius:4px;cursor:pointer;">← マメ知識ポータルに戻る</button>
+        <button onclick="switchPage('dash')" style="font-size:11px;padding:4px 10px;background:#f1f5f9;color:#475569;border:0;border-radius:4px;cursor:pointer;">← ホームに戻る</button>
+      </div>
+      <h2 style="font-size:18px;color:#0a3d7c;margin:0 0 4px;font-weight:800">🆕 AI 事典追加候補箱</h2>
+      <div style="font-size:11px;color:#666;margin-bottom:10px">AI が生成した候補カードを管理者・店長が承認 / 却下 / 修正待ちに分類します（社内ツール）</div>
+      <div style="font-size:11px;color:#9a3412;background:#fff7ed;border-left:3px solid #f97316;padding:6px 10px;border-radius:4px;margin-bottom:10px;">⚠ 承認済み候補は次回 Claude Code 作業時に正式事典へ反映。完全自動追加は行いません。</div>
+      <div id="kc-summary"></div>
+      <div id="kc-filters" style="margin-bottom:10px"></div>
+      <div id="kc-cards"></div>
+      <div style="margin-top:20px;display:flex;gap:6px;justify-content:center;flex-wrap:wrap;">
+        <button onclick="switchPage('knowledge-portal')" style="font-size:12px;padding:8px 14px;background:#f1f5f9;color:#475569;border:0;border-radius:4px;cursor:pointer;">← マメ知識ポータルに戻る</button>
+        <button onclick="switchPage('dash')" style="font-size:12px;padding:8px 14px;background:#f1f5f9;color:#475569;border:0;border-radius:4px;cursor:pointer;">← ホームに戻る</button>
+      </div>
+    </div>
+  </div>
   <div class="page" id="page-role-knowledge">
     <div style="padding:14px 14px 80px;max-width:760px;margin:0 auto">
       <div style="display:flex;gap:6px;margin-bottom:10px;">
@@ -1674,7 +1692,7 @@ bindEvForm();
   }
 }
 
-function switchPage(pg){if(pg==='crm'){pg='dash';/* packet 322: 顧客タブ強制無効化、dash に強制リダイレクト */}document.querySelectorAll('.ntab').forEach(b=>b.classList.toggle('on',b.dataset.pg===pg));document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));const pgEl=document.getElementById(`page-${pg}`);if(pgEl)pgEl.classList.add('on');if(pg==='dash')renderDash();if(pg==='accounts')renderAccList();if(pg==='kintai'){ktViewUid=currentUser.perm==='admin'?null:currentUser.uid;renderKintaiPage();}if(pg==='cal')render();if(pg==='shift')renderShift();if(pg==='goal'){initGoalData();renderGoalPage();}if(pg==='report')renderReportPage();if(pg==='aiteam')renderAITeamPage();if(pg==='member-workload')renderMemberWorkloadPage();if(pg==='ai-members')renderAIMembersPage();if(pg==='ai-org')renderAIOrgChartPage();if(pg==='realestate-knowledge')renderRealEstateKnowledgePage();if(pg==='routine')renderRoutinePage();if(pg==='sales-psy')renderSalesPsychologyPage();if(pg==='knowledge-portal')renderKnowledgePortalPage();if(pg==='role-knowledge')renderRoleKnowledgePage();}
+function switchPage(pg){if(pg==='crm'){pg='dash';/* packet 322: 顧客タブ強制無効化、dash に強制リダイレクト */}document.querySelectorAll('.ntab').forEach(b=>b.classList.toggle('on',b.dataset.pg===pg));document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));const pgEl=document.getElementById(`page-${pg}`);if(pgEl)pgEl.classList.add('on');if(pg==='dash')renderDash();if(pg==='accounts')renderAccList();if(pg==='kintai'){ktViewUid=currentUser.perm==='admin'?null:currentUser.uid;renderKintaiPage();}if(pg==='cal')render();if(pg==='shift')renderShift();if(pg==='goal'){initGoalData();renderGoalPage();}if(pg==='report')renderReportPage();if(pg==='aiteam')renderAITeamPage();if(pg==='member-workload')renderMemberWorkloadPage();if(pg==='ai-members')renderAIMembersPage();if(pg==='ai-org')renderAIOrgChartPage();if(pg==='realestate-knowledge')renderRealEstateKnowledgePage();if(pg==='routine')renderRoutinePage();if(pg==='sales-psy')renderSalesPsychologyPage();if(pg==='knowledge-portal')renderKnowledgePortalPage();if(pg==='role-knowledge')renderRoleKnowledgePage();if(pg==='knowledge-candidate-box'){try{renderKnowledgeCandidateBox();}catch(e){const r=document.getElementById('kc-cards');if(r)r.innerHTML='<div style="color:#b91c1c;padding:14px;background:#fef2f2;border-radius:6px;">AI 事典追加候補箱の読み込みに失敗しました。Console を確認してください。<br><code style="font-size:11px;">'+String(e&&e.message||e)+'</code></div>';}}}
 function mkModal(id,barColor,title){const ex=document.getElementById(id);if(ex)ex.remove();const bg=document.createElement('div');bg.className='mbg';bg.id=id;bg.innerHTML=`<div class="modal"><div class="mbar" style="background:${barColor}"></div><button class="mclose" id="${id}-c">✕</button><div class="mttl">${title}</div><div class="macts"></div></div>`;document.body.appendChild(bg);document.getElementById(`${id}-c`).onclick=()=>bg.remove();bg.onclick=e=>{if(e.target===bg)bg.remove();};return bg;}
 function mttlAfter(bg,html){bg.querySelector('.mttl').insertAdjacentHTML('afterend',html);}
 function macts(bg,html){bg.querySelector('.macts').innerHTML=html;}
@@ -7157,44 +7175,9 @@ function showKnowledgeCandidateDetail(id){
     return r;
   };
 })();
-// switchPage 分岐追加
-(function patchSwitchPageKnowledgeCandidateBox(){
-  const orig=window.switchPage;if(typeof orig!=='function')return;
-  window.switchPage=function(pg){
-    if(pg==='knowledge-candidate-box'){
-      // 新画面を動的に作成 or 既存表示切替（簡易：page-knowledge-portal を使い回し、内容差替）
-      // 安全のため新規 div を body に append し、既存 page クラスをすべて off にする
-      let kcPage=document.getElementById('page-knowledge-candidate-box');
-      if(!kcPage){
-        kcPage=document.createElement('div');
-        kcPage.id='page-knowledge-candidate-box';
-        kcPage.className='page';
-        kcPage.innerHTML='<div style="padding:14px 14px 80px;max-width:760px;margin:0 auto">'
-          +'<div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;">'
-          +'<button onclick="switchPage(\'knowledge-portal\')" style="font-size:11px;padding:4px 10px;background:#f1f5f9;color:#475569;border:0;border-radius:4px;cursor:pointer;">← マメ知識ポータルに戻る</button>'
-          +'<button onclick="switchPage(\'dash\')" style="font-size:11px;padding:4px 10px;background:#f1f5f9;color:#475569;border:0;border-radius:4px;cursor:pointer;">← ホームに戻る</button>'
-          +'</div>'
-          +'<h2 style="font-size:18px;color:#0a3d7c;margin:0 0 4px;font-weight:800">🆕 AI 事典追加候補箱</h2>'
-          +'<div style="font-size:11px;color:#666;margin-bottom:10px">AI が生成した候補カードを管理者・店長が承認 / 却下 / 修正待ちに分類します（社内ツール）</div>'
-          +'<div style="font-size:11px;color:#9a3412;background:#fff7ed;border-left:3px solid #f97316;padding:6px 10px;border-radius:4px;margin-bottom:10px;">⚠ 承認済み候補は次回 Claude Code 作業時に正式事典へ反映。完全自動追加は行いません。</div>'
-          +'<div id="kc-summary"></div>'
-          +'<div id="kc-filters" style="margin-bottom:10px"></div>'
-          +'<div id="kc-cards"></div>'
-          +'<div style="margin-top:20px;display:flex;gap:6px;justify-content:center;flex-wrap:wrap;">'
-          +'<button onclick="switchPage(\'knowledge-portal\')" style="font-size:12px;padding:8px 14px;background:#f1f5f9;color:#475569;border:0;border-radius:4px;cursor:pointer;">← マメ知識ポータルに戻る</button>'
-          +'<button onclick="switchPage(\'dash\')" style="font-size:12px;padding:8px 14px;background:#f1f5f9;color:#475569;border:0;border-radius:4px;cursor:pointer;">← ホームに戻る</button>'
-          +'</div>'
-          +'</div>';
-        document.body.appendChild(kcPage);
-      }
-      document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));
-      kcPage.classList.add('on');
-      renderKnowledgeCandidateBox();
-      return;
-    }
-    return orig.apply(this,arguments);
-  };
-})();
+// packet 390: switchPage 動的生成 IIFE は無効化（HTML 静的定義 + switchPage 本体分岐に移行）
+// 本体 switchPage 内で `if(pg==='knowledge-candidate-box'){try{renderKnowledgeCandidateBox();}catch(e){...}}` を直接実行
+// 旧 IIFE 動的生成は body 直下 append で表示位置がズレ空白表示問題の原因のため削除
 // ==== ここまで packet 380 AI 事典追加候補箱 ====
 </script>
 </body>
