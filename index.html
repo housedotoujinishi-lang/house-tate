@@ -6959,6 +6959,243 @@ function renderHomeCommandHero(){
   window.renderDash=function(){const r=orig.apply(this,arguments);try{renderHomeCommandHero();}catch(e){}return r;};
 })();
 // ==== ここまで packet 375 ホーム整理 ====
+
+// ==== packet 380 AI 事典追加候補箱 静的MVP ====
+const KC_STATE_LS_KEY='jagai_knowledge_candidate_state_v1';
+function canApproveCandidates(u){
+  if(!u)return false;
+  if(u.perm==='admin'||u.perm==='owner')return true;
+  const r=u.role||'';
+  if(r.indexOf('店長')>=0)return true;
+  return false;
+}
+function _kcState(){try{const x=JSON.parse(localStorage.getItem(KC_STATE_LS_KEY)||'{}');return x&&typeof x==='object'?x:{};}catch(e){return {};}}
+function _kcSaveState(s){try{localStorage.setItem(KC_STATE_LS_KEY,JSON.stringify(s));}catch(e){}}
+function _kcSetStatus(id,status,opt){
+  const s=_kcState();
+  if(!s[id])s[id]={};
+  s[id].status=status;
+  if(opt&&opt.note)s[id].editNote=opt.note;
+  s[id].approvedBy=currentUser?.name||'-';
+  s[id].approvedAt=new Date().toISOString().slice(0,10);
+  _kcSaveState(s);
+}
+function getAIKnowledgeCardCandidates(){
+  // 5事典 × 5件 = 25 件初期候補（packet 380 で AI 自動生成された想定）
+  return [
+    // 不動産マメ知識大辞典
+    {id:'cand-re-001',dict:'realestate',title:'固定資産評価額と実勢価格の違い',category:'査定基礎',difficulty:'beginner',scenes:['appraisal'],keyword:'評価額 vs 実勢価格',oneLine:'固定資産評価額は実勢価格の 60〜70% 目安。',howToUse:'お客様の「役所からの評価額」と査定額のギャップを最初に説明。',example:'役所評価 2100 万円 → 実勢相場 3000 万円程度のケース。',ngExample:'「役所評価が正しいです」と説明。',okExample:'「役所評価は税金計算用です。実勢は別途査定します。」',todayAction:'評価額と実勢のギャップ説明テンプレを作る。',relatedAI:['豊臣秀吉','九条鞍馬'],caution:'地域・物件で変動。最新地価公示も参照。',genReason:'評価額の混同で査定説明が長引くケースが多いため',dupCheck:'unique',qualityScore:100,ethicsCheck:'pass',createdAt:'2026-05-16'},
+    {id:'cand-re-002',dict:'realestate',title:'再建築不可物件の確認ポイント',category:'物件調査',difficulty:'intermediate',scenes:['appraisal','mandate'],keyword:'再建築不可',oneLine:'接道義務（建築基準法 42 条）を満たさない物件は建替不可。',howToUse:'物件調査時に「2m 道路接道」を必ず確認。',example:'路地裏物件、私道のみ接道、43 条但し書きの可否確認。',ngExample:'「再建築できます」と未確認のまま伝える。',okExample:'「現状は再建築不可の可能性があります。役所で確認しましょう。」',todayAction:'担当物件で再建築可否を未確認のものをリストアップ。',relatedAI:['豊臣秀吉','九条鞍馬','徳川家康'],caution:'業法上の重要事項。誤伝達は損害賠償リスク。',genReason:'再建築不可物件の確認漏れは契約後トラブルになりやすいため',dupCheck:'unique',qualityScore:100,ethicsCheck:'pass',createdAt:'2026-05-16'},
+    {id:'cand-re-003',dict:'realestate',title:'越境がある物件の初動',category:'物件調査',difficulty:'intermediate',scenes:['appraisal','mandate'],keyword:'越境',oneLine:'隣地への越境（屋根 / 樹木 / 配管）は事前確認 + 覚書化。',howToUse:'査定訪問で目視 + 隣地境界も確認。',example:'屋根が 30cm 越境 → 隣地所有者と覚書交換。',ngExample:'越境を見つけても伝えない。',okExample:'「越境がございますので、覚書交換が必要です。」',todayAction:'越境チェックリストを作成。',relatedAI:['豊臣秀吉','九条鞍馬'],caution:'越境を伝えないと契約後問題化。重要事項説明書に記載。',genReason:'越境物件は契約直前で発覚すると交渉が破断する',dupCheck:'unique',qualityScore:100,ethicsCheck:'pass',createdAt:'2026-05-16'},
+    {id:'cand-re-004',dict:'realestate',title:'境界未確定の注意点',category:'物件調査',difficulty:'advanced',scenes:['appraisal','mandate'],keyword:'境界未確定',oneLine:'境界未確定物件は売却に時間がかかる。',howToUse:'査定時に登記簿 + 境界標確認、未確定なら測量見積を提案。',example:'境界標がなく隣地と認識相違 → 確定測量必要。',ngExample:'「境界はあとで」と先送り。',okExample:'「ご売却前に確定測量で境界を明確化することをお勧めします。」',todayAction:'担当物件の境界状況を確認。',relatedAI:['豊臣秀吉','九条鞍馬','徳川家康'],caution:'確定測量費用は売主負担が一般的。事前説明必須。',genReason:'境界トラブルは契約後の解約原因になりやすい',dupCheck:'unique',qualityScore:100,ethicsCheck:'pass',createdAt:'2026-05-16'},
+    {id:'cand-re-005',dict:'realestate',title:'空き家売却の初回確認',category:'空き家',difficulty:'intermediate',scenes:['phone','visit','appraisal'],keyword:'空き家',oneLine:'空き家は「相続登記済か」「鍵管理」「劣化状況」を最初に確認。',howToUse:'初回ヒアリングで 3 点セット質問。',example:'「現在の管理状況」「相続登記」「鍵の所在」を確認。',ngExample:'物件情報だけ聞いて訪問日を決める。',okExample:'「空き家のご売却で、相続登記はお済みでしょうか」',todayAction:'空き家初回確認シートを更新。',relatedAI:['豊臣秀吉','徳川家康'],caution:'相続登記未済の場合は司法書士連携。',genReason:'空き家売却は相続登記未済が多く時間がかかる',dupCheck:'unique',qualityScore:100,ethicsCheck:'pass',createdAt:'2026-05-16'},
+    // 営業心理学マメ知識大辞典
+    {id:'cand-sp-001',dict:'sales-psy',title:'返信しやすい質問は 1 つに絞る',category:'follow-up',difficulty:'beginner',scenes:['follow'],keyword:'1 質問の原則',oneLine:'質問が多いと返信が来ない。',howToUse:'SMS / LINE 1 通に質問 1 つ。',example:'「査定書のご感想、1 点だけお伺いしてもよろしいですか？」',ngExample:'「査定額・時期・訪問希望日 を教えてください」',okExample:'1 質問のみで返信ハードルを下げる。',todayAction:'追客テンプレを 1 質問形式に書き換え。',relatedAI:['豊臣秀吉','スティーブ・ジョブズ'],caution:'重複対策：既存 sp-012（既存 100 件に類似カードあり）',genReason:'既存 sp-012 と類似だが、より追客特化',dupCheck:'similar:sp-012',qualityScore:80,ethicsCheck:'pass',createdAt:'2026-05-16'},
+    {id:'cand-sp-002',dict:'sales-psy',title:'高い査定額に流れる心理',category:'price-nego',difficulty:'advanced',scenes:['price','appraisal'],keyword:'高値バイアス',oneLine:'お客様は無意識に最高査定額の会社を選ぶ傾向。',howToUse:'査定額の幅 + 根拠 + リスクをセットで提示。',example:'4500 万円査定 vs 3500 万円査定 → 4500 万円会社を選びがち。',ngExample:'高値を出して勝つ営業。',okExample:'「高値査定は売れ残りリスクがあります。実勢の根拠でご一緒に。」',todayAction:'高値競合時の説明トークを準備。',relatedAI:['豊臣秀吉','徳川家康','九条鞍馬'],caution:'業法上の誇大表示NG。',genReason:'一括査定経由のお客様の高値選好を理解し、適正価格に誘導する',dupCheck:'unique',qualityScore:100,ethicsCheck:'pass',createdAt:'2026-05-16'},
+    {id:'cand-sp-003',dict:'sales-psy',title:'断られた後の再接触',category:'follow-up',difficulty:'intermediate',scenes:['follow'],keyword:'再接触',oneLine:'断られても 3 ヶ月後に状況確認の余地あり。',howToUse:'時間を置いてから別チャネルで「お変わりありませんか」軽く。',example:'3 ヶ月後の市況情報を口実に SMS。',ngExample:'断られた直後に何度も連絡。',okExample:'「お時間が経ったため改めまして市況をお送りします。」',todayAction:'過去お断り顧客のリスト整理。',relatedAI:['豊臣秀吉','徳川家康'],caution:'相手の意思を尊重。連絡頻度は控えめに。',genReason:'断られた直後再接触の頻度過多が断りを強化するため',dupCheck:'similar:sp-052',qualityScore:80,ethicsCheck:'pass',createdAt:'2026-05-16'},
+    {id:'cand-sp-004',dict:'sales-psy',title:'他社比較中の安心材料',category:'mandate',difficulty:'intermediate',scenes:['mandate'],keyword:'他社比較',oneLine:'他社批判ではなく自社の安心材料を 3 つ出す。',howToUse:'地域実績 / 報告制度 / 守秘義務 の 3 点。',example:'「ご比較中ですよね、当社の安心材料を 3 点だけお伝えします」',ngExample:'「他社は囲い込みします」と批判。',okExample:'自社強み 3 点 + 質問の余白。',todayAction:'自社の 3 つの安心材料を整理。',relatedAI:['豊臣秀吉','九条鞍馬'],caution:'他社誹謗中傷NG（業法・倫理）。',genReason:'他社比較場面で誹謗中傷に走るリスクを下げる',dupCheck:'unique',qualityScore:100,ethicsCheck:'pass',createdAt:'2026-05-16'},
+    {id:'cand-sp-005',dict:'sales-psy',title:'机上査定後の訪問提案',category:'follow-up',difficulty:'intermediate',scenes:['follow','appraisal'],keyword:'訪問誘導',oneLine:'机上査定送付後 3 日以内に訪問提案。',howToUse:'査定書送付 → 3 日後 → 「正確な値を出すための訪問」提案。',example:'「机上は概算です。1 時間で正確な値を出させていただけます。」',ngExample:'机上送付後何もしない。',okExample:'机上 → 訪問 → 媒介の 3 ステップ設計。',todayAction:'机上送付後フローを 1-3-7-14 ルールに組込。',relatedAI:['豊臣秀吉','織田信長'],caution:'押し売りにならないよう「ご希望でしたら」のスタンス。',genReason:'机上査定で終わるお客様を訪問に繋げる成功率を上げる',dupCheck:'unique',qualityScore:100,ethicsCheck:'pass',createdAt:'2026-05-16'},
+    // 部下仕事術事典
+    {id:'cand-sub-001',dict:'subordinate',title:'完了報告は相手の不安を減らす',category:'報連相',difficulty:'beginner',scenes:['general'],keyword:'完了報告',oneLine:'完了報告は相手の「進捗どう？」を防ぐ。',howToUse:'タスク完了したらすぐ 1 行報告。',example:'「査定書送付完了しました」のみで OK。',ngExample:'完了したのに報告せず、上司から確認される。',okExample:'完了 → 即報告 → 次タスクへ。',todayAction:'今日の完了タスク 5 件を 1 行報告。',relatedAI:['豊臣秀吉','土方歳三'],caution:'完了報告は習慣化。',genReason:'部下の完了報告漏れが上司の確認コストを上げる',dupCheck:'unique',qualityScore:100,ethicsCheck:'pass',createdAt:'2026-05-16'},
+    {id:'cand-sub-002',dict:'subordinate',title:'分からない時は早く聞く',category:'報連相',difficulty:'beginner',scenes:['general'],keyword:'早期質問',oneLine:'30 分迷うなら 30 秒で聞く。',howToUse:'迷ったら即上司 or 同僚に質問。',example:'契約条件で迷う → 即店長確認。',ngExample:'勝手判断で進める。',okExample:'即質問 → 確認 → 行動。',todayAction:'迷ったら 30 秒以内に質問する習慣化。',relatedAI:['ソルティ','土方歳三'],caution:'同じことを何度も聞かないようメモする。',genReason:'部下の勝手判断ミスを減らす',dupCheck:'similar:sub-008',qualityScore:80,ethicsCheck:'pass',createdAt:'2026-05-16'},
+    {id:'cand-sub-003',dict:'subordinate',title:'期限は自分から確認する',category:'仕事の進め方',difficulty:'beginner',scenes:['general'],keyword:'期限確認',oneLine:'期限不明なら自分から「いつまでに？」と確認。',howToUse:'指示を受けたら期限と完了条件を必ず確認。',example:'「査定書作成ですね、いつまでに完成させればよろしいですか？」',ngExample:'期限を聞かずに「あとで」進める。',okExample:'期限 + 完了条件 + 共有先 を確認。',todayAction:'今日の指示すべてに期限確認をする。',relatedAI:['豊臣秀吉','土方歳三'],caution:'期限不明のまま進めると手戻り。',genReason:'部下が期限不明のまま進めて手戻りすることが多い',dupCheck:'unique',qualityScore:100,ethicsCheck:'pass',createdAt:'2026-05-16'},
+    {id:'cand-sub-004',dict:'subordinate',title:'途中経過を伝える',category:'報連相',difficulty:'intermediate',scenes:['general'],keyword:'中間報告',oneLine:'長い仕事は中間報告で上司の不安を減らす。',howToUse:'3 日以上かかる仕事は中間報告 1 回。',example:'契約書類整理（5 日）→ 3 日目に進捗 50% 報告。',ngExample:'長い仕事を最後まで報告なし。',okExample:'中間報告 + 想定完了日 + 障害点。',todayAction:'進行中の長期タスクの中間報告計画。',relatedAI:['豊臣秀吉','土方歳三'],caution:'中間報告は短く。',genReason:'長期タスクの進捗共有不足が多い',dupCheck:'unique',qualityScore:100,ethicsCheck:'pass',createdAt:'2026-05-16'},
+    {id:'cand-sub-005',dict:'subordinate',title:'仕事を小さく分ける',category:'仕事の進め方',difficulty:'intermediate',scenes:['general'],keyword:'タスク分解',oneLine:'大きな仕事は小さなステップに分けて先延ばし防止。',howToUse:'2 時間以上の仕事を 30 分単位に分割。',example:'査定書作成（2h）→ 物件情報入力 30m / 相場調査 30m / 文章作成 30m / 確認 30m。',ngExample:'「査定書作成」と 1 タスクのまま。',okExample:'分解 → 順次実行 → 完了。',todayAction:'今日の長時間タスクを分解する。',relatedAI:['織田信長','土方歳三'],caution:'分けすぎも非効率。30 分が目安。',genReason:'大タスク一括処理で先延ばしになることが多い',dupCheck:'unique',qualityScore:100,ethicsCheck:'pass',createdAt:'2026-05-16'},
+    // 上司マネージメント事典
+    {id:'cand-sup-001',dict:'superior',title:'指示は完了条件まで伝える',category:'指示出し',difficulty:'intermediate',scenes:['general'],keyword:'完了条件',oneLine:'「これが完了の状態」を明示すると部下は迷わない。',howToUse:'指示時に「成果物」「期限」「品質基準」を 3 点セットで。',example:'「査定書（成果物）を金曜 17 時まで（期限）に、根拠ページ付き（品質）で」',ngExample:'「査定書作って」だけ。',okExample:'3 点セットで指示。',todayAction:'今日の指示すべてを 3 点セットで。',relatedAI:['豊臣秀吉','土方歳三'],caution:'抽象的指示は手戻りの原因。',genReason:'指示の完了条件不明が部下の手戻りを生む',dupCheck:'similar:sup-001',qualityScore:80,ethicsCheck:'pass',createdAt:'2026-05-16'},
+    {id:'cand-sup-002',dict:'superior',title:'注意は人格ではなく行動に向ける',category:'注意',difficulty:'advanced',scenes:['general'],keyword:'行動指導',oneLine:'人格を否定すると関係が壊れる。',howToUse:'「あなたは〜」より「この行動は〜」。',example:'「査定書の数字に誤りがありました（行動）」',ngExample:'「君はミスが多い（人格）」',okExample:'行動を指摘 + 改善策。',todayAction:'注意時に「行動 vs 人格」を意識。',relatedAI:['徳川家康','九条鞍馬'],caution:'人格否定はパワハラリスク。',genReason:'人格否定型注意がパワハラ問題の温床',dupCheck:'similar:sup-006',qualityScore:80,ethicsCheck:'pass',createdAt:'2026-05-16'},
+    {id:'cand-sup-003',dict:'superior',title:'部下の詰まりを先に聞く',category:'進捗確認',difficulty:'intermediate',scenes:['general'],keyword:'詰まり確認',oneLine:'進捗より先に「困っていることは？」を聞く。',howToUse:'1on1 や進捗確認で「困りごと」を最初に。',example:'「今困っていることありますか？」→「進捗は？」の順。',ngExample:'「進捗は？」だけ。',okExample:'困りごと → 進捗 → 次の支援。',todayAction:'1on1 の冒頭で「困りごと」質問を入れる。',relatedAI:['ソルティ','徳川家康'],caution:'詰まりを共有しやすい雰囲気作り。',genReason:'進捗確認だけだと詰まりが見えない',dupCheck:'unique',qualityScore:100,ethicsCheck:'pass',createdAt:'2026-05-16'},
+    {id:'cand-sup-004',dict:'superior',title:'報告しやすい空気を作る',category:'指導',difficulty:'advanced',scenes:['general'],keyword:'報告環境',oneLine:'部下が報告しやすい雰囲気が早期共有を生む。',howToUse:'失敗報告を歓迎する姿勢を明示。',example:'「ミスを共有してくれてありがとう、対応を一緒に考えよう」',ngExample:'「なぜできないんだ」と詰める。',okExample:'感謝 → 事実確認 → 対応 → 仕組み化。',todayAction:'部下のミス報告に「ありがとう」から始める。',relatedAI:['徳川家康','ソルティ'],caution:'失敗を許容しすぎると改善が止まる。バランス。',genReason:'報告しやすい空気がない組織は失敗が隠蔽される',dupCheck:'unique',qualityScore:100,ethicsCheck:'pass',createdAt:'2026-05-16'},
+    {id:'cand-sup-005',dict:'superior',title:'任せた後の確認日を決める',category:'任せ方',difficulty:'intermediate',scenes:['general'],keyword:'確認日設定',oneLine:'任せっぱなしは放置と同じ。',howToUse:'任せる時に「3 日後に進捗確認」を約束。',example:'「この案件、3 日後 17 時に進捗確認しましょう」',ngExample:'任せて放置。',okExample:'任せる + 確認日 + 支援姿勢。',todayAction:'任せ中案件の確認日を全件設定。',relatedAI:['土方歳三','徳川家康'],caution:'確認日を守る。守らないと信頼を失う。',genReason:'任せて放置がよく起こる',dupCheck:'similar:sup-002',qualityScore:80,ethicsCheck:'pass',createdAt:'2026-05-16'},
+    // 経営哲学事典
+    {id:'cand-exe-001',dict:'executive',title:'仕組みで行動を変える',category:'仕組み化',difficulty:'advanced',scenes:['general'],keyword:'仕組み変革',oneLine:'人を変えるより仕組みを変える。',howToUse:'問題行動の根本原因を「仕組み不在」で診断。',example:'追客漏れ多発 → 仕組み（ルーティン化）で解決。',ngExample:'「気をつけろ」と精神論で押す。',okExample:'仕組み → ルール → チェック → 改善。',todayAction:'今月発見した問題行動を仕組みで解決する設計。',relatedAI:['織田信長','エジソン'],caution:'仕組み化と画一化は別物。',genReason:'人を責めても仕組みが直らない',dupCheck:'similar:exe-001',qualityScore:80,ethicsCheck:'pass',createdAt:'2026-05-16'},
+    {id:'cand-exe-002',dict:'executive',title:'評価制度は行動設計である',category:'評価制度',difficulty:'advanced',scenes:['general'],keyword:'評価=行動設計',oneLine:'評価する内容が社員の行動を決める。',howToUse:'評価項目を変える前に「何を評価したいか」を明確化。',example:'反響対応速度を評価 → 5 分以内対応文化が生まれる。',ngExample:'評価を曖昧にして公平性を失う。',okExample:'明確な評価項目 + 数値化 + 公平運用。',todayAction:'評価項目 1 つを見直す。',relatedAI:['徳川家康','織田信長'],caution:'評価項目変更は慎重に。',genReason:'評価制度変更は組織文化を変える最強の手段',dupCheck:'similar:exe-002',qualityScore:80,ethicsCheck:'pass',createdAt:'2026-05-16'},
+    {id:'cand-exe-003',dict:'executive',title:'幹部には判断基準を渡す',category:'幹部育成',difficulty:'advanced',scenes:['general'],keyword:'判断基準共有',oneLine:'幹部育成は権限委譲ではなく判断基準の共有。',howToUse:'経営者の判断ロジックを文書化して共有。',example:'価格交渉判断、採用判断、契約判断の基準を共有。',ngExample:'「君に任せる」だけで判断基準を伝えない。',okExample:'基準書 + 事例 + 質問対応。',todayAction:'店長候補に判断基準シートを 1 つ作る。',relatedAI:['徳川家康','織田信長'],caution:'基準は変化する。定期更新。',genReason:'幹部候補に判断基準が伝わらず迷走することが多い',dupCheck:'unique',qualityScore:100,ethicsCheck:'pass',createdAt:'2026-05-16'},
+    {id:'cand-exe-004',dict:'executive',title:'失敗が早く出る組織を作る',category:'組織文化',difficulty:'advanced',scenes:['general'],keyword:'早期失敗文化',oneLine:'失敗が早く出る組織は強い。',howToUse:'失敗報告を歓迎 + 再発防止を仕組み化 + 個人責任を問わない。',example:'査定ミスを共有 → チェック体制改善 → 同じミス再発なし。',ngExample:'失敗を隠す → 大事故に発展。',okExample:'失敗 → 共有 → 仕組み化 → 改善。',todayAction:'最近のミスから 1 つ仕組み化する。',relatedAI:['エジソン','徳川家康'],caution:'同じ失敗の繰り返しは別途指導。',genReason:'失敗を隠す組織は学習が止まる',dupCheck:'similar:exe-005',qualityScore:80,ethicsCheck:'pass',createdAt:'2026-05-16'},
+    {id:'cand-exe-005',dict:'executive',title:'AI は人を活かすために使う',category:'AI 活用',difficulty:'advanced',scenes:['general'],keyword:'AI = 人の活用',oneLine:'AI で人を減らすのではなく、人の能力を 2 倍にする。',howToUse:'AI に整理・要約・草案を任せ、人は判断・対話・関係構築に集中。',example:'AI 秘書 = 情報整理 + 候補生成、ボス = 最終判断。',ngExample:'AI 導入で人員削減を目指す。',okExample:'AI 活用 → 人の生産性 2 倍 → 雇用維持。',todayAction:'AI に任せる業務領域を 3 つ整理。',relatedAI:['ソルティ','エジソン','スティーブ・ジョブズ'],caution:'最終責任は人。',genReason:'AI を「人を減らす道具」と誤解するリスクを下げる',dupCheck:'similar:exe-009',qualityScore:80,ethicsCheck:'pass',createdAt:'2026-05-16'}
+  ];
+}
+function _kcDictLabel(d){return ({realestate:'📚 不動産マメ知識',['sales-psy']:'🧠 営業心理学',subordinate:'👷 部下仕事術',superior:'👔 上司マネージメント',executive:'🏛 経営哲学'})[d]||d;}
+function _kcStatusLabel(s){return ({candidate:'⏳ 候補',approved:'✅ 承認済',rejected:'❌ 却下',['edit-pending']:'✏ 修正待ち'})[s||'candidate']||s;}
+function _kcStatusColor(s){return ({candidate:'#94a3b8',approved:'#15803d',rejected:'#b91c1c',['edit-pending']:'#c2410c'})[s||'candidate']||'#475569';}
+function _kcEthicsLabel(e){return ({pass:'✅ pass',caution:'⚠ caution',fail:'❌ fail'})[e]||e;}
+function renderKnowledgeCandidateBox(){
+  const root=document.getElementById('kc-cards');if(!root)return;
+  const cands=getAIKnowledgeCardCandidates();
+  const state=_kcState();
+  const u=currentUser;
+  const canApprove=canApproveCandidates(u);
+  const e=_spEsc;
+  if(!window._kcFilter)window._kcFilter={dict:'',status:'',dupOnly:false,qHigh:false};
+  const f=window._kcFilter;
+  // フィルター UI
+  const filtersEl=document.getElementById('kc-filters');
+  if(filtersEl){
+    const dicts=[['realestate','不動産'],['sales-psy','営業心理学'],['subordinate','部下仕事術'],['superior','上司マネージメント'],['executive','経営哲学']];
+    let h='<div style="display:flex;gap:6px;flex-wrap:wrap;font-size:11px;">'
+      +'<select id="kc-f-dict" style="padding:4px 6px;border:1px solid #ccc;border-radius:4px;"><option value="">対象事典(全)</option>'
+      +dicts.map(d=>'<option value="'+d[0]+'"'+(f.dict===d[0]?' selected':'')+'>'+d[1]+'</option>').join('')+'</select>'
+      +'<select id="kc-f-status" style="padding:4px 6px;border:1px solid #ccc;border-radius:4px;"><option value="">承認状態(全)</option>'
+      +['candidate','approved','rejected','edit-pending'].map(s=>'<option value="'+s+'"'+(f.status===s?' selected':'')+'>'+_kcStatusLabel(s)+'</option>').join('')+'</select>'
+      +'<label style="display:inline-flex;align-items:center;gap:3px;"><input type="checkbox" id="kc-f-dup"'+(f.dupOnly?' checked':'')+'>重複あり</label>'
+      +'<label style="display:inline-flex;align-items:center;gap:3px;"><input type="checkbox" id="kc-f-q"'+(f.qHigh?' checked':'')+'>品質 80+</label>'
+      +'</div>';
+    filtersEl.innerHTML=h;
+    document.getElementById('kc-f-dict').onchange=ev=>{f.dict=ev.target.value;renderKnowledgeCandidateBox();};
+    document.getElementById('kc-f-status').onchange=ev=>{f.status=ev.target.value;renderKnowledgeCandidateBox();};
+    document.getElementById('kc-f-dup').onchange=ev=>{f.dupOnly=ev.target.checked;renderKnowledgeCandidateBox();};
+    document.getElementById('kc-f-q').onchange=ev=>{f.qHigh=ev.target.checked;renderKnowledgeCandidateBox();};
+  }
+  // サマリ
+  const all=cands.slice();
+  const counts={candidate:0,approved:0,rejected:0,'edit-pending':0};
+  all.forEach(c=>{const s=(state[c.id]&&state[c.id].status)||'candidate';counts[s]=(counts[s]||0)+1;});
+  const sumEl=document.getElementById('kc-summary');
+  if(sumEl){
+    sumEl.innerHTML='<div style="font-size:12px;color:#475569;background:#f8fafc;padding:8px 10px;border-radius:6px;margin-bottom:8px;">'
+      +'全 '+all.length+' 件 ／ '
+      +'⏳ 候補 <b>'+counts.candidate+'</b> ／ '
+      +'✅ 承認済 <b>'+counts.approved+'</b> ／ '
+      +'❌ 却下 <b>'+counts.rejected+'</b> ／ '
+      +'✏ 修正待ち <b>'+counts['edit-pending']+'</b>'
+      +'</div>';
+  }
+  // フィルタリング
+  let list=all.slice();
+  if(f.dict)list=list.filter(c=>c.dict===f.dict);
+  if(f.status)list=list.filter(c=>((state[c.id]&&state[c.id].status)||'candidate')===f.status);
+  if(f.dupOnly)list=list.filter(c=>c.dupCheck&&c.dupCheck!=='unique');
+  if(f.qHigh)list=list.filter(c=>(c.qualityScore||0)>=80);
+  if(!list.length){root.innerHTML='<div style="font-size:12px;color:#666;padding:20px;text-align:center;">該当する候補がありません。</div>';return;}
+  // カード
+  let h='<div style="display:grid;grid-template-columns:1fr;gap:8px;">';
+  list.forEach(c=>{
+    const st=(state[c.id]&&state[c.id].status)||'candidate';
+    const stColor=_kcStatusColor(st);
+    const dupBadge=(c.dupCheck&&c.dupCheck!=='unique')?'<span style="font-size:10px;background:#fef3c7;color:#92400e;padding:1px 6px;border-radius:8px;">⚠ '+e(c.dupCheck)+'</span>':'';
+    h+='<div style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:10px;border-left:4px solid '+stColor+';">'
+      +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px;flex-wrap:wrap;">'
+      +'<div style="font-weight:700;font-size:13px;color:#0a3d7c;flex:1;">'+e(c.title)+'</div>'
+      +'<span style="font-size:10px;background:'+stColor+';color:#fff;padding:2px 8px;border-radius:8px;white-space:nowrap;">'+_kcStatusLabel(st)+'</span>'
+      +'</div>'
+      +'<div style="font-size:10px;color:#666;margin-top:2px;">'+e(_kcDictLabel(c.dict))+' ／ '+_spDiffLabel(c.difficulty)+' ／ '+e(c.category)+'</div>'
+      +'<div style="font-size:11px;color:#444;margin-top:4px;">'+e(c.oneLine)+'</div>'
+      +'<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:6px;font-size:10px;">'
+      +'<span style="background:'+(c.qualityScore>=90?'#dcfce7':c.qualityScore>=70?'#fef3c7':'#fee2e2')+';color:#0a3d7c;padding:1px 6px;border-radius:8px;">品質 '+c.qualityScore+'</span>'
+      +'<span style="background:#e0e7ff;color:#3730a3;padding:1px 6px;border-radius:8px;">'+_kcEthicsLabel(c.ethicsCheck)+'</span>'
+      +dupBadge
+      +'</div>'
+      +'<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;">'
+      +'<button onclick="showKnowledgeCandidateDetail(\''+e(c.id)+'\')" style="font-size:11px;padding:4px 10px;background:#0a3d7c;color:#fff;border:0;border-radius:4px;cursor:pointer;">詳細を見る</button>'
+      +(canApprove?'<button onclick="_kcSetStatus(\''+e(c.id)+'\',\'approved\');renderKnowledgeCandidateBox();" style="font-size:11px;padding:4px 10px;background:#15803d;color:#fff;border:0;border-radius:4px;cursor:pointer;">✅ 承認</button>':'')
+      +(canApprove?'<button onclick="_kcSetStatus(\''+e(c.id)+'\',\'rejected\');renderKnowledgeCandidateBox();" style="font-size:11px;padding:4px 10px;background:#b91c1c;color:#fff;border:0;border-radius:4px;cursor:pointer;">❌ 却下</button>':'')
+      +(canApprove?'<button onclick="_kcSetStatus(\''+e(c.id)+'\',\'edit-pending\');renderKnowledgeCandidateBox();" style="font-size:11px;padding:4px 10px;background:#c2410c;color:#fff;border:0;border-radius:4px;cursor:pointer;">✏ 修正待ち</button>':'')
+      +'</div>'
+      +'</div>';
+  });
+  h+='</div>';
+  if(!canApprove)h+='<div style="font-size:11px;color:#666;margin-top:8px;">※ 承認 / 却下は admin / owner / 店長のみ可能です。詳細閲覧は全員可。</div>';
+  root.innerHTML=h;
+}
+function showKnowledgeCandidateDetail(id){
+  const cands=getAIKnowledgeCardCandidates();
+  const c=cands.find(x=>x.id===id);if(!c)return;
+  const state=_kcState();
+  const st=(state[id]&&state[id].status)||'candidate';
+  const e=_spEsc;
+  const ex=document.getElementById('kc-detail-modal');if(ex)ex.remove();
+  const modal=document.createElement('div');
+  modal.id='kc-detail-modal';
+  modal.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:14px;';
+  modal.innerHTML='<div style="background:#fff;border-radius:10px;max-width:560px;width:100%;max-height:92vh;overflow:auto;padding:18px;font-size:13px;border-top:6px solid '+_kcStatusColor(st)+';">'
+    +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px;">'
+    +'<div><div style="font-size:11px;color:#666;">'+e(_kcDictLabel(c.dict))+' ／ '+_spDiffLabel(c.difficulty)+' ／ '+e(c.category)+'</div>'
+    +'<div style="font-size:17px;font-weight:800;color:#0a3d7c;">'+e(c.title)+'</div>'
+    +'<div style="font-size:11px;color:#475569;margin-top:2px;">キーワード：<b>'+e(c.keyword)+'</b> ／ 状態：<b>'+_kcStatusLabel(st)+'</b></div></div>'
+    +'<button onclick="document.getElementById(\'kc-detail-modal\').remove()" style="font-size:18px;background:0;border:0;cursor:pointer;color:#666;">✕</button></div>'
+    +'<div style="background:#f8fafc;padding:8px 10px;border-radius:6px;margin-bottom:8px;"><div style="font-size:10px;color:#666;font-weight:700;">ひとことで</div><div>'+e(c.oneLine)+'</div></div>'
+    +'<div style="margin-bottom:8px;"><div style="font-size:10px;color:#666;font-weight:700;">使い方</div><div>'+e(c.howToUse)+'</div></div>'
+    +'<div style="margin-bottom:8px;"><div style="font-size:10px;color:#666;font-weight:700;">具体例</div><div>'+e(c.example)+'</div></div>'
+    +'<div style="background:#fef2f2;padding:8px 10px;border-radius:6px;border-left:3px solid #dc2626;margin-bottom:6px;"><div style="font-size:10px;color:#b91c1c;font-weight:700;">NG例</div><div style="font-size:12px;">'+e(c.ngExample)+'</div></div>'
+    +'<div style="background:#f0fdf4;padding:8px 10px;border-radius:6px;border-left:3px solid #16a34a;margin-bottom:8px;"><div style="font-size:10px;color:#166534;font-weight:700;">OK例</div><div style="font-size:12px;">'+e(c.okExample)+'</div></div>'
+    +'<div style="background:#fff7ed;padding:8px 10px;border-radius:6px;border-left:3px solid #f97316;margin-bottom:8px;"><div style="font-size:10px;color:#9a3412;font-weight:700;">今日の実践</div><div style="font-size:12px;">'+e(c.todayAction)+'</div></div>'
+    +'<div style="margin-bottom:6px;"><div style="font-size:10px;color:#666;font-weight:700;">関連 AI</div><div style="font-size:11px;">'+(c.relatedAI||[]).map(a=>e(a)).join(' / ')+'</div></div>'
+    +'<div style="background:#fffbeb;padding:8px 10px;border-radius:6px;margin-bottom:8px;"><div style="font-size:10px;color:#92400e;font-weight:700;">⚠ 注意点</div><div style="font-size:11px;">'+e(c.caution)+'</div></div>'
+    +'<div style="background:#f1f5f9;padding:8px 10px;border-radius:6px;margin-bottom:8px;font-size:11px;color:#475569;">'
+    +'<div><b>生成理由：</b>'+e(c.genReason)+'</div>'
+    +'<div style="margin-top:2px;"><b>重複チェック：</b>'+e(c.dupCheck)+'</div>'
+    +'<div style="margin-top:2px;"><b>品質スコア：</b>'+c.qualityScore+' / 100</div>'
+    +'<div style="margin-top:2px;"><b>倫理チェック：</b>'+_kcEthicsLabel(c.ethicsCheck)+'</div>'
+    +'<div style="margin-top:2px;"><b>作成日：</b>'+e(c.createdAt)+'</div>'
+    +'</div>'
+    +'<div style="text-align:right;"><button onclick="document.getElementById(\'kc-detail-modal\').remove()" style="padding:6px 12px;background:#0a3d7c;color:#fff;border:0;border-radius:4px;cursor:pointer;font-size:12px;">閉じる</button></div>'
+    +'</div>';
+  modal.onclick=ev=>{if(ev.target===modal)modal.remove();};
+  document.body.appendChild(modal);
+}
+// マメ知識ポータルに「AI候補箱」ボタンを追加（権限者のみ）
+(function patchKnowledgePortalCandidateButton(){
+  const orig=window.renderKnowledgePortalPage;if(typeof orig!=='function')return;
+  window.renderKnowledgePortalPage=function(){
+    const r=orig.apply(this,arguments);
+    try{
+      const u=currentUser;
+      if(!canApproveCandidates(u))return r;
+      const root=document.getElementById('knowledge-portal-cards');if(!root)return r;
+      if(document.getElementById('kc-portal-btn'))return r;
+      const state=_kcState();
+      const cands=getAIKnowledgeCardCandidates();
+      const pending=cands.filter(c=>!state[c.id]||state[c.id].status==='candidate').length;
+      const div=document.createElement('div');
+      div.id='kc-portal-btn';
+      div.style.cssText='margin-top:12px;padding:10px 12px;background:#fff;border:2px dashed #94a3b8;border-radius:8px;text-align:center;';
+      div.innerHTML='<div style="font-size:11px;color:#475569;font-weight:700;">🆕 AI 事典追加候補箱（管理者・店長のみ）</div>'
+        +'<div style="font-size:11px;color:#666;margin-top:2px;">未承認候補：<b>'+pending+'</b> 件</div>'
+        +'<button onclick="switchPage(\'knowledge-candidate-box\')" style="margin-top:6px;font-size:12px;padding:6px 14px;background:#475569;color:#fff;border:0;border-radius:4px;cursor:pointer;">候補箱を開く →</button>';
+      root.appendChild(div);
+    }catch(e){}
+    return r;
+  };
+})();
+// switchPage 分岐追加
+(function patchSwitchPageKnowledgeCandidateBox(){
+  const orig=window.switchPage;if(typeof orig!=='function')return;
+  window.switchPage=function(pg){
+    if(pg==='knowledge-candidate-box'){
+      // 新画面を動的に作成 or 既存表示切替（簡易：page-knowledge-portal を使い回し、内容差替）
+      // 安全のため新規 div を body に append し、既存 page クラスをすべて off にする
+      let kcPage=document.getElementById('page-knowledge-candidate-box');
+      if(!kcPage){
+        kcPage=document.createElement('div');
+        kcPage.id='page-knowledge-candidate-box';
+        kcPage.className='page';
+        kcPage.innerHTML='<div style="padding:14px 14px 80px;max-width:760px;margin:0 auto">'
+          +'<div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;">'
+          +'<button onclick="switchPage(\'knowledge-portal\')" style="font-size:11px;padding:4px 10px;background:#f1f5f9;color:#475569;border:0;border-radius:4px;cursor:pointer;">← マメ知識ポータルに戻る</button>'
+          +'<button onclick="switchPage(\'dash\')" style="font-size:11px;padding:4px 10px;background:#f1f5f9;color:#475569;border:0;border-radius:4px;cursor:pointer;">← ホームに戻る</button>'
+          +'</div>'
+          +'<h2 style="font-size:18px;color:#0a3d7c;margin:0 0 4px;font-weight:800">🆕 AI 事典追加候補箱</h2>'
+          +'<div style="font-size:11px;color:#666;margin-bottom:10px">AI が生成した候補カードを管理者・店長が承認 / 却下 / 修正待ちに分類します（社内ツール）</div>'
+          +'<div style="font-size:11px;color:#9a3412;background:#fff7ed;border-left:3px solid #f97316;padding:6px 10px;border-radius:4px;margin-bottom:10px;">⚠ 承認済み候補は次回 Claude Code 作業時に正式事典へ反映。完全自動追加は行いません。</div>'
+          +'<div id="kc-summary"></div>'
+          +'<div id="kc-filters" style="margin-bottom:10px"></div>'
+          +'<div id="kc-cards"></div>'
+          +'<div style="margin-top:20px;display:flex;gap:6px;justify-content:center;flex-wrap:wrap;">'
+          +'<button onclick="switchPage(\'knowledge-portal\')" style="font-size:12px;padding:8px 14px;background:#f1f5f9;color:#475569;border:0;border-radius:4px;cursor:pointer;">← マメ知識ポータルに戻る</button>'
+          +'<button onclick="switchPage(\'dash\')" style="font-size:12px;padding:8px 14px;background:#f1f5f9;color:#475569;border:0;border-radius:4px;cursor:pointer;">← ホームに戻る</button>'
+          +'</div>'
+          +'</div>';
+        document.body.appendChild(kcPage);
+      }
+      document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));
+      kcPage.classList.add('on');
+      renderKnowledgeCandidateBox();
+      return;
+    }
+    return orig.apply(this,arguments);
+  };
+})();
+// ==== ここまで packet 380 AI 事典追加候補箱 ====
 </script>
 </body>
 </html>
