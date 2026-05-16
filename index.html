@@ -6,7 +6,7 @@ body.dark{--bg:#0f172a;--s1:#1e293b;--s2:#273347;--s3:#1a2a3f;--bo:#2d3f55;--bo2
 body.dark .topnav{background:linear-gradient(135deg,#0f172a,#1e3a5f)}
 body.dark .kth{background:linear-gradient(135deg,#0f172a,#1e3a5f)}
 body.dark .ls{background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 50%,#2563eb 100%)}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:13px;color:var(--t1);background:var(--bg);min-height:100vh}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:13px;color:var(--t1);background:var(--bg);min-height:100vh;overflow-x:hidden}
 .app{background:var(--bg);min-height:100vh}
 #login-screen{display:block}#main-app{display:none}.ls{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(135deg,#071e3d 0%,#0a3d7c 50%,#1a6abf 100%);padding:28px}
 .ll{display:flex;align-items:center;gap:10px;margin-bottom:5px}
@@ -6132,12 +6132,12 @@ function renderSalesActionCounterWidget(targetContainerSelector,asAdmin){
       +'<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-top:6px;">';
     list.forEach(it=>{
       const v=s.counts[it.id]||0;
-      h+='<div style="display:flex;justify-content:space-between;align-items:center;border:1px solid #f1f5f9;padding:4px 6px;border-radius:4px;">'
-        +'<div style="font-size:11px;flex:1;">'+it.label+'</div>'
-        +'<button data-sadec="'+it.id+'" style="font-size:11px;padding:1px 6px;background:#f1f5f9;border:0;border-radius:3px;cursor:pointer;">−</button>'
-        +'<div style="font-size:13px;font-weight:700;color:#0a3d7c;min-width:24px;text-align:center;">'+v+'</div>'
-        +'<button data-sainc="'+it.id+'" style="font-size:11px;padding:1px 6px;background:#dbeafe;color:#1e40af;border:0;border-radius:3px;cursor:pointer;">＋</button>'
-        +'<div style="font-size:10px;color:#888;margin-left:3px;">'+it.unit+'</div>'
+      h+='<div style="display:flex;justify-content:space-between;align-items:center;border:1px solid #f1f5f9;padding:6px 8px;border-radius:4px;gap:4px;">'
+        +'<div style="font-size:11px;flex:1;min-width:0;">'+it.label+'</div>'
+        +'<button data-sadec="'+it.id+'" style="font-size:14px;font-weight:700;padding:6px 10px;min-width:36px;min-height:32px;background:#f1f5f9;border:0;border-radius:4px;cursor:pointer;">−</button>'
+        +'<div style="font-size:13px;font-weight:700;color:#0a3d7c;min-width:28px;text-align:center;">'+v+'</div>'
+        +'<button data-sainc="'+it.id+'" style="font-size:14px;font-weight:700;padding:6px 10px;min-width:36px;min-height:32px;background:#dbeafe;color:#1e40af;border:0;border-radius:4px;cursor:pointer;">＋</button>'
+        +'<div style="font-size:10px;color:#888;">'+it.unit+'</div>'
         +'</div>';
     });
     h+='</div>'
