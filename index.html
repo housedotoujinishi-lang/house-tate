@@ -110,6 +110,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-siz
 .lbtn{padding:3px 7px;border-radius:11px;border:1.5px solid rgba(255,255,255,.2);background:transparent;color:rgba(255,255,255,.6);font-size:9px;font-weight:700;cursor:pointer}
 .lbtn.on{background:var(--gold);color:var(--navy);border-color:var(--gold)}
 .tbadd{padding:3px 8px;border-radius:11px;border:1.5px solid rgba(255,255,255,.25);background:transparent;color:var(--gold);font-size:10px;font-weight:700;cursor:pointer}
+/* packet 394: スマホ用「📅 予定」ボタン（デフォルト PC では非表示、@media 内で表示）*/
+.tbadd-mobile-only{display:none}
 .tbtabs{display:flex;background:var(--s3);border-bottom:1px solid var(--bo)}
 .tbtab{flex:1;padding:6px 3px;text-align:center;font-size:9px;font-weight:700;color:var(--t3);cursor:pointer;border:none;background:transparent;border-bottom:2px solid transparent}
 .tbtab.on{color:var(--navy);border-bottom-color:var(--navy);background:var(--s1)}
@@ -471,11 +473,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-siz
   .lbtn{display:none}
   /* packet 392: 右側カレンダー領域内の入力欄系のみ非表示（ToDo 一覧 / 完了率 / カレンダー本体 / KPI は残す） */
   #cal-right .tdar{display:none!important}            /* ToDo 入力欄 */
-  #cal-right #ev-add-bar{display:none!important}      /* 予定追加バー + メモ */
+  #cal-right #ev-add-bar{display:none!important}      /* 予定追加バー + メモ（packet 394 で開閉対応）*/
+  #cal-right #ev-add-bar.ev-add-bar-open{display:block!important}  /* packet 394: スマホ「📅 予定」ボタンで開く */
   #cal-right .bpnls{display:none!important}           /* 下部「未割当タスク」パネル */
   /* packet 392: タスクフォームはデフォルト非表示、「＋追加」ボタンで開閉 */
   #tb-form{display:none!important}
   #tb-form.tb-form-open{display:block!important}
+  /* packet 394: スマホ用「📅 予定」ボタンをタスクボード上部に表示 */
+  .tbadd-mobile-only{display:inline-flex!important}
   .bot-panels,.bottom-panels{grid-template-columns:1fr!important}
   #pool-preview{display:none}
 
@@ -693,7 +698,7 @@ body.task-dragging [data-id]:not(.dragging-this){opacity:1!important}
       <div class="tb" id="tb-panel">
         <div class="tbh">
           <div class="tbhl"><div class="tbt">📋 タスクボード</div><button class="lbtn" id="lay-both">＋カレンダー</button><button class="lbtn on" id="lay-board">ボードのみ</button></div>
-          <button class="tbadd" id="tb-add">＋ 追加</button>
+          <button class="tbadd" id="tb-add">＋ 追加</button><button class="tbadd tbadd-mobile-only" id="tb-add-ev" style="margin-left:4px">📅 予定</button>
         </div>
         <div class="tbform" id="tb-form" style="display:block">
           <div class="tfl">タスク内容</div><input class="tfi" id="tf-title" placeholder="例：山田様に架電してアポ確認"/>
@@ -7185,6 +7190,41 @@ function showKnowledgeCandidateDetail(id){
 // packet 390: switchPage 動的生成 IIFE は無効化（HTML 静的定義 + switchPage 本体分岐に移行）
 // 本体 switchPage 内で `if(pg==='knowledge-candidate-box'){try{renderKnowledgeCandidateBox();}catch(e){...}}` を直接実行
 // 旧 IIFE 動的生成は body 直下 append で表示位置がズレ空白表示問題の原因のため削除
+
+// ==== packet 394 スマホ予定追加導線 ====
+// 既存 #ev-add-bar をスマホ用「📅 予定」ボタンで開閉
+// 既存 ef-close / ef-save の onclick は維持し、追加で ev-add-bar-open クラスも除去
+(function patchEvAddBarMobile(){
+  const init=()=>{
+    const bar=document.getElementById('ev-add-bar');
+    const btn=document.getElementById('tb-add-ev');
+    if(!bar||!btn)return;
+    if(btn.dataset.packet394Bound==='1')return;
+    btn.dataset.packet394Bound='1';
+    // 「📅 予定」ボタン押下 → ev-add-bar-open クラスをトグル + 既存 setupEvForm 呼出
+    btn.addEventListener('click',function(){
+      try{
+        const opening=!bar.classList.contains('ev-add-bar-open');
+        bar.classList.toggle('ev-add-bar-open');
+        // PC 用 style.display も併用（既存ロジック互換）
+        bar.style.display=opening?'block':'none';
+        if(opening){
+          if(typeof setupEvForm==='function'){try{setupEvForm();}catch(e){}}
+          const t=document.getElementById('ef-t');if(t)setTimeout(()=>{try{t.focus();}catch(e){}},100);
+        }
+      }catch(e){}
+    });
+    // ef-close / ef-save 押下時に ev-add-bar-open クラスも除去（既存 onclick と共存）
+    const efClose=document.getElementById('ef-close');
+    const efSave=document.getElementById('ef-save');
+    const removeOpen=()=>{try{bar.classList.remove('ev-add-bar-open');}catch(e){}};
+    if(efClose)efClose.addEventListener('click',removeOpen);
+    if(efSave)efSave.addEventListener('click',removeOpen);
+  };
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);
+  else init();
+})();
+// ==== ここまで packet 394 ====
 
 // ==== packet 392 スマホタスク画面 入力パネル開閉 ====
 // 「＋追加」ボタンで tb-form の表示をトグル（スマホ時の主要動線）
