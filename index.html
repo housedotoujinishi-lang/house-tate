@@ -6865,6 +6865,100 @@ function showRoleKnowledgeDetail(mode,id){
   };
 })();
 // ==== ここまで packet 360 辞典ポータル + ロール別辞典 ====
+
+// ==== packet 375 ホーム画面整理・役職別司令塔化 静的MVP ====
+function _homeRoleLabel(u){
+  if(_isExecutive(u))return {label:'🛡 管理者ビュー',color:'#1e3a8a',hint:'全社状況・未完了・経営判断'};
+  const r=u?.role||'';
+  if(r.indexOf('店長')>=0)return {label:'🏪 店長ビュー',color:'#c2410c',hint:'店舗ルーティン・追客漏れ・店長確認'};
+  if(r.indexOf('事務')>=0||r.indexOf('サポート')>=0)return {label:'🗂 サポートビュー',color:'#0369a1',hint:'勤怠・書類・契約準備・店舗連絡'};
+  if(r.indexOf('エージェント')>=0)return {label:'⚡ エージェントビュー',color:'#15803d',hint:'反響・架電・追客・査定書・次回連絡'};
+  return {label:'📋 スタッフビュー',color:'#475569',hint:''};
+}
+function _homeTodayKeyItems(u){
+  if(_isExecutive(u))return ['全社未完了 / 完了率を確認','店長確認待ちを確認','勤怠修正の有無','今日の経営哲学カード'];
+  const r=u?.role||'';
+  if(r.indexOf('店長')>=0)return ['エージェント別未完了','店舗ルーティン完了率','追客漏れの確認','店長確認待ち','今日の上司マネージメント'];
+  if(r.indexOf('エージェント')>=0)return ['自分の本日タスク','自分のルーティン','新規反響確認','次回連絡予定','今日の営業心理学 / 部下仕事術'];
+  if(r.indexOf('事務')>=0||r.indexOf('サポート')>=0)return ['勤怠確認','書類確認','店舗連絡','契約関連資料整理','今日の部下仕事術'];
+  return ['本日タスク','本日ルーティン'];
+}
+function _homeTodayLearningSuggestion(u){
+  if(_isExecutive(u)){
+    const tips=getRoleKnowledgeTips('executive');
+    if(tips.length){const t=tips[_rkTodayPickIndex(3,tips.length)];return {dict:'経営哲学事典',title:t.title,oneLine:t.oneLine,action:'window._roleKnowledgeMode=\'executive\';switchPage(\'role-knowledge\')'};}
+  }
+  const r=u?.role||'';
+  if(r.indexOf('店長')>=0){
+    const tips=getRoleKnowledgeTips('superior');
+    if(tips.length){const t=tips[_rkTodayPickIndex(2,tips.length)];return {dict:'上司マネージメント事典',title:t.title,oneLine:t.oneLine,action:'window._roleKnowledgeMode=\'superior\';switchPage(\'role-knowledge\')'};}
+  }
+  if(r.indexOf('エージェント')>=0){
+    const t=_spTodayTip();return {dict:'営業心理学',title:t.title,oneLine:t.oneLine,action:'switchPage(\'sales-psy\')'};
+  }
+  const tips=getRoleKnowledgeTips('subordinate');
+  if(tips.length){const t=tips[_rkTodayPickIndex(1,tips.length)];return {dict:'部下仕事術事典',title:t.title,oneLine:t.oneLine,action:'window._roleKnowledgeMode=\'subordinate\';switchPage(\'role-knowledge\')'};}
+  return null;
+}
+function renderHomeCommandHero(){
+  const dash=document.getElementById('page-dash');if(!dash)return;
+  const old=dash.querySelector('.jagai-home-hero');if(old)old.remove();
+  const u=currentUser;
+  const sec=_personalSecretaryFor(u);
+  const meta=_homeRoleLabel(u);
+  const e=_spEsc;
+  const today=new Date();
+  const ymd=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
+  const wd=['日','月','火','水','木','金','土'][today.getDay()];
+  const items=_homeTodayKeyItems(u);
+  const learn=_homeTodayLearningSuggestion(u);
+  const wrap=document.createElement('div');
+  wrap.className='jagai-home-hero';
+  wrap.style.cssText='margin:10px 14px;background:#fff;border:2px solid '+meta.color+';border-radius:10px;padding:14px;box-sizing:border-box;';
+  let h='';
+  h+='<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap;margin-bottom:8px;">'
+    +'<div style="flex:1;min-width:0;">'
+    +'<div style="font-size:11px;color:'+meta.color+';font-weight:700;">📌 '+e(meta.label)+' ／ '+e(ymd)+'('+wd+')</div>'
+    +'<div style="font-size:14px;font-weight:800;color:#0a3d7c;margin-top:2px;">'+e(u?.name||'ゲスト')+' さん（'+e(u?.role||'-')+'）</div>'
+    +'<div style="font-size:11px;color:#666;margin-top:2px;">'+e(meta.hint)+'</div>'
+    +'</div>'
+    +'<div style="font-size:11px;color:#475569;text-align:right;">'
+    +'担当秘書 AI<br><b>'+e(sec.icon)+' '+e(sec.sec)+'</b>'
+    +'</div>'
+    +'</div>';
+  h+='<div style="background:#f8fafc;border-left:3px solid '+meta.color+';padding:8px 10px;border-radius:4px;margin-bottom:8px;">'
+    +'<div style="font-size:11px;color:#475569;font-weight:700;">✅ 今日の重要</div>'
+    +'<ul style="font-size:12px;padding-left:18px;margin:4px 0 0;line-height:1.5;">'
+    +items.slice(0,5).map(x=>'<li>'+e(x)+'</li>').join('')
+    +'</ul>'
+    +'</div>';
+  if(learn){
+    h+='<div style="background:linear-gradient(135deg,#fef3c7,#fde68a);border-radius:6px;padding:8px 10px;margin-bottom:8px;">'
+      +'<div style="font-size:11px;color:#92400e;font-weight:700;">💡 今日の学習：'+e(learn.dict)+'</div>'
+      +'<div style="font-size:13px;font-weight:700;color:#0a3d7c;margin-top:2px;">'+e(learn.title)+'</div>'
+      +'<div style="font-size:11px;color:#444;margin-top:2px;">'+e(learn.oneLine)+'</div>'
+      +'<button onclick="'+learn.action+'" style="margin-top:6px;font-size:11px;padding:5px 12px;background:#92400e;color:#fff;border:0;border-radius:4px;cursor:pointer;">事典を開く →</button>'
+      +'</div>';
+  }
+  h+='<div style="font-size:11px;color:#666;font-weight:700;margin-bottom:4px;">⚡ ショートカット</div>'
+    +'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;">'
+    +'<button onclick="switchPage(\'cal\')" style="font-size:12px;padding:10px 8px;background:#0a3d7c;color:#fff;border:0;border-radius:6px;cursor:pointer;min-height:44px;">📅 タスク</button>'
+    +'<button onclick="switchPage(\'routine\')" style="font-size:12px;padding:10px 8px;background:#0369a1;color:#fff;border:0;border-radius:6px;cursor:pointer;min-height:44px;">📋 ルーティン</button>'
+    +'<button onclick="switchPage(\'knowledge-portal\')" style="font-size:12px;padding:10px 8px;background:#5b21b6;color:#fff;border:0;border-radius:6px;cursor:pointer;min-height:44px;">📚 マメ知識</button>'
+    +'<button onclick="switchPage(\'cal\')" style="font-size:12px;padding:10px 8px;background:#c2410c;color:#fff;border:0;border-radius:6px;cursor:pointer;min-height:44px;">🎯 カウンター</button>'
+    +'<button onclick="switchPage(\'aiteam\')" style="font-size:12px;padding:10px 8px;background:#15803d;color:#fff;border:0;border-radius:6px;cursor:pointer;min-height:44px;">🧠 AI会議</button>'
+    +'<button onclick="switchPage(\'kintai\')" style="font-size:12px;padding:10px 8px;background:#475569;color:#fff;border:0;border-radius:6px;cursor:pointer;min-height:44px;">🕐 勤怠</button>'
+    +'</div>'
+    +'<div style="font-size:10px;color:#888;margin-top:8px;text-align:center;">⬇ 下に詳細情報（担当秘書 AI / 役職別優先確認 / 営業心理学カード等）⬇</div>';
+  wrap.innerHTML=h;
+  const first=dash.firstChild;
+  if(first)dash.insertBefore(wrap,first);else dash.appendChild(wrap);
+}
+(function patchRenderDashHomeHero(){
+  const orig=window.renderDash;if(typeof orig!=='function')return;
+  window.renderDash=function(){const r=orig.apply(this,arguments);try{renderHomeCommandHero();}catch(e){}return r;};
+})();
+// ==== ここまで packet 375 ホーム整理 ====
 </script>
 </body>
 </html>
