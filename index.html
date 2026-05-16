@@ -481,6 +481,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-siz
   #cal-right #ev-add-bar{display:none!important}      /* 予定追加バー + メモ（packet 394 で開閉対応）*/
   #cal-right #ev-add-bar.ev-add-bar-open{display:block!important}  /* packet 394: スマホ「📅 予定」ボタンで開く */
   #cal-right .bpnls{display:none!important}           /* 下部「未割当タスク」パネル */
+  /* packet 399: 右側 .todos ブロック全体を非表示（タイトル + ToDo 一覧 + 入力欄 完全非表示）*/
+  #cal-right .todos{display:none!important}
   /* packet 392: タスクフォームはデフォルト非表示、「＋追加」ボタンで開閉 */
   #tb-form{display:none!important}
   #tb-form.tb-form-open{display:block!important}
@@ -706,6 +708,11 @@ body.task-dragging [data-id]:not(.dragging-this){opacity:1!important}
     </div>
   </div>
   <div class="page" id="page-cal">
+    <!-- packet 399: スマホ専用追加導線を #cal-right の外（cal-layout の上）に移動 -->
+    <div class="mobile-task-action-row" id="mobile-task-action-row-top">
+      <button id="m-todo-add" type="button">＋ ToDo</button>
+      <button id="m-ev-add" type="button">📅 予定</button>
+    </div>
     <div class="cal-layout both" id="cal-layout">
       <div class="tb" id="tb-panel">
         <div class="tbh">
@@ -735,11 +742,7 @@ body.task-dragging [data-id]:not(.dragging-this){opacity:1!important}
         <div class="tbbody" id="tb-body"></div>
       </div>
       <div class="calr" id="cal-right">
-        <!-- packet 396: スマホ専用 追加導線（PC では .mobile-task-action-row{display:none} で非表示）-->
-        <div class="mobile-task-action-row">
-          <button id="m-todo-add" type="button">＋ ToDo</button>
-          <button id="m-ev-add" type="button">📅 予定</button>
-        </div>
+        <!-- packet 399: 旧 .mobile-task-action-row はここから #page-cal 直下に移動済み -->
         <div class="subh">
           <div class="shr1" id="shr1-wrap"></div>
           <div class="shr2">
