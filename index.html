@@ -7522,6 +7522,240 @@ function openEventFormFromCalendar(dateStr,timeStr){
   }
 })();
 // ==== ここまで packet 405 ====
+// ==== packet 407: 音声入力 簡易日時パース（ef-t / day-ef-t input listen、外部依存なし） ====
+(function patchVoiceDatetimeParse(){
+  try{
+    const pad=function(n){return (n<10?'0':'')+n;};
+    const ymd=function(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());};
+    const addDays=function(d,n){const x=new Date(d.getTime());x.setDate(x.getDate()+n);return x;};
+    const addMinutesHM=function(hm,n){
+      const m=/^(\d{1,2}):(\d{2})$/.exec(hm);if(!m)return null;
+      let total=(+m[1])*60+(+m[2])+n;
+      total=((total%(24*60))+24*60)%(24*60);
+      return pad(Math.floor(total/60))+':'+pad(total%60);
+    };
+
+    // 日時パース本体
+    function parseJaDatetime(rawText){
+      if(!rawText)return null;
+      let txt=String(rawText);
+      const now=new Date();
+      let date=null, start=null, end=null;
+      let hadDateTime=false;
+
+      // 1. 日付検出（明後日 → 明日 → 今日 の順、衝突回避）
+      if(/明後日/.test(txt)){date=ymd(addDays(now,2));txt=txt.replace(/明後日/g,' ');hadDateTime=true;}
+      else if(/明日/.test(txt)){date=ymd(addDays(now,1));txt=txt.replace(/明日/g,' ');hadDateTime=true;}
+      else if(/今日/.test(txt)){date=ymd(now);txt=txt.replace(/今日/g,' ');hadDateTime=true;}
+
+      // 2. 時刻：相対（N時間後 → N分後）優先
+      let m=txt.match(/(\d{1,3})\s*時間後/);
+      if(m){
+        const base=new Date(now.getTime()+(+m[1])*60*60*1000);
+        start=pad(base.getHours())+':'+pad(base.getMinutes());
+        if(!date)date=ymd(base);
+        txt=txt.replace(m[0],' ');
+        hadDateTime=true;
+      }
+      if(!start){
+        m=txt.match(/(\d{1,3})\s*分後/);
+        if(m){
+          const base=new Date(now.getTime()+(+m[1])*60*1000);
+          start=pad(base.getHours())+':'+pad(base.getMinutes());
+          if(!date)date=ymd(base);
+          txt=txt.replace(m[0],' ');
+          hadDateTime=true;
+        }
+      }
+
+      // 3. 絶対時刻（午前/午後 H 時 M 分 / 半 / 時のみ）
+      if(!start){
+        // 午前/午後 H 時 M 分
+        m=txt.match(/(午前|午後)\s*(\d{1,2})\s*時\s*(\d{1,2})\s*分/);
+        if(m){
+          let h=+m[2]; const mm=+m[3];
+          if(m[1]==='午後' && h<12) h+=12;
+          if(m[1]==='午前' && h===12) h=0;
+          if(h>=0 && h<=23 && mm>=0 && mm<=59){
+            start=pad(h)+':'+pad(mm);
+            txt=txt.replace(m[0],' ');
+            hadDateTime=true;
+          }
+        }
+      }
+      if(!start){
+        // 午前/午後 H 時半
+        m=txt.match(/(午前|午後)\s*(\d{1,2})\s*時\s*半/);
+        if(m){
+          let h=+m[2];
+          if(m[1]==='午後' && h<12) h+=12;
+          if(m[1]==='午前' && h===12) h=0;
+          if(h>=0 && h<=23){
+            start=pad(h)+':30';
+            txt=txt.replace(m[0],' ');
+            hadDateTime=true;
+          }
+        }
+      }
+      if(!start){
+        // 午前/午後 H 時
+        m=txt.match(/(午前|午後)\s*(\d{1,2})\s*時(?!間)/);
+        if(m){
+          let h=+m[2];
+          if(m[1]==='午後' && h<12) h+=12;
+          if(m[1]==='午前' && h===12) h=0;
+          if(h>=0 && h<=23){
+            start=pad(h)+':00';
+            txt=txt.replace(m[0],' ');
+            hadDateTime=true;
+          }
+        }
+      }
+      if(!start){
+        // H 時 M 分
+        m=txt.match(/(\d{1,2})\s*時\s*(\d{1,2})\s*分(?!後)/);
+        if(m){
+          const h=+m[1]; const mm=+m[2];
+          if(h>=0 && h<=23 && mm>=0 && mm<=59){
+            start=pad(h)+':'+pad(mm);
+            txt=txt.replace(m[0],' ');
+            hadDateTime=true;
+          }
+        }
+      }
+      if(!start){
+        // H 時半
+        m=txt.match(/(\d{1,2})\s*時\s*半/);
+        if(m){
+          const h=+m[1];
+          if(h>=0 && h<=23){
+            start=pad(h)+':30';
+            txt=txt.replace(m[0],' ');
+            hadDateTime=true;
+          }
+        }
+      }
+      if(!start){
+        // H 時のみ
+        m=txt.match(/(\d{1,2})\s*時(?!間)/);
+        if(m){
+          const h=+m[1];
+          if(h>=0 && h<=23){
+            start=pad(h)+':00';
+            txt=txt.replace(m[0],' ');
+            hadDateTime=true;
+          }
+        }
+      }
+
+      // 4. 日付なしで時刻だけあるなら、今日扱い
+      if(!date && start){date=ymd(now);}
+
+      // 5. 終了時刻：明示なければ開始+30分
+      if(start && !end){end=addMinutesHM(start,30);}
+
+      // 6. タイトル整形
+      let title=txt
+        .replace(/[にでをへとから、。「」『』]/g,' ')
+        .replace(/\s+/g,' ')
+        .trim();
+
+      return {date:date, start:start, end:end, title:title, hadDateTime:hadDateTime, original:String(rawText)};
+    }
+
+    // option 存在チェック付き select セット
+    function setSelectIfExists(sel,value){
+      if(!sel || !value)return false;
+      const opts=sel.options;
+      for(let i=0;i<opts.length;i++){
+        if(opts[i].value===value){sel.value=value;return true;}
+      }
+      return false;
+    }
+
+    // パース結果を予定フォームに反映
+    // targetTitleId: 'ef-t' or 'day-ef-t'
+    function applyParseToForm(targetTitleId, parsed){
+      if(!parsed || !parsed.hadDateTime)return;
+      const prefix = (targetTitleId==='day-ef-t') ? 'day-' : '';
+      const daySel  = document.getElementById(prefix+'ef-day');
+      const startSel= document.getElementById(prefix+'ef-s');
+      const endSel  = document.getElementById(prefix+'ef-e');
+      const titleEl = document.getElementById(targetTitleId);
+
+      const updates=[];
+      if(parsed.date && setSelectIfExists(daySel, parsed.date)) updates.push('日付');
+      if(parsed.start && setSelectIfExists(startSel, parsed.start)) updates.push('開始');
+      if(parsed.end && setSelectIfExists(endSel, parsed.end)) updates.push('終了');
+      if(titleEl && parsed.title){
+        titleEl.value=parsed.title;
+        updates.push('タイトル');
+      }else if(titleEl && parsed.hadDateTime && !parsed.title){
+        // タイトルが空になりそうなら元テキスト維持（安全側）
+        titleEl.value = parsed.original;
+      }
+
+      if(updates.length){showVoiceParseToast(updates, parsed, targetTitleId);}
+    }
+
+    // 軽量トースト（CSS なしインライン、3 秒で自動消去）
+    function showVoiceParseToast(updates, parsed, targetTitleId){
+      try{
+        const id='voice-parse-toast-'+targetTitleId;
+        const ex=document.getElementById(id); if(ex)ex.remove();
+        const t=document.createElement('div');
+        t.id=id;
+        t.style.cssText='position:fixed;left:50%;bottom:64px;transform:translateX(-50%);z-index:9998;background:rgba(10,61,124,.94);color:#fff;padding:8px 14px;border-radius:18px;font-size:12px;font-weight:600;box-shadow:0 4px 12px rgba(0,0,0,.25);pointer-events:none;max-width:90vw;line-height:1.5;text-align:center;';
+        const parts=[];
+        if(parsed.date)parts.push('日付:'+parsed.date.slice(5));
+        if(parsed.start)parts.push('開始:'+parsed.start);
+        if(parsed.end)parts.push('終了:'+parsed.end);
+        t.textContent='✓ '+parts.join(' / ')+'  を自動入力';
+        document.body.appendChild(t);
+        setTimeout(function(){try{t.style.transition='opacity .4s';t.style.opacity='0';}catch(e){}},2600);
+        setTimeout(function(){try{t.remove();}catch(e){}},3100);
+      }catch(e){}
+    }
+
+    // 入力欄に listener bind
+    function bindInput(el){
+      if(!el || el.dataset.p407Bound==='1')return;
+      el.dataset.p407Bound='1';
+      el.addEventListener('input',function(){
+        try{
+          const txt=el.value||'';
+          if(!txt)return;
+          // 日時表現を含むかざっとチェック（負荷軽減）
+          if(!/今日|明日|明後日|時|分後|時間後/.test(txt))return;
+          const parsed=parseJaDatetime(txt);
+          if(!parsed || !parsed.hadDateTime)return;
+          applyParseToForm(el.id, parsed);
+        }catch(e){}
+      });
+    }
+
+    function bindAll(){
+      const t1=document.getElementById('ef-t'); if(t1)bindInput(t1);
+      const t2=document.getElementById('day-ef-t'); if(t2)bindInput(t2);
+    }
+
+    function init(){
+      bindAll();
+      const calView=document.getElementById('cal-view');
+      if(calView && window.MutationObserver){
+        try{
+          const obs=new MutationObserver(function(){try{bindAll();}catch(e){}});
+          obs.observe(calView,{childList:true,subtree:true});
+        }catch(e){}
+      }
+    }
+    if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);
+    else init();
+  }catch(e){
+    try{console.warn('packet 407 voice datetime parse init error:',e);}catch(e2){}
+  }
+})();
+// ==== ここまで packet 407 ====
 </script>
 </body>
 </html>
