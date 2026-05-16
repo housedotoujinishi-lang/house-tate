@@ -504,6 +504,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-siz
   /* ── 日ビュー ── */
   .day-layout{grid-template-columns:1fr!important}
   .day-right-col{display:none}
+  /* packet 398: 日ビュー右カラム .dayrc（ToDo / メモ / 予定追加）スマホ非表示 */
+  .dayrc{display:none!important}
+  /* .dayl は元々 grid-template-columns:1fr 210px → 右消えるので 1fr に */
+  .dayl{grid-template-columns:1fr!important}
 
   /* ── KPI ── */
   .kpi-strip{overflow-x:auto;-webkit-overflow-scrolling:touch;flex-wrap:nowrap}
