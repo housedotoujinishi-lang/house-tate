@@ -728,7 +728,7 @@ body.task-dragging [data-id]:not(.dragging-this){opacity:1!important}
           <button class="tbadd" id="tb-add">＋ 追加</button><button class="tbadd tbadd-mobile-only" id="tb-add-ev" style="margin-left:4px">📅 予定</button>
         </div>
         <div class="tbform" id="tb-form" style="display:block">
-          <div class="tfl">タスク内容</div><input class="tfi" id="tf-title" placeholder="例：山田様に架電してアポ確認"/>
+          <div class="tfl">タスク内容</div><input class="tfi" id="tf-title" placeholder="例：山田様に架電してアポ確認"/><button class="voice-btn voice-btn-memo" type="button" data-voice-target="tf-title" title="音声で入力補助">🎙</button>
           <div class="tfr"><div><div class="tfl">カテゴリ</div><select class="tfi" id="tf-cat" style="margin-bottom:0"><option>架電</option><option>追客</option><option>査定</option><option>訪問</option><option>事務</option><option>その他</option></select></div><div><div class="tfl">優先度</div><select class="tfi" id="tf-pri" style="margin-bottom:0"><option value="high">高</option><option value="mid" selected>中</option><option value="low">低</option></select></div></div>
           <div class="tfr" style="margin-top:4px" id="tf-to-row"><div><div class="tfl">割当先</div><select class="tfi" id="tf-to" style="margin-bottom:0"></select></div><div><div class="tfl">期限</div><input class="tfi" type="date" id="tf-dead" style="margin-bottom:0"/></div></div>
           <div class="tfa" style="margin-top:5px"><button class="bc" id="tf-cancel">キャンセル</button><button class="bsv" id="tf-save">割り当て</button></div>
