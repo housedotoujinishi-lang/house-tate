@@ -464,11 +464,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-siz
   .app{border-radius:0;border:none;min-height:100vh}
   body{padding:0}
 
-  /* ── カレンダー/タスク ── */
+  /* ── カレンダー/タスク（packet 392 修正：タスク表示優先・入力欄非表示）── */
   .cal-layout.both{grid-template-columns:1fr!important}
-  #tb-panel{display:none}
+  /* packet 392: タスクボード本体（個人タブ + 全タスク + 未割当 + 完了済）をスマホで表示 */
+  #tb-panel{display:flex!important;flex-direction:column}
   .lbtn{display:none}
-  /* .cal-right は JS で制御 */
+  /* packet 392: 右側カレンダー領域内の入力欄系のみ非表示（ToDo 一覧 / 完了率 / カレンダー本体 / KPI は残す） */
+  #cal-right .tdar{display:none!important}            /* ToDo 入力欄 */
+  #cal-right #ev-add-bar{display:none!important}      /* 予定追加バー + メモ */
+  #cal-right .bpnls{display:none!important}           /* 下部「未割当タスク」パネル */
+  /* packet 392: タスクフォームはデフォルト非表示、「＋追加」ボタンで開閉 */
+  #tb-form{display:none!important}
+  #tb-form.tb-form-open{display:block!important}
   .bot-panels,.bottom-panels{grid-template-columns:1fr!important}
   #pool-preview{display:none}
 
@@ -7178,6 +7185,39 @@ function showKnowledgeCandidateDetail(id){
 // packet 390: switchPage 動的生成 IIFE は無効化（HTML 静的定義 + switchPage 本体分岐に移行）
 // 本体 switchPage 内で `if(pg==='knowledge-candidate-box'){try{renderKnowledgeCandidateBox();}catch(e){...}}` を直接実行
 // 旧 IIFE 動的生成は body 直下 append で表示位置がズレ空白表示問題の原因のため削除
+
+// ==== packet 392 スマホタスク画面 入力パネル開閉 ====
+// 「＋追加」ボタンで tb-form の表示をトグル（スマホ時の主要動線）
+// PC 時は CSS で常時表示、スマホ時は default 非表示 → tb-form-open クラスで表示
+(function patchTbAddToggle(){
+  const init=()=>{
+    const btn=document.getElementById('tb-add');
+    const form=document.getElementById('tb-form');
+    if(!btn||!form)return;
+    if(btn.dataset.packet392Bound==='1')return;
+    btn.dataset.packet392Bound='1';
+    // 既存ハンドラと共存（addEventListener 追加）
+    btn.addEventListener('click',function(ev){
+      try{
+        form.classList.toggle('tb-form-open');
+        // 開いた直後はタイトル入力欄にフォーカス
+        if(form.classList.contains('tb-form-open')){
+          const titleInput=document.getElementById('tf-title');
+          if(titleInput)setTimeout(()=>{try{titleInput.focus();}catch(e){}},100);
+        }
+      }catch(e){}
+    });
+    // 「キャンセル」「割り当て」押下時にスマホでは自動クローズ
+    const cancel=document.getElementById('tf-cancel');
+    const save=document.getElementById('tf-save');
+    const close=()=>{try{form.classList.remove('tb-form-open');}catch(e){}};
+    if(cancel)cancel.addEventListener('click',close);
+    if(save)save.addEventListener('click',close);
+  };
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);
+  else init();
+})();
+// ==== ここまで packet 392 ====
 // ==== ここまで packet 380 AI 事典追加候補箱 ====
 </script>
 </body>
