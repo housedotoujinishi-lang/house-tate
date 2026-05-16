@@ -5064,7 +5064,7 @@ function renderRoutinePage(){
   const tab=window._routineTab||'today';
   // Tabs
   const tabsEl=document.getElementById('routine-tabs');if(tabsEl){
-    const tabs=[['today','今日'],['weekly','毎週'],['monthly','毎月'],['flows','業務フロー']];
+    const tabs=[['today','今日'],['weekly','毎週'],['monthly','毎月'],['flows','業務フロー'],['assignee','担当']];
     tabsEl.innerHTML=tabs.map(t=>'<button class="routine-tab-btn'+(t[0]===tab?' on':'')+'" data-rtab="'+t[0]+'">'+t[1]+'</button>').join('');
     tabsEl.querySelectorAll('.routine-tab-btn').forEach(b=>{b.onclick=()=>{window._routineTab=b.dataset.rtab;renderRoutinePage();};});
   }
@@ -5092,6 +5092,9 @@ function renderRoutinePage(){
       f.steps.forEach(s=>{h+='<div class="routine-flow-step">'+e(s)+'</div>';});
       h+='</div>';
     });
+  }else if(tab==='assignee'){
+    // packet 357 担当者割当タブ
+    try{h+=_renderAssigneeTabHtml();}catch(err){h+='<div style="color:#b91c1c;font-size:12px;">担当者タブ描画エラー：'+e(err.message||'')+'</div>';}
   }else{
     const list=tab==='today'?tmpl.daily:tab==='weekly'?tmpl.weekly:tmpl.monthly;
     const canEdit=canEditRoutines(currentUser);
@@ -6296,6 +6299,232 @@ function renderKintaiEditHistoryWidget(){
   window.switchPage=function(pg){const r=orig.apply(this,arguments);try{if(pg==='kintai')renderKintaiEditHistoryWidget();}catch(e){}return r;};
 })();
 // ==== ここまで packet 348 勤怠修正履歴 UI ====
+
+// ==== packet 357 ルーティン担当者割当タブ 静的MVP ====
+const ROUTINE_ASSIGNMENT_LS_KEY='jagai_routine_assignments_v1';
+function getRoutineAssignments(){
+  try{const x=JSON.parse(localStorage.getItem(ROUTINE_ASSIGNMENT_LS_KEY)||'null');if(x&&typeof x==='object')return x;}catch(e){}
+  return null;
+}
+function saveRoutineAssignments(obj){try{localStorage.setItem(ROUTINE_ASSIGNMENT_LS_KEY,JSON.stringify(obj));return true;}catch(e){return false;}}
+function getCandidateAssignees(){
+  return [
+    {name:'芳村',role:'査定担当 / 管理者同等',secretary:'ソルティ',secretaryIcon:'🧂'},
+    {name:'杤岡',role:'店長',secretary:'加藤鷹',secretaryIcon:'🎩'},
+    {name:'安見',role:'エージェント',secretary:'三上悠亜',secretaryIcon:'💼'},
+    {name:'佐野',role:'エージェント',secretary:'紅音ほたる',secretaryIcon:'🌹'},
+    {name:'冨永',role:'エージェント',secretary:'未定',secretaryIcon:'❓'},
+    {name:'伴',role:'サポート / 事務',secretary:'木村拓哉',secretaryIcon:'⭐'}
+  ];
+}
+function _getInitialRoutineAssignments(){
+  return {
+    'r-d-mgr-1':['杤岡'],'r-d-mgr-2':['杤岡'],'r-d-mgr-3':['芳村','杤岡'],'r-d-mgr-4':['杤岡'],
+    'r-d-agt-1':['安見','佐野','冨永'],'r-d-agt-2':['安見','佐野','冨永'],'r-d-agt-3':['安見','佐野','冨永'],
+    'r-d-agt-4':['安見','佐野','冨永'],'r-d-agt-5':['安見','佐野','冨永'],'r-d-agt-6':['安見','佐野','冨永'],
+    'r-d-sup-1':['伴'],'r-d-sup-2':['伴'],'r-d-sup-3':['伴'],'r-d-sup-4':['伴'],'r-d-sup-5':['伴'],
+    'r-d-ht-4':['杤岡'],'r-d-ht-5':['杤岡'],'r-d-ht-6':['杤岡']
+  };
+}
+function _ensureInitialAssignments(){
+  if(getRoutineAssignments()!==null)return;
+  saveRoutineAssignments(_getInitialRoutineAssignments());
+}
+function getRoutineAssigneesFor(routineId){
+  _ensureInitialAssignments();
+  const a=getRoutineAssignments()||{};
+  return Array.isArray(a[routineId])?a[routineId]:[];
+}
+function _allRoutinesFlat(){
+  const tmpl=getStaticRoutineTemplates();
+  return [].concat(tmpl.daily||[],tmpl.weekly||[],tmpl.monthly||[]);
+}
+function _renderAssigneeTabHtml(){
+  _ensureInitialAssignments();
+  const e=escRoutineHtml;
+  const cands=getCandidateAssignees();
+  const all=_allRoutinesFlat();
+  const a=getRoutineAssignments()||{};
+  const u=currentUser;
+  const myName=u&&u.name?u.name:null;
+  let h='<div style="font-size:11px;color:#666;margin-bottom:8px;">担当者別ルーティン割当一覧（社内ツール表示、顧客情報なし）</div>';
+  // 自分の枠（先頭、ハイライト）
+  if(myName){
+    const mine=all.filter(r=>(a[r.id]||[]).includes(myName));
+    if(mine.length||u){
+      h+='<div style="background:linear-gradient(135deg,#ecfdf5,#d1fae5);border:2px solid #10b981;border-radius:6px;padding:10px;margin-bottom:10px;">';
+      h+='<div style="font-weight:700;color:#065f46;">👤 あなた（'+e(myName)+'）に割り当てられたルーティン：'+mine.length+' 件</div>';
+      if(mine.length){
+        h+='<ul style="font-size:12px;padding-left:18px;margin:6px 0 0;">';
+        mine.forEach(r=>{h+='<li>'+e(r.title)+'（'+e(r.target||'')+'）</li>';});
+        h+='</ul>';
+      }else{h+='<div style="font-size:11px;color:#666;margin-top:4px;">割当ルーティンなし</div>';}
+      h+='</div>';
+    }
+  }
+  // 各担当者
+  cands.forEach(c=>{
+    const list=all.filter(r=>(a[r.id]||[]).includes(c.name));
+    h+='<div style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:10px;margin-bottom:8px;">';
+    h+='<div style="display:flex;justify-content:space-between;align-items:center;"><div><b>'+e(c.name)+'</b> <span style="font-size:10px;color:#666;">（'+e(c.role)+'）</span></div>'
+      +'<div style="font-size:11px;color:#475569;">'+e(c.secretaryIcon)+' '+e(c.secretary)+'</div></div>';
+    if(list.length){
+      h+='<ul style="font-size:12px;padding-left:18px;margin:6px 0 0;">';
+      list.forEach(r=>{h+='<li>'+e(r.title)+'</li>';});
+      h+='</ul>';
+    }else{h+='<div style="font-size:11px;color:#999;margin-top:4px;">担当ルーティンなし</div>';}
+    h+='</div>';
+  });
+  // 未割当（店舗全体以外で割当 0）
+  const unassigned=all.filter(r=>!(a[r.id]&&a[r.id].length)&&(r.target||'')!=='店舗全体');
+  h+='<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:10px;margin-bottom:8px;">';
+  h+='<div style="font-weight:700;color:#b91c1c;">⚠ 未割当ルーティン（'+unassigned.length+'件）</div>';
+  if(unassigned.length){
+    h+='<ul style="font-size:12px;padding-left:18px;margin:6px 0 0;">';
+    unassigned.slice(0,40).forEach(r=>{h+='<li>'+e(r.title)+'（'+e(r.target||'')+'）</li>';});
+    h+='</ul>';
+  }else{h+='<div style="font-size:11px;color:#666;margin-top:4px;">未割当はありません</div>';}
+  h+='</div>';
+  // 編集ボタン
+  if(canEditRoutines(u)){
+    h+='<div style="margin-top:10px;text-align:center;"><button onclick="showAssigneeEditModal()" style="padding:8px 16px;background:#0a3d7c;color:#fff;border:0;border-radius:4px;cursor:pointer;font-size:12px;font-weight:700;">✏ 割当を編集</button></div>';
+  }else{
+    h+='<div style="margin-top:10px;text-align:center;font-size:11px;color:#666;">※ 割当編集は権限者（admin / 店長 / 事務 / サポート / 査定担当）のみ可能です。</div>';
+  }
+  return h;
+}
+function showAssigneeEditModal(){
+  if(!canEditRoutines(currentUser)){alert('編集権限がありません。');return;}
+  const ex=document.getElementById('assignee-edit-modal');if(ex)ex.remove();
+  _ensureInitialAssignments();
+  const all=_allRoutinesFlat();
+  const a=getRoutineAssignments()||{};
+  const e=escRoutineHtml;
+  const cands=getCandidateAssignees();
+  const modal=document.createElement('div');
+  modal.id='assignee-edit-modal';
+  modal.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:14px;';
+  let h='<div style="background:#fff;border-radius:10px;max-width:580px;width:100%;max-height:92vh;overflow:auto;padding:18px;font-size:13px;">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><div style="font-weight:800;font-size:16px;">✏ 担当者割当 編集</div>'
+    +'<button onclick="document.getElementById(\'assignee-edit-modal\').remove()" style="font-size:18px;background:0;border:0;cursor:pointer;color:#666;">✕</button></div>'
+    +'<div style="font-size:11px;color:#666;margin-bottom:10px;">ルーティンを選択 → 担当者を選んで保存 / 役職別ボタンで一括割当 / クリアで未割当に戻す</div>'
+    +'<label style="font-size:11px;font-weight:700;color:#666;">対象ルーティン</label>'
+    +'<select id="aem-routine" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;margin-bottom:10px;">';
+  all.forEach(r=>{h+='<option value="'+e(r.id)+'">'+e(r.title)+' ／ '+e(r.target||'')+' ／ 現割当：'+e((a[r.id]||[]).join(',')||'なし')+'</option>';});
+  h+='</select>'
+    +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">'
+    +'<button data-aembulk="店長" style="font-size:11px;padding:4px 8px;background:#dbeafe;color:#1e40af;border:0;border-radius:3px;cursor:pointer;">店長に割当</button>'
+    +'<button data-aembulk="エージェント" style="font-size:11px;padding:4px 8px;background:#dbeafe;color:#1e40af;border:0;border-radius:3px;cursor:pointer;">エージェント全員</button>'
+    +'<button data-aembulk="事務サポート" style="font-size:11px;padding:4px 8px;background:#dbeafe;color:#1e40af;border:0;border-radius:3px;cursor:pointer;">事務・サポート</button>'
+    +'<button data-aembulk="査定" style="font-size:11px;padding:4px 8px;background:#dbeafe;color:#1e40af;border:0;border-radius:3px;cursor:pointer;">査定担当</button>'
+    +'<button data-aembulk="all" style="font-size:11px;padding:4px 8px;background:#dbeafe;color:#1e40af;border:0;border-radius:3px;cursor:pointer;">全員</button>'
+    +'<button data-aembulk="clear" style="font-size:11px;padding:4px 8px;background:#fee2e2;color:#b91c1c;border:0;border-radius:3px;cursor:pointer;">クリア（未割当）</button>'
+    +'</div>'
+    +'<div style="font-size:11px;font-weight:700;color:#666;">担当者（複数選択可）</div>'
+    +'<div id="aem-checks" style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-top:6px;">';
+  cands.forEach(c=>{h+='<label style="font-size:12px;display:flex;align-items:center;gap:5px;cursor:pointer;border:1px solid #e5e7eb;padding:4px 8px;border-radius:4px;"><input type="checkbox" data-aemname="'+e(c.name)+'"><span><b>'+e(c.name)+'</b> <span style="font-size:10px;color:#666;">'+e(c.secretaryIcon)+' '+e(c.secretary)+'</span></span></label>';});
+  h+='</div>'
+    +'<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">'
+    +'<button onclick="document.getElementById(\'assignee-edit-modal\').remove()" style="padding:8px 14px;background:#eee;border:0;border-radius:4px;cursor:pointer;font-size:12px;">キャンセル</button>'
+    +'<button id="aem-save" style="padding:8px 14px;background:#2563eb;color:#fff;border:0;border-radius:4px;cursor:pointer;font-size:12px;">💾 保存</button>'
+    +'</div>'
+    +'<div style="font-size:10px;color:#666;margin-top:8px;">※ LocalStorage に「ルーティン ID + 担当者名」のみ保存。顧客情報・電話番号・住所・メール等は保存しません。</div>'
+    +'</div>';
+  modal.innerHTML=h;
+  document.body.appendChild(modal);
+  modal.onclick=ev=>{if(ev.target===modal)modal.remove();};
+  // 初期チェック反映
+  function _syncChecks(){
+    const rid=document.getElementById('aem-routine').value;
+    const cur=(getRoutineAssignments()||{})[rid]||[];
+    modal.querySelectorAll('[data-aemname]').forEach(cb=>{cb.checked=cur.includes(cb.dataset.aemname);});
+  }
+  _syncChecks();
+  document.getElementById('aem-routine').onchange=_syncChecks;
+  // 一括ボタン
+  modal.querySelectorAll('[data-aembulk]').forEach(b=>{
+    b.onclick=()=>{
+      const key=b.dataset.aembulk;
+      let targets=[];
+      if(key==='店長')targets=['杤岡'];
+      else if(key==='エージェント')targets=['安見','佐野','冨永'];
+      else if(key==='事務サポート')targets=['伴'];
+      else if(key==='査定')targets=['芳村'];
+      else if(key==='all')targets=cands.map(c=>c.name);
+      else if(key==='clear')targets=[];
+      modal.querySelectorAll('[data-aemname]').forEach(cb=>{cb.checked=targets.includes(cb.dataset.aemname);});
+    };
+  });
+  // 保存
+  document.getElementById('aem-save').onclick=()=>{
+    const rid=document.getElementById('aem-routine').value;
+    const sel=Array.from(modal.querySelectorAll('[data-aemname]')).filter(cb=>cb.checked).map(cb=>cb.dataset.aemname);
+    const cur=getRoutineAssignments()||{};
+    if(sel.length)cur[rid]=sel;else delete cur[rid];
+    saveRoutineAssignments(cur);
+    modal.remove();
+    renderRoutinePage();
+    try{if(document.getElementById('page-cal')?.classList.contains('on'))renderTaskBoard();}catch(e){}
+    try{if(document.getElementById('page-dash')?.classList.contains('on'))renderDash();}catch(e){}
+  };
+}
+// タスクボード反映：既存 appendRoutineToTaskBoard 後に担当者バッジを追加
+(function patchAppendRoutineToTaskBoard(){
+  const orig=window.appendRoutineToTaskBoard;
+  if(typeof orig!=='function')return;
+  window.appendRoutineToTaskBoard=function(body){
+    const r=orig.apply(this,arguments);
+    try{
+      _ensureInitialAssignments();
+      const a=getRoutineAssignments()||{};
+      const sec=body&&body.querySelector?body.querySelector('.tb-routine-section'):null;
+      if(!sec)return r;
+      sec.querySelectorAll('[data-tbrid]').forEach(btn=>{
+        const id=btn.dataset.tbrid;
+        const list=a[id]||[];
+        if(!list.length)return;
+        const card=btn.closest('.tb-routine-card');if(!card)return;
+        const info=card.querySelector('.tb-routine-info');if(!info)return;
+        if(info.querySelector('.tb-routine-assignees'))return;
+        const span=document.createElement('div');
+        span.className='tb-routine-assignees';
+        span.style.cssText='font-size:10px;color:#1e40af;margin-top:2px;';
+        span.textContent='担当：'+list.join(' / ');
+        info.appendChild(span);
+      });
+    }catch(e){}
+    return r;
+  };
+})();
+// ホーム反映：あなたへの割当 N 件 widget
+function renderMyAssignmentsHomeBadge(){
+  const dash=document.getElementById('page-dash');if(!dash)return;
+  const old=dash.querySelector('.jagai-my-assignments');if(old)old.remove();
+  const u=currentUser;if(!u||!u.name)return;
+  _ensureInitialAssignments();
+  const a=getRoutineAssignments()||{};
+  const all=_allRoutinesFlat();
+  const mine=all.filter(r=>(a[r.id]||[]).includes(u.name));
+  if(!mine.length)return;
+  const doneIds=getRoutineDoneIds();
+  const doneMine=mine.filter(r=>doneIds.includes(r.id)).length;
+  const e=escRoutineHtml;
+  const wrap=document.createElement('div');
+  wrap.className='jagai-my-assignments';
+  wrap.style.cssText='margin:10px 14px;padding:10px 12px;background:#eff6ff;border-left:4px solid #2563eb;border-radius:6px;';
+  wrap.innerHTML='<div style="font-size:11px;color:#1e40af;font-weight:700;">📌 あなたに割り当てられたルーティン</div>'
+    +'<div style="font-size:13px;color:#0a3d7c;font-weight:800;margin-top:2px;">'+doneMine+' / '+mine.length+' 件完了</div>'
+    +'<div style="font-size:11px;color:#666;margin-top:2px;">未完了 '+(mine.length-doneMine)+' 件 ／ 詳細はルーティン画面「担当」タブで確認</div>'
+    +'<button onclick="window._routineTab=\'assignee\';switchPage(\'routine\')" style="font-size:11px;padding:4px 10px;margin-top:6px;background:#2563eb;color:#fff;border:0;border-radius:4px;cursor:pointer;">担当タブを開く →</button>';
+  // 司令塔ヘッダーの後 / 役職別優先確認の前 に挿入
+  const focus=dash.querySelector('.jagai-role-focus-list');
+  if(focus)focus.parentNode.insertBefore(wrap,focus);else dash.appendChild(wrap);
+}
+(function patchRenderDashMyAssignments(){
+  const orig=window.renderDash;if(typeof orig!=='function')return;
+  window.renderDash=function(){const r=orig.apply(this,arguments);try{renderMyAssignmentsHomeBadge();}catch(e){}return r;};
+})();
+// ==== ここまで packet 357 担当者割当タブ ====
 </script>
 </body>
 </html>
