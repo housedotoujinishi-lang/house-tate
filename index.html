@@ -2037,7 +2037,7 @@ function renderMonth(){
 document.querySelectorAll('.mjump[data-d]').forEach(el=>{el.onclick=e=>{e.stopPropagation();e.preventDefault();const dstr=el.dataset.d;if(!dstr)return;const[y,m,d]=dstr.split('-').map(Number);selDate=new Date(y,m-1,d);curV='day';document.querySelectorAll('.vp').forEach(x=>x.classList.remove('on'));document.querySelector('.vp[data-v="day"]')?.classList.add('on');render();};});document.querySelectorAll('.erow').forEach(el=>{el.onclick=e=>{e.stopPropagation();const ev=JSON.parse(el.dataset.ev);showEvModal(ev,ev.mi);};});}
 function wkDays(){const a=[];for(let i=0;i<7;i++){const d=new Date(wkStart);d.setDate(wkStart.getDate()+i);a.push(d);}return a;}
 const SLOTS=[];for(let h=9;h<=19;h++){SLOTS.push({h,m:0});SLOTS.push({h,m:30});}
-function renderWeek(){const _bp2=document.getElementById('bot-panels');if(_bp2)_bp2.style.display='grid';const days=wkDays();const vis=visMis();const cols=`36px repeat(7,1fr)`;let h=`<div class="ww"><div class="wi" style="grid-template-columns:${cols}"><div class="whdrow" style="grid-column:1/-1;display:grid;grid-template-columns:${cols}"><div></div>`;days.forEach((d,i)=>{const isTod=isT(d),isSel=d.toDateString()===selDate.toDateString();const nc='whdn'+(isTod?' td':i===5?' sat':i===6?' sun':'');const mi0=vis[0]??0;const st=vis.length===1?getShiftSt(mi0,localStr(d)):'work';const sc=SCOL[st]||SCOL.work;h+=`<div class="whd${isSel?' selc':''}" data-dow="${i}"><div class="whdwd" style="${i===5?'color:var(--navy)':i===6?'color:var(--re)':''}">${WD_JP[i]}</div><div class="${nc} whdn" data-djump="${localStr(d)}" style="cursor:pointer" title="日ビューへ">${d.getDate()}</div>${vis.length===1&&st!=='work'?`<span class="whdsh" style="background:${sc.bg};color:${sc.tx}">${SLBL[st]}</span>`:''}</div>`;});h+=`</div>`;SLOTS.forEach(({h:hr,m:mn})=>{const half=mn===30;h+=`<div class="wslot${half?' half':''}" style="grid-column:1/-1;display:grid;grid-template-columns:${cols}"><div class="wtime">${!half?`${hr}:00`:''}</div>`;days.forEach((d,di)=>{const isTod=isT(d);const dstr=localStr(d);let evs=[];vis.forEach(mi=>{state.events[mi]?.filter(e=>e.date===dstr&&e.sh===hr&&e.sm===mn).forEach(e=>evs.push({...e,mi}));});h+=`<div class="wcell${isTod?' tdbg':''}">`;evs.forEach(e=>{const cs=CAT_S[e.cat]||CAT_S['その他'];const mem=members[e.mi];const dur=(e.eh*60+e.em)-(e.sh*60+e.sm);const ht=Math.max(dur/30*32-4,12);h+=`<div class="evblk" draggable="true" style="top:2px;height:${ht}px;background:${cs.bg};color:${cs.tx};border-left-color:${mem.c};cursor:grab" data-ev='${JSON.stringify(e)}'>${vis.length>1?`[${mem.n[0]}] `:''}${fmt(e.sh,e.sm)} ${e.title}</div>`;});h+=`</div>`;});h+=`</div>`;});h+=`</div></div>`;document.getElementById('cal-view').innerHTML=h;document.querySelectorAll('.whd[data-dow]').forEach(el=>{el.onclick=()=>{selDate=wkDays()[+el.dataset.dow];renderWeek();renderTodoStrip();renderPeriod();};});
+function renderWeek(){const _bp2=document.getElementById('bot-panels');if(_bp2)_bp2.style.display='grid';const days=wkDays();const vis=visMis();const cols=`36px repeat(7,1fr)`;let h=`<div class="ww"><div class="wi" style="grid-template-columns:${cols}"><div class="whdrow" style="grid-column:1/-1;display:grid;grid-template-columns:${cols}"><div></div>`;days.forEach((d,i)=>{const isTod=isT(d),isSel=d.toDateString()===selDate.toDateString();const nc='whdn'+(isTod?' td':i===5?' sat':i===6?' sun':'');const mi0=vis[0]??0;const st=vis.length===1?getShiftSt(mi0,localStr(d)):'work';const sc=SCOL[st]||SCOL.work;h+=`<div class="whd${isSel?' selc':''}" data-dow="${i}"><div class="whdwd" style="${i===5?'color:var(--navy)':i===6?'color:var(--re)':''}">${WD_JP[i]}</div><div class="${nc} whdn" data-djump="${localStr(d)}" style="cursor:pointer" title="日ビューへ">${d.getDate()}</div>${vis.length===1&&st!=='work'?`<span class="whdsh" style="background:${sc.bg};color:${sc.tx}">${SLBL[st]}</span>`:''}</div>`;});h+=`</div>`;SLOTS.forEach(({h:hr,m:mn})=>{const half=mn===30;h+=`<div class="wslot${half?' half':''}" style="grid-column:1/-1;display:grid;grid-template-columns:${cols}"><div class="wtime">${!half?`${hr}:00`:''}</div>`;days.forEach((d,di)=>{const isTod=isT(d);const dstr=localStr(d);let evs=[];vis.forEach(mi=>{state.events[mi]?.filter(e=>e.date===dstr&&e.sh===hr&&e.sm===mn).forEach(e=>evs.push({...e,mi}));});h+=`<div class="wcell${isTod?' tdbg':''}" data-cal-date="${dstr}" data-cal-time="${hr}:${mn===0?'00':'30'}">`;evs.forEach(e=>{const cs=CAT_S[e.cat]||CAT_S['その他'];const mem=members[e.mi];const dur=(e.eh*60+e.em)-(e.sh*60+e.sm);const ht=Math.max(dur/30*32-4,12);h+=`<div class="evblk" draggable="true" style="top:2px;height:${ht}px;background:${cs.bg};color:${cs.tx};border-left-color:${mem.c};cursor:grab" data-ev='${JSON.stringify(e)}'>${vis.length>1?`[${mem.n[0]}] `:''}${fmt(e.sh,e.sm)} ${e.title}</div>`;});h+=`</div>`;});h+=`</div>`;});h+=`</div></div>`;document.getElementById('cal-view').innerHTML=h;document.querySelectorAll('.whd[data-dow]').forEach(el=>{el.onclick=()=>{selDate=wkDays()[+el.dataset.dow];renderWeek();renderTodoStrip();renderPeriod();};});
 document.querySelectorAll('.whdn[data-djump]').forEach(el=>{el.onclick=e=>{e.stopPropagation();e.preventDefault();const dstr=el.dataset.djump;if(!dstr)return;const[y,m,d]=dstr.split('-').map(Number);selDate=new Date(y,m-1,d);curV='day';document.querySelectorAll('.vp').forEach(x=>x.classList.remove('on'));document.querySelector('.vp[data-v="day"]')?.classList.add('on');render();};});document.querySelectorAll('.evblk').forEach(el=>{
   el.onclick=e=>{e.stopPropagation();const ev=JSON.parse(el.dataset.ev);showEvModal(ev,ev.mi);};
   el.ondragstart=e=>{e.dataTransfer.setData('text/plain',JSON.stringify({ev:JSON.parse(el.dataset.ev),mi:el.dataset.ev?JSON.parse(el.dataset.ev).mi:0}));e.dataTransfer.effectAllowed='move';el.style.opacity='.4';};
@@ -2072,7 +2072,7 @@ document.querySelectorAll('.wcell').forEach(cell=>{
   });
 });}
 const DSLOTS=[];for(let h=8;h<=20;h++){DSLOTS.push({h,m:0});DSLOTS.push({h,m:30});}
-function renderDay(){const _bp=document.getElementById('bot-panels');if(_bp)_bp.style.display='none';const vis=visMis();const mi=vis[0]??0;const dstr=ds(selDate);const st=getShiftSt(mi,dstr);const sc=SCOL[st]||SCOL.work;let allEvs=[];vis.forEach(vmi=>{state.events[vmi]?.filter(e=>e.date===dstr).forEach(e=>allEvs.push({...e,mi:vmi}));});allEvs.sort((a,b)=>a.sh*60+a.sm-(b.sh*60+b.sm));let h=`<div class="dayl"><div class="daycol"><div id="day-timeline" style="padding:8px 14px;background:var(--s1);border-bottom:1px solid var(--bo)"></div><div class="dayh"><div class="dayht">${selDate.getMonth()+1}月${selDate.getDate()}日（${WD_JP[(selDate.getDay()+6)%7]}）${isT(selDate)?'　今日':''}${vis.length===1?' ／ '+members[mi].n:''}</div>${vis.length===1?`<button class="shcyc" id="scb" style="background:${sc.bg};color:${sc.tx}">${SLBL[st]} 切替</button>`:'<div></div>'}</div><div class="daytg">`;DSLOTS.forEach(({h:hr,m:mn})=>{const isHalf=mn===30;h+=`<div class="dsrow${isHalf?' half':''}"><div class="dtl">${!isHalf?`${hr}:00`:''}</div><div class="dez">`;allEvs.filter(e=>e.sh===hr&&e.sm===mn).forEach(e=>{const cs=CAT_S[e.cat]||CAT_S['その他'];const mem=members[e.mi];const dur=(e.eh*60+e.em)-(e.sh*60+e.sm);const ht=Math.max(dur/30*44-4,22);h+=`<div class="devblk" draggable="true" style="top:2px;height:${ht}px;background:${cs.bg};color:${cs.tx};border-left-color:${mem.c};cursor:grab" data-ev='${JSON.stringify(e)}' data-mi="${e.mi}"><div class="devt">${fmt(e.sh,e.sm)} 〜 ${fmt(e.eh,e.em)}</div><div class="devttl">${e.title}</div></div>`;});h+=`</div></div>`;});h+=`</div></div><div class="dayrc"><div class="drps"><div class="drpt"><div class="drptd"></div>ToDo</div><div id="day-td-list"></div><div class="tdac"><input type="text" id="day-td-in" placeholder="ToDoを追加..."/><div class="tdacr"><select id="day-td-cat"><option>架電</option><option>追客</option><option>査定</option><option>事務</option><option>その他</option></select><button id="day-td-add">追加</button></div></div></div><div class="drps"><div class="drpt"><div class="drptd" style="background:var(--gold2)"></div>メモ</div><textarea class="memoa" id="day-memo" placeholder="商談メモ...">${state.memo[mi]||''}</textarea></div><div class="drps"><div class="drpt"><div class="drptd" style="background:var(--gr)"></div>予定追加</div><button class="evaddsm" id="day-ev-toggle">＋ 予定を追加</button><div class="evfc" id="day-ev-form"><div class="efr"><span class="efl">内容</span><input id="day-ef-t" placeholder="例：架電"/></div><div class="efr"><span class="efl">種別</span><select id="day-ef-cat"><option>架電</option><option>追客</option><option>査定</option><option>訪問</option><option>契約</option><option>事務</option><option>社内MTG</option></select></div><div class="efr"><span class="efl">開始</span><select id="day-ef-s"></select><span style="margin:0 2px;font-size:9px;color:var(--t3)">〜</span><select id="day-ef-e"></select></div><button class="efsave" id="day-ef-save">登録</button></div></div></div></div>`;document.getElementById('cal-view').innerHTML=h;const scb=document.getElementById('scb');if(scb&&vis.length===1){scb.onclick=()=>{const{y,m2}=shiftMo;const uid=members[mi].uid;const dd=selDate.getDate();const hol=isHol(shiftMo.y,shiftMo.m,dd);const cur=shiftData[uid]?.[dd]||'off';const i=WDCYC.indexOf(cur);let ni=(i+1)%WDCYC.length;if(WDCYC[ni]==='overtime'&&countOt(uid)>=OTL)ni=(ni+1)%WDCYC.length;let next=WDCYC[ni];if(!shiftData[uid])shiftData[uid]={};shiftData[uid][dd]=next;renderDay();};}document.querySelectorAll('.devblk').forEach(el=>{
+function renderDay(){const _bp=document.getElementById('bot-panels');if(_bp)_bp.style.display='none';const vis=visMis();const mi=vis[0]??0;const dstr=ds(selDate);const st=getShiftSt(mi,dstr);const sc=SCOL[st]||SCOL.work;let allEvs=[];vis.forEach(vmi=>{state.events[vmi]?.filter(e=>e.date===dstr).forEach(e=>allEvs.push({...e,mi:vmi}));});allEvs.sort((a,b)=>a.sh*60+a.sm-(b.sh*60+b.sm));let h=`<div class="dayl"><div class="daycol"><div id="day-timeline" style="padding:8px 14px;background:var(--s1);border-bottom:1px solid var(--bo)"></div><div class="dayh"><div class="dayht">${selDate.getMonth()+1}月${selDate.getDate()}日（${WD_JP[(selDate.getDay()+6)%7]}）${isT(selDate)?'　今日':''}${vis.length===1?' ／ '+members[mi].n:''}</div>${vis.length===1?`<button class="shcyc" id="scb" style="background:${sc.bg};color:${sc.tx}">${SLBL[st]} 切替</button>`:'<div></div>'}</div><div class="daytg">`;DSLOTS.forEach(({h:hr,m:mn})=>{const isHalf=mn===30;h+=`<div class="dsrow${isHalf?' half':''}"><div class="dtl">${!isHalf?`${hr}:00`:''}</div><div class="dez" data-cal-date="${dstr}" data-cal-time="${hr}:${mn===0?'00':'30'}">`;allEvs.filter(e=>e.sh===hr&&e.sm===mn).forEach(e=>{const cs=CAT_S[e.cat]||CAT_S['その他'];const mem=members[e.mi];const dur=(e.eh*60+e.em)-(e.sh*60+e.sm);const ht=Math.max(dur/30*44-4,22);h+=`<div class="devblk" draggable="true" style="top:2px;height:${ht}px;background:${cs.bg};color:${cs.tx};border-left-color:${mem.c};cursor:grab" data-ev='${JSON.stringify(e)}' data-mi="${e.mi}"><div class="devt">${fmt(e.sh,e.sm)} 〜 ${fmt(e.eh,e.em)}</div><div class="devttl">${e.title}</div></div>`;});h+=`</div></div>`;});h+=`</div></div><div class="dayrc"><div class="drps"><div class="drpt"><div class="drptd"></div>ToDo</div><div id="day-td-list"></div><div class="tdac"><input type="text" id="day-td-in" placeholder="ToDoを追加..."/><div class="tdacr"><select id="day-td-cat"><option>架電</option><option>追客</option><option>査定</option><option>事務</option><option>その他</option></select><button id="day-td-add">追加</button></div></div></div><div class="drps"><div class="drpt"><div class="drptd" style="background:var(--gold2)"></div>メモ</div><textarea class="memoa" id="day-memo" placeholder="商談メモ...">${state.memo[mi]||''}</textarea></div><div class="drps"><div class="drpt"><div class="drptd" style="background:var(--gr)"></div>予定追加</div><button class="evaddsm" id="day-ev-toggle">＋ 予定を追加</button><div class="evfc" id="day-ev-form"><div class="efr"><span class="efl">内容</span><input id="day-ef-t" placeholder="例：架電"/></div><div class="efr"><span class="efl">種別</span><select id="day-ef-cat"><option>架電</option><option>追客</option><option>査定</option><option>訪問</option><option>契約</option><option>事務</option><option>社内MTG</option></select></div><div class="efr"><span class="efl">開始</span><select id="day-ef-s"></select><span style="margin:0 2px;font-size:9px;color:var(--t3)">〜</span><select id="day-ef-e"></select></div><button class="efsave" id="day-ef-save">登録</button></div></div></div></div>`;document.getElementById('cal-view').innerHTML=h;const scb=document.getElementById('scb');if(scb&&vis.length===1){scb.onclick=()=>{const{y,m2}=shiftMo;const uid=members[mi].uid;const dd=selDate.getDate();const hol=isHol(shiftMo.y,shiftMo.m,dd);const cur=shiftData[uid]?.[dd]||'off';const i=WDCYC.indexOf(cur);let ni=(i+1)%WDCYC.length;if(WDCYC[ni]==='overtime'&&countOt(uid)>=OTL)ni=(ni+1)%WDCYC.length;let next=WDCYC[ni];if(!shiftData[uid])shiftData[uid]={};shiftData[uid][dd]=next;renderDay();};}document.querySelectorAll('.devblk').forEach(el=>{
   el.onclick=()=>showEvModal(JSON.parse(el.dataset.ev),+el.dataset.mi);
   el.ondragstart=e=>{
     e.dataTransfer.setData('text/plain',JSON.stringify({ev:JSON.parse(el.dataset.ev),mi:+el.dataset.mi}));
@@ -7210,6 +7210,71 @@ function showKnowledgeCandidateDetail(id){
 // packet 390: switchPage 動的生成 IIFE は無効化（HTML 静的定義 + switchPage 本体分岐に移行）
 // 本体 switchPage 内で `if(pg==='knowledge-candidate-box'){try{renderKnowledgeCandidateBox();}catch(e){...}}` を直接実行
 // 旧 IIFE 動的生成は body 直下 append で表示位置がズレ空白表示問題の原因のため削除
+
+// ==== packet 401 カレンダータップで予定追加 ====
+// 月セル / 週セル / 日タイムライン枠タップ → 予定追加フォーム展開 + 日付/時刻自動入力
+function openEventFormFromCalendar(dateStr,timeStr){
+  try{
+    const bar=document.getElementById('ev-add-bar');
+    if(!bar)return;
+    bar.classList.add('ev-add-bar-open');
+    bar.style.display='block';
+    if(typeof setupEvForm==='function'){try{setupEvForm();}catch(e){}}
+    // 日付
+    const dayInput=document.getElementById('ef-day');
+    if(dayInput&&dateStr){
+      if([...dayInput.options].some(o=>o.value===dateStr))dayInput.value=dateStr;
+    }
+    // 時刻
+    if(timeStr){
+      const sInput=document.getElementById('ef-s');
+      if(sInput&&[...sInput.options].some(o=>o.value===timeStr))sInput.value=timeStr;
+      const eInput=document.getElementById('ef-e');
+      if(eInput){
+        const[h,m]=timeStr.split(':').map(Number);
+        let nm=m+30,nh=h;
+        if(nm>=60){nm-=60;nh++;}
+        const endVal=nh+':'+(nm===0?'00':'30');
+        if([...eInput.options].some(o=>o.value===endVal))eInput.value=endVal;
+      }
+    }
+    bar.scrollIntoView({behavior:'smooth',block:'center'});
+    const t=document.getElementById('ef-t');
+    if(t)setTimeout(()=>{try{t.focus();}catch(e){}},250);
+  }catch(e){}
+}
+(function patchCalendarTap(){
+  const init=()=>{
+    const calView=document.getElementById('cal-view');
+    if(!calView||calView.dataset.packet401Bound==='1')return;
+    calView.dataset.packet401Bound='1';
+    calView.addEventListener('click',function(e){
+      try{
+        // 除外：操作要素・既存予定・フォーム
+        if(e.target.closest('button, input, textarea, select, label'))return;
+        if(e.target.closest('.evblk, .devblk, .erow, .emore, .emem, .etr, .etxt, .devt, .devttl'))return;
+        if(e.target.closest('#ev-add-bar, #tb-form, .mobile-task-action-row'))return;
+        // 既存「日付クリックで日ビュー遷移」を優先
+        if(e.target.closest('.mjump, [data-djump]'))return;
+        // 週・日 タイムライン枠（data-cal-date / data-cal-time）
+        const slot=e.target.closest('[data-cal-date][data-cal-time]');
+        if(slot){
+          const date=slot.dataset.calDate;
+          const time=slot.dataset.calTime||'';
+          if(date){openEventFormFromCalendar(date,time);return;}
+        }
+        // 月セル（.mday[data-d]、空白部分タップ）
+        const mday=e.target.closest('.mday[data-d]');
+        if(mday&&mday.dataset.d&&!mday.classList.contains('other')){
+          openEventFormFromCalendar(mday.dataset.d,'');
+        }
+      }catch(err){}
+    });
+  };
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);
+  else init();
+})();
+// ==== ここまで packet 401 ====
 
 // ==== packet 396 スマホ追加ボタン位置調整 ====
 // 上部ヘッダー側 #tb-add / #tb-add-ev はスマホ CSS で非表示
