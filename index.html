@@ -117,6 +117,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-siz
 .mobile-task-action-row button{padding:10px 14px;font-size:13px;font-weight:700;border-radius:6px;border:0;cursor:pointer;min-height:44px;flex:1}
 .mobile-task-action-row #m-todo-add{background:#0a3d7c;color:#fff}
 .mobile-task-action-row #m-ev-add{background:#c2410c;color:#fff}
+/* packet 405: 音声入力ボタン（対応ブラウザのみ JS で表示、デフォルトは表示） */
+.voice-btn{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;min-width:30px;border-radius:50%;border:1.5px solid var(--bo);background:#fff;cursor:pointer;font-size:13px;color:var(--navy);margin-left:4px;padding:0;flex-shrink:0;line-height:1;transition:background .15s,color .15s,box-shadow .15s;vertical-align:middle}
+.voice-btn:hover{background:var(--navy-lt)}
+.voice-btn:active{transform:scale(.96)}
+.voice-btn.recording{background:#fee2e2;color:#dc2626;border-color:#dc2626;animation:vbpulse 1.2s infinite}
+.voice-btn[disabled]{opacity:.4;cursor:not-allowed}
+.voice-btn-memo{margin-top:4px}
+@keyframes vbpulse{0%,100%{box-shadow:0 0 0 0 rgba(220,38,38,.45)}50%{box-shadow:0 0 0 6px rgba(220,38,38,0)}}
 .tbtabs{display:flex;background:var(--s3);border-bottom:1px solid var(--bo)}
 .tbtab{flex:1;padding:6px 3px;text-align:center;font-size:9px;font-weight:700;color:var(--t3);cursor:pointer;border:none;background:transparent;border-bottom:2px solid transparent}
 .tbtab.on{color:var(--navy);border-bottom-color:var(--navy);background:var(--s1)}
@@ -754,7 +762,7 @@ body.task-dragging [data-id]:not(.dragging-this){opacity:1!important}
         <div class="todos">
           <div class="todoh"><div class="todol" id="todo-lbl">📋 今日のToDo</div><div class="progw"><div class="progbg"><div class="progfi" id="prog-fi"></div></div><div class="progpct" id="prog-pct">0%</div></div></div>
           <div class="todochips"><div id="todo-list" style="display:flex;gap:4px;flex-wrap:wrap"></div>
-            <div class="tdar"><input type="text" id="td-in" placeholder="ToDoを追加..."/><select id="td-cat"><option>架電</option><option>追客</option><option>査定</option><option>事務</option><option>その他</option></select><button id="td-add">＋</button></div>
+            <div class="tdar"><input type="text" id="td-in" placeholder="ToDoを追加..."/><button class="voice-btn" type="button" data-voice-target="td-in" title="音声で入力補助">🎙</button><select id="td-cat"><option>架電</option><option>追客</option><option>査定</option><option>事務</option><option>その他</option></select><button id="td-add">＋</button></div>
           </div>
         </div>
         <div id="ev-add-bar" style="background:var(--s1);border-bottom:1px solid var(--bo);display:none">
@@ -762,6 +770,7 @@ body.task-dragging [data-id]:not(.dragging-this){opacity:1!important}
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
               <span style="font-size:11px;font-weight:800;color:var(--navy);white-space:nowrap">内容</span>
               <input id="ef-t" placeholder="例：山田様 査定" style="flex:1;min-width:120px;padding:5px 9px;border:1.5px solid var(--bo);border-radius:var(--r);font-size:11px;outline:none"/>
+              <button class="voice-btn" type="button" data-voice-target="ef-t" title="音声で入力補助">🎙</button>
               <span style="font-size:11px;font-weight:700;color:var(--t2);white-space:nowrap">種別</span>
               <select id="ef-cat" style="padding:5px 8px;border:1.5px solid var(--bo);border-radius:var(--r);font-size:11px;outline:none;background:#fff"><option>架電</option><option>追客</option><option>査定</option><option>訪問</option><option>契約</option><option>事務</option><option>社内MTG</option></select>
               <span style="font-size:11px;font-weight:700;color:var(--t2);white-space:nowrap">日</span>
@@ -774,6 +783,7 @@ body.task-dragging [data-id]:not(.dragging-this){opacity:1!important}
               <button id="ef-close" style="padding:6px 10px;border-radius:var(--r);border:1.5px solid var(--bo);background:transparent;color:var(--t3);font-size:11px;cursor:pointer">✕</button>
             </div>
             <textarea id="memo" placeholder="商談メモ・引き継ぎ事項..." style="width:100%;margin-top:8px;padding:7px 9px;border:1.5px solid var(--bo);border-radius:var(--r);font-size:11px;resize:vertical;min-height:48px;outline:none;font-family:inherit;color:var(--t1)"></textarea>
+            <button class="voice-btn voice-btn-memo" type="button" data-voice-target="memo" data-voice-multi="1" title="音声で入力補助">🎙</button>
           </div>
         </div>
         <div id="cal-view"></div>
@@ -7387,6 +7397,131 @@ function openEventFormFromCalendar(dateStr,timeStr){
 })();
 // ==== ここまで packet 392 ====
 // ==== ここまで packet 380 AI 事典追加候補箱 ====
+// ==== packet 405: 音声入力 静的MVP（Web Speech API、外部 API 接続なし） ====
+(function patchVoiceInputMVP(){
+  try{
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const supported = !!SR;
+    let activeBtn = null;
+    let activeRec = null;
+
+    function stopActive(){
+      if(activeRec){
+        try{activeRec.stop();}catch(e){}
+      }
+      if(activeBtn){
+        try{activeBtn.classList.remove('recording');}catch(e){}
+      }
+      activeBtn=null; activeRec=null;
+    }
+
+    function bindOne(btn){
+      if(!btn || btn.dataset.p405Bound==='1')return;
+      btn.dataset.p405Bound='1';
+      if(!supported){
+        btn.style.display='none';
+        btn.setAttribute('disabled','disabled');
+        btn.title='この端末では音声入力に未対応です';
+        return;
+      }
+      btn.addEventListener('click',function(ev){
+        try{ev.preventDefault();ev.stopPropagation();}catch(e){}
+        const targetId = btn.dataset.voiceTarget;
+        const isMulti = btn.dataset.voiceMulti==='1';
+        const target = targetId && document.getElementById(targetId);
+        if(!target)return;
+        if(activeRec && activeBtn===btn){
+          stopActive();
+          return;
+        }
+        if(activeRec){stopActive();}
+        let rec;
+        try{rec = new SR();}catch(e){return;}
+        try{
+          rec.lang='ja-JP';
+          rec.interimResults=false;
+          rec.maxAlternatives=1;
+          rec.continuous=false;
+        }catch(e){}
+        rec.onresult=function(e2){
+          try{
+            const txt=(e2 && e2.results && e2.results[0] && e2.results[0][0] && e2.results[0][0].transcript) || '';
+            if(!txt)return;
+            if(isMulti){
+              const cur=target.value||'';
+              target.value = cur ? (cur + (cur.endsWith('\n')?'':'\n') + txt) : txt;
+            }else{
+              target.value = txt;
+            }
+            try{target.dispatchEvent(new Event('input',{bubbles:true}));}catch(e){}
+            try{target.focus({preventScroll:true});}catch(e){try{target.focus();}catch(e2){}}
+          }catch(e){}
+        };
+        rec.onerror=function(){stopActive();};
+        rec.onend=function(){
+          try{btn.classList.remove('recording');}catch(e){}
+          if(activeBtn===btn){activeBtn=null;activeRec=null;}
+        };
+        try{
+          rec.start();
+          btn.classList.add('recording');
+          activeBtn=btn;
+          activeRec=rec;
+        }catch(e){
+          try{btn.classList.remove('recording');}catch(e2){}
+        }
+      });
+    }
+
+    // 動的入力欄（renderDay 内の day-td-in / day-ef-t / day-memo）にマイクボタンを自動 append
+    function ensureDynamicMicButtons(){
+      const ids=[
+        {id:'day-td-in', multi:false, cls:''},
+        {id:'day-ef-t',  multi:false, cls:''},
+        {id:'day-memo',  multi:true,  cls:'voice-btn-memo'}
+      ];
+      ids.forEach(function(spec){
+        const el=document.getElementById(spec.id);
+        if(!el)return;
+        const next=el.nextElementSibling;
+        if(next && next.classList && next.classList.contains('voice-btn') && next.dataset && next.dataset.voiceTarget===spec.id)return;
+        const btn=document.createElement('button');
+        btn.type='button';
+        btn.className='voice-btn'+(spec.cls?' '+spec.cls:'');
+        btn.dataset.voiceTarget=spec.id;
+        if(spec.multi)btn.dataset.voiceMulti='1';
+        btn.title='音声で入力補助';
+        btn.textContent='🎙';
+        try{el.insertAdjacentElement('afterend',btn);}catch(e){return;}
+        bindOne(btn);
+      });
+    }
+
+    function bindAllStatic(){
+      const list=document.querySelectorAll('.voice-btn[data-voice-target]');
+      for(let i=0;i<list.length;i++){bindOne(list[i]);}
+    }
+
+    function init(){
+      bindAllStatic();
+      ensureDynamicMicButtons();
+      const calView=document.getElementById('cal-view');
+      if(calView && window.MutationObserver){
+        try{
+          const obs=new MutationObserver(function(){
+            try{ensureDynamicMicButtons();bindAllStatic();}catch(e){}
+          });
+          obs.observe(calView,{childList:true,subtree:true});
+        }catch(e){}
+      }
+    }
+    if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);
+    else init();
+  }catch(e){
+    try{console.warn('packet 405 voice MVP init error:',e);}catch(e2){}
+  }
+})();
+// ==== ここまで packet 405 ====
 </script>
 </body>
 </html>
