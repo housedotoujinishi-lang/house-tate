@@ -1052,9 +1052,13 @@ textarea.ai-team-input{resize:vertical;min-height:60px}
       <div style="font-size:11px;color:#666;margin-bottom:12px">心理学・行動経済学・コミュニケーション知識を学ぶ（静的MVP、30件）</div>
       <div style="font-size:11px;color:#9a3412;background:#fff7ed;border-left:3px solid #f97316;padding:6px 10px;border-radius:4px;margin-bottom:10px">⚠ 営業心理学は、お客様を操作するためではなく、納得して判断していただくための知識として扱います。不安を煽る・嘘・誤認・強引な決断強制はNG。</div>
       <div id="sp-today"></div>
-      <input id="sp-search" type="text" placeholder="🔍 タイトル / キーワード / カテゴリで検索" style="width:100%;padding:8px 10px;border:1px solid #ccc;border-radius:6px;margin-bottom:8px;font-size:13px;">
+      <input id="sp-search" type="text" placeholder="🔍 タイトル / キーワード / カテゴリで検索" style="width:100%;padding:8px 10px;border:1px solid #ccc;border-radius:6px;margin-bottom:8px;font-size:13px;box-sizing:border-box;">
       <div id="sp-filters" style="margin-bottom:10px"></div>
       <div id="sp-cards"></div>
+      <div style="margin-top:20px;display:flex;gap:6px;justify-content:center;flex-wrap:wrap;">
+        <button onclick="switchPage('knowledge-portal')" style="font-size:12px;padding:8px 14px;background:#f1f5f9;color:#475569;border:0;border-radius:4px;cursor:pointer;">← 豆知識ポータルに戻る</button>
+        <button onclick="switchPage('dash')" style="font-size:12px;padding:8px 14px;background:#f1f5f9;color:#475569;border:0;border-radius:4px;cursor:pointer;">← ホームに戻る</button>
+      </div>
     </div>
   </div>
   <div class="page" id="page-realestate-knowledge">
@@ -1070,6 +1074,10 @@ textarea.ai-team-input{resize:vertical;min-height:60px}
       <input id="rek-search" class="rek-search" type="text" placeholder="🔍 タイトル / 本文 / カテゴリで検索">
       <div id="rek-filters" class="rek-filters"></div>
       <div id="rek-cards"></div>
+      <div style="margin-top:20px;display:flex;gap:6px;justify-content:center;flex-wrap:wrap;">
+        <button onclick="switchPage('knowledge-portal')" style="font-size:12px;padding:8px 14px;background:#f1f5f9;color:#475569;border:0;border-radius:4px;cursor:pointer;">← 豆知識ポータルに戻る</button>
+        <button onclick="switchPage('dash')" style="font-size:12px;padding:8px 14px;background:#f1f5f9;color:#475569;border:0;border-radius:4px;cursor:pointer;">← ホームに戻る</button>
+      </div>
     </div>
   </div>
   <div class="page" id="page-ai-org">
@@ -6554,17 +6562,39 @@ function renderMyAssignmentsHomeBadge(){
 })();
 // ==== ここまで packet 357 担当者割当タブ ====
 
-// ==== packet 360 豆知識辞典ポータル + ロール別学習辞典 静的MVP ====
+// ==== packet 360 + 364 豆知識事典ポータル（正式名称化・フォーマット統一）====
 function _isExecutive(u){if(!u)return false;if(u.perm==='admin'||u.perm==='owner')return true;return false;}
 function _isSuperior(u){if(!u)return false;if(_isExecutive(u))return true;const r=u.role||'';return r.indexOf('店長')>=0;}
-function _isAllSubordinate(u){return true;} // 全員見られる（部下バージョン）
+function _isAllSubordinate(u){return true;}
+// packet 364: 新 LS（5 事典共通の既読 / お気に入り / 最終表示日）
+const RK_READ_LS_KEY='jagai_knowledge_read_ids_v1';
+const RK_FAV_LS_KEY='jagai_knowledge_fav_ids_v1';
+const RK_LAST_LS_KEY='jagai_knowledge_last_opened_date_v1';
+function _rkReadState(){try{const x=JSON.parse(localStorage.getItem(RK_READ_LS_KEY)||'{}');return x&&typeof x==='object'?x:{};}catch(e){return {};}}
+function _rkFavState(){try{const x=JSON.parse(localStorage.getItem(RK_FAV_LS_KEY)||'{}');return x&&typeof x==='object'?x:{};}catch(e){return {};}}
+function _rkMarkRead(dict,id){const s=_rkReadState();if(!s[dict])s[dict]=[];if(!s[dict].includes(id))s[dict].push(id);try{localStorage.setItem(RK_READ_LS_KEY,JSON.stringify(s));localStorage.setItem(RK_LAST_LS_KEY,new Date().toISOString().slice(0,10));}catch(e){}}
+function _rkIsRead(dict,id){return (_rkReadState()[dict]||[]).includes(id);}
+function _rkToggleFav(dict,id){const s=_rkFavState();if(!s[dict])s[dict]=[];if(s[dict].includes(id))s[dict]=s[dict].filter(x=>x!==id);else s[dict].push(id);try{localStorage.setItem(RK_FAV_LS_KEY,JSON.stringify(s));}catch(e){}return (s[dict]||[]).includes(id);}
+function _rkIsFav(dict,id){return (_rkFavState()[dict]||[]).includes(id);}
+function _rkCountsFor(dict,total){const r=(_rkReadState()[dict]||[]).length;const f=(_rkFavState()[dict]||[]).length;return {total:total,read:r,fav:f};}
+function _rkTodayPickIndex(seed,len){const d=new Date();const ymd=d.getFullYear()*10000+(d.getMonth()+1)*100+d.getDate();return Math.abs(ymd+seed*7)%Math.max(1,len);}
 function getKnowledgeDictionaries(u){
+  // packet 340 で 100 件、ロール別各 10 件
+  const psyCount=(typeof getSalesPsychologyTips==='function')?getSalesPsychologyTips().length:100;
+  const subCount=getRoleKnowledgeTips('subordinate').length;
+  const supCount=getRoleKnowledgeTips('superior').length;
+  const exeCount=getRoleKnowledgeTips('executive').length;
+  // 今日のおすすめタイトル
+  const psyTitle=(typeof _spTodayTip==='function')?(_spTodayTip().title||''):'';
+  const subTip=getRoleKnowledgeTips('subordinate');const subTitle=subTip.length?subTip[_rkTodayPickIndex(1,subTip.length)].title:'';
+  const supTip=getRoleKnowledgeTips('superior');const supTitle=supTip.length?supTip[_rkTodayPickIndex(2,supTip.length)].title:'';
+  const exeTip=getRoleKnowledgeTips('executive');const exeTitle=exeTip.length?exeTip[_rkTodayPickIndex(3,exeTip.length)].title:'';
   return [
-    {id:'realestate',title:'📚 不動産マメ知識',desc:'基礎知識・査定・法規制・売買実務を学ぶ','target':'全員','page':'realestate-knowledge','show':true,color:'#0a3d7c'},
-    {id:'sales-psy',title:'🧠 営業心理学',desc:'電話・追客・媒介提案・価格交渉に使える心理学（100件）',target:'全員',page:'sales-psy',show:true,color:'#5b21b6'},
-    {id:'subordinate',title:'👷 部下バージョン',desc:'現場で信頼される報連相・習慣化・お客様対応（10件）',target:'全員',page:'role-knowledge',mode:'subordinate',show:_isAllSubordinate(u),color:'#15803d'},
-    {id:'superior',title:'👔 上司バージョン',desc:'人を動かす・育てる・指示・確認・褒め方の心理学（10件）',target:'店長 / 管理者 / 経営者',page:'role-knowledge',mode:'superior',show:_isSuperior(u),color:'#0369a1'},
-    {id:'executive',title:'🏛 経営者バージョン',desc:'仕組み作り・採用・評価・権限移譲・組織設計の心理学（10件）',target:'経営者 / 管理者系',page:'role-knowledge',mode:'executive',show:_isExecutive(u),color:'#b45309'}
+    {id:'realestate',title:'📚 不動産マメ知識大辞典',desc:'査定・法規制・売買実務・物件調査・営業に必要な基礎知識',target:'全員',page:'realestate-knowledge',show:true,color:'#0a3d7c',count:37,today:'',label:''},
+    {id:'sales-psy',title:'🧠 営業心理学マメ知識大辞典',desc:'電話・追客・媒介提案・価格交渉・クロージング・クレーム対応・行動経済学',target:'全員',page:'sales-psy',show:true,color:'#5b21b6',count:psyCount,today:psyTitle,label:''},
+    {id:'subordinate',title:'👷 部下仕事術事典',desc:'現場で信頼されるための報連相・実行・お客様対応を学ぶ',target:'全員（現場スタッフ / 店長以上閲覧可）',page:'role-knowledge',mode:'subordinate',show:_isAllSubordinate(u),color:'#15803d',count:subCount,today:subTitle,label:''},
+    {id:'superior',title:'👔 上司マネージメント事典',desc:'人を動かす・育てる・確認するためのマネージメント',target:'店長 / 管理者 / 経営者',page:'role-knowledge',mode:'superior',show:_isSuperior(u),color:'#c2410c',count:supCount,today:supTitle,label:_isSuperior(u)?'':'店長以上'},
+    {id:'executive',title:'🏛 経営哲学事典',desc:'会社を動かす仕組み・組織・評価・採用・権限移譲・幹部育成・AI 活用',target:'経営者 / 管理者系',page:'role-knowledge',mode:'executive',show:_isExecutive(u),color:'#1e3a8a',count:exeCount,today:exeTitle,label:_isExecutive(u)?'':'管理者限定'}
   ];
 }
 function renderKnowledgePortalPage(){
@@ -6574,23 +6604,40 @@ function renderKnowledgePortalPage(){
   let h='<div style="display:grid;grid-template-columns:1fr;gap:10px;">';
   dicts.forEach(d=>{
     if(!d.show){
-      h+='<div style="background:#f8fafc;border:1px dashed #cbd5e1;border-radius:8px;padding:12px;opacity:0.6;">'
-        +'<div style="font-size:14px;font-weight:700;color:#94a3b8;">'+e(d.title)+'（権限非対応）</div>'
+      h+='<div style="background:#f8fafc;border:1px dashed #cbd5e1;border-radius:8px;padding:12px;opacity:0.7;">'
+        +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px;flex-wrap:wrap;">'
+        +'<div style="font-size:14px;font-weight:700;color:#94a3b8;flex:1;">'+e(d.title)+'</div>'
+        +(d.label?'<span style="font-size:10px;background:#e5e7eb;color:#6b7280;padding:2px 8px;border-radius:10px;white-space:nowrap;">'+e(d.label)+'</span>':'')
+        +'</div>'
         +'<div style="font-size:11px;color:#94a3b8;margin-top:4px;">'+e(d.desc)+'</div>'
-        +'<div style="font-size:10px;color:#94a3b8;margin-top:6px;">対象：'+e(d.target)+'（あなたの権限では非表示）</div>'
+        +'<div style="font-size:10px;color:#94a3b8;margin-top:6px;">対象：'+e(d.target)+' ／ あなたの権限では閲覧できません</div>'
         +'</div>';
       return;
     }
+    let counts='';
+    if(d.mode){
+      const c=_rkCountsFor(d.mode,d.count);
+      counts='<div style="font-size:10px;color:#666;margin-top:4px;">学習状況：既読 '+c.read+' / '+c.total+'件 ／ ★ '+c.fav+'件</div>';
+    }else if(d.id==='sales-psy'){
+      const r=(typeof _spReadIds==='function')?_spReadIds().length:0;
+      const f=(typeof _spFavIds==='function')?_spFavIds().length:0;
+      counts='<div style="font-size:10px;color:#666;margin-top:4px;">学習状況：既読 '+r+' / '+d.count+'件 ／ ★ '+f+'件</div>';
+    }
     const action=d.mode?'window._roleKnowledgeMode=\''+e(d.mode)+'\';switchPage(\''+e(d.page)+'\')':'switchPage(\''+e(d.page)+'\')';
     h+='<div style="background:#fff;border:2px solid '+d.color+';border-radius:8px;padding:14px;">'
-      +'<div style="font-size:16px;font-weight:800;color:'+d.color+';">'+e(d.title)+'</div>'
-      +'<div style="font-size:12px;color:#444;margin-top:4px;">'+e(d.desc)+'</div>'
+      +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px;flex-wrap:wrap;">'
+      +'<div style="font-size:16px;font-weight:800;color:'+d.color+';flex:1;line-height:1.3;">'+e(d.title)+'</div>'
+      +'<span style="font-size:10px;background:'+d.color+';color:#fff;padding:2px 8px;border-radius:10px;white-space:nowrap;">'+d.count+'件</span>'
+      +'</div>'
+      +'<div style="font-size:12px;color:#444;margin-top:6px;line-height:1.4;">'+e(d.desc)+'</div>'
       +'<div style="font-size:10px;color:#666;margin-top:6px;">対象：'+e(d.target)+'</div>'
-      +'<button onclick="'+action+'" style="margin-top:10px;font-size:12px;padding:6px 14px;background:'+d.color+';color:#fff;border:0;border-radius:4px;cursor:pointer;font-weight:700;">開く →</button>'
+      +counts
+      +(d.today?'<div style="font-size:11px;color:#0a3d7c;margin-top:6px;background:#fffbeb;padding:5px 8px;border-radius:4px;border-left:3px solid #f59e0b;">💡 今日のおすすめ：'+e(d.today)+'</div>':'')
+      +'<button onclick="'+action+'" style="margin-top:10px;font-size:13px;padding:8px 16px;background:'+d.color+';color:#fff;border:0;border-radius:4px;cursor:pointer;font-weight:700;width:100%;">開く →</button>'
       +'</div>';
   });
   h+='</div>'
-    +'<div style="font-size:10px;color:#666;margin-top:12px;">ℹ 権限により表示される辞典が異なります。顧客情報・パスワード・API キー・UUID 等は表示しません。</div>';
+    +'<div style="font-size:10px;color:#666;margin-top:12px;">ℹ 権限により表示される事典が異なります。顧客情報・パスワード・API キー・UUID 等は表示しません。</div>';
   root.innerHTML=h;
 }
 function getRoleKnowledgeTips(mode){
@@ -6635,49 +6682,104 @@ function getRoleKnowledgeTips(mode){
   return tips[mode]||[];
 }
 function getRoleKnowledgeHeader(mode){
-  if(mode==='subordinate')return {title:'👷 部下バージョン：現場で信頼される心理学',color:'#15803d',bg:'#f0fdf4'};
-  if(mode==='superior')return {title:'👔 上司バージョン：人を動かす・育てる心理学',color:'#0369a1',bg:'#eff6ff'};
-  if(mode==='executive')return {title:'🏛 経営者バージョン：会社を動かす心理学',color:'#b45309',bg:'#fffbeb'};
-  return {title:'役職別辞典',color:'#0a3d7c',bg:'#fff'};
+  if(mode==='subordinate')return {title:'👷 部下仕事術事典',subtitle:'現場で信頼されるための報連相・実行・お客様対応',target:'全員（現場スタッフ / 店長以上閲覧可）',color:'#15803d',bg:'#f0fdf4'};
+  if(mode==='superior')return {title:'👔 上司マネージメント事典',subtitle:'人を動かす・育てる・確認するためのマネージメント',target:'店長 / 管理者 / 経営者',color:'#c2410c',bg:'#fff7ed'};
+  if(mode==='executive')return {title:'🏛 経営哲学事典',subtitle:'会社を動かす仕組み・組織・評価・採用・権限移譲',target:'経営者 / 管理者系',color:'#1e3a8a',bg:'#eef2ff'};
+  return {title:'役職別事典',subtitle:'',target:'',color:'#0a3d7c',bg:'#fff'};
 }
+function _rkFilterState(){if(!window._rkFilter)window._rkFilter={q:'',cat:'',diff:'',unread:false,fav:false};return window._rkFilter;}
 function renderRoleKnowledgePage(){
   const mode=window._roleKnowledgeMode||'subordinate';
   const u=currentUser;
   // 権限チェック
   if(mode==='superior'&&!_isSuperior(u)){
-    document.getElementById('role-knowledge-header').innerHTML='<div style="font-size:13px;color:#b91c1c;padding:14px;background:#fef2f2;border-radius:6px;">この辞典は店長 / 管理者 / 経営者向けです。あなたの権限では閲覧できません。</div>';
+    document.getElementById('role-knowledge-header').innerHTML='<div style="font-size:13px;color:#b91c1c;padding:14px;background:#fef2f2;border-radius:6px;">この事典は店長 / 管理者 / 経営者向けです。あなたの権限では閲覧できません。</div>';
     document.getElementById('role-knowledge-cards').innerHTML='';return;
   }
   if(mode==='executive'&&!_isExecutive(u)){
-    document.getElementById('role-knowledge-header').innerHTML='<div style="font-size:13px;color:#b91c1c;padding:14px;background:#fef2f2;border-radius:6px;">この辞典は管理者 / 経営者向けです。あなたの権限では閲覧できません。</div>';
+    document.getElementById('role-knowledge-header').innerHTML='<div style="font-size:13px;color:#b91c1c;padding:14px;background:#fef2f2;border-radius:6px;">この事典は管理者 / 経営者向けです。あなたの権限では閲覧できません。</div>';
     document.getElementById('role-knowledge-cards').innerHTML='';return;
   }
   const meta=getRoleKnowledgeHeader(mode);
   const tips=getRoleKnowledgeTips(mode);
   const e=_spEsc;
+  // Today's pick
+  const tIdx=_rkTodayPickIndex(mode==='subordinate'?1:mode==='superior'?2:3,tips.length);
+  const today=tips[tIdx];
+  const readCount=(_rkReadState()[mode]||[]).length;
+  const favCount=(_rkFavState()[mode]||[]).length;
+  // ヘッダー
   const headEl=document.getElementById('role-knowledge-header');
   if(headEl){
-    headEl.innerHTML='<div style="padding:10px 12px;background:'+meta.bg+';border-left:4px solid '+meta.color+';border-radius:4px;margin-bottom:10px;">'
-      +'<div style="font-size:16px;font-weight:800;color:'+meta.color+';">'+e(meta.title)+'</div>'
-      +'<div style="font-size:11px;color:#666;margin-top:2px;">全 '+tips.length+' 件 ／ 操作・煽り・嘘・誤認・強引な決断強制はNG、納得して判断していただくための知識として扱います</div>'
-      +'</div>';
+    headEl.innerHTML='<div style="padding:12px;background:'+meta.bg+';border-left:4px solid '+meta.color+';border-radius:4px;margin-bottom:10px;">'
+      +'<div style="font-size:18px;font-weight:800;color:'+meta.color+';">'+e(meta.title)+'</div>'
+      +'<div style="font-size:11px;color:#475569;margin-top:2px;">'+e(meta.subtitle)+'</div>'
+      +'<div style="font-size:10px;color:#666;margin-top:2px;">対象：'+e(meta.target)+'</div>'
+      +'<div style="font-size:11px;color:#666;margin-top:4px;">⚠ 操作・煽り・嘘・誤認・強引な決断強制はNG。納得して判断していただくための知識として扱います。</div>'
+      +'</div>'
+      // 今日の 1 枚
+      +(today?'<div style="background:linear-gradient(135deg,#fef3c7,#fde68a);border-radius:8px;padding:12px;margin-bottom:10px;">'
+        +'<div style="font-size:11px;color:#92400e;font-weight:700;">💡 今日の 1 枚</div>'
+        +'<div style="font-size:15px;font-weight:800;color:'+meta.color+';margin-top:2px;">'+e(today.title)+'</div>'
+        +'<div style="font-size:11px;color:#444;margin-top:4px;">'+e(today.oneLine)+'</div>'
+        +'<div style="font-size:11px;color:#9a3412;margin-top:4px;">今日の実践：'+e(today.todayAction||'')+'</div>'
+        +'<button onclick="showRoleKnowledgeDetail(\''+e(mode)+'\',\''+e(today.id)+'\')" style="margin-top:6px;font-size:11px;padding:4px 10px;background:'+meta.color+';color:#fff;border:0;border-radius:4px;cursor:pointer;">詳細を見る →</button>'
+        +'</div>':'')
+      // 検索 + フィルター
+      +'<input id="rk-search" type="text" placeholder="🔍 タイトル / キーワード / カテゴリで検索" style="width:100%;padding:8px 10px;border:1px solid #ccc;border-radius:6px;margin-bottom:8px;font-size:13px;box-sizing:border-box;">'
+      +'<div id="rk-filters" style="display:flex;gap:6px;flex-wrap:wrap;font-size:11px;margin-bottom:8px;">'
+      +'<select id="rk-f-cat" style="padding:4px 6px;border:1px solid #ccc;border-radius:4px;"><option value="">カテゴリ(全)</option></select>'
+      +'<select id="rk-f-diff" style="padding:4px 6px;border:1px solid #ccc;border-radius:4px;"><option value="">難易度(全)</option><option value="beginner">初級</option><option value="intermediate">中級</option><option value="advanced">上級</option></select>'
+      +'<label style="display:inline-flex;align-items:center;gap:3px;"><input type="checkbox" id="rk-f-unread">未読のみ</label>'
+      +'<label style="display:inline-flex;align-items:center;gap:3px;"><input type="checkbox" id="rk-f-fav">★お気に入り</label>'
+      +'</div>'
+      // 学習状況
+      +'<div style="font-size:11px;color:#666;margin-bottom:6px;">学習状況：全 '+tips.length+' 件 ／ 既読 '+readCount+' ／ ★ '+favCount+'</div>';
   }
+  // カテゴリ select 動的生成
+  const cats=Array.from(new Set(tips.map(t=>t.category)));
+  const st=_rkFilterState();
+  const catSel=document.getElementById('rk-f-cat');
+  if(catSel){catSel.innerHTML='<option value="">カテゴリ(全)</option>'+cats.map(c=>'<option value="'+e(c)+'"'+(st.cat===c?' selected':'')+'>'+e(c)+'</option>').join('');}
+  const diffSel=document.getElementById('rk-f-diff');if(diffSel)diffSel.value=st.diff||'';
+  const searchEl=document.getElementById('rk-search');if(searchEl){searchEl.value=st.q||'';searchEl.oninput=ev=>{st.q=ev.target.value;renderRoleKnowledgePage();};}
+  if(catSel)catSel.onchange=ev=>{st.cat=ev.target.value;renderRoleKnowledgePage();};
+  if(diffSel)diffSel.onchange=ev=>{st.diff=ev.target.value;renderRoleKnowledgePage();};
+  const unreadEl=document.getElementById('rk-f-unread');if(unreadEl){unreadEl.checked=!!st.unread;unreadEl.onchange=ev=>{st.unread=ev.target.checked;renderRoleKnowledgePage();};}
+  const favEl=document.getElementById('rk-f-fav');if(favEl){favEl.checked=!!st.fav;favEl.onchange=ev=>{st.fav=ev.target.checked;renderRoleKnowledgePage();};}
+  // フィルター適用
+  let list=tips.slice();
+  if(st.cat)list=list.filter(t=>t.category===st.cat);
+  if(st.diff)list=list.filter(t=>t.difficulty===st.diff);
+  if(st.unread)list=list.filter(t=>!_rkIsRead(mode,t.id));
+  if(st.fav)list=list.filter(t=>_rkIsFav(mode,t.id));
+  if(st.q){const q=st.q.toLowerCase();list=list.filter(t=>(t.title+t.keyword+t.oneLine+t.category).toLowerCase().indexOf(q)>=0);}
+  // カード一覧
   const cardsEl=document.getElementById('role-knowledge-cards');
   if(!cardsEl)return;
+  if(!list.length){cardsEl.innerHTML='<div style="font-size:12px;color:#666;padding:20px;text-align:center;">該当するカードがありません。</div>';return;}
   let h='<div style="display:grid;grid-template-columns:1fr;gap:8px;">';
-  tips.forEach(t=>{
-    h+='<div style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:10px;cursor:pointer;" onclick="showRoleKnowledgeDetail(\''+e(mode)+'\',\''+e(t.id)+'\')">'
+  list.forEach(t=>{
+    const isRead=_rkIsRead(mode,t.id);
+    const isFav=_rkIsFav(mode,t.id);
+    h+='<div style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:10px;cursor:pointer;'+(isRead?'opacity:0.75;':'')+'" onclick="showRoleKnowledgeDetail(\''+e(mode)+'\',\''+e(t.id)+'\')">'
       +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px;">'
-      +'<div style="font-weight:700;font-size:13px;color:'+meta.color+';flex:1;">'+e(t.title)+'</div>'
+      +'<div style="font-weight:700;font-size:13px;color:'+meta.color+';flex:1;">'+(isFav?'★ ':'')+e(t.title)+'</div>'
       +'<span style="font-size:10px;background:#f1f5f9;color:#475569;padding:1px 6px;border-radius:8px;white-space:nowrap;">'+e(t.keyword)+'</span>'
       +'</div>'
       +'<div style="font-size:11px;color:#666;margin-top:4px;">'+e(t.oneLine)+'</div>'
       +'<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:6px;">'
       +'<span style="font-size:10px;background:#e0e7ff;color:#3730a3;padding:1px 6px;border-radius:8px;">'+e(t.category)+'</span>'
       +'<span style="font-size:10px;background:#fef3c7;color:#92400e;padding:1px 6px;border-radius:8px;">'+_spDiffLabel(t.difficulty)+'</span>'
+      +(isRead?'<span style="font-size:10px;color:#9ca3af;padding:1px 6px;">✓既読</span>':'<span style="font-size:10px;background:#fee2e2;color:#b91c1c;padding:1px 6px;border-radius:8px;">未読</span>')
       +'</div></div>';
   });
-  h+='</div>';
+  h+='</div>'
+    // 下部戻るボタン
+    +'<div style="margin-top:20px;display:flex;gap:6px;justify-content:center;flex-wrap:wrap;">'
+    +'<button onclick="switchPage(\'knowledge-portal\')" style="font-size:12px;padding:8px 14px;background:#f1f5f9;color:#475569;border:0;border-radius:4px;cursor:pointer;">← 豆知識ポータルに戻る</button>'
+    +'<button onclick="switchPage(\'dash\')" style="font-size:12px;padding:8px 14px;background:#f1f5f9;color:#475569;border:0;border-radius:4px;cursor:pointer;">← ホームに戻る</button>'
+    +'</div>';
   cardsEl.innerHTML=h;
 }
 function showRoleKnowledgeDetail(mode,id){
@@ -6685,28 +6787,43 @@ function showRoleKnowledgeDetail(mode,id){
   const t=tips.find(x=>x.id===id);if(!t)return;
   const meta=getRoleKnowledgeHeader(mode);
   const e=_spEsc;
+  // 既読登録
+  _rkMarkRead(mode,id);
+  const isFav=_rkIsFav(mode,id);
   const ex=document.getElementById('role-knowledge-modal');if(ex)ex.remove();
   const modal=document.createElement('div');
   modal.id='role-knowledge-modal';
   modal.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:14px;';
   modal.innerHTML='<div style="background:#fff;border-radius:10px;max-width:540px;width:100%;max-height:92vh;overflow:auto;padding:18px;font-size:13px;border-top:6px solid '+meta.color+';">'
     +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px;">'
-    +'<div><div style="font-size:11px;color:#666;">'+e(t.category)+' ／ '+_spDiffLabel(t.difficulty)+'</div>'
+    +'<div><div style="font-size:11px;color:#666;">'+e(t.category)+' ／ '+_spDiffLabel(t.difficulty)+' ／ '+e(meta.title)+'</div>'
     +'<div style="font-size:17px;font-weight:800;color:'+meta.color+';">'+e(t.title)+'</div>'
     +'<div style="font-size:11px;color:#475569;margin-top:2px;">キーワード：<b>'+e(t.keyword)+'</b></div></div>'
     +'<button onclick="document.getElementById(\'role-knowledge-modal\').remove()" style="font-size:18px;background:0;border:0;cursor:pointer;color:#666;">✕</button></div>'
     +'<div style="background:#f8fafc;padding:8px 10px;border-radius:6px;margin-bottom:8px;"><div style="font-size:10px;color:#666;font-weight:700;">ひとことで言うと</div><div>'+e(t.oneLine)+'</div></div>'
     +'<div style="margin-bottom:8px;"><div style="font-size:10px;color:#666;font-weight:700;">使い方</div><div>'+e(t.howToUse)+'</div></div>'
-    +'<div style="margin-bottom:8px;"><div style="font-size:10px;color:#666;font-weight:700;">例</div><div>'+e(t.example)+'</div></div>'
+    +'<div style="margin-bottom:8px;"><div style="font-size:10px;color:#666;font-weight:700;">具体例</div><div>'+e(t.example)+'</div></div>'
     +'<div style="background:#fef2f2;padding:8px 10px;border-radius:6px;border-left:3px solid #dc2626;margin-bottom:6px;"><div style="font-size:10px;color:#b91c1c;font-weight:700;">NG例</div><div style="font-size:12px;">'+e(t.ngExample)+'</div></div>'
     +'<div style="background:#f0fdf4;padding:8px 10px;border-radius:6px;border-left:3px solid #16a34a;margin-bottom:8px;"><div style="font-size:10px;color:#166534;font-weight:700;">OK例</div><div style="font-size:12px;">'+e(t.okExample)+'</div></div>'
     +'<div style="background:#fff7ed;padding:8px 10px;border-radius:6px;border-left:3px solid #f97316;margin-bottom:8px;"><div style="font-size:10px;color:#9a3412;font-weight:700;">今日の実践</div><div style="font-size:12px;">'+e(t.todayAction)+'</div></div>'
     +'<div style="margin-bottom:6px;"><div style="font-size:10px;color:#666;font-weight:700;">関連 AI</div><div style="font-size:11px;color:#475569;">'+(t.relatedAI||[]).map(a=>e(a)).join(' / ')+'</div></div>'
     +'<div style="background:#fffbeb;padding:8px 10px;border-radius:6px;margin-bottom:12px;"><div style="font-size:10px;color:#92400e;font-weight:700;">⚠ 注意点</div><div style="font-size:11px;">'+e(t.caution)+'</div></div>'
-    +'<div style="text-align:right;"><button onclick="document.getElementById(\'role-knowledge-modal\').remove()" style="padding:6px 12px;background:'+meta.color+';color:#fff;border:0;border-radius:4px;cursor:pointer;font-size:12px;">閉じる</button></div>'
+    +'<div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;">'
+    +'<button id="rk-fav-btn" style="padding:6px 12px;background:#fef3c7;border:1px solid #fde68a;border-radius:4px;cursor:pointer;font-size:12px;">'+(isFav?'★ お気に入り解除':'☆ お気に入りに追加')+'</button>'
+    +'<button onclick="document.getElementById(\'role-knowledge-modal\').remove();renderRoleKnowledgePage();" style="padding:6px 12px;background:'+meta.color+';color:#fff;border:0;border-radius:4px;cursor:pointer;font-size:12px;">閉じる</button>'
+    +'</div>'
     +'</div>';
   modal.onclick=ev=>{if(ev.target===modal)modal.remove();};
   document.body.appendChild(modal);
+  // お気に入りトグル bind
+  document.getElementById('rk-fav-btn').onclick=()=>{
+    const v=_rkToggleFav(mode,id);
+    document.getElementById('rk-fav-btn').textContent=v?'★ お気に入り解除':'☆ お気に入りに追加';
+    renderRoleKnowledgePage();
+    try{if(document.getElementById('page-knowledge-portal')?.classList.contains('on'))renderKnowledgePortalPage();}catch(e){}
+  };
+  // 表示直後に一覧側で既読反映するため再描画
+  try{if(document.getElementById('page-role-knowledge')?.classList.contains('on'))setTimeout(renderRoleKnowledgePage,0);}catch(e){}
 }
 // ホーム widget「今日の心理学」をロール別表示名に変更
 (function patchTodaySalesPsychologyWidgetRoleLabel(){
@@ -6722,15 +6839,15 @@ function showRoleKnowledgeDetail(mode,id){
       let extraBtn='';
       const e=_spEsc;
       if(_isExecutive(u)){
-        label='🏛 今日の経営者心理学';
-        extraBtn='<button onclick="window._roleKnowledgeMode=\'executive\';switchPage(\'role-knowledge\')" style="font-size:11px;padding:4px 10px;background:#b45309;color:#fff;border:0;border-radius:4px;cursor:pointer;margin-left:4px;">経営者辞典 →</button>'
-          +'<button onclick="window._roleKnowledgeMode=\'superior\';switchPage(\'role-knowledge\')" style="font-size:11px;padding:4px 10px;background:#0369a1;color:#fff;border:0;border-radius:4px;cursor:pointer;margin-left:4px;">上司辞典 →</button>';
+        label='🏛 今日の経営哲学';
+        extraBtn='<button onclick="window._roleKnowledgeMode=\'executive\';switchPage(\'role-knowledge\')" style="font-size:11px;padding:4px 10px;background:#1e3a8a;color:#fff;border:0;border-radius:4px;cursor:pointer;margin-left:4px;">経営哲学事典 →</button>'
+          +'<button onclick="window._roleKnowledgeMode=\'superior\';switchPage(\'role-knowledge\')" style="font-size:11px;padding:4px 10px;background:#c2410c;color:#fff;border:0;border-radius:4px;cursor:pointer;margin-left:4px;">上司マネージメント →</button>';
       }else if(_isSuperior(u)){
-        label='👔 今日の上司心理学';
-        extraBtn='<button onclick="window._roleKnowledgeMode=\'superior\';switchPage(\'role-knowledge\')" style="font-size:11px;padding:4px 10px;background:#0369a1;color:#fff;border:0;border-radius:4px;cursor:pointer;margin-left:4px;">上司辞典 →</button>';
+        label='👔 今日の上司マネージメント';
+        extraBtn='<button onclick="window._roleKnowledgeMode=\'superior\';switchPage(\'role-knowledge\')" style="font-size:11px;padding:4px 10px;background:#c2410c;color:#fff;border:0;border-radius:4px;cursor:pointer;margin-left:4px;">上司マネージメント事典 →</button>';
       }else{
-        label='👷 今日の部下心理学';
-        extraBtn='<button onclick="window._roleKnowledgeMode=\'subordinate\';switchPage(\'role-knowledge\')" style="font-size:11px;padding:4px 10px;background:#15803d;color:#fff;border:0;border-radius:4px;cursor:pointer;margin-left:4px;">部下辞典 →</button>';
+        label='👷 今日の部下仕事術';
+        extraBtn='<button onclick="window._roleKnowledgeMode=\'subordinate\';switchPage(\'role-knowledge\')" style="font-size:11px;padding:4px 10px;background:#15803d;color:#fff;border:0;border-radius:4px;cursor:pointer;margin-left:4px;">部下仕事術事典 →</button>';
       }
       // ラベル書換
       const labelEl=w.querySelector('div');
