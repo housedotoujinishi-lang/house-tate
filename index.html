@@ -1904,6 +1904,20 @@ async function loadAllFromDB() {
           personal: (a.personal===true || a.personal===false)?a.personal:false
         });
       });
+      // packet 476: localStorage の uid 並び順に accounts 配列をソート（members 構築前に並べる）
+      try{
+        const _order=_getAccountOrder();
+        if(_order.length>0){
+          accounts.sort((a,b)=>{
+            const ia=_order.indexOf(a.uid), ib=_order.indexOf(b.uid);
+            if(ia<0 && ib<0)return 0;
+            if(ia<0)return 1;
+            if(ib<0)return -1;
+            return ia-ib;
+          });
+          try{console.warn('[packet 476 loadAllFromDB] accounts sorted by saved order:',accounts.map(a=>a.uid).join(','));}catch(e){}
+        }
+      }catch(e){try{console.warn('[packet 476 loadAllFromDB] sort error:',e&&e.message);}catch(e2){}}
       // members を再構築（packet 472: 削除済みは members に入れない、カレンダー / タスク等にも出さない）
       members.length = 0;
       accounts.forEach(a => { if(!_isDisabledAccount(a)) members.push({ n: a.name, c: a.c, role: a.role, uid: a.uid }); });
@@ -2441,7 +2455,8 @@ function renderAccList(){
   if(adjBtn)adjBtn.style.display=(currentUser?.perm==='admin'||currentUser?.perm==='owner')?'inline-block':'none';
   // packet 472: 論理削除フィルタ。disabled / 削除済み は通常一覧から除外
   // packet 474: トグル ON のとき削除済みも表示、復元ボタン提供
-  const _activeAccs=accounts.filter(a=>a && !_isDisabledAccount(a));
+  // packet 476: 通常一覧は localStorage の uid 順にソート（_getActiveAccountsSorted 経由）
+  const _activeAccs=_getActiveAccountsSorted();
   const _disabledAccs=accounts.filter(a=>a && _isDisabledAccount(a));
   const _toggle=document.getElementById('show-disabled-accounts');
   const _showDisabled=!!(_toggle && _toggle.checked);
@@ -2449,7 +2464,31 @@ function renderAccList(){
   // packet 474: トグル change を一度だけ bind
   if(_toggle && _toggle.dataset.p474Bound!=='1'){_toggle.dataset.p474Bound='1';_toggle.addEventListener('change',()=>{try{renderAccList();}catch(e){}});}
   const list=document.getElementById('acc-list');list.innerHTML='';
-  _activeAccs.forEach(acc=>{const isAdm=acc.perm==='admin';const el=document.createElement('div');el.className='ai';el.innerHTML=`<div class="aav" style="background:${acc.c}">${acc.name[0]}</div><div class="ainf"><div class="anm">${acc.name}</div><div class="aid">ID: <strong>${acc.uid}</strong> ／ ${acc.role}${acc.inc?` ／ インセン${acc.inc}%`:''}${acc.cut?` ／ カット${fmtMoney(acc.cut)}`:''}${acc.personal?' ／ 個人売上制度':''}</div></div><span class="${isAdm?'pa':'ps'}">${isAdm?'管理者':'スタッフ'}</span><button class="pwb" data-uid="${acc.uid}">PW</button><button class="db" data-uid="${acc.uid}">×</button>`;list.appendChild(el);});
+  // packet 476: 各行に ↑↓ ボタン追加（先頭・末尾は disabled）
+  _activeAccs.forEach((acc,idx)=>{
+    const isAdm=acc.perm==='admin';
+    const isFirst=idx===0, isLast=idx===_activeAccs.length-1;
+    const el=document.createElement('div');el.className='ai';
+    el.innerHTML=`<div class="aav" style="background:${acc.c}">${acc.name[0]}</div><div class="ainf"><div class="anm">${acc.name}</div><div class="aid">ID: <strong>${acc.uid}</strong> ／ ${acc.role}${acc.inc?` ／ インセン${acc.inc}%`:''}${acc.cut?` ／ カット${fmtMoney(acc.cut)}`:''}${acc.personal?' ／ 個人売上制度':''}</div></div><span class="${isAdm?'pa':'ps'}">${isAdm?'管理者':'スタッフ'}</span><button class="ordup" data-uid="${acc.uid}" title="上へ" ${isFirst?'disabled':''} style="padding:2px 6px;border-radius:5px;border:1.5px solid var(--bo);background:var(--s2);color:var(--t1);font-size:11px;cursor:${isFirst?'not-allowed':'pointer'};opacity:${isFirst?'.35':'1'}">↑</button><button class="orddown" data-uid="${acc.uid}" title="下へ" ${isLast?'disabled':''} style="padding:2px 6px;border-radius:5px;border:1.5px solid var(--bo);background:var(--s2);color:var(--t1);font-size:11px;cursor:${isLast?'not-allowed':'pointer'};opacity:${isLast?'.35':'1'}">↓</button><button class="pwb" data-uid="${acc.uid}">PW</button><button class="db" data-uid="${acc.uid}">×</button>`;
+    list.appendChild(el);
+  });
+  // packet 476: ↑↓ 並び替えハンドラ。localStorage の uid 配列を更新後 renderAccList で即時反映、リロード後は loadAllFromDB の sort で他画面にも反映
+  function _accountOrderMove(uid, dir){
+    const cur=_getActiveAccountsSorted().map(a=>a.uid);
+    const idx=cur.indexOf(uid);
+    if(idx<0)return;
+    const swap=dir==='up'?idx-1:idx+1;
+    if(swap<0||swap>=cur.length)return;
+    [cur[idx],cur[swap]]=[cur[swap],cur[idx]];
+    // 既存の disabled uid も末尾に維持（一括発行・復元で挿入されたものを保持）
+    const existing=_getAccountOrder();
+    const disabledOrder=existing.filter(u=>cur.indexOf(u)<0);
+    _saveAccountOrder(cur.concat(disabledOrder));
+    try{console.warn('[packet 476 order] move',uid,dir,'->',cur.join(','));}catch(e){}
+    renderAccList();
+  }
+  list.querySelectorAll('.ordup').forEach(el=>{el.onclick=()=>_accountOrderMove(el.dataset.uid,'up');});
+  list.querySelectorAll('.orddown').forEach(el=>{el.onclick=()=>_accountOrderMove(el.dataset.uid,'down');});
   // packet 474: トグル ON のとき削除済みも表示
   if(_showDisabled && _disabledAccs.length>0){
     const hdr=document.createElement('div');
@@ -2555,6 +2594,57 @@ const _DEFAULT_ACCOUNT_PROFILES={
   tominaga: {pass:'tominaga2026', name:'冨永', role:'エージェント',perm:'staff'},
   ban:      {pass:'ban2026',      name:'伴',   role:'サポート',  perm:'admin'}
 };
+// packet 476: アカウント並び順管理 + 削除済みメンバー除外 helper 群
+// localStorage には uid 配列のみ保存（パスワード・名前・役割・顧客情報は保存しない）
+const _ACCOUNT_ORDER_LS_KEY='jagai_account_order_v1';
+function _getAccountOrder(){
+  try{
+    const s=localStorage.getItem(_ACCOUNT_ORDER_LS_KEY);
+    if(!s)return [];
+    const arr=JSON.parse(s);
+    return Array.isArray(arr)?arr.filter(u=>typeof u==='string'):[];
+  }catch(e){return [];}
+}
+function _saveAccountOrder(uids){
+  try{
+    if(!Array.isArray(uids))return;
+    localStorage.setItem(_ACCOUNT_ORDER_LS_KEY, JSON.stringify(uids.filter(u=>typeof u==='string')));
+  }catch(e){}
+}
+function _sortByAccountOrder(items, uidGet){
+  const order=_getAccountOrder();
+  if(order.length===0)return items.slice();
+  return items.slice().sort((a,b)=>{
+    const ua=uidGet(a), ub=uidGet(b);
+    const ia=order.indexOf(ua), ib=order.indexOf(ub);
+    if(ia<0 && ib<0)return 0;
+    if(ia<0)return 1;
+    if(ib<0)return -1;
+    return ia-ib;
+  });
+}
+// packet 476: members[i] は {n,c,role,uid} のみで perm/role を持たないため、accounts から uid で逆引きして disabled 判定
+function _isDisabledMember(m){
+  if(!m||!m.uid)return false;
+  try{
+    if(typeof accounts!=='undefined' && Array.isArray(accounts)){
+      const acc=accounts.find(a=>a && a.uid===m.uid);
+      if(acc && _isDisabledAccount(acc))return true;
+    }
+  }catch(e){}
+  return false;
+}
+function _getActiveAccountsSorted(){
+  if(typeof accounts==='undefined' || !Array.isArray(accounts))return [];
+  return _sortByAccountOrder(accounts.filter(a=>a && !_isDisabledAccount(a)), a=>a.uid);
+}
+// packet 476: 表示用ソート済 members View。元の members 配列の index (mi) を保持して
+// state.events[mi] 等の index 依存参照を壊さない。返り値は [{m, mi}] の配列。
+function _getActiveMembersSorted(){
+  if(typeof members==='undefined' || !Array.isArray(members))return [];
+  const indexed=members.map((m,mi)=>({m,mi})).filter(x=>x.m && !_isDisabledMember(x.m));
+  return _sortByAccountOrder(indexed, x=>x.m.uid);
+}
 function showPwModal(acc){
   const bg=mkModal('pwm',acc.c,`${acc.name} のアカウント情報`);
   mttlAfter(bg,`
@@ -3211,7 +3301,7 @@ function renderAdminKintai(append=false){const content=document.getElementById('
   content.querySelectorAll('.skreb').forEach(btn=>{btn.onclick=()=>{ktViewUid=btn.dataset.uid;renderMyKintai(content,ktViewUid);}; });content.querySelectorAll('[data-ap]').forEach(b=>{b.onclick=()=>{ktPeriod=b.dataset.ap;content.querySelectorAll('[data-ap]').forEach(x=>x.classList.remove('on'));b.classList.add('on');renderAdminKintai();};});}
 function startClock(uid){if(clockTimer)clearInterval(clockTimer);function tick(){const now=new Date();const cl=document.getElementById('kt-clock');const dl=document.getElementById('kt-date');if(cl)cl.textContent=`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;if(dl)dl.textContent=`${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日（${WD_ALL[now.getDay()]}）`;if(uid&&document.getElementById('page-kintai').classList.contains('on')){const{wMs}=calcTimes(uid,todayStr);const wt=document.getElementById('ks-wt');const ot=document.getElementById('ks-ot');if(wt)wt.textContent=wMs>0?fmtMin(wMs):'--';if(ot){const otMs=calcOtMs(wMs);ot.textContent=wMs>0?fmtMin(otMs):'--';ot.style.color=otMs>0?'var(--re)':'var(--t3)';}}}tick();clockTimer=setInterval(tick,1000);}
 function getShiftSt(mi,dateStr){const{y,m}=shiftMo;const d=new Date(dateStr);if(d.getFullYear()===y&&d.getMonth()===m){const uid=members[mi]?.uid;return shiftData[uid]?.[d.getDate()]||'work';}return 'work';}
-function renderFilterPills(){const wrap=document.getElementById('fp-members');wrap.innerHTML='';const isAll=selectedMembers.size===0;document.getElementById('fp-all').className='fp'+(isAll?' allon':'');members.forEach((m,i)=>{const isSel=selectedMembers.has(i);const b=document.createElement('button');b.className='fp'+(isSel?' sel':'');if(isSel){b.style.background=m.c;b.style.borderColor=m.c;}const sp=document.createElement('span');sp.textContent=m.n;sp.onclick=()=>{document.getElementById('fp-all').className='fp';if(selectedMembers.has(i)){selectedMembers.delete(i);if(selectedMembers.size===0)document.getElementById('fp-all').className='fp allon';}else selectedMembers.add(i);render();};b.appendChild(sp);if(isSel&&currentUser?.perm==='admin'){const del=document.createElement('button');del.className='fpdel';del.textContent='×';del.onclick=e=>{e.stopPropagation();delMember(i);};b.appendChild(del);}else if(!isSel){b.onclick=()=>{document.getElementById('fp-all').className='fp';selectedMembers.add(i);render();};}wrap.appendChild(b);});}
+function renderFilterPills(){const wrap=document.getElementById('fp-members');wrap.innerHTML='';const isAll=selectedMembers.size===0;document.getElementById('fp-all').className='fp'+(isAll?' allon':'');/* packet 476: sortedMembers 経由で iterate、disabled 除外 + localStorage 順 */_getActiveMembersSorted().forEach(({m,mi:i})=>{const isSel=selectedMembers.has(i);const b=document.createElement('button');b.className='fp'+(isSel?' sel':'');if(isSel){b.style.background=m.c;b.style.borderColor=m.c;}const sp=document.createElement('span');sp.textContent=m.n;sp.onclick=()=>{document.getElementById('fp-all').className='fp';if(selectedMembers.has(i)){selectedMembers.delete(i);if(selectedMembers.size===0)document.getElementById('fp-all').className='fp allon';}else selectedMembers.add(i);render();};b.appendChild(sp);if(isSel&&currentUser?.perm==='admin'){const del=document.createElement('button');del.className='fpdel';del.textContent='×';del.onclick=e=>{e.stopPropagation();delMember(i);};b.appendChild(del);}else if(!isSel){b.onclick=()=>{document.getElementById('fp-all').className='fp';selectedMembers.add(i);render();};}wrap.appendChild(b);});}
 function delMember(mi){if(members.length<=1){alert('メンバーが1人のため削除できません');return;}if(!confirm(`「${members[mi].n}」を削除しますか？`))return;const uid=members[mi].uid;members.splice(mi,1);state.events.splice(mi,1);state.todos.splice(mi,1);state.memo.splice(mi,1);delete shiftData[uid];accounts=accounts.filter(a=>a.uid!==uid);state.tasks.forEach(t=>{if(t.toIdx===mi)t.toIdx=null;else if(t.toIdx!==null&&t.toIdx>mi)t.toIdx--;});const ns=new Set();[...selectedMembers].forEach(x=>{if(x<mi)ns.add(x);else if(x>mi)ns.add(x-1);});selectedMembers=ns;render();}
 function renderKPI(){const strip=document.getElementById('kpi-strip');const mi=singleMi();if(mi<0){strip.innerHTML='';strip.style.display='none';return;}strip.style.display='flex';const m=members[mi];const def=COUNT_DEF[m.role]||COUNT_DEF['エージェント'];const pg=personalCountProgress[m.uid]||{};strip.innerHTML='';Object.keys(def).forEach(k=>{const tgt=def[k],act=pg[k]||0;const pct=tgt>0?Math.min(Math.round(act/tgt*100),100):0;const done=pct>=100;const c=done?'#0d9e6e':m.c;const el=document.createElement('div');el.className='kpic';el.innerHTML=`<div class="kpil">${k}</div><div style="display:flex;align-items:baseline;gap:2px;margin-bottom:3px"><span class="kpin" style="color:${c}">${act}</span><span class="kpid">/${tgt}</span></div><div class="kpitr"><div class="kpifi" style="width:${pct}%;background:${c}"></div></div><div class="kpipct" style="color:${c}">${pct}%</div>`;el.title='クリックで+1';el.onclick=()=>{if(!personalCountProgress[m.uid])personalCountProgress[m.uid]={};personalCountProgress[m.uid][k]=(pg[k]||0)+1;renderKPI();};strip.appendChild(el);});}
 function renderTodoStrip(){const mi=singleMi()>=0?singleMi():0;const todos=(state.todos[mi]||[]).filter(t=>t.date===ds(selDate));const done=todos.filter(t=>t.done).length,total=todos.length;const pct=total?Math.round(done/total*100):0;document.getElementById('prog-fi').style.width=pct+'%';document.getElementById('prog-pct').textContent=pct+'%';document.getElementById('todo-lbl').textContent=`📋 ${selDate.getMonth()+1}/${selDate.getDate()} のToDo（${singleMi()>=0?members[singleMi()].n:'チーム'}）`;const list=document.getElementById('todo-list');list.innerHTML='';todos.forEach(td=>{const idx=state.todos[mi].indexOf(td);const d=document.createElement('div');d.className='tchip'+(td.done?' done':'');d.innerHTML=`<div class="tck${td.done?' on':''}"></div><span>${td.t}</span>`;d.onclick=()=>{state.todos[mi][idx].done=!td.done;renderTodoStrip();};list.appendChild(d);});}
@@ -3522,7 +3612,7 @@ document.getElementById('evm-save').onclick=()=>{
   bg.remove();renderCal();showToast('予定を更新しました');
 };}
 function setupEvForm(){const d2=document.getElementById('ef-day');if(!d2)return;d2.innerHTML='';const yr=curV==='week'?wkStart.getFullYear():viewY;const mo=curV==='week'?wkStart.getMonth():viewMo;const dim=new Date(yr,mo+1,0).getDate();for(let d=1;d<=dim;d++){const date=new Date(yr,mo,d);const o=document.createElement('option');o.value=localStr(date);o.textContent=`${mo+1}/${d}(${WD_JP[(date.getDay()+6)%7]})`;d2.appendChild(o);}const sdStr=ds(selDate);if([...d2.options].some(o=>o.value===sdStr))d2.value=sdStr;['ef-s','ef-e'].forEach((id,i)=>{const s=document.getElementById(id);if(!s)return;s.innerHTML='';for(let h=8;h<=20;h++){/* packet 462: 30 分刻み → 15 分刻みに統一 */['00','15','30','45'].forEach(mn=>{const o=document.createElement('option');o.value=`${h}:${mn}`;o.textContent=`${h}:${mn}`;s.appendChild(o);});}if(i===1)s.value='10:30';});}
-function popTfTo(){const s=document.getElementById('tf-to');if(!s)return;s.innerHTML=`<option value="pool">未割当</option>`+members.map((m,i)=>`<option value="${i}">${m.n}</option>`).join('');}
+function popTfTo(){const s=document.getElementById('tf-to');if(!s)return;/* packet 476: sortedMembers 経由で iterate、disabled 除外 + localStorage 順、mi は元の index を維持 */s.innerHTML=`<option value="pool">未割当</option>`+_getActiveMembersSorted().map(({m,mi:i})=>`<option value="${i}">${m.n}</option>`).join('');}
 function applyTaskFilter(tasks){
   let r=tasks;
   if(taskFilter.cat)r=r.filter(t=>t.cat===taskFilter.cat);
@@ -4307,8 +4397,8 @@ function countOt(uid){
 }
 function countOtShiftDays(uid){return Object.values(shiftData[uid]||{}).filter(v=>v==='overtime').length;}
 function nextShSt(cur,uid,d){const i=WDCYC.indexOf(cur);let next=WDCYC[(i+1)%WDCYC.length];if(next==='overtime'&&countOt(uid)>=OTL&&cur!=='overtime')next=WDCYC[(i+2)%WDCYC.length];return next;}
-function renderShiftSummary(){const el=document.getElementById('sh-summary');el.style.gridTemplateColumns=`repeat(${Math.min(members.length,5)},1fr)`;el.innerHTML='';members.forEach(mem=>{const uid=mem.uid;const sd=shiftData[uid]||{};const work=Object.values(sd).filter(v=>['work','overtime','noOt','half'].includes(v)).length;const off=Object.values(sd).filter(v=>v==='off').length;const paid=Object.values(sd).filter(v=>v==='paid').length;const ot=Math.max(0,countOt(uid));const otOver=ot>OTL;const d=document.createElement('div');d.className='sscard';d.innerHTML=`<div class="sstop"><div class="ssav" style="background:${mem.c}">${mem.n[0]}</div><div><div class="ssnm">${mem.n}</div><div class="ssrl">${mem.role}</div></div></div><div class="ssstats"><div class="ssst"><div class="sssn" style="color:var(--navy)">${work}</div><div class="sssl">出勤</div></div><div class="ssst"><div class="sssn" style="color:var(--t3)">${off}</div><div class="sssl">休み</div></div>${paid?`<div class="ssst"><div class="sssn" style="color:var(--gr)">${paid}</div><div class="sssl">有給</div></div>`:''}</div><div>${otOver?`<span class="otwarn">⚠ 残業${ot}回</span>`:`<span class="otok">残業${ot}/${OTL}</span>`}</div>`;el.appendChild(d);});}
-function renderShiftTable(){const{y,m}=shiftMo;const dim=new Date(y,m+1,0).getDate();document.getElementById('sh-mo').textContent=`${y}年${m+1}月`;let h=`<thead><tr><th class="nmh">担当者</th>`;for(let d=1;d<=dim;d++){const dow=new Date(y,m,d).getDay();const isTod=new Date(y,m,d).toDateString()===today.toDateString();h+=`<th class="${isTod?'tdh':dow===6?'sath':dow===0?'sunh':''}">${d}<br><span style="font-weight:400;font-size:8px">${WD_ALL[dow]}</span></th>`;}h+=`</tr></thead><tbody>`;members.forEach(mem=>{const uid=mem.uid;const ot=countOt(uid);const otOver=ot>OTL;h+=`<tr><td class="nmtd"><div class="shnmrow"><div class="shavsm" style="background:${mem.c}">${mem.n[0]}</div><span style="font-size:10px;font-weight:700;color:var(--navy)">${mem.n}</span>${otOver?`<span style="font-size:8px;color:var(--re);font-weight:700">⚠</span>`:''}</div></td>`;for(let d=1;d<=dim;d++){const s=(shiftData[uid]||{})[d]||'off';const isTod=new Date(y,m,d).toDateString()===today.toDateString();const hol=isHol(y,m,d);const otChipOver=s==='overtime'&&otOver;h+=`<td class="${isTod?'tdcol':''}${hol?' holcol':''}"><div class="shchip ${s}${otChipOver?' ovl':''}" data-uid="${uid}" data-d="${d}">${SLBL[s]||'休'}</div></td>`;}h+=`</tr>`;});h+=`</tbody>`;document.getElementById('sh-table').innerHTML=h;document.querySelectorAll('.shchip').forEach(el=>{el.onclick=()=>{const uid=el.dataset.uid,d=+el.dataset.d;if(!shiftData[uid])shiftData[uid]={};shiftData[uid][d]=nextShSt(shiftData[uid][d]||'off',uid,d);renderShiftSummary();renderShiftTable();};});}
+function renderShiftSummary(){const el=document.getElementById('sh-summary');/* packet 476: 削除済み除外 + localStorage 順、列数は active 数を反映 */const _sortedActive=_getActiveMembersSorted();el.style.gridTemplateColumns=`repeat(${Math.min(_sortedActive.length||1,5)},1fr)`;el.innerHTML='';_sortedActive.forEach(({m:mem})=>{const uid=mem.uid;const sd=shiftData[uid]||{};const work=Object.values(sd).filter(v=>['work','overtime','noOt','half'].includes(v)).length;const off=Object.values(sd).filter(v=>v==='off').length;const paid=Object.values(sd).filter(v=>v==='paid').length;const ot=Math.max(0,countOt(uid));const otOver=ot>OTL;const d=document.createElement('div');d.className='sscard';d.innerHTML=`<div class="sstop"><div class="ssav" style="background:${mem.c}">${mem.n[0]}</div><div><div class="ssnm">${mem.n}</div><div class="ssrl">${mem.role}</div></div></div><div class="ssstats"><div class="ssst"><div class="sssn" style="color:var(--navy)">${work}</div><div class="sssl">出勤</div></div><div class="ssst"><div class="sssn" style="color:var(--t3)">${off}</div><div class="sssl">休み</div></div>${paid?`<div class="ssst"><div class="sssn" style="color:var(--gr)">${paid}</div><div class="sssl">有給</div></div>`:''}</div><div>${otOver?`<span class="otwarn">⚠ 残業${ot}回</span>`:`<span class="otok">残業${ot}/${OTL}</span>`}</div>`;el.appendChild(d);});}
+function renderShiftTable(){const{y,m}=shiftMo;const dim=new Date(y,m+1,0).getDate();document.getElementById('sh-mo').textContent=`${y}年${m+1}月`;let h=`<thead><tr><th class="nmh">担当者</th>`;for(let d=1;d<=dim;d++){const dow=new Date(y,m,d).getDay();const isTod=new Date(y,m,d).toDateString()===today.toDateString();h+=`<th class="${isTod?'tdh':dow===6?'sath':dow===0?'sunh':''}">${d}<br><span style="font-weight:400;font-size:8px">${WD_ALL[dow]}</span></th>`;}h+=`</tr></thead><tbody>`;/* packet 476: 削除済み除外 + localStorage 順 */_getActiveMembersSorted().forEach(({m:mem})=>{const uid=mem.uid;const ot=countOt(uid);const otOver=ot>OTL;h+=`<tr><td class="nmtd"><div class="shnmrow"><div class="shavsm" style="background:${mem.c}">${mem.n[0]}</div><span style="font-size:10px;font-weight:700;color:var(--navy)">${mem.n}</span>${otOver?`<span style="font-size:8px;color:var(--re);font-weight:700">⚠</span>`:''}</div></td>`;for(let d=1;d<=dim;d++){const s=(shiftData[uid]||{})[d]||'off';const isTod=new Date(y,m,d).toDateString()===today.toDateString();const hol=isHol(y,m,d);const otChipOver=s==='overtime'&&otOver;h+=`<td class="${isTod?'tdcol':''}${hol?' holcol':''}"><div class="shchip ${s}${otChipOver?' ovl':''}" data-uid="${uid}" data-d="${d}">${SLBL[s]||'休'}</div></td>`;}h+=`</tr>`;});h+=`</tbody>`;document.getElementById('sh-table').innerHTML=h;document.querySelectorAll('.shchip').forEach(el=>{el.onclick=()=>{const uid=el.dataset.uid,d=+el.dataset.d;if(!shiftData[uid])shiftData[uid]={};shiftData[uid][d]=nextShSt(shiftData[uid][d]||'off',uid,d);renderShiftSummary();renderShiftTable();};});}
 
 function showToast(msg,dur=2200){let t=document.getElementById('sc-toast');if(!t){t=document.createElement('div');t.id='sc-toast';t.className='shortcut-toast';document.body.appendChild(t);}t.textContent=msg;t.classList.add('show');clearTimeout(t._tid);t._tid=setTimeout(()=>t.classList.remove('show'),dur);}
 
