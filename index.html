@@ -1023,6 +1023,17 @@ body.task-dragging [data-id]:not(.dragging-this){opacity:1!important}
             <button class="pbtn" id="bulk-issue-btn" style="width:100%;padding:8px;font-size:12px;background:var(--gold);color:var(--navy);font-weight:800">🚀 6 名を一括発行する</button>
             <div id="bulk-issue-result" style="display:none;border-radius:var(--r);padding:8px 10px;font-size:11px;font-weight:600;margin-top:6px;line-height:1.7"></div>
           </div>
+          <!-- packet 480: 削除済みアカウント完全削除（管理者専用、2 段階確認 + バックアップ DL）-->
+          <div id="hard-delete-section" style="margin-top:14px;padding-top:10px;border-top:1.5px solid var(--bo)">
+            <div style="font-size:11px;font-weight:800;color:var(--re);margin-bottom:6px">🗑 削除済みアカウント完全削除</div>
+            <div style="font-size:10px;color:var(--t3);line-height:1.6;margin-bottom:6px">削除済みアカウントを DB から完全削除します。<strong style="color:var(--re)">復元できません</strong>。<br>先にバックアップ（JSON）をダウンロードしてください。active アカウントは絶対対象外。</div>
+            <div id="hard-delete-target-info" style="font-size:10px;color:var(--t2);background:var(--s2);padding:6px 8px;border-radius:6px;margin-bottom:6px">対象件数：—（「削除済みアカウントも表示する」を ON にして確認）</div>
+            <div style="display:flex;gap:4px;flex-wrap:wrap">
+              <button class="pbtn" id="hard-del-backup-btn" style="flex:1;padding:6px;font-size:11px;background:var(--gold);color:var(--navy);font-weight:700">💾 バックアップDL</button>
+              <button class="pbtn" id="hard-del-exec-btn" style="flex:1;padding:6px;font-size:11px;background:var(--re);color:#fff;font-weight:700">⚠ 完全削除実行</button>
+            </div>
+            <div id="hard-del-result" style="display:none;border-radius:var(--r);padding:8px 10px;font-size:10px;font-weight:600;margin-top:6px;line-height:1.7;font-family:monospace;white-space:pre-wrap;word-break:break-all"></div>
+          </div>
           <!-- packet 466: Supabase 接続診断 + 再保存（リロード後にアカウントが消える問題の切り分け）-->
           <div id="supabase-diag-section" style="margin-top:14px;padding-top:10px;border-top:1.5px solid var(--bo)">
             <div style="font-size:11px;font-weight:800;color:var(--navy);margin-bottom:6px">🔧 Supabase 接続診断</div>
@@ -3214,6 +3225,190 @@ document.getElementById('issue-btn').onclick=()=>{
   else init();
 })();
 // ==== ここまで packet 470 probe ====
+
+// ==== packet 480: 削除済みアカウント完全削除（管理者専用、2 段階確認 + JSON バックアップ DL + DELETE policy 失敗時 status 表示）====
+// active アカウントは絶対対象外、削除済み（perm='disabled' or role='削除済み'）のみ
+// SQL / RLS 変更は実行しない、DELETE policy が無い場合は status 表示まで
+(function patchHardDeleteP480(){
+  async function rawDelete(table, eq){
+    const r=await fetch(`${SB_URL}/rest/v1/${table}?${eq}`,{
+      method:'DELETE',
+      headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}` }
+    });
+    let body='';try{body=await r.text();}catch(e){body='';}
+    return {status:r.status, statusText:r.statusText, ok:r.ok, body};
+  }
+  function _getDisabledTargets(){
+    if(typeof accounts==='undefined'||!Array.isArray(accounts))return [];
+    return accounts.filter(a=>a && _isDisabledAccount(a));
+  }
+  function _updateTargetInfo(){
+    const el=document.getElementById('hard-delete-target-info');
+    if(!el)return;
+    const targets=_getDisabledTargets();
+    if(targets.length===0){
+      el.innerHTML='対象件数：<strong>0</strong> 件（削除済みアカウントなし）';
+    }else{
+      el.innerHTML='対象件数：<strong style="color:var(--re)">'+targets.length+'</strong> 件　uid: '+targets.map(a=>a.uid).join(', ');
+    }
+  }
+  function showResult(html, bg){
+    const el=document.getElementById('hard-del-result');
+    if(!el)return;
+    el.style.display='block';
+    el.style.background=bg||'var(--s2)';
+    el.style.color='var(--t1)';
+    el.innerHTML=html;
+  }
+
+  function bindBackup(){
+    const btn=document.getElementById('hard-del-backup-btn');
+    if(!btn||btn.dataset.p480Bound==='1')return false;
+    btn.dataset.p480Bound='1';
+    btn.addEventListener('click',function(){
+      try{console.warn('[packet 480 backup] click fired');}catch(e){}
+      const targets=_getDisabledTargets();
+      if(targets.length===0){
+        try{if(typeof showToast==='function')showToast('⚠ 削除済みアカウントがないためバックアップ不要',3000);}catch(e){}
+        return;
+      }
+      // バックアップ JSON：パスワードは passLen のみ含める（本体は出さない）
+      const backup={
+        backed_up_at:new Date().toISOString(),
+        backup_by:(typeof currentUser!=='undefined'&&currentUser)?currentUser.uid:'unknown',
+        target_count:targets.length,
+        accounts:targets.map(a=>({
+          uid:a.uid,
+          name:a.name,
+          role:a.role,
+          perm:a.perm,
+          passLen:(a.pass||'').length,
+          // 注：実際のパスワード値はバックアップに含めない
+          note:'pass value omitted for safety'
+        }))
+      };
+      const filename='accounts_disabled_backup_'+new Date().toISOString().slice(0,10).replace(/-/g,'')+'.json';
+      try{
+        const blob=new Blob([JSON.stringify(backup,null,2)],{type:'application/json'});
+        const url=URL.createObjectURL(blob);
+        const a=document.createElement('a');
+        a.href=url;a.download=filename;
+        document.body.appendChild(a);a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showResult('💾 バックアップ DL 完了\n  ファイル：'+filename+'\n  件数：'+targets.length+'\n  ※ パスワード本体は含まれません（passLen のみ）','rgba(254,243,199,.5)');
+        try{if(typeof showToast==='function')showToast('💾 バックアップDL完了：'+filename);}catch(e){}
+        try{console.warn('[packet 480 backup] downloaded',filename,'targets:',targets.length);}catch(e){}
+      }catch(e){
+        showResult('❌ バックアップ DL 失敗：'+_escHtml(e&&e.message||'unknown'),'rgba(254,202,202,.5)');
+        try{console.warn('[packet 480 backup] error:',e&&e.message);}catch(e2){}
+      }
+    });
+    try{console.warn('[packet 480 backup] bound');}catch(e){}
+    return true;
+  }
+
+  function bindExec(){
+    const btn=document.getElementById('hard-del-exec-btn');
+    if(!btn||btn.dataset.p480Bound==='1')return false;
+    btn.dataset.p480Bound='1';
+    btn.addEventListener('click',async function(){
+      try{console.warn('[packet 480 exec] click fired');}catch(e){}
+      const targets=_getDisabledTargets();
+      if(targets.length===0){
+        try{if(typeof showToast==='function')showToast('⚠ 削除済みアカウントなし',3000);}catch(e){}
+        return;
+      }
+      // 確認 1：実行確認
+      if(!confirm('⚠ 削除済みアカウント '+targets.length+' 件を DB から完全削除します。\n復元できません。先にバックアップ DL をお勧めします。\n\n対象 uid: '+targets.map(a=>a.uid).join(', ')+'\n\n続行しますか？'))return;
+      // 確認 2：「完全削除」と入力させる
+      const typed=prompt('完全削除を確認するため、半角で「完全削除」と入力してください：');
+      if(typed!=='完全削除'){
+        try{if(typeof showToast==='function')showToast('入力不一致のためキャンセル',3000);}catch(e){}
+        return;
+      }
+      // active 絶対除外チェック（防御的）
+      const safeTargets=targets.filter(a=>a && _isDisabledAccount(a));
+      if(safeTargets.length!==targets.length){
+        showResult('⚠ active アカウントが対象に混入。即停止。','rgba(254,202,202,.5)');
+        return;
+      }
+      // 自分自身チェック（disabled が自分のことはほぼ無いが念のため）
+      if(currentUser && safeTargets.find(a=>a.uid===currentUser.uid)){
+        showResult('❌ 自分自身は削除対象に含められません。','rgba(254,202,202,.5)');
+        return;
+      }
+      showResult('⏳ 削除中... '+safeTargets.length+' 件','var(--s2)');
+      const results=[];
+      for(const acc of safeTargets){
+        try{
+          const r=await rawDelete('accounts','uid=eq.'+encodeURIComponent(acc.uid));
+          results.push({uid:acc.uid,name:acc.name,status:r.status,ok:r.ok,body:(r.body||'').substring(0,200)});
+          try{console.warn('[packet 480 exec] delete',acc.uid,'status:',r.status,'ok:',r.ok);}catch(e){}
+          // メモリからも除去（成功時）
+          if(r.ok){
+            try{
+              if(Array.isArray(accounts)){
+                const idx=accounts.findIndex(x=>x&&x.uid===acc.uid);
+                if(idx>=0)accounts.splice(idx,1);
+              }
+              if(Array.isArray(members)){
+                const idx=members.findIndex(x=>x&&x.uid===acc.uid);
+                if(idx>=0)members.splice(idx,1);
+              }
+            }catch(e){}
+          }
+        }catch(e){
+          results.push({uid:acc.uid,name:acc.name,status:0,ok:false,body:(e&&e.message)||'unknown'});
+          try{console.warn('[packet 480 exec] delete',acc.uid,'failed:',e&&e.message);}catch(e2){}
+        }
+      }
+      // 結果集計
+      const okCount=results.filter(r=>r.ok).length;
+      const ngCount=results.filter(r=>!r.ok).length;
+      let html='<strong>🗑 完全削除結果</strong>\n';
+      html+='  成功：'+okCount+' 件　失敗：'+ngCount+' 件\n';
+      results.forEach(r=>{
+        const mark=r.ok?'✅':'❌';
+        html+='  '+mark+' '+r.uid+'（'+r.name+'）：status '+r.status+(r.ok?'':' / '+r.body)+'\n';
+      });
+      if(ngCount>0){
+        html+='\n<strong>⚠ 失敗があります（DELETE policy 未作成の可能性）</strong>\n';
+        html+='Supabase ダッシュボードで以下の SQL を実行する必要あり（ボス判断）：\n';
+        html+='  create policy "anon can delete accounts" on accounts\n';
+        html+='  for delete to anon using (true);\n';
+        html+='  ⚠ ただし anon に DELETE 権限を与えるとセキュリティリスクが高い。\n';
+        html+='  本番運用では authenticated role + 管理者判定にすべき。\n';
+      }
+      showResult(html, ngCount>0?'rgba(254,202,202,.5)':'rgba(209,250,229,.4)');
+      try{if(typeof renderAccList==='function')renderAccList();}catch(e){}
+      try{if(typeof showToast==='function')showToast(okCount>0?('✅ '+okCount+' 件完全削除'):'⚠ 削除失敗（DELETE policy 確認）',4000);}catch(e){}
+      _updateTargetInfo();
+    });
+    try{console.warn('[packet 480 exec] bound');}catch(e){}
+    return true;
+  }
+
+  function init(){
+    bindBackup();bindExec();_updateTargetInfo();
+    try{
+      const obs=new MutationObserver(function(){
+        try{
+          const b=bindBackup(); const e=bindExec();
+          _updateTargetInfo();
+          if(b && e)obs.disconnect();
+        }catch(e){}
+      });
+      obs.observe(document.body,{childList:true,subtree:true});
+    }catch(e){}
+    setTimeout(function(){bindBackup();bindExec();_updateTargetInfo();},1000);
+    setTimeout(function(){bindBackup();bindExec();_updateTargetInfo();},3000);
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);
+  else init();
+})();
+// ==== ここまで packet 480 hard delete ====
+
 function renderKintaiPage(){
   const now=new Date();
   document.getElementById('kt-sub').textContent=`${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日（${WD_ALL[now.getDay()]}）`;
