@@ -2583,45 +2583,16 @@ function renderCalNav(){
 }
 
 // 予定追加フォーム（ef-close / ef-save）のバインド — DOM構築後に一度だけ実行
-// packet 452 修正: window.selectedMembers は selectedMembers が let なので常に undefined だった。
-// typeof 検査に置換。さらに saveBtn.onclick 発火・state.events.push 到達の診断ログを全段階に追加。
+// packet 454: ef-save の bind は末尾 IIFE 側（_p454_efSaveBind）に全面移管。
+// 理由：旧 saveBtn.onclick= はログイン後 showMainApp 内で 1 回しか attach されず、
+// 他の onclick= 上書きや showMainApp 未実行（auto-login 経路の早期 race）で結線消失するリスクあり。
+// packet 454 では addEventListener + dataset.p454Bound ガード + IIFE 再 bind 機構で確実化。
+// ef-close は変更なし（PC/スマホとも閉じるだけの軽い handler）。
 function bindEvForm(){
   const closeBtn=document.getElementById('ef-close');
   if(closeBtn)closeBtn.onclick=()=>{const bar=document.getElementById('ev-add-bar');if(bar)bar.style.display='none';};
-  const saveBtn=document.getElementById('ef-save');
-  if(!saveBtn){try{console.warn('[packet 452 ef-save] saveBtn not found at bind time');}catch(e){}return;}
-  try{console.warn('[packet 452 ef-save] bound to button:', saveBtn);}catch(e){}
-  saveBtn.onclick=()=>{
-    try{console.warn('[packet 452 ef-save] click fired');}catch(e){}
-    const t=document.getElementById('ef-t')?.value.trim();
-    if(!t){alert('内容を入力してください');try{console.warn('[packet 452 ef-save] empty title, abort');}catch(e){}return;}
-    const cat=document.getElementById('ef-cat')?.value||'その他';
-    const dstr=document.getElementById('ef-day')?.value||todayStr;
-    const sv=document.getElementById('ef-s')?.value||'9:00';
-    const ev2=document.getElementById('ef-e')?.value||'10:00';
-    const[sh,sm]=sv.split(':').map(Number);const[eh,em]=ev2.split(':').map(Number);
-    const mi2=singleMi()>=0?singleMi():members.findIndex(m=>m.uid===currentUser?.uid);
-    const tmi=mi2>=0?mi2:0;
-    try{console.warn('[packet 452 ef-save] values:',{t,cat,dstr,sv,ev2,mi2,tmi});}catch(e){}
-    if(!state.events[tmi])state.events[tmi]=[];
-    const before=state.events[tmi].length;
-    state.events[tmi].push({title:t,cat,date:dstr,sh,sm,eh,em,mi:tmi});
-    try{console.warn('[packet 452 ef-save] state.events['+tmi+'].length:',before,'->',state.events[tmi].length);}catch(e){}
-    // packet 442 / 452: 追加先 mi が絞り込み外の場合、selectedMembers に追加（typeof 検査で lexical scope へ確実到達）
-    try{
-      if(typeof selectedMembers!=='undefined' && selectedMembers && selectedMembers.size>0 && !selectedMembers.has(tmi)){
-        selectedMembers.add(tmi);
-        try{console.warn('[packet 452 ef-save] selectedMembers.add('+tmi+')');}catch(e){}
-      }
-    }catch(e){try{console.warn('[packet 452 ef-save] selectedMembers update error:',e&&e.message);}catch(e2){}}
-    document.getElementById('ef-t').value='';
-    const bar=document.getElementById('ev-add-bar');if(bar)bar.style.display='none';
-    showToast('予定を追加しました');
-    // packet 442 / 452: 表示反映を確実にするため、render() に加えて renderCal() を直接呼ぶ
-    try{render();try{console.warn('[packet 452 ef-save] render called');}catch(e){}}catch(e){try{console.warn('[packet 452 ef-save] render error:',e&&e.message);}catch(e2){}}
-    try{if(typeof renderCal==='function'){renderCal();try{console.warn('[packet 452 ef-save] renderCal called');}catch(e){}}}catch(e){try{console.warn('[packet 452 ef-save] renderCal error:',e&&e.message);}catch(e2){}}
-    try{if(typeof renderFilterPills==='function')renderFilterPills();}catch(e){}
-  };
+  // packet 454: ef-save 結線は IIFE 側 _p454_efSaveBind に委譲（dataset ガードで冪等）
+  try{if(typeof window._p454_efSaveBind==='function'){window._p454_efSaveBind();try{console.warn('[packet 454 ef-save] bindEvForm called _p454_efSaveBind');}catch(e){}}else{try{console.warn('[packet 454 ef-save] _p454_efSaveBind not yet defined at bindEvForm time');}catch(e){}}}catch(e){try{console.warn('[packet 454 ef-save] bindEvForm dispatch error:',e&&e.message);}catch(e2){}}
 }
 
 
@@ -10470,6 +10441,111 @@ function openEventFormFromCalendar(dateStr,timeStr){
   }catch(e){try{console.warn('[packet 452 tf-save] patch init error:',e&&e.message);}catch(e2){}}
 })();
 // ==== ここまで packet 450 / 452 ====
+
+// ==== packet 454: 予定追加 ef-save 保存結線 根本 hotfix ====
+// packet 452 で診断ログを入れたが実機では予定がカレンダーに反映しない事象が継続。
+// 真因仮説：bindEvForm の `saveBtn.onclick=` 経路は showMainApp 内 1 回限りの assign で、
+// 何らかの理由（auto-login race / 他の onclick 上書き / 例外でルートまで到達しない 等）で
+// 結線が失われると一切発火しない。さらに onclick は addEventListener と異なり同期上書きが効くため壊れやすい。
+// 修正方針：
+// 1) ef-save を addEventListener で結線（dataset.p454Bound='1' ガードで冪等、二重 push 防止）
+// 2) script-load 時 IIFE + DOMContentLoaded + MutationObserver + setTimeout 二段で再 bind 試行
+// 3) bindEvForm は本 IIFE が公開する window._p454_efSaveBind に委譲（旧 onclick 経路完全廃止）
+// 4) handler 全体を外側 try-catch で囲み、push 到達前の例外も診断ログに残す
+// 5) push する event 構造は既存 mkEvs / 既存 ka-save / renderMonth/Week/Day と完全一致：
+//    {title, cat, date(YYYY-MM-DD), sh, sm, eh, em, mi}
+// 6) tmi 算出は singleMi 優先 → currentUser.uid で findIndex → 0 fallback。
+//    Auth UUID と legacy uid のミスマッチでも 0 fallback で push 確実化。
+// 7) 絞り込み中なら selectedMembers.add(tmi) で表示反映（packet 442 の typeof 修正済を踏襲）。
+// 8) push 後は render() / renderCal() / renderFilterPills() を順に呼出。
+// 既存 packet 394 の ef-save addEventListener('click', removeOpen) はそのまま共存（class 除去のみで衝突なし）。
+// 既存 packet 401 calendar-tap, packet 396 mobile mEv, packet 394 mobile bar open は無修正。
+// 予定は in-memory（リロード後は loadAllFromDB で復元されない、現仕様維持、別 packet で永続化検討）。
+(function patchEfSaveBindingP454(){
+  function efSaveHandler(){
+    try{
+      try{console.warn('[packet 454 ef-save] click fired');}catch(e){}
+      const tEl=document.getElementById('ef-t');
+      const t=((tEl && tEl.value) || '').trim();
+      if(!t){alert('内容を入力してください');try{console.warn('[packet 454 ef-save] empty title, abort');tEl&&tEl.focus();}catch(e){}return;}
+      const cat=(document.getElementById('ef-cat')?.value)||'その他';
+      const dstr=(document.getElementById('ef-day')?.value)||(typeof todayStr!=='undefined'?todayStr:new Date().toISOString().slice(0,10));
+      const sv=(document.getElementById('ef-s')?.value)||'9:00';
+      const ev2=(document.getElementById('ef-e')?.value)||'10:00';
+      const svParts=String(sv).split(':');const evParts=String(ev2).split(':');
+      const sh=parseInt(svParts[0],10)||9, sm=parseInt(svParts[1],10)||0;
+      const eh=parseInt(evParts[0],10)||10, em=parseInt(evParts[1],10)||0;
+      try{console.warn('[packet 454 ef-save] values:',{t,cat,dstr,sv,ev2,sh,sm,eh,em});}catch(e){}
+      // state 検査（typeof で lexical state を取得、window 不参照）
+      if(typeof state==='undefined' || !state){try{console.warn('[packet 454 ef-save] state unavailable');}catch(e){}return;}
+      if(!Array.isArray(state.events)){try{console.warn('[packet 454 ef-save] state.events not array');}catch(e){}return;}
+      // tmi 算出：singleMi() 優先 → currentUser.uid 一致 → 0 fallback
+      let mi2=-1;
+      try{if(typeof singleMi==='function')mi2=singleMi();}catch(e){}
+      if(mi2<0 && typeof members!=='undefined' && Array.isArray(members) && typeof currentUser!=='undefined' && currentUser){
+        try{mi2=members.findIndex(m=>m && m.uid===currentUser.uid);}catch(e){}
+      }
+      const tmi=mi2>=0?mi2:0;
+      try{console.warn('[packet 454 ef-save] mi2:',mi2,'tmi:',tmi,'members.length:',(typeof members!=='undefined'&&Array.isArray(members))?members.length:'n/a');}catch(e){}
+      // state.events[tmi] 確保
+      if(!state.events[tmi])state.events[tmi]=[];
+      const before=state.events[tmi].length;
+      // event 構造を既存 mkEvs / ka-save / renderMonth/Week/Day と完全一致させる
+      const newEv={title:t,cat:cat,date:dstr,sh:sh,sm:sm,eh:eh,em:em,mi:tmi};
+      state.events[tmi].push(newEv);
+      try{console.warn('[packet 454 ef-save] state.events['+tmi+'].length:',before,'->',state.events[tmi].length,' newEv:',newEv);}catch(e){}
+      // 絞り込み中の場合、追加先 mi が見えるように selectedMembers に追加（typeof で lexical scope）
+      try{
+        if(typeof selectedMembers!=='undefined' && selectedMembers && selectedMembers.size>0 && !selectedMembers.has(tmi)){
+          selectedMembers.add(tmi);
+          try{console.warn('[packet 454 ef-save] selectedMembers.add('+tmi+')');}catch(e){}
+        }
+      }catch(e){try{console.warn('[packet 454 ef-save] selectedMembers update error:',e&&e.message);}catch(e2){}}
+      // 入力欄リセット + バー閉じる
+      if(tEl)tEl.value='';
+      const bar=document.getElementById('ev-add-bar');
+      if(bar){try{bar.style.display='none';}catch(e){}try{bar.classList.remove('ev-add-bar-open');}catch(e){}}
+      // トースト
+      try{if(typeof showToast==='function')showToast('予定を追加しました');}catch(e){}
+      // 再描画：render + renderCal + renderFilterPills の三段を順に呼出
+      try{if(typeof render==='function'){render();try{console.warn('[packet 454 ef-save] render called');}catch(e){}}}catch(e){try{console.warn('[packet 454 ef-save] render error:',e&&e.message);}catch(e2){}}
+      try{if(typeof renderCal==='function'){renderCal();try{console.warn('[packet 454 ef-save] renderCal called');}catch(e){}}}catch(e){try{console.warn('[packet 454 ef-save] renderCal error:',e&&e.message);}catch(e2){}}
+      try{if(typeof renderFilterPills==='function'){renderFilterPills();try{console.warn('[packet 454 ef-save] renderFilterPills called');}catch(e){}}}catch(e){try{console.warn('[packet 454 ef-save] renderFilterPills error:',e&&e.message);}catch(e2){}}
+    }catch(e){
+      try{console.warn('[packet 454 ef-save] handler outer error:',e&&e.message,e&&e.stack);}catch(e2){}
+    }
+  }
+
+  function bind(){
+    const saveBtn=document.getElementById('ef-save');
+    if(!saveBtn)return false;
+    if(saveBtn.dataset.p454Bound==='1')return true;
+    saveBtn.dataset.p454Bound='1';
+    saveBtn.addEventListener('click', efSaveHandler);
+    try{console.warn('[packet 454 ef-save] bound to button:', saveBtn);}catch(e){}
+    return true;
+  }
+
+  // bindEvForm から呼び出せるよう window に公開
+  try{window._p454_efSaveBind=bind;}catch(e){}
+
+  function init(){
+    try{bind();}catch(e){try{console.warn('[packet 454 ef-save] init bind error:',e&&e.message);}catch(e2){}}
+    // ev-add-bar が後から差し替わるケースに備え MutationObserver で再 bind 試行
+    try{
+      const obs=new MutationObserver(function(){
+        try{if(bind())obs.disconnect();}catch(e){}
+      });
+      obs.observe(document.body, {childList:true, subtree:true});
+    }catch(e){}
+    // 念のため 1 秒後 / 3 秒後にも再試行
+    setTimeout(bind, 1000);
+    setTimeout(bind, 3000);
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);
+  else init();
+})();
+// ==== ここまで packet 454 ====
 </script>
 </body>
 </html>
