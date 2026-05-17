@@ -10288,6 +10288,101 @@ function openEventFormFromCalendar(dateStr,timeStr){
   }
 })();
 // ==== ここまで packet 444 ====
+// ==== packet 450: 左側タスク追加フォーム tf-save 保存結線（保存ロジック未実装の致命バグ修正） ====
+// 既存 #tb-form 内の tf-title / tf-cat / tf-pri / tf-to / tf-dead から値取得 → state.tasks.push
+// id 重複（tf-cat が L1038 追加フォーム + L1050 フィルタバーに存在）対策として tb-form 内 querySelector で取得
+// packet 444 B+C案（タブ自動切替 + 案内トースト + フィルタ警告）+ packet 440 _persistTasks 連携
+(function patchTfSaveBinding(){
+  try{
+    function bind(){
+      const tbForm = document.getElementById('tb-form');
+      const save = document.getElementById('tf-save');
+      if(!save || !tbForm)return false;
+      if(save.dataset.p450Bound==='1')return true;
+      save.dataset.p450Bound='1';
+      save.addEventListener('click', function(){
+        try{
+          const titleEl = tbForm.querySelector('#tf-title');
+          const catEl   = tbForm.querySelector('#tf-cat');
+          const priEl   = tbForm.querySelector('#tf-pri');
+          const toEl    = tbForm.querySelector('#tf-to');
+          const deadEl  = tbForm.querySelector('#tf-dead');
+          const title = (titleEl && titleEl.value || '').trim();
+          if(!title){alert('タスク内容を入力してください');if(titleEl)try{titleEl.focus();}catch(e){}return;}
+          const cat = (catEl && catEl.value) || 'その他';
+          const pri = (priEl && priEl.value) || 'mid';
+          const toVal = toEl ? toEl.value : '';
+          const dead = (deadEl && deadEl.value) || '';
+          let toIdx = null;
+          if(toVal && toVal!=='pool'){
+            const n = parseInt(toVal, 10);
+            if(!isNaN(n))toIdx = n;
+          }
+          const fromName = (window.currentUser && currentUser.name) || '管理者';
+          if(!window.state || !Array.isArray(state.tasks)){console.warn('[packet 450] state.tasks unavailable');return;}
+          state.tasks.push({
+            id: state.nextId++,
+            title: title,
+            cat: cat,
+            pri: pri,
+            toIdx: toIdx,
+            fromName: fromName,
+            deadline: dead || null,
+            done: false,
+            status: 'todo',
+            comment: '',
+            createdAt: new Date().toISOString()
+          });
+          // 入力欄リセット
+          if(titleEl)titleEl.value='';
+          if(deadEl)deadEl.value='';
+          // packet 444 B案: タブ自動切替
+          let _where = '担当別タブ';
+          try{
+            const newTask = state.tasks[state.tasks.length-1];
+            const _myMi = (window.members && currentUser) ? members.findIndex(m=>m.uid===currentUser.uid) : -1;
+            if(newTask){
+              if(newTask.toIdx===null){if(typeof tbTab!=='undefined')tbTab='unassigned';_where='未割当タブ';}
+              else if(newTask.toIdx===_myMi){if(typeof tbTab!=='undefined')tbTab='mine';_where='個人タブ';}
+              else{if(typeof tbTab!=='undefined')tbTab='all';_where='担当別タブ';}
+            }
+          }catch(e){}
+          // タスクボード再描画
+          try{if(typeof renderTaskBoard==='function')renderTaskBoard();}catch(e){}
+          // 日間カレンダーへの反映（packet 444、renderDay 経由）
+          try{if(typeof render==='function')render();}catch(e){}
+          // packet 444 C案: 案内トースト + フィルタ警告
+          try{
+            let _warn = '';
+            if(typeof taskFilter!=='undefined' && taskFilter){
+              if(taskFilter.period && taskFilter.period!=='all' && taskFilter.period!=='')_warn += ' / 期間フィルタ中';
+              if(taskFilter.cat)_warn += ' / カテゴリフィルタ中';
+            }
+            if(_warn){if(typeof showToast==='function')showToast('タスクを追加しました（'+_where+'に表示'+_warn+'。全期間／全カテゴリをご確認ください）',3500);}
+            else{if(typeof showToast==='function')showToast('タスクを追加しました（'+_where+'に表示）');}
+          }catch(e){try{if(typeof showToast==='function')showToast('タスクを追加しました');}catch(e2){}}
+          // packet 440 永続化
+          try{if(typeof _persistTasks==='function')_persistTasks();}catch(e){}
+        }catch(e){try{console.warn('[packet 450] tf-save error:',e&&e.message);}catch(e2){}}
+      });
+      return true;
+    }
+    function init(){
+      bind();
+      // showMainApp 後にも再 bind 試行（DOMContentLoaded 時点で要素不在の可能性に備える）
+      const observer = new MutationObserver(function(){
+        if(bind()){observer.disconnect();}
+      });
+      try{observer.observe(document.body, {childList:true, subtree:true});}catch(e){}
+      // 念のため 1 秒後にも再試行
+      setTimeout(bind, 1000);
+      setTimeout(bind, 3000);
+    }
+    if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);
+    else init();
+  }catch(e){try{console.warn('[packet 450] patch init error:',e&&e.message);}catch(e2){}}
+})();
+// ==== ここまで packet 450 ====
 </script>
 </body>
 </html>
