@@ -995,7 +995,7 @@ body.task-dragging [data-id]:not(.dragging-this){opacity:1!important}
           <div class="ct">新規アカウント発行</div>
           <div class="mfrow"><label class="mflbl">担当者名</label><input class="fi2" id="new-name" placeholder="例：田中"/></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
-            <div class="mfrow"><label class="mflbl">役割</label><select class="fi2" id="new-role"><option>エージェント</option><option>サポート</option><option>査定担当</option></select></div>
+            <div class="mfrow"><label class="mflbl">役割</label><select class="fi2" id="new-role"><option>エージェント</option><option>サポート</option><option>査定担当</option><option>店長</option></select></div>
             <div class="mfrow"><label class="mflbl">権限</label><select class="fi2" id="new-perm"><option value="staff">スタッフ</option><option value="admin">管理者</option></select></div>
           </div>
           <div class="mfrow"><label class="mflbl">ユーザーID</label><input class="fi2" id="new-uid" placeholder="半角英字"/></div>
@@ -2240,6 +2240,7 @@ function showPwModal(acc){
         <option ${acc.role==='エージェント'?'selected':''}>エージェント</option>
         <option ${acc.role==='サポート'?'selected':''}>サポート</option>
         <option ${acc.role==='査定担当'?'selected':''}>査定担当</option>
+        <option ${acc.role==='店長'?'selected':''}>店長</option>
       </select>
     </div>
     <div style="display:flex;align-items:center;gap:8px;padding:7px 9px;background:var(--s2);border-radius:var(--r)">
