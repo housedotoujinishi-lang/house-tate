@@ -136,7 +136,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-siz
 .muc-l{font-size:11px;font-weight:700;color:var(--t2)}
 .muc-sel{padding:6px 9px;border:1.5px solid var(--bo);border-radius:6px;font-size:12px;outline:none;color:var(--t1);background:#fff}
 .muc-sel:focus{border-color:#b91c1c}
-.muc-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:10px}
+.muc-summary{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:10px}
 .muc-sum-cell{background:var(--s1);border-radius:8px;padding:8px;text-align:center}
 .muc-sum-lbl{font-size:10px;color:var(--t3);font-weight:700}
 .muc-sum-val{font-size:18px;color:#b91c1c;font-weight:900;line-height:1.2}
@@ -174,6 +174,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-siz
   .muc-h2{font-size:16px}
   .muc-summary{grid-template-columns:repeat(2,1fr)}
   .muc-item-l{min-width:140px}
+  /* packet 431: スマホで未割当注意セルが幅指定で崩れないように */
+  .muc-summary > [style*="grid-column:span"]{grid-column:span 2!important}
 }
 /* packet 414: メモ帳 静的MVP */
 .mn-wrap{padding:14px 14px 80px;max-width:760px;margin:0 auto}
@@ -9402,19 +9404,50 @@ function openEventFormFromCalendar(dateStr,timeStr){
 
     function _taskDeadline(x){if(!x)return '';return (x.deadline || x.dl || x.due || x.dueDate || x.deadlineDate || x.date || '');}
     function _taskDone(x){if(!x)return false;return (x.done===true || x.status==='done' || x.completed===true || x.complete===true);}
+    // packet 431: uid / name / accounts まで照合 fallback 強化、未割当判定強化
+    function _resolveAssigneeName(raw){
+      if(!raw)return '';
+      try{
+        if(window.members && Array.isArray(members)){
+          const m = members.find(function(mm){return mm && (mm.uid===raw || mm.n===raw || mm.name===raw);});
+          if(m)return m.n || m.name || String(raw);
+        }
+      }catch(e){}
+      try{
+        if(window.accounts && Array.isArray(accounts)){
+          const ac = accounts.find(function(a){return a && (a.uid===raw || a.name===raw || a.n===raw);});
+          if(ac)return ac.name || ac.n || String(raw);
+        }
+      }catch(e){}
+      return String(raw);
+    }
     function _taskAssignee(x){
       if(!x)return '';
-      const a = x.assignee || x.to || x.uid || x.assigneeUid || x.member || '';
-      // uid を name に変換
-      if(a && window.members){
-        try{
-          const m = members.find(function(mm){return mm.uid===a || mm.n===a;});
-          if(m)return m.n;
-        }catch(e){}
+      const candidates = [x.assignee, x.to, x.assigneeName, x.assignedTo, x.uid, x.assigneeUid, x.member, x.owner];
+      for(let i=0;i<candidates.length;i++){
+        const a = candidates[i];
+        if(a==null || a==='' || a==='null' || a==='undefined')continue;
+        return _resolveAssigneeName(a);
       }
-      return a;
+      return '';
+    }
+    // packet 431: タスク作成日（複数候補 fallback）
+    function _taskCreatedDate(x){
+      if(!x)return '';
+      const c = (x.createdAt || x.created_at || x.created || x.added || x.addedAt || x.createDate || '');
+      return c ? String(c).slice(0,10) : '';
     }
     function _taskTitle(x){if(!x)return '';return (x.title || x.t || x.name || '');}
+    function _daysBetween(fromDate, toDate){
+      // YYYY-MM-DD 同士の日数差（負数も返す）。失敗時 null
+      try{
+        if(!fromDate || !toDate)return null;
+        const a = new Date(fromDate+'T00:00:00');
+        const b = new Date(toDate+'T00:00:00');
+        if(isNaN(a.getTime()) || isNaN(b.getTime()))return null;
+        return Math.round((b.getTime()-a.getTime())/86400000);
+      }catch(e){return null;}
+    }
 
     function getAssigneeList(){
       const set = new Set();
@@ -9426,7 +9459,10 @@ function openEventFormFromCalendar(dateStr,timeStr){
           state.tasks.forEach(function(x){const a=_taskAssignee(x);if(a)set.add(a);});
         }
       }catch(e){}
-      return Array.from(set);
+      const list = Array.from(set).sort();
+      // packet 431: 「未割当」を末尾固定で追加（既存に含まれていない場合のみ）
+      if(list.indexOf('未割当')<0)list.push('未割当');
+      return list;
     }
 
     function collectItems(){
@@ -9434,7 +9470,7 @@ function openEventFormFromCalendar(dateStr,timeStr){
       const today = todayStr();
       const threeDaysAgo = daysAgo(3);
 
-      // 1. タスク（期限切れ / 今日中 / 3日以上放置）
+      // 1. タスク（期限切れ / 今日中 / 3日以上放置 を独立判定）
       try{
         if(window.state && Array.isArray(state.tasks)){
           state.tasks.forEach(function(x,i){
@@ -9444,22 +9480,46 @@ function openEventFormFromCalendar(dateStr,timeStr){
               const title = _taskTitle(x);
               const assignee = _taskAssignee(x) || '未割当';
               if(!title)return;
-              let kind=null;
-              if(dl && dl < today)kind='overdue';
-              else if(dl && dl === today)kind='today';
-              else if(!dl || dl < threeDaysAgo){
-                // 期限なし or 古い登録（推測）
-                if(!dl && x.createdAt && x.createdAt.slice(0,10) < threeDaysAgo)kind='stale';
-                else if(!dl)kind='stale';
-              }
+              const createdDate = _taskCreatedDate(x);
+              // 期限切れ判定
+              const isOverdue = !!(dl && dl < today);
+              // 今日中判定
+              const isToday = !!(dl && dl === today);
+              // 3日以上放置判定（精度向上）：
+              // - 作成日が 3 日以上前
+              // - 期限切れではない（期限切れは別カテゴリに分類）
+              // - 期限が無い、または期限が今日より後
+              const isStale = !!(createdDate && createdDate < threeDaysAgo && !isOverdue && (!dl || dl > today));
+              // 種別決定：overdue > today > stale の優先順位
+              let kind = null;
+              if(isOverdue)kind='overdue';
+              else if(isToday)kind='today';
+              else if(isStale)kind='stale';
               if(!kind)return;
+
+              // 経過日数 / 期限切れ日数 計算
+              let metaParts = [];
+              if(dl){
+                const dayDiff = _daysBetween(dl, today);
+                if(dayDiff!==null && dayDiff>0)metaParts.push('期限切れ '+dayDiff+' 日');
+                else if(dayDiff===0)metaParts.push('期限:今日');
+                else metaParts.push('期限:'+dl);
+              }else{
+                metaParts.push('期限なし');
+              }
+              if(createdDate){
+                const ageDays = _daysBetween(createdDate, today);
+                if(ageDays!==null && ageDays>=3)metaParts.push('登録から '+ageDays+' 日経過');
+              }
+              if(assignee==='未割当')metaParts.push('⚠ 未割当');
+
               out.push({
                 kind: kind,
                 source: 'task',
                 refId: x.id || i,
                 title: title,
                 assignee: assignee,
-                meta: (dl ? '期限:'+dl : '期限なし')
+                meta: metaParts.join(' / ')
               });
             }catch(e){}
           });
@@ -9518,13 +9578,19 @@ function openEventFormFromCalendar(dateStr,timeStr){
     function renderSummary(items){
       const sum = document.getElementById('muc-summary');
       if(!sum)return;
-      const counts = {overdue:0, today:0, stale:0, memo:0, routine:0, aiconsul:0};
-      items.forEach(function(it){if(counts[it.kind]!=null)counts[it.kind]++;});
+      const counts = {overdue:0, today:0, stale:0, memo:0, routine:0, aiconsul:0, unassigned:0};
+      items.forEach(function(it){
+        if(counts[it.kind]!=null)counts[it.kind]++;
+        if(it.source==='task' && it.assignee==='未割当')counts.unassigned++;
+      });
+      // packet 431: 5 セル化（3日以上放置追加）+ 未割当注意
       sum.innerHTML =
         '<div class="muc-sum-cell"><div class="muc-sum-lbl">期限切れ</div><div class="muc-sum-val" style="color:#dc2626">'+counts.overdue+'</div></div>'
         +'<div class="muc-sum-cell"><div class="muc-sum-lbl">今日中</div><div class="muc-sum-val" style="color:#d97706">'+counts.today+'</div></div>'
+        +'<div class="muc-sum-cell"><div class="muc-sum-lbl">3日以上放置</div><div class="muc-sum-val" style="color:#7c3aed">'+counts.stale+'</div></div>'
         +'<div class="muc-sum-cell"><div class="muc-sum-lbl">対応要メモ</div><div class="muc-sum-val" style="color:#c2410c">'+(counts.memo+counts.aiconsul)+'</div></div>'
-        +'<div class="muc-sum-cell"><div class="muc-sum-lbl">ルーティン未完了</div><div class="muc-sum-val" style="color:#0a3d7c">'+counts.routine+'</div></div>';
+        +'<div class="muc-sum-cell"><div class="muc-sum-lbl">ルーティン未完了</div><div class="muc-sum-val" style="color:#0a3d7c">'+counts.routine+'</div></div>'
+        +(counts.unassigned>0 ? '<div class="muc-sum-cell" style="grid-column:span 5;background:#fef2f2"><div class="muc-sum-lbl" style="color:#b91c1c">⚠ 未割当タスク</div><div class="muc-sum-val" style="color:#b91c1c">'+counts.unassigned+'</div></div>' : '');
     }
 
     function renderList(){
