@@ -8260,24 +8260,51 @@ function openEventFormFromCalendar(dateStr,timeStr){
       },180);
     }
     function transferToMemo(){
+      // packet 423: 既存 #memo（商談メモ textarea）への追記ではなく、packet 414 の _memoNotes 配列に流入
       const txt=getText();
       if(!txt){showShortToast('内容を入力してください');return;}
-      try{if(typeof switchPage==='function')switchPage('cal');}catch(e){}
-      setTimeout(function(){
+      try{
+        if(!window._memoNotes)window._memoNotes=[];
+        let author='担当者';
+        try{if(window.currentUser)author=currentUser.name||currentUser.displayName||(currentUser.perm==='admin'?'管理者':'担当者');}catch(e){}
+        const consulLabel = currentCat ? currentCat.label : '';
+        const m={
+          id:'mn-aic-'+Date.now()+'-'+Math.floor(Math.random()*1000),
+          text: txt,
+          category: 'AI相談',  // 専用カテゴリ
+          priority: 'mid',
+          pin: false,
+          todo: true,  // AI 相談からのメモは対応要を初期値 true
+          author: author,
+          createdAt: new Date().toISOString(),
+          taskified: false,
+          eventified: false,
+          archived: false,
+          done: false,
+          origin: 'ai-consultation',
+          consulCategory: consulLabel
+        };
+        window._memoNotes.unshift(m);
+        closeModal();
+        showShortToast('メモ帳に追加しました');
+        // メモ帳を開く導線（4 秒間表示、タップで遷移）
         try{
-          const bar=document.getElementById('ev-add-bar');
-          if(bar){bar.style.display='block';try{bar.classList.add('ev-add-bar-open');}catch(e){}}
-          const m=document.getElementById('memo');
-          if(m){
-            const cur=m.value||'';
-            m.value = cur ? (cur + (cur.endsWith('\n')?'':'\n') + txt) : txt;
-            try{m.focus({preventScroll:true});}catch(e){}
-            try{m.dispatchEvent(new Event('input',{bubbles:true}));}catch(e){}
-          }
-          closeModal();
-          showShortToast('メモに追記しました');
-        }catch(e){closeModal();}
-      },180);
+          const id='ai-consul-mn-nav';
+          const ex=document.getElementById(id); if(ex)ex.remove();
+          const t=document.createElement('button');
+          t.id=id;
+          t.type='button';
+          t.style.cssText='position:fixed;left:50%;bottom:130px;transform:translateX(-50%);z-index:10001;background:#c2410c;color:#fff;padding:10px 18px;border-radius:20px;font-size:13px;font-weight:700;box-shadow:0 4px 12px rgba(0,0,0,.25);max-width:90vw;text-align:center;cursor:pointer;border:0;min-height:40px';
+          t.textContent='📒 メモ帳を開く';
+          t.addEventListener('click',function(){
+            try{if(typeof switchPage==='function')switchPage('memo');}catch(e){}
+            try{t.remove();}catch(e){}
+          });
+          document.body.appendChild(t);
+          setTimeout(function(){try{t.style.transition='opacity .4s';t.style.opacity='0';}catch(e){}},4400);
+          setTimeout(function(){try{t.remove();}catch(e){}},4900);
+        }catch(e){}
+      }catch(e){closeModal();}
     }
 
     function init(){
