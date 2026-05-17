@@ -173,6 +173,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-siz
 .mn-mini.mn-mini-pri{background:#0a3d7c;color:#fff;border-color:#0a3d7c}
 .mn-mini.mn-mini-done{background:#15803d;color:#fff;border-color:#15803d}
 .mn-mini.mn-mini-del{background:#fff;color:#b91c1c;border-color:#fecaca}
+.mn-mini.mn-mini-share{background:#c2410c;color:#fff;border-color:#c2410c}
 .mn-back{margin-top:14px;display:flex;justify-content:center}
 /* タスクボード並列ストリップ */
 .tb-memo-strip{background:#fffbeb;border-bottom:1px solid #fde68a;padding:7px 8px}
@@ -8427,6 +8428,14 @@ function openEventFormFromCalendar(dateStr,timeStr){
               }
             }
             break;
+          case 'memo':
+            // packet 416 hotfix: packet 414 メモ帳ページへ（packet 412 で抜けていた分岐を追加）
+            if(typeof switchPage==='function'){
+              try{switchPage('memo');}catch(e){
+                try{switchPage('dash');}catch(e2){}
+              }
+            }
+            break;
         }
       }catch(e){}
     }
@@ -8798,6 +8807,7 @@ function openEventFormFromCalendar(dateStr,timeStr){
         h += '<button class="mn-mini mn-mini-pri" data-act="task" data-id="'+esc(m.id)+'">→ タスク化</button>';
         h += '<button class="mn-mini" data-act="event" data-id="'+esc(m.id)+'">→ 予定化</button>';
         h += '<button class="mn-mini" data-act="report" data-id="'+esc(m.id)+'">→ 日報へ</button>';
+        h += '<button class="mn-mini mn-mini-share" data-act="share" data-id="'+esc(m.id)+'">📤 共有</button>';
         h += '<button class="mn-mini" data-act="pin" data-id="'+esc(m.id)+'">'+(m.pin?'📌 解除':'📌 ピン')+'</button>';
         h += '<button class="mn-mini" data-act="todo" data-id="'+esc(m.id)+'">'+(m.todo?'対応要 解除':'対応要')+'</button>';
         h += '<button class="mn-mini mn-mini-done" data-act="done" data-id="'+esc(m.id)+'">'+(m.done?'未完了に戻す':'✓ 完了')+'</button>';
@@ -8832,10 +8842,91 @@ function openEventFormFromCalendar(dateStr,timeStr){
       list.innerHTML = h;
     }
 
+    function buildShareText(m){
+      const priLbl = m.priority==='high'?'高':m.priority==='low'?'低':'中';
+      const todoLbl = m.todo ? '要' : '—';
+      const lines=[];
+      lines.push('【メモ共有】');
+      lines.push('カテゴリ：'+(m.category||''));
+      lines.push('重要度：'+priLbl);
+      lines.push('対応要否：'+todoLbl);
+      lines.push('内容：');
+      lines.push(m.text||'');
+      return lines.join('\n');
+    }
+
+    function openShareFallbackModal(text){
+      try{
+        const ex=document.getElementById('mn-share-modal'); if(ex)ex.remove();
+        const overlay=document.createElement('div');
+        overlay.id='mn-share-modal';
+        overlay.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:18px';
+        overlay.innerHTML='<div style="background:#fff;border-radius:12px;max-width:520px;width:100%;max-height:90vh;overflow:auto;padding:16px;border-top:6px solid #c2410c">'
+          +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div style="font-size:15px;font-weight:800;color:#0a3d7c">📤 メモを共有</div><button id="mn-share-close" type="button" style="background:0;border:0;font-size:22px;color:#666;cursor:pointer;padding:4px 10px;min-width:40px;min-height:40px">✕</button></div>'
+          +'<div style="font-size:11px;color:#666;margin-bottom:8px">下のテキストを長押し / 選択でコピーしてください。</div>'
+          +'<textarea id="mn-share-text" readonly style="width:100%;min-height:200px;padding:10px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:12px;line-height:1.7;font-family:inherit;box-sizing:border-box;background:#f8fafc"></textarea>'
+          +'<div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap"><button id="mn-share-copy" type="button" style="flex:1;min-width:120px;padding:10px;background:#0a3d7c;color:#fff;border:0;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;min-height:40px">📋 コピー</button><button id="mn-share-ok" type="button" style="padding:10px 16px;background:#f1f5f9;color:#475569;border:1.5px solid #cbd5e1;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;min-height:40px">閉じる</button></div>'
+          +'</div>';
+        document.body.appendChild(overlay);
+        const ta=document.getElementById('mn-share-text'); if(ta)ta.value=text;
+        const close=function(){try{overlay.remove();}catch(e){}};
+        document.getElementById('mn-share-close').addEventListener('click',close);
+        document.getElementById('mn-share-ok').addEventListener('click',close);
+        overlay.addEventListener('click',function(ev){if(ev.target===overlay)close();});
+        document.getElementById('mn-share-copy').addEventListener('click',function(){
+          try{
+            if(navigator && navigator.clipboard && navigator.clipboard.writeText){
+              navigator.clipboard.writeText(text).then(function(){showToast('コピーしました');}).catch(function(){
+                try{ta.removeAttribute('readonly');ta.select();document.execCommand('copy');ta.setAttribute('readonly','readonly');showToast('コピーしました');}catch(e){showToast('手動でコピーしてください');}
+              });
+            }else{
+              try{ta.removeAttribute('readonly');ta.select();document.execCommand('copy');ta.setAttribute('readonly','readonly');showToast('コピーしました');}catch(e){showToast('手動でコピーしてください');}
+            }
+          }catch(e){showToast('手動でコピーしてください');}
+        });
+      }catch(e){
+        try{console.warn('share fallback modal error:',e);}catch(e2){}
+      }
+    }
+
+    function shareMemo(m){
+      const txt = buildShareText(m);
+      // 1. navigator.share（OS 標準共有）
+      try{
+        if(navigator && navigator.share){
+          navigator.share({title:'メモ共有', text:txt}).then(function(){
+            showToast('共有しました');
+          }).catch(function(err){
+            // ユーザーキャンセル or 失敗 → clipboard へ
+            if(err && err.name==='AbortError')return;
+            tryClipboard();
+          });
+          return;
+        }
+      }catch(e){}
+      tryClipboard();
+      function tryClipboard(){
+        try{
+          if(navigator && navigator.clipboard && navigator.clipboard.writeText){
+            navigator.clipboard.writeText(txt).then(function(){
+              showToast('共有テキストをコピーしました');
+            }).catch(function(){
+              openShareFallbackModal(txt);
+            });
+            return;
+          }
+        }catch(e){}
+        openShareFallbackModal(txt);
+      }
+    }
+
     function onListAction(memoId, action){
       const m = (window._memoNotes||[]).find(function(x){return x.id===memoId;});
       if(!m)return;
       switch(action){
+        case 'share':
+          shareMemo(m);
+          break;
         case 'task':
           try{
             if(typeof switchPage==='function')switchPage('cal');
