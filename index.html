@@ -1958,11 +1958,12 @@ function showMainApp(){
   const roleLabel=roleByRole||(isAdmin?'管理者':isOwner?'管理者':'スタッフ');
   if(isHighPerm){rb.textContent=roleLabel;rb.style.cssText='background:var(--gold);color:var(--navy);padding:1px 6px;border-radius:7px;font-size:9px;font-weight:800';}
   else{rb.textContent='スタッフ';rb.style.cssText='background:rgba(255,255,255,.15);color:#fff;padding:1px 6px;border-radius:7px;font-size:9px;font-weight:700';}
-  // packet 420: PC ナビに 📒 メモ帳 を追加（メモは PC でも開ける導線必須、ボス補足指示）
-  // 日報・AI相談窓口・マメ知識・ルーティンはショートカットに常設しない方針（各画面内導線で OK）
+  // packet 422: PCトップナビ並び順整理（ボス指定順、ホーム→管理→メモ→カレンダー→タスク→ルーティン→シフト→勤怠→KPI→月次レポート→AI会議→AI名鑑→AI組織図→メンバー稼働→豆知識）
+  // カレンダーとタスクは同一 cal ページに統合済のため、ラベル違いで 2 エントリ並列配置（両方とも switchPage('cal')）。
+  // 顧客タブは絶対に復活させない（packet 322 防御維持）。
   const tabs=isHighPerm
-    ?[['dash','🏠 ホーム'],['accounts','👑 管理'],['kintai','🕐 勤怠'],['cal','📅 カレンダー/タスク'],['shift','📋 シフト'],['goal','🎯 目標KPI'],['report','📊 月次レポート'],['aiteam','🧠 AI会議'],['member-workload','👥 メンバー稼働'],['ai-members','🤖 AI名鑑'],['ai-org','🏢 AI組織図'],['knowledge-portal','📚 マメ知識'],['routine','📋 ルーティン'],['memo','📒 メモ帳']]
-    :[['dash','🏠 ホーム'],['kintai','🕐 勤怠'],['cal','📅 カレンダー/タスク'],['shift','📋 シフト'],['goal','🎯 目標KPI'],['aiteam','🧠 AI会議'],['member-workload','👥 メンバー稼働'],['ai-members','🤖 AI名鑑'],['ai-org','🏢 AI組織図'],['knowledge-portal','📚 マメ知識'],['routine','📋 ルーティン'],['memo','📒 メモ帳']];
+    ?[['dash','🏠 ホーム'],['accounts','👑 管理'],['memo','📒 メモ'],['cal','📅 カレンダー'],['cal','📋 タスク'],['routine','📋 ルーティン'],['shift','📋 シフト'],['kintai','🕐 勤怠'],['goal','🎯 KPI'],['report','📊 月次レポート'],['aiteam','🧠 AI会議'],['ai-members','🤖 AI名鑑'],['ai-org','🏢 AI組織図'],['member-workload','👥 メンバー稼働'],['knowledge-portal','📚 豆知識']]
+    :[['dash','🏠 ホーム'],['memo','📒 メモ'],['cal','📅 カレンダー'],['cal','📋 タスク'],['routine','📋 ルーティン'],['shift','📋 シフト'],['kintai','🕐 勤怠'],['goal','🎯 KPI'],['aiteam','🧠 AI会議'],['ai-members','🤖 AI名鑑'],['ai-org','🏢 AI組織図'],['member-workload','👥 メンバー稼働'],['knowledge-portal','📚 豆知識']];
   tabs.forEach(([pg,lbl],idx)=>{
     const b=document.createElement('button');
     b.className='ntab'+(idx===0?' on':'');b.dataset.pg=pg;b.textContent=lbl;
