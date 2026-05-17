@@ -125,6 +125,40 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-siz
 .voice-btn[disabled]{opacity:.4;cursor:not-allowed}
 .voice-btn-memo{margin-top:4px}
 @keyframes vbpulse{0%,100%{box-shadow:0 0 0 0 rgba(220,38,38,.45)}50%{box-shadow:0 0 0 6px rgba(220,38,38,0)}}
+/* packet 413: 日報出力 静的MVP */
+.dr-wrap{padding:14px 14px 80px;max-width:760px;margin:0 auto}
+.dr-hdr{margin-bottom:10px}
+.dr-h2{font-size:18px;color:#0a3d7c;margin:0 0 4px;font-weight:800}
+.dr-sub{font-size:11px;color:var(--t3)}
+.dr-card{background:#fff;border:1px solid var(--bo);border-radius:10px;padding:12px;margin-bottom:10px}
+.dr-card-h{font-size:12px;font-weight:800;color:#0a3d7c;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--bo)}
+.dr-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.dr-l{font-size:11px;font-weight:700;color:var(--t2);margin-top:8px;margin-bottom:3px}
+.dr-row .dr-l{margin:0}
+.dr-i{padding:6px 9px;border:1.5px solid var(--bo);border-radius:6px;font-size:12px;font-family:inherit;outline:none;color:var(--t1);background:#fff}
+.dr-i:focus{border-color:#0a3d7c}
+.dr-static{background:var(--s2);font-weight:700;color:#0a3d7c}
+.dr-ta{width:100%;padding:8px 10px;border:1.5px solid var(--bo);border-radius:6px;font-size:12px;font-family:inherit;resize:vertical;outline:none;color:var(--t1);background:#fff;box-sizing:border-box;line-height:1.6}
+.dr-ta:focus{border-color:#0a3d7c}
+.dr-preview{background:#f8fafc;font-family:'SFMono-Regular',Consolas,'Liberation Mono',monospace;font-size:12px;line-height:1.7;min-height:280px}
+.dr-actions{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;position:sticky;top:0;background:rgba(255,255,255,.95);padding:8px 0;z-index:5;backdrop-filter:blur(4px)}
+.dr-btn{flex:1;min-width:100px;padding:11px 14px;border-radius:8px;border:0;font-size:13px;font-weight:700;cursor:pointer;min-height:44px}
+.dr-btn-primary{background:#0a3d7c;color:#fff}
+.dr-btn-secondary{background:#c2410c;color:#fff}
+.dr-btn-tertiary{background:var(--s2);color:var(--t2);border:1.5px solid var(--bo)}
+.dr-note{font-size:10px;color:var(--t3);margin-top:6px;line-height:1.5;background:#fef3c7;padding:6px 9px;border-radius:6px;border-left:3px solid #d97706}
+.dr-mgr-body{font-size:12px;line-height:1.7;color:var(--t1)}
+.dr-mgr-body .dr-mgr-warn{color:#b91c1c;font-weight:700;background:#fef2f2;padding:4px 8px;border-radius:5px;display:inline-block;margin:2px 0}
+.dr-mgr-body .dr-mgr-ok{color:#15803d;font-weight:700}
+.dr-back{margin-top:14px;display:flex;justify-content:center}
+@media(max-width:768px){
+  .dr-wrap{padding:10px 10px 80px}
+  .dr-h2{font-size:16px}
+  .dr-actions{gap:5px}
+  .dr-btn{flex:1;min-width:80px;padding:11px 8px;font-size:12px}
+  .dr-preview{font-size:11px}
+  .dr-row{flex-direction:column;align-items:stretch}
+}
 /* packet 412: ホーム司令塔ストリップ（スマホ専用、PC は display:none）*/
 .mob-cmd-strip{display:none}
 @media(max-width:768px){
@@ -1300,6 +1334,49 @@ textarea.ai-team-input{resize:vertical;min-height:60px}
       <div id="mw-alerts"></div>
       <div id="mw-filters" class="mw-filters"></div>
       <div id="mw-cards"></div>
+    </div>
+  </div>
+  <!-- packet 413: 日報出力 静的MVP（外部送信なし、localStorage 保存なし）-->
+  <div class="page" id="page-daily-report">
+    <div class="dr-wrap">
+      <div class="dr-hdr">
+        <h2 class="dr-h2">📝 日報</h2>
+        <div class="dr-sub">既存データから日報案を半自動で生成。外部送信されません。</div>
+      </div>
+      <div class="dr-card">
+        <div class="dr-row">
+          <div class="dr-l">📅 日付</div><input id="dr-date" type="date" class="dr-i"/>
+          <div class="dr-l">👤 担当</div><span id="dr-author" class="dr-i dr-static">—</span>
+        </div>
+      </div>
+      <div class="dr-card dr-manual">
+        <div class="dr-card-h">📝 手入力</div>
+        <div class="dr-l">本日の振り返り</div>
+        <textarea id="dr-reflect" class="dr-ta" rows="3" placeholder="うまくいったこと・改善点を書いてください"></textarea>
+        <div class="dr-l">困っていること</div>
+        <textarea id="dr-trouble" class="dr-ta" rows="2" placeholder="解決したい困りごとを書いてください"></textarea>
+        <div class="dr-l">店長に確認してほしいこと</div>
+        <textarea id="dr-ask-manager" class="dr-ta" rows="2" placeholder="店長に判断してほしいこと"></textarea>
+        <div class="dr-l">明日やること</div>
+        <textarea id="dr-tomorrow" class="dr-ta" rows="2" placeholder="明日の優先事項"></textarea>
+      </div>
+      <div class="dr-actions">
+        <button id="dr-gen" type="button" class="dr-btn dr-btn-primary">📝 日報を生成</button>
+        <button id="dr-copy" type="button" class="dr-btn dr-btn-secondary">📋 コピー</button>
+        <button id="dr-print" type="button" class="dr-btn dr-btn-tertiary">🖨 印刷用表示</button>
+      </div>
+      <div class="dr-card">
+        <div class="dr-card-h">📄 日報プレビュー</div>
+        <textarea id="dr-preview" class="dr-ta dr-preview" rows="22" readonly placeholder="「日報を生成」を押すと、ここに本日の日報案が表示されます"></textarea>
+        <div class="dr-note">※ 顧客名・住所・電話番号などの機密情報は、必要最小限の記載でお願いします。本文は localStorage 等への保存もしません。</div>
+      </div>
+      <div class="dr-card" id="dr-manager-pts">
+        <div class="dr-card-h">⚠️ 店長確認ポイント</div>
+        <div id="dr-mgr-body" class="dr-mgr-body">「日報を生成」を押すと、未完了 / 期限切れ / ルーティン未完了が表示されます。</div>
+      </div>
+      <div class="dr-back">
+        <button onclick="switchPage('dash')" type="button" class="dr-btn dr-btn-tertiary">← ホームに戻る</button>
+      </div>
     </div>
   </div>
   <div class="page" id="page-aiteam">
@@ -8234,6 +8311,252 @@ function openEventFormFromCalendar(dateStr,timeStr){
   }
 })();
 // ==== ここまで packet 412 ====
+// ==== packet 413: 日報出力 静的MVP（外部送信なし、localStorage 保存なし） ====
+(function patchDailyReport(){
+  try{
+    function pad2(n){return (n<10?'0':'')+n;}
+    function todayStr(){const d=new Date();return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate());}
+    function tomorrowStr(){const d=new Date();d.setDate(d.getDate()+1);return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate());}
+    function dispDate(s){if(!s)return '';const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(s);return m?(m[1]+'年'+(+m[2])+'月'+(+m[3])+'日'):s;}
+
+    function getCurrentUserName(){
+      try{
+        if(window.currentUser){
+          return currentUser.name || currentUser.displayName || (currentUser.perm==='admin'?'管理者':'担当者');
+        }
+      }catch(e){}
+      return '担当者';
+    }
+
+    function getTodayTasks(dateStr){
+      const out={done:[], todo:[], overdue:[]};
+      try{
+        if(!window.state || !state.tasks)return out;
+        state.tasks.forEach(function(x){
+          if(!x)return;
+          const done = x.done===true || x.status==='done';
+          const dl = x.deadline || x.dl || '';
+          const title = (x.title || x.t || '').toString();
+          if(!title)return;
+          if(done && dl===dateStr){out.done.push(title);}
+          else if(!done && dl===dateStr){out.todo.push(title);}
+          else if(!done && dl && dl < dateStr){out.overdue.push(title+'（期限:'+dl+'）');}
+        });
+      }catch(e){}
+      return out;
+    }
+
+    function getTodayEvents(dateStr){
+      const out=[];
+      try{
+        if(!window.state || !state.events)return out;
+        state.events.forEach(function(arr){
+          if(!Array.isArray(arr))return;
+          arr.forEach(function(ev){
+            if(!ev)return;
+            const d = ev.date || ev.day || '';
+            if(d!==dateStr)return;
+            const s = ev.start || ev.s || '';
+            const e2 = ev.end || ev.e || '';
+            const t = (ev.title || ev.t || '').toString();
+            if(!t)return;
+            out.push((s?s+(e2?'〜'+e2:'')+' ':'')+t);
+          });
+        });
+      }catch(e){}
+      return out;
+    }
+
+    function getCounters(){
+      const out={};
+      try{
+        if(!window.personalCountProgress)return out;
+        if(!window.currentUser || !currentUser.uid)return out;
+        const p = personalCountProgress[currentUser.uid] || {};
+        Object.keys(p).forEach(function(k){
+          if(typeof p[k]==='number' && p[k]>0)out[k]=p[k];
+        });
+      }catch(e){}
+      return out;
+    }
+
+    function listSafe(arr){
+      if(!arr || !arr.length)return '・（なし）';
+      return arr.map(function(x){return '・'+x;}).join('\n');
+    }
+
+    function readManualInputs(){
+      function v(id){const e=document.getElementById(id);return e&&e.value?e.value.trim():'';}
+      return {
+        reflect: v('dr-reflect'),
+        trouble: v('dr-trouble'),
+        askMgr:  v('dr-ask-manager'),
+        tomorrow:v('dr-tomorrow')
+      };
+    }
+
+    function buildReport(){
+      const dateInput = document.getElementById('dr-date');
+      const dateStr = (dateInput && dateInput.value) ? dateInput.value : todayStr();
+      const tomorrow = tomorrowStr();
+      const author = getCurrentUserName();
+      const tasks = getTodayTasks(dateStr);
+      const events = getTodayEvents(dateStr);
+      const tomorrowEvents = getTodayEvents(tomorrow);
+      const counters = getCounters();
+      const manual = readManualInputs();
+
+      // 営業活動表記
+      const counterLines = [];
+      const order = ['call','phone','架電','followup','追客','appraisal','査定書送付','apo','アポ','visit','訪問査定','baikai','媒介提案','keiyaku','契約','reform','リフォーム','baikyaku','売却','contract'];
+      const seen={};
+      order.forEach(function(k){if(counters[k]!=null && !seen[k]){counterLines.push('・'+k+'：'+counters[k]);seen[k]=true;}});
+      Object.keys(counters).forEach(function(k){if(!seen[k]){counterLines.push('・'+k+'：'+counters[k]);seen[k]=true;}});
+
+      const lines = [];
+      lines.push('【日報】');
+      lines.push('日付：'+dispDate(dateStr));
+      lines.push('担当：'+author);
+      lines.push('');
+      lines.push('■ 本日の予定');
+      lines.push(listSafe(events));
+      lines.push('');
+      lines.push('■ 完了したタスク');
+      lines.push(listSafe(tasks.done));
+      lines.push('');
+      lines.push('■ 未完了タスク');
+      lines.push(listSafe(tasks.todo));
+      if(tasks.overdue.length){
+        lines.push('');
+        lines.push('■ 期限切れタスク（要対応）');
+        lines.push(listSafe(tasks.overdue));
+      }
+      lines.push('');
+      lines.push('■ 営業活動');
+      lines.push(counterLines.length ? counterLines.join('\n') : '・（記録なし）');
+      lines.push('');
+      lines.push('■ 本日の振り返り');
+      lines.push(manual.reflect ? ('・'+manual.reflect.replace(/\n/g,'\n・')) : '・');
+      lines.push('');
+      lines.push('■ 困っていること');
+      lines.push(manual.trouble ? ('・'+manual.trouble.replace(/\n/g,'\n・')) : '・');
+      lines.push('');
+      lines.push('■ 店長に確認してほしいこと');
+      lines.push(manual.askMgr ? ('・'+manual.askMgr.replace(/\n/g,'\n・')) : '・');
+      lines.push('');
+      lines.push('■ 明日やること');
+      lines.push(manual.tomorrow ? ('・'+manual.tomorrow.replace(/\n/g,'\n・')) : '・');
+      lines.push('');
+      lines.push('■ 明日の予定');
+      lines.push(listSafe(tomorrowEvents));
+
+      return {
+        text: lines.join('\n'),
+        meta: {tasks:tasks, events:events, overdue:tasks.overdue.length}
+      };
+    }
+
+    function renderManagerPoints(meta){
+      const body = document.getElementById('dr-mgr-body');
+      if(!body)return;
+      const parts=[];
+      if(meta.overdue>0){
+        parts.push('<div class="dr-mgr-warn">⚠️ 期限切れタスク '+meta.overdue+' 件あり → 店長確認推奨</div>');
+      }
+      if(meta.tasks && meta.tasks.todo && meta.tasks.todo.length>=5){
+        parts.push('<div class="dr-mgr-warn">⚠️ 未完了タスクが '+meta.tasks.todo.length+' 件と多めです</div>');
+      }
+      if(parts.length===0){
+        parts.push('<div class="dr-mgr-ok">✅ 期限切れ・未完了は許容範囲です。お疲れさまでした。</div>');
+      }
+      body.innerHTML = parts.join('');
+    }
+
+    function showShortToast(msg){
+      try{
+        const id='dr-toast';
+        const ex=document.getElementById(id); if(ex)ex.remove();
+        const t=document.createElement('div');
+        t.id=id;
+        t.style.cssText='position:fixed;left:50%;bottom:80px;transform:translateX(-50%);z-index:10000;background:rgba(10,61,124,.94);color:#fff;padding:9px 16px;border-radius:18px;font-size:12px;font-weight:600;box-shadow:0 4px 12px rgba(0,0,0,.25);pointer-events:none;max-width:90vw;text-align:center';
+        t.textContent=msg;
+        document.body.appendChild(t);
+        setTimeout(function(){try{t.style.transition='opacity .4s';t.style.opacity='0';}catch(e){}},2600);
+        setTimeout(function(){try{t.remove();}catch(e){}},3100);
+      }catch(e){}
+    }
+
+    function onGenerate(){
+      const r = buildReport();
+      const pv = document.getElementById('dr-preview');
+      if(pv)pv.value = r.text;
+      renderManagerPoints(r.meta);
+      showShortToast('日報を生成しました');
+    }
+
+    function onCopy(){
+      const pv = document.getElementById('dr-preview');
+      const txt = pv ? pv.value : '';
+      if(!txt){showShortToast('先に「日報を生成」を押してください');return;}
+      const tryClipboard = function(){
+        try{
+          if(navigator && navigator.clipboard && navigator.clipboard.writeText){
+            return navigator.clipboard.writeText(txt).then(function(){
+              showShortToast('日報をコピーしました');
+            }).catch(function(){fallback();});
+          }
+        }catch(e){}
+        fallback();
+      };
+      const fallback = function(){
+        try{
+          if(pv){
+            pv.removeAttribute('readonly');
+            pv.select();
+            document.execCommand('copy');
+            pv.setAttribute('readonly','readonly');
+            showShortToast('日報をコピーしました');
+          }
+        }catch(e){showShortToast('コピーに失敗しました。手動で選択してコピーしてください');}
+      };
+      tryClipboard();
+    }
+
+    function onPrint(){
+      const pv = document.getElementById('dr-preview');
+      const txt = pv ? pv.value : '';
+      if(!txt){showShortToast('先に「日報を生成」を押してください');return;}
+      const w = window.open('','_blank','noopener,noreferrer');
+      if(!w){showShortToast('印刷ウィンドウを開けませんでした');return;}
+      const safe = (txt||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>日報 - '+(new Date().toISOString().slice(0,10))+'</title><style>body{font-family:-apple-system,sans-serif;padding:24px;max-width:760px;margin:0 auto;line-height:1.8;color:#222;font-size:13px}h1{font-size:18px;color:#0a3d7c;margin:0 0 12px}pre{white-space:pre-wrap;word-wrap:break-word;font-family:inherit;font-size:13px;line-height:1.8}@media print{body{padding:14mm}}</style></head><body><h1>📝 日報</h1><pre>'+safe+'</pre></body></html>');
+      w.document.close();
+      setTimeout(function(){try{w.focus();w.print();}catch(e){}}, 240);
+    }
+
+    function init(){
+      const page = document.getElementById('page-daily-report');
+      if(!page)return;
+      if(page.dataset.p413Bound==='1')return;
+      page.dataset.p413Bound='1';
+
+      // 初期値
+      const dateInput = document.getElementById('dr-date');
+      if(dateInput && !dateInput.value)dateInput.value = todayStr();
+      const authorEl = document.getElementById('dr-author');
+      if(authorEl)authorEl.textContent = getCurrentUserName();
+
+      const gen = document.getElementById('dr-gen'); if(gen)gen.addEventListener('click',onGenerate);
+      const cp  = document.getElementById('dr-copy'); if(cp)cp.addEventListener('click',onCopy);
+      const pr  = document.getElementById('dr-print'); if(pr)pr.addEventListener('click',onPrint);
+    }
+    if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);
+    else init();
+  }catch(e){
+    try{console.warn('packet 413 daily report init error:',e);}catch(e2){}
+  }
+})();
+// ==== ここまで packet 413 ====
 </script>
 </body>
 </html>
