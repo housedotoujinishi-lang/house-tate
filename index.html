@@ -1011,6 +1011,13 @@ body.task-dragging [data-id]:not(.dragging-this){opacity:1!important}
           </div>
           <button class="pbtn" id="issue-btn" style="width:100%;padding:8px;margin-top:4px;font-size:12px">アカウントを発行</button>
           <div id="issue-result" style="display:none;border-radius:var(--r);padding:8px 10px;font-size:11px;font-weight:600;margin-top:6px;line-height:1.6"></div>
+          <!-- packet 462: 初期アカウント一括発行（管理者向け、6 名固定リスト、重複は自動スキップ）-->
+          <div id="bulk-issue-section" style="margin-top:14px;padding-top:10px;border-top:1.5px solid var(--bo)">
+            <div style="font-size:11px;font-weight:800;color:var(--navy);margin-bottom:6px">🚀 初期アカウント一括発行</div>
+            <div style="font-size:10px;color:var(--t3);line-height:1.6;margin-bottom:6px">芳村 / 杤岡 / 安見 / 佐野 / 冨永 / 伴 の 6 名を一括発行します。既存 ID はスキップ。<br>パスワードは初期値（後で各自変更推奨）。</div>
+            <button class="pbtn" id="bulk-issue-btn" style="width:100%;padding:8px;font-size:12px;background:var(--gold);color:var(--navy);font-weight:800">🚀 6 名を一括発行する</button>
+            <div id="bulk-issue-result" style="display:none;border-radius:var(--r);padding:8px 10px;font-size:11px;font-weight:600;margin-top:6px;line-height:1.7"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -2438,6 +2445,123 @@ document.getElementById('issue-btn').onclick=()=>{
     }
   }catch(e){try{console.warn('[packet 452 issue] saveAccounts exception:',e&&e.message);}catch(e2){}}
 };
+
+// ==== packet 462: 初期アカウント一括発行（6 名固定リスト）====
+// 管理者画面の「🚀 6 名を一括発行する」ボタン handler
+// 既存 uid はスキップ、新規分のみ accounts/members に追加 → saveAccounts() 呼出
+// パスワード値は console / localStorage に絶対出さない（passLen のみ）
+// 結果表示は管理画面に一時表示（後でボスがパスワード変更前提）
+(function patchBulkIssueP462(){
+  const _bulkAccounts=[
+    {uid:'yoshimura',pass:'yoshimura2026',name:'芳村',role:'査定担当',perm:'admin'},
+    {uid:'tochioka', pass:'tochioka2026', name:'杤岡', role:'店長',     perm:'admin'},
+    {uid:'yasumi',   pass:'yasumi2026',   name:'安見', role:'エージェント',perm:'staff'},
+    {uid:'sano',     pass:'sano2026',     name:'佐野', role:'エージェント',perm:'staff'},
+    {uid:'tominaga', pass:'tominaga2026', name:'冨永', role:'エージェント',perm:'staff'},
+    {uid:'ban',      pass:'ban2026',      name:'伴',   role:'サポート',  perm:'admin'}
+  ];
+  function bind(){
+    const btn=document.getElementById('bulk-issue-btn');
+    if(!btn)return false;
+    if(btn.dataset.p462Bound==='1')return true;
+    btn.dataset.p462Bound='1';
+    btn.addEventListener('click',function(){
+      try{console.warn('[packet 462 bulk-issue] click fired, candidates:',_bulkAccounts.length);}catch(e){}
+      if(typeof accounts==='undefined' || !Array.isArray(accounts)){
+        try{console.warn('[packet 462 bulk-issue] accounts unavailable');}catch(e){}
+        return;
+      }
+      if(!confirm('6 名のアカウントを一括発行します。既存 ID はスキップされます。続行しますか？'))return;
+      const added=[];const skipped=[];
+      _bulkAccounts.forEach(b=>{
+        try{
+          const exists=accounts.find(a=>a && a.uid===b.uid);
+          if(exists){skipped.push(b.uid);try{console.warn('[packet 462 bulk-issue] skip existing uid:',b.uid);}catch(e){}return;}
+          const c=(typeof MC!=='undefined'&&Array.isArray(MC))?MC[accounts.length%MC.length]:'#0a3d7c';
+          const newAcc={uid:b.uid,pass:b.pass,name:b.name,role:b.role,perm:b.perm,c:c,inc:0,cut:0,personal:false};
+          accounts.push(newAcc);
+          // members への追加（重複回避）
+          try{
+            if(typeof members!=='undefined' && Array.isArray(members)){
+              const memExists=members.find(m=>m && m.uid===b.uid);
+              if(!memExists){
+                members.push({n:b.name,c:c,role:b.role,uid:b.uid});
+                if(typeof state!=='undefined' && state){
+                  if(Array.isArray(state.events))state.events.push([]);
+                  if(Array.isArray(state.todos))state.todos.push([]);
+                  if(Array.isArray(state.memo))state.memo.push('');
+                }
+                // シフトの初期化
+                try{
+                  if(typeof shiftMo!=='undefined' && typeof shiftData!=='undefined'){
+                    const{y,m}=shiftMo;
+                    const dim=new Date(y,m+1,0).getDate();
+                    shiftData[b.uid]={};
+                    for(let d=1;d<=dim;d++)shiftData[b.uid][d]='work';
+                  }
+                }catch(e){}
+              }
+            }
+          }catch(e){try{console.warn('[packet 462 bulk-issue] members add error for',b.uid,':',e&&e.message);}catch(e2){}}
+          added.push({uid:b.uid,passLen:b.pass.length,name:b.name});
+          try{console.warn('[packet 462 bulk-issue] added uid:',b.uid,' name:',b.name,' role:',b.role,' perm:',b.perm,' passLen:',b.pass.length);}catch(e){}
+        }catch(e){try{console.warn('[packet 462 bulk-issue] error for',b.uid,':',e&&e.message);}catch(e2){}}
+      });
+      // 結果表示（一時的にパスワードを画面表示、後で各自変更前提、localStorage 非保存）
+      const result=document.getElementById('bulk-issue-result');
+      if(result){
+        let html='<div style="font-weight:800;margin-bottom:6px">✅ 発行完了</div>';
+        html+='<div style="margin-bottom:4px">新規発行：<strong>'+added.length+'</strong> 件　スキップ：<strong>'+skipped.length+'</strong> 件</div>';
+        if(added.length>0){
+          html+='<div style="margin-top:6px;padding:6px 8px;background:rgba(255,255,255,.7);border-radius:6px;color:var(--navy);font-family:monospace;font-size:10px;line-height:1.8">';
+          // 表示用に発行時のパスワード一覧（DOM 一時表示のみ、localStorage 保存なし）
+          _bulkAccounts.forEach(b=>{
+            if(added.find(a=>a.uid===b.uid)){
+              html+='<div>'+b.name+'（'+b.role+'）：<strong>'+b.uid+'</strong> / <strong>'+b.pass+'</strong></div>';
+            }
+          });
+          html+='</div><div style="margin-top:6px;font-size:9px;color:var(--t3)">⚠ 各自ログイン後にパスワード変更を推奨</div>';
+        }
+        if(skipped.length>0){
+          html+='<div style="margin-top:6px;font-size:10px;color:var(--t3)">スキップ：'+skipped.join(' / ')+'</div>';
+        }
+        result.style.cssText='display:block;background:var(--gr);color:#fff;border-radius:var(--r);padding:8px 10px;font-size:11px;font-weight:600;margin-top:6px;line-height:1.7';
+        result.innerHTML=html;
+      }
+      // UI 更新
+      try{if(typeof initGoalData==='function')initGoalData();}catch(e){}
+      try{if(typeof renderAccList==='function')renderAccList();}catch(e){}
+      try{if(typeof showToast==='function')showToast('✅ '+added.length+' 件発行 ／ '+skipped.length+' 件スキップ');}catch(e){}
+      // Supabase 永続化
+      try{
+        if(typeof saveAccounts==='function'){
+          try{console.warn('[packet 462 bulk-issue] calling saveAccounts, accounts.length:',accounts.length);}catch(e){}
+          saveAccounts().then(function(){
+            try{console.warn('[packet 462 bulk-issue] saveAccounts OK, accounts.length:',accounts.length);}catch(e){}
+            try{if(typeof showToast==='function')showToast('✅ Supabase 保存完了');}catch(e){}
+          }).catch(function(e){
+            try{console.warn('[packet 462 bulk-issue] saveAccounts error:',e&&e.message);}catch(e2){}
+            try{if(typeof showToast==='function')showToast('⚠ Supabase 保存失敗（メモリには残存）',3500);}catch(e){}
+          });
+        }
+      }catch(e){try{console.warn('[packet 462 bulk-issue] saveAccounts exception:',e&&e.message);}catch(e2){}}
+    });
+    try{console.warn('[packet 462 bulk-issue] bound');}catch(e){}
+    return true;
+  }
+  function init(){
+    bind();
+    try{
+      const obs=new MutationObserver(function(){if(bind())obs.disconnect();});
+      obs.observe(document.body,{childList:true,subtree:true});
+    }catch(e){}
+    setTimeout(bind,1000);
+    setTimeout(bind,3000);
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);
+  else init();
+})();
+// ==== ここまで packet 462 一括発行 ====
 function renderKintaiPage(){
   const now=new Date();
   document.getElementById('kt-sub').textContent=`${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日（${WD_ALL[now.getDay()]}）`;
@@ -2799,7 +2923,7 @@ function renderDayTimeline(vis,dstr){
     ${rows}
     <div style="position:relative;height:14px;margin-left:60px;margin-right:56px;padding: 0 8px">${ticks}</div>`;
 }
-function setupDayEvForm(){['day-ef-s','day-ef-e'].forEach((id,i)=>{const s=document.getElementById(id);if(!s)return;s.innerHTML='';for(let h=8;h<=20;h++){['00','30'].forEach(mn=>{const o=document.createElement('option');o.value=`${h}:${mn}`;o.textContent=`${h}:${mn}`;s.appendChild(o);});}if(i===1)s.value='10:30';});}
+function setupDayEvForm(){['day-ef-s','day-ef-e'].forEach((id,i)=>{const s=document.getElementById(id);if(!s)return;s.innerHTML='';for(let h=8;h<=20;h++){/* packet 462: 30 分刻み → 15 分刻みに統一 */['00','15','30','45'].forEach(mn=>{const o=document.createElement('option');o.value=`${h}:${mn}`;o.textContent=`${h}:${mn}`;s.appendChild(o);});}if(i===1)s.value='10:30';});}
 function renderDayRight(){const list=document.getElementById('day-td-list');if(!list)return;const mi=singleMi()>=0?singleMi():0;const dstr=ds(selDate);const todos=(state.todos[mi]||[]).filter(t=>t.date===dstr);if(!todos.length){list.innerHTML='<div style="color:var(--t4);font-size:10px;padding:3px 0">ToDoなし</div>';return;}list.innerHTML='';todos.forEach(td=>{const idx=state.todos[mi].indexOf(td);const cs=CAT_S[td.cat]||CAT_S['その他'];const d=document.createElement('div');d.className='tdi'+(td.done?' done':'');d.innerHTML=`<div class="tick${td.done?' on':''}"></div><span class="tit">${td.t}</span><span class="tibdg" style="background:${cs.bg};color:${cs.tx}">${td.cat}</span><button class="tidel">×</button>`;d.querySelector('.tick').onclick=()=>{state.todos[mi][idx].done=!td.done;renderDayRight();renderTodoStrip();};d.querySelector('.tidel').onclick=e=>{e.stopPropagation();state.todos[mi].splice(idx,1);renderDayRight();renderTodoStrip();};list.appendChild(d);});}
 function renderPoolPreview(){const el=document.getElementById('pool-preview');if(!el)return;const mi=singleMi()>=0?singleMi():0;const ua=state.tasks.filter(p=>p.toIdx===null&&!p.done);if(!ua.length){el.innerHTML='<div style="font-size:10px;color:var(--t4);padding:3px 0">未割当なし</div>';return;}el.innerHTML='';ua.slice(0,3).forEach(p=>{const cs=CAT_S[p.cat]||CAT_S['その他'];const d=document.createElement('div');d.className='pmini';d.innerHTML=`<span style="flex:1;font-size:10px;color:var(--t1);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.title}</span><span style="font-size:9px;padding:1px 5px;border-radius:5px;background:${cs.bg};color:${cs.tx};font-weight:700;flex-shrink:0">${p.cat}</span><button class="pclm">自分に</button>`;d.querySelector('button').onclick=()=>{const t=state.tasks.find(x=>x.id===p.id);if(t){t.toIdx=mi;t.fromName=currentUser?.name||'管理者';}if(!state.todos[mi])state.todos[mi]=[];state.todos[mi].push({t:p.title,cat:p.cat,done:false,date:ds(selDate)});renderPoolPreview();renderTodoStrip();renderTaskBoard();_persistTasks();};el.appendChild(d);});}
 function buildTimeOptions(sel,val){sel.innerHTML='';for(let h=0;h<=23;h++){['00','30'].forEach(mn=>{const o=document.createElement('option');o.value=`${h}:${mn}`;o.textContent=`${h}:${mn}`;if(`${h}:${mn}`===val)o.selected=true;sel.appendChild(o);});};}
@@ -2835,7 +2959,7 @@ document.getElementById('evm-save').onclick=()=>{
   state.events[newMi].push({title:newTitle,cat:newCat,date:newDate,sh:nsh,sm:nsm,eh:neh,em:nem});
   bg.remove();renderCal();showToast('予定を更新しました');
 };}
-function setupEvForm(){const d2=document.getElementById('ef-day');if(!d2)return;d2.innerHTML='';const yr=curV==='week'?wkStart.getFullYear():viewY;const mo=curV==='week'?wkStart.getMonth():viewMo;const dim=new Date(yr,mo+1,0).getDate();for(let d=1;d<=dim;d++){const date=new Date(yr,mo,d);const o=document.createElement('option');o.value=localStr(date);o.textContent=`${mo+1}/${d}(${WD_JP[(date.getDay()+6)%7]})`;d2.appendChild(o);}const sdStr=ds(selDate);if([...d2.options].some(o=>o.value===sdStr))d2.value=sdStr;['ef-s','ef-e'].forEach((id,i)=>{const s=document.getElementById(id);if(!s)return;s.innerHTML='';for(let h=8;h<=20;h++){['00','30'].forEach(mn=>{const o=document.createElement('option');o.value=`${h}:${mn}`;o.textContent=`${h}:${mn}`;s.appendChild(o);});}if(i===1)s.value='10:30';});}
+function setupEvForm(){const d2=document.getElementById('ef-day');if(!d2)return;d2.innerHTML='';const yr=curV==='week'?wkStart.getFullYear():viewY;const mo=curV==='week'?wkStart.getMonth():viewMo;const dim=new Date(yr,mo+1,0).getDate();for(let d=1;d<=dim;d++){const date=new Date(yr,mo,d);const o=document.createElement('option');o.value=localStr(date);o.textContent=`${mo+1}/${d}(${WD_JP[(date.getDay()+6)%7]})`;d2.appendChild(o);}const sdStr=ds(selDate);if([...d2.options].some(o=>o.value===sdStr))d2.value=sdStr;['ef-s','ef-e'].forEach((id,i)=>{const s=document.getElementById(id);if(!s)return;s.innerHTML='';for(let h=8;h<=20;h++){/* packet 462: 30 分刻み → 15 分刻みに統一 */['00','15','30','45'].forEach(mn=>{const o=document.createElement('option');o.value=`${h}:${mn}`;o.textContent=`${h}:${mn}`;s.appendChild(o);});}if(i===1)s.value='10:30';});}
 function popTfTo(){const s=document.getElementById('tf-to');if(!s)return;s.innerHTML=`<option value="pool">未割当</option>`+members.map((m,i)=>`<option value="${i}">${m.n}</option>`).join('');}
 function applyTaskFilter(tasks){
   let r=tasks;
