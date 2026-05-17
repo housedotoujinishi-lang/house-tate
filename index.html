@@ -125,6 +125,73 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-siz
 .voice-btn[disabled]{opacity:.4;cursor:not-allowed}
 .voice-btn-memo{margin-top:4px}
 @keyframes vbpulse{0%,100%{box-shadow:0 0 0 0 rgba(220,38,38,.45)}50%{box-shadow:0 0 0 6px rgba(220,38,38,0)}}
+/* packet 414: メモ帳 静的MVP */
+.mn-wrap{padding:14px 14px 80px;max-width:760px;margin:0 auto}
+.mn-hdr{margin-bottom:10px}
+.mn-h2{font-size:18px;color:#0a3d7c;margin:0 0 4px;font-weight:800}
+.mn-sub{font-size:11px;color:var(--t3);line-height:1.5}
+.mn-card{background:#fff;border:1px solid var(--bo);border-radius:10px;padding:12px;margin-bottom:10px}
+.mn-card-h{font-size:12px;font-weight:800;color:#0a3d7c;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--bo)}
+.mn-card-h-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--bo)}
+.mn-card-h-row .mn-card-h{margin:0;padding:0;border:0;flex-shrink:0}
+.mn-ta{width:100%;padding:8px 10px;border:1.5px solid var(--bo);border-radius:6px;font-size:13px;font-family:inherit;resize:vertical;outline:none;color:var(--t1);background:#fff;box-sizing:border-box;line-height:1.6}
+.mn-ta:focus{border-color:#0a3d7c}
+.mn-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:8px}
+.mn-sel{padding:6px 9px;border:1.5px solid var(--bo);border-radius:6px;font-size:12px;font-family:inherit;outline:none;color:var(--t1);background:#fff}
+.mn-sel:focus{border-color:#0a3d7c}
+.mn-search{flex:1;min-width:120px;max-width:240px}
+.mn-chk{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--t2);cursor:pointer;padding:3px 6px;border-radius:5px;background:var(--s2);font-weight:700}
+.mn-chk input{width:14px;height:14px;cursor:pointer;margin:0}
+.mn-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.mn-btn{padding:9px 14px;border-radius:8px;border:0;font-size:13px;font-weight:700;cursor:pointer;min-height:40px}
+.mn-btn-primary{background:#0a3d7c;color:#fff;flex:1;min-width:120px}
+.mn-btn-secondary{background:#c2410c;color:#fff}
+.mn-btn-tertiary{background:var(--s2);color:var(--t2);border:1.5px solid var(--bo)}
+.mn-btn-mini{padding:4px 8px;font-size:10px;min-height:28px;font-weight:600}
+.mn-note{font-size:10px;color:var(--t3);margin-top:8px;line-height:1.5;background:#fef3c7;padding:6px 9px;border-radius:6px;border-left:3px solid #d97706}
+.mn-list{display:flex;flex-direction:column;gap:8px;min-height:60px}
+.mn-empty{text-align:center;padding:24px 12px;color:var(--t3);font-size:12px}
+.mn-item{background:var(--s1);border:1.5px solid var(--bo);border-radius:8px;padding:10px 12px;position:relative}
+.mn-item.pinned{border-color:#d97706;background:#fffbeb}
+.mn-item.todo{border-left:4px solid #dc2626}
+.mn-item.done{opacity:.55;background:var(--s2)}
+.mn-item-h{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:6px;font-size:10px;color:var(--t3)}
+.mn-tag{padding:2px 7px;border-radius:9px;font-weight:700;font-size:10px;background:var(--s2);color:var(--t2)}
+.mn-tag-memo{background:#dbeafe;color:#0a3d7c}
+.mn-tag-pri-high{background:#fee2e2;color:#b91c1c}
+.mn-tag-pri-mid{background:#dbeafe;color:#0a3d7c}
+.mn-tag-pri-low{background:#e5e7eb;color:#52525b}
+.mn-tag-todo{background:#fef3c7;color:#92400e}
+.mn-tag-pin{background:#fed7aa;color:#9a3412}
+.mn-tag-task{background:#dcfce7;color:#15803d}
+.mn-tag-event{background:#e0e7ff;color:#3730a3}
+.mn-item-text{font-size:13px;line-height:1.6;color:var(--t1);white-space:pre-wrap;word-wrap:break-word;margin-bottom:8px}
+.mn-item.done .mn-item-text{text-decoration:line-through}
+.mn-item-acts{display:flex;gap:4px;flex-wrap:wrap}
+.mn-mini{padding:4px 9px;border-radius:6px;border:1.5px solid var(--bo);background:#fff;font-size:10px;font-weight:700;cursor:pointer;color:var(--t2);min-height:28px}
+.mn-mini:hover{background:var(--s2)}
+.mn-mini.mn-mini-pri{background:#0a3d7c;color:#fff;border-color:#0a3d7c}
+.mn-mini.mn-mini-done{background:#15803d;color:#fff;border-color:#15803d}
+.mn-mini.mn-mini-del{background:#fff;color:#b91c1c;border-color:#fecaca}
+.mn-back{margin-top:14px;display:flex;justify-content:center}
+/* タスクボード並列ストリップ */
+.tb-memo-strip{background:#fffbeb;border-bottom:1px solid #fde68a;padding:7px 8px}
+.tb-memo-strip-h{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:6px}
+.tb-memo-strip-h-l{font-size:10px;font-weight:800;color:#92400e;letter-spacing:.3px}
+.tb-memo-strip-more{background:transparent;border:1.5px solid #d97706;color:#92400e;padding:3px 8px;border-radius:8px;font-size:9px;font-weight:700;cursor:pointer;min-height:24px}
+.tb-memo-strip-list{display:flex;flex-direction:column;gap:5px}
+.tb-memo-strip-item{background:#fff;border:1px solid #fcd34d;border-radius:6px;padding:6px 9px;font-size:11px;line-height:1.5;color:var(--t1);cursor:pointer}
+.tb-memo-strip-item:hover{background:#fef3c7}
+.tb-memo-strip-meta{font-size:9px;color:#92400e;font-weight:700;margin-bottom:2px}
+@media(max-width:768px){
+  .mn-wrap{padding:10px 10px 80px}
+  .mn-h2{font-size:16px}
+  .mn-actions{gap:5px}
+  .mn-btn-primary{font-size:12px;min-width:100px}
+  .mob-cmd-memo{background:linear-gradient(135deg,#92400e 0%,#d97706 100%);border-color:#92400e;color:#fff}
+  .mob-cmd-memo .mob-cmd-t{color:#fff}
+  .mob-cmd-memo .mob-cmd-body{color:rgba(255,255,255,.88)}
+}
 /* packet 413: 日報出力 静的MVP */
 .dr-wrap{padding:14px 14px 80px;max-width:760px;margin:0 auto}
 .dr-hdr{margin-bottom:10px}
@@ -838,6 +905,11 @@ body.task-dragging [data-id]:not(.dragging-this){opacity:1!important}
             <span class="mob-cmd-t">日報</span>
             <span class="mob-cmd-body">今日の日報を作る</span>
           </button>
+          <button type="button" class="mob-cmd-card mob-cmd-memo" data-mob-cmd="memo">
+            <span class="mob-cmd-emoji">📒</span>
+            <span class="mob-cmd-t">メモ帳</span>
+            <span class="mob-cmd-body" id="mob-cmd-memo-body">気づきを残す</span>
+          </button>
         </div>
         <div id="dash-content"></div>
       </div>
@@ -909,6 +981,11 @@ body.task-dragging [data-id]:not(.dragging-this){opacity:1!important}
             </select>
             <span id="tf-count" style="font-size:9px;color:var(--t3);margin-left:auto"></span>
           </div>
+        <!-- packet 414: メモ並列ストリップ（ピン or 対応要のみ最大 3 件、空なら非表示）-->
+        <div id="tb-memo-strip" class="tb-memo-strip" style="display:none">
+          <div class="tb-memo-strip-h"><span class="tb-memo-strip-h-l">📒 対応要メモ</span><button type="button" class="tb-memo-strip-more" onclick="switchPage('memo')">▶ メモ帳へ</button></div>
+          <div id="tb-memo-strip-list" class="tb-memo-strip-list"></div>
+        </div>
         <div class="tbbody" id="tb-body"></div>
       </div>
       <div class="calr" id="cal-right">
@@ -1376,6 +1453,73 @@ textarea.ai-team-input{resize:vertical;min-height:60px}
       </div>
       <div class="dr-back">
         <button onclick="switchPage('dash')" type="button" class="dr-btn dr-btn-tertiary">← ホームに戻る</button>
+      </div>
+    </div>
+  </div>
+  <!-- packet 414: メモ帳機能 静的MVP（in-memory、外部送信なし、localStorage 保存なし）-->
+  <div class="page" id="page-memo">
+    <div class="mn-wrap">
+      <div class="mn-hdr">
+        <h2 class="mn-h2">📒 メモ帳</h2>
+        <div class="mn-sub">気づき・電話メモ・あとでやることを一時記録。ブラウザを閉じると消えます（外部保存なし）。</div>
+      </div>
+      <div class="mn-card">
+        <div class="mn-card-h">＋ 新規メモ</div>
+        <textarea id="mn-in-text" class="mn-ta" rows="3" placeholder="例：山田様 17時折り返し希望／査定書あす送付／物件Aの内見調整"></textarea>
+        <div class="mn-row">
+          <select id="mn-in-cat" class="mn-sel">
+            <option value="電話メモ">電話メモ</option>
+            <option value="追客メモ">追客メモ</option>
+            <option value="査定メモ">査定メモ</option>
+            <option value="店長確認">店長確認</option>
+            <option value="お客様対応">お客様対応</option>
+            <option value="物件確認">物件確認</option>
+            <option value="社内連絡">社内連絡</option>
+            <option value="アイデア">アイデア</option>
+            <option value="その他">その他</option>
+          </select>
+          <select id="mn-in-pri" class="mn-sel">
+            <option value="low">優先度：低</option>
+            <option value="mid" selected>優先度：中</option>
+            <option value="high">優先度：高</option>
+          </select>
+          <label class="mn-chk"><input type="checkbox" id="mn-in-pin"/>📌 ピン</label>
+          <label class="mn-chk"><input type="checkbox" id="mn-in-todo"/>対応要</label>
+        </div>
+        <div class="mn-actions">
+          <button id="mn-add" type="button" class="mn-btn mn-btn-primary">＋ メモを追加</button>
+          <button id="mn-clear-in" type="button" class="mn-btn mn-btn-tertiary">クリア</button>
+        </div>
+        <div class="mn-note">※ 顧客名・電話番号・住所などの機密情報は必要最小限で。本メモは localStorage 等への保存もしません。</div>
+      </div>
+      <div class="mn-card">
+        <div class="mn-card-h-row">
+          <span class="mn-card-h">📋 メモ一覧</span>
+          <input id="mn-search" type="search" class="mn-sel mn-search" placeholder="🔍 メモを検索"/>
+          <select id="mn-filter-cat" class="mn-sel">
+            <option value="">全カテゴリ</option>
+            <option value="電話メモ">電話メモ</option>
+            <option value="追客メモ">追客メモ</option>
+            <option value="査定メモ">査定メモ</option>
+            <option value="店長確認">店長確認</option>
+            <option value="お客様対応">お客様対応</option>
+            <option value="物件確認">物件確認</option>
+            <option value="社内連絡">社内連絡</option>
+            <option value="アイデア">アイデア</option>
+            <option value="その他">その他</option>
+          </select>
+          <select id="mn-filter-status" class="mn-sel">
+            <option value="active">未完了のみ</option>
+            <option value="all">すべて</option>
+            <option value="todo">対応要のみ</option>
+            <option value="pin">ピンのみ</option>
+            <option value="done">完了・アーカイブ</option>
+          </select>
+        </div>
+        <div id="mn-list" class="mn-list"></div>
+      </div>
+      <div class="mn-back">
+        <button onclick="switchPage('dash')" type="button" class="mn-btn mn-btn-tertiary">← ホームに戻る</button>
       </div>
     </div>
   </div>
@@ -8557,6 +8701,282 @@ function openEventFormFromCalendar(dateStr,timeStr){
   }
 })();
 // ==== ここまで packet 413 ====
+// ==== packet 414: メモ帳 + タスクボード並列表示 静的MVP（in-memory、外部送信なし、localStorage 保存なし） ====
+(function patchMemoNoteboard(){
+  try{
+    // in-memory 配列（リロードで消える、localStorage 保存なし）
+    if(!window._memoNotes)window._memoNotes = [];
+    let _nextId = 1;
+
+    function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];});}
+    function getAuthor(){
+      try{if(window.currentUser)return currentUser.name||currentUser.displayName||(currentUser.perm==='admin'?'管理者':'担当者');}catch(e){}
+      return '担当者';
+    }
+
+    function addMemo(){
+      const ta = document.getElementById('mn-in-text');
+      const cat = document.getElementById('mn-in-cat');
+      const pri = document.getElementById('mn-in-pri');
+      const pin = document.getElementById('mn-in-pin');
+      const todo = document.getElementById('mn-in-todo');
+      if(!ta || !ta.value.trim()){showToast('内容を入力してください');return;}
+      const m = {
+        id: 'mn'+(_nextId++),
+        text: ta.value.trim(),
+        category: cat ? cat.value : 'その他',
+        priority: pri ? pri.value : 'mid',
+        pin: !!(pin && pin.checked),
+        todo: !!(todo && todo.checked),
+        author: getAuthor(),
+        createdAt: new Date().toISOString(),
+        taskified: false,
+        eventified: false,
+        archived: false,
+        done: false
+      };
+      window._memoNotes.unshift(m);
+      ta.value='';
+      if(pin)pin.checked=false;
+      if(todo)todo.checked=false;
+      renderList();
+      renderTbStrip();
+      showToast('メモを追加しました');
+    }
+
+    function getFilteredMemos(){
+      const q = (document.getElementById('mn-search')||{}).value || '';
+      const fc = (document.getElementById('mn-filter-cat')||{}).value || '';
+      const fs = (document.getElementById('mn-filter-status')||{}).value || 'active';
+      const ql = q.trim().toLowerCase();
+      return (window._memoNotes||[]).filter(function(m){
+        if(!m)return false;
+        if(fs==='active' && (m.archived || m.done))return false;
+        if(fs==='done' && !(m.archived || m.done))return false;
+        if(fs==='todo' && (!m.todo || m.done || m.archived))return false;
+        if(fs==='pin' && (!m.pin || m.done || m.archived))return false;
+        if(fc && m.category!==fc)return false;
+        if(ql){
+          const hay = (m.text+' '+m.category+' '+(m.author||'')).toLowerCase();
+          if(hay.indexOf(ql)===-1)return false;
+        }
+        return true;
+      }).sort(function(a,b){
+        if(a.pin!==b.pin)return a.pin?-1:1;
+        if(a.todo!==b.todo)return a.todo?-1:1;
+        const pp={high:0,mid:1,low:2};
+        if(pp[a.priority]!==pp[b.priority])return pp[a.priority]-pp[b.priority];
+        return (b.createdAt||'').localeCompare(a.createdAt||'');
+      });
+    }
+
+    function renderList(){
+      const list = document.getElementById('mn-list');
+      if(!list)return;
+      const items = getFilteredMemos();
+      if(!items.length){
+        list.innerHTML = '<div class="mn-empty">メモはまだありません。上のフォームから追加してください。</div>';
+        return;
+      }
+      let h='';
+      items.forEach(function(m){
+        const priCls = m.priority==='high'?'mn-tag-pri-high':m.priority==='low'?'mn-tag-pri-low':'mn-tag-pri-mid';
+        const priLbl = m.priority==='high'?'優先:高':m.priority==='low'?'優先:低':'優先:中';
+        const cls = 'mn-item'+(m.pin?' pinned':'')+(m.todo?' todo':'')+((m.done||m.archived)?' done':'');
+        h += '<div class="'+cls+'" data-id="'+esc(m.id)+'">';
+        h += '<div class="mn-item-h">';
+        h += '<span class="mn-tag mn-tag-memo">📒 '+esc(m.category)+'</span>';
+        h += '<span class="mn-tag '+priCls+'">'+priLbl+'</span>';
+        if(m.pin)h += '<span class="mn-tag mn-tag-pin">📌 ピン</span>';
+        if(m.todo)h += '<span class="mn-tag mn-tag-todo">対応要</span>';
+        if(m.taskified)h += '<span class="mn-tag mn-tag-task">✅ タスク化済</span>';
+        if(m.eventified)h += '<span class="mn-tag mn-tag-event">📅 予定化済</span>';
+        h += '<span style="margin-left:auto;font-size:9px;color:var(--t3)">'+esc((m.createdAt||'').replace('T',' ').slice(0,16))+' / '+esc(m.author||'')+'</span>';
+        h += '</div>';
+        h += '<div class="mn-item-text">'+esc(m.text)+'</div>';
+        h += '<div class="mn-item-acts">';
+        h += '<button class="mn-mini mn-mini-pri" data-act="task" data-id="'+esc(m.id)+'">→ タスク化</button>';
+        h += '<button class="mn-mini" data-act="event" data-id="'+esc(m.id)+'">→ 予定化</button>';
+        h += '<button class="mn-mini" data-act="report" data-id="'+esc(m.id)+'">→ 日報へ</button>';
+        h += '<button class="mn-mini" data-act="pin" data-id="'+esc(m.id)+'">'+(m.pin?'📌 解除':'📌 ピン')+'</button>';
+        h += '<button class="mn-mini" data-act="todo" data-id="'+esc(m.id)+'">'+(m.todo?'対応要 解除':'対応要')+'</button>';
+        h += '<button class="mn-mini mn-mini-done" data-act="done" data-id="'+esc(m.id)+'">'+(m.done?'未完了に戻す':'✓ 完了')+'</button>';
+        h += '<button class="mn-mini" data-act="archive" data-id="'+esc(m.id)+'">'+(m.archived?'復元':'アーカイブ')+'</button>';
+        h += '<button class="mn-mini mn-mini-del" data-act="delete" data-id="'+esc(m.id)+'">削除</button>';
+        h += '</div>';
+        h += '</div>';
+      });
+      list.innerHTML = h;
+    }
+
+    function renderTbStrip(){
+      const strip = document.getElementById('tb-memo-strip');
+      const list = document.getElementById('tb-memo-strip-list');
+      if(!strip || !list)return;
+      const items = (window._memoNotes||[]).filter(function(m){
+        return m && !m.archived && !m.done && (m.pin || m.todo) && !m.taskified;
+      }).sort(function(a,b){
+        if(a.pin!==b.pin)return a.pin?-1:1;
+        return (b.createdAt||'').localeCompare(a.createdAt||'');
+      }).slice(0,3);
+      if(!items.length){strip.style.display='none';return;}
+      strip.style.display='block';
+      let h='';
+      items.forEach(function(m){
+        const flag = m.pin?'📌':'⚠️';
+        h += '<div class="tb-memo-strip-item" data-id="'+esc(m.id)+'" onclick="switchPage(\'memo\')">';
+        h += '<div class="tb-memo-strip-meta">'+flag+' '+esc(m.category)+' ／ '+esc(m.author||'')+'</div>';
+        h += esc(m.text.length>80 ? m.text.slice(0,80)+'…' : m.text);
+        h += '</div>';
+      });
+      list.innerHTML = h;
+    }
+
+    function onListAction(memoId, action){
+      const m = (window._memoNotes||[]).find(function(x){return x.id===memoId;});
+      if(!m)return;
+      switch(action){
+        case 'task':
+          try{
+            if(typeof switchPage==='function')switchPage('cal');
+            setTimeout(function(){
+              try{
+                const form=document.getElementById('tb-form');
+                if(form && form.style.display==='none')form.style.display='block';
+                const ttl=document.getElementById('tf-title');
+                if(ttl){ttl.value=m.text;try{ttl.focus({preventScroll:true});}catch(e){}try{ttl.dispatchEvent(new Event('input',{bubbles:true}));}catch(e){}}
+              }catch(e){}
+            },180);
+            m.taskified = true;
+            renderList(); renderTbStrip();
+            showToast('タスクボードへ転記しました');
+          }catch(e){}
+          break;
+        case 'event':
+          try{
+            if(typeof switchPage==='function')switchPage('cal');
+            setTimeout(function(){
+              try{
+                const bar=document.getElementById('ev-add-bar');
+                if(bar){bar.style.display='block';try{bar.classList.add('ev-add-bar-open');}catch(e){}}
+                if(typeof setupEvForm==='function'){try{setupEvForm();}catch(e){}}
+                const ef=document.getElementById('ef-t');
+                if(ef){ef.value=m.text;try{ef.focus({preventScroll:true});}catch(e){}try{ef.dispatchEvent(new Event('input',{bubbles:true}));}catch(e){}}
+              }catch(e){}
+            },180);
+            m.eventified = true;
+            renderList(); renderTbStrip();
+            showToast('予定フォームへ転記しました（packet 407 日時パースが効く場合あり）');
+          }catch(e){}
+          break;
+        case 'report':
+          try{
+            if(typeof switchPage==='function')switchPage('daily-report');
+            setTimeout(function(){
+              try{
+                const rf=document.getElementById('dr-reflect');
+                if(rf){
+                  const cur=rf.value||'';
+                  rf.value = cur ? (cur + (cur.endsWith('\n')?'':'\n') + '【メモから】'+m.text) : ('【メモから】'+m.text);
+                  try{rf.focus({preventScroll:true});}catch(e){}
+                }
+              }catch(e){}
+            },180);
+            showToast('日報の振り返り欄に追記しました');
+          }catch(e){}
+          break;
+        case 'pin':
+          m.pin = !m.pin;
+          renderList(); renderTbStrip();
+          break;
+        case 'todo':
+          m.todo = !m.todo;
+          renderList(); renderTbStrip();
+          break;
+        case 'done':
+          m.done = !m.done;
+          renderList(); renderTbStrip();
+          break;
+        case 'archive':
+          m.archived = !m.archived;
+          renderList(); renderTbStrip();
+          break;
+        case 'delete':
+          if(window.confirm && !window.confirm('このメモを削除しますか？'))return;
+          const idx = (window._memoNotes||[]).indexOf(m);
+          if(idx>=0)window._memoNotes.splice(idx,1);
+          renderList(); renderTbStrip();
+          showToast('メモを削除しました');
+          break;
+      }
+    }
+
+    function showToast(msg){
+      try{
+        const id='mn-toast';
+        const ex=document.getElementById(id); if(ex)ex.remove();
+        const t=document.createElement('div');
+        t.id=id;
+        t.style.cssText='position:fixed;left:50%;bottom:80px;transform:translateX(-50%);z-index:10000;background:rgba(10,61,124,.94);color:#fff;padding:9px 16px;border-radius:18px;font-size:12px;font-weight:600;box-shadow:0 4px 12px rgba(0,0,0,.25);pointer-events:none;max-width:90vw;text-align:center';
+        t.textContent=msg;
+        document.body.appendChild(t);
+        setTimeout(function(){try{t.style.transition='opacity .4s';t.style.opacity='0';}catch(e){}},2400);
+        setTimeout(function(){try{t.remove();}catch(e){}},2900);
+      }catch(e){}
+    }
+
+    function init(){
+      const page = document.getElementById('page-memo');
+      if(!page)return;
+      if(page.dataset.p414Bound==='1')return;
+      page.dataset.p414Bound='1';
+
+      const addBtn = document.getElementById('mn-add'); if(addBtn)addBtn.addEventListener('click',addMemo);
+      const clrBtn = document.getElementById('mn-clear-in');
+      if(clrBtn)clrBtn.addEventListener('click',function(){
+        ['mn-in-text'].forEach(function(id){const e=document.getElementById(id);if(e)e.value='';});
+        ['mn-in-pin','mn-in-todo'].forEach(function(id){const e=document.getElementById(id);if(e)e.checked=false;});
+      });
+      ['mn-search','mn-filter-cat','mn-filter-status'].forEach(function(id){
+        const e=document.getElementById(id);
+        if(e)e.addEventListener('input',renderList);
+        if(e)e.addEventListener('change',renderList);
+      });
+      const list=document.getElementById('mn-list');
+      if(list){
+        list.addEventListener('click',function(ev){
+          try{
+            const btn = ev.target.closest('button[data-act]');
+            if(!btn)return;
+            const id = btn.getAttribute('data-id');
+            const act = btn.getAttribute('data-act');
+            if(id && act)onListAction(id, act);
+          }catch(e){}
+        });
+      }
+      renderList();
+      renderTbStrip();
+
+      // タスクボード描画時にメモストリップも更新
+      try{
+        const orig = window.renderTaskBoard;
+        if(typeof orig==='function' && !orig._p414Wrapped){
+          window.renderTaskBoard = function(){
+            const r = orig.apply(this, arguments);
+            try{renderTbStrip();}catch(e){}
+            return r;
+          };
+          window.renderTaskBoard._p414Wrapped = true;
+        }
+      }catch(e){}
+    }
+    if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);
+    else init();
+  }catch(e){
+    try{console.warn('packet 414 memo noteboard init error:',e);}catch(e2){}
+  }
+})();
+// ==== ここまで packet 414 ====
 </script>
 </body>
 </html>
