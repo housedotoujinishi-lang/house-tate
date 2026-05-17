@@ -8330,17 +8330,32 @@ function openEventFormFromCalendar(dateStr,timeStr){
     function pad2(n){return (n<10?'0':'')+n;}
     function todayStr(){const d=new Date();return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate());}
 
+    // packet 424: 件数表示精度改善（state スキーマ差異吸収、複数候補 fallback、JS fatal 防止）
+    function _taskDeadline(x){
+      if(!x)return '';
+      return (x.deadline || x.dl || x.due || x.dueDate || x.deadlineDate || x.date || '');
+    }
+    function _eventDate(ev){
+      if(!ev)return '';
+      return (ev.date || ev.day || ev.d || ev.startDate || ev.start_date || '');
+    }
+    function _taskDone(x){
+      if(!x)return false;
+      return (x.done===true || x.status==='done' || x.completed===true || x.complete===true);
+    }
+
     function getTodayTaskCount(){
       try{
-        if(!window.state || !state.tasks)return null;
+        if(!window.state || !state.tasks || !Array.isArray(state.tasks))return null;
         const t=todayStr();
         let count=0;
         state.tasks.forEach(function(x){
-          if(!x)return;
-          const done = x.done===true || x.status==='done';
-          if(done)return;
-          const dl = x.deadline || x.dl || '';
-          if(dl===t)count++;
+          try{
+            if(!x)return;
+            if(_taskDone(x))return;
+            const dl = _taskDeadline(x);
+            if(dl===t)count++;
+          }catch(e){}
         });
         return count;
       }catch(e){return null;}
@@ -8351,29 +8366,70 @@ function openEventFormFromCalendar(dateStr,timeStr){
         if(!window.state || !state.events)return null;
         const t=todayStr();
         let count=0;
-        state.events.forEach(function(arr){
-          if(!Array.isArray(arr))return;
-          arr.forEach(function(ev){
-            if(!ev)return;
-            const d = ev.date || ev.day || '';
-            if(d===t)count++;
+        const evs = state.events;
+        if(Array.isArray(evs)){
+          evs.forEach(function(item){
+            try{
+              if(Array.isArray(item)){
+                // members ごとの配列
+                item.forEach(function(ev){
+                  try{if(_eventDate(ev)===t)count++;}catch(e){}
+                });
+              }else if(item && typeof item==='object'){
+                // flat 配列
+                if(_eventDate(item)===t)count++;
+              }
+            }catch(e){}
           });
-        });
+        }
         return count;
       }catch(e){return null;}
     }
 
     function getAlertCount(){
       try{
-        if(!window.state || !state.tasks)return null;
+        if(!window.state || !state.tasks || !Array.isArray(state.tasks))return null;
         const t=todayStr();
         let count=0;
         state.tasks.forEach(function(x){
-          if(!x)return;
-          const done = x.done===true || x.status==='done';
-          if(done)return;
-          const dl = x.deadline || x.dl || '';
-          if(dl && dl < t)count++;
+          try{
+            if(!x)return;
+            if(_taskDone(x))return;
+            const dl = _taskDeadline(x);
+            if(dl && dl < t)count++;
+          }catch(e){}
+        });
+        return count;
+      }catch(e){return null;}
+    }
+
+    function getTodoCount(){
+      // state.todos（members ごと配列）の未完了数を合計
+      try{
+        if(!window.state || !state.todos || !Array.isArray(state.todos))return null;
+        let count=0;
+        state.todos.forEach(function(arr){
+          try{
+            if(!Array.isArray(arr))return;
+            arr.forEach(function(td){
+              try{if(td && !(td.done===true || td.completed===true))count++;}catch(e){}
+            });
+          }catch(e){}
+        });
+        return count;
+      }catch(e){return null;}
+    }
+
+    function getMemoActionableCount(){
+      // _memoNotes の対応要 or ピン or AI 相談由来 で未完了・非アーカイブ
+      try{
+        if(!Array.isArray(window._memoNotes))return null;
+        let count=0;
+        window._memoNotes.forEach(function(m){
+          try{
+            if(!m || m.archived || m.done)return;
+            if(m.todo || m.pin || m.origin==='ai-consultation')count++;
+          }catch(e){}
         });
         return count;
       }catch(e){return null;}
@@ -8392,16 +8448,16 @@ function openEventFormFromCalendar(dateStr,timeStr){
     function refresh(){
       try{
         const tk = getTodayTaskCount();
-        if(tk!==null && tk>0)setBody('mob-cmd-task-body', tk+' 件 / 今日やることを確認', true, false);
-        else if(tk===0)setBody('mob-cmd-task-body', '0 件 / 今日やることを確認', false, false);
-        else setBody('mob-cmd-task-body', '今日やることを確認', false, false);
+        if(tk!==null && tk>0)setBody('mob-cmd-task-body', tk+' 件 / 今日のタスクを確認', true, false);
+        else if(tk===0)setBody('mob-cmd-task-body', '0 件 / 今日のタスクを確認', false, false);
+        else setBody('mob-cmd-task-body', '今日のタスクを確認', false, false);
 
         const ev = getTodayEventCount();
         if(ev!==null && ev>0)setBody('mob-cmd-event-body', ev+' 件 / 予定と時間を確認', true, false);
         else if(ev===0)setBody('mob-cmd-event-body', '0 件 / 予定と時間を確認', false, false);
         else setBody('mob-cmd-event-body', '予定と時間を確認', false, false);
 
-        // 期限切れタスクがある場合、タスクボードカードを has-alert で赤背景表示（注意カード廃止、4 ショートカット方針）
+        // packet 424: 期限切れタスクがある場合、タスクボードカードを has-alert で赤背景表示
         try{
           const al = getAlertCount();
           const taskCard = document.getElementById('mob-cmd-task-body');
@@ -8409,6 +8465,21 @@ function openEventFormFromCalendar(dateStr,timeStr){
             const card = taskCard.closest('.mob-cmd-card');
             if(card){card.classList.add('has-alert');}
             taskCard.textContent = (tk!==null?tk+' 件 ／ ':'')+'期限切れ '+al+' 件 ⚠';
+          }
+        }catch(e){}
+
+        // packet 424: メモ件数表示（対応要 / ピン / AI 相談由来）
+        try{
+          const memoCount = getMemoActionableCount();
+          const memoBody = document.getElementById('mob-cmd-memo-body');
+          if(memoBody){
+            if(memoCount!==null && memoCount>0){
+              memoBody.textContent = memoCount+' 件 対応要 / 気づきを残す';
+              const card = memoBody.closest('.mob-cmd-card');
+              if(card)card.classList.add('has-count');
+            }else{
+              memoBody.textContent = '気づきを残す';
+            }
           }
         }catch(e){}
       }catch(e){}
