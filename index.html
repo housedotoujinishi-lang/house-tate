@@ -8636,6 +8636,33 @@ function openEventFormFromCalendar(dateStr,timeStr){
       };
     }
 
+    // packet 425: 今日のルーティン達成状況を既存関数から取得
+    function getRoutineStatus(dateStr){
+      // 既存 getStaticRoutineTemplates / getRoutineDoneIds を try-catch で利用
+      // 取れなかったら null を返し、buildReport 側で「未取得」表示
+      try{
+        if(typeof getStaticRoutineTemplates!=='function')return null;
+        if(typeof getRoutineDoneIds!=='function')return null;
+        const tmpl = getStaticRoutineTemplates();
+        if(!tmpl || !Array.isArray(tmpl.daily))return null;
+        const doneIds = getRoutineDoneIds() || [];
+        const today = tmpl.daily;
+        const done = [];
+        const undone = [];
+        today.forEach(function(r){
+          try{
+            const title = r && (r.title || r.name || r.label || r.id) || '';
+            if(!title)return;
+            if(doneIds.indexOf(r.id)>=0)done.push(title);
+            else undone.push(title);
+          }catch(e){}
+        });
+        const total = today.length;
+        const rate = total>0 ? Math.round(done.length/total*100) : 0;
+        return {done:done, undone:undone, total:total, doneCount:done.length, rate:rate};
+      }catch(e){return null;}
+    }
+
     function buildReport(){
       const dateInput = document.getElementById('dr-date');
       const dateStr = (dateInput && dateInput.value) ? dateInput.value : todayStr();
@@ -8645,6 +8672,7 @@ function openEventFormFromCalendar(dateStr,timeStr){
       const events = getTodayEvents(dateStr);
       const tomorrowEvents = getTodayEvents(tomorrow);
       const counters = getCounters();
+      const routine = getRoutineStatus(dateStr);
       const manual = readManualInputs();
 
       // 営業活動表記
@@ -8676,6 +8704,25 @@ function openEventFormFromCalendar(dateStr,timeStr){
       lines.push('■ 営業活動');
       lines.push(counterLines.length ? counterLines.join('\n') : '・（記録なし）');
       lines.push('');
+      // packet 425: 今日のルーティン達成状況
+      lines.push('■ ルーティン達成状況');
+      if(routine){
+        lines.push('・実行率：'+routine.rate+'%（'+routine.doneCount+' / '+routine.total+'）');
+        if(routine.done.length){
+          lines.push('・完了：');
+          routine.done.forEach(function(t){lines.push('  ・'+t);});
+        }
+        if(routine.undone.length){
+          lines.push('・未完了（要対応）：');
+          routine.undone.forEach(function(t){lines.push('  ・'+t);});
+        }
+        if(!routine.done.length && !routine.undone.length){
+          lines.push('・（ルーティン未登録）');
+        }
+      }else{
+        lines.push('・（未取得：ルーティン画面でチェックを更新してください）');
+      }
+      lines.push('');
       lines.push('■ 本日の振り返り');
       lines.push(manual.reflect ? ('・'+manual.reflect.replace(/\n/g,'\n・')) : '・');
       lines.push('');
@@ -8693,7 +8740,7 @@ function openEventFormFromCalendar(dateStr,timeStr){
 
       return {
         text: lines.join('\n'),
-        meta: {tasks:tasks, events:events, overdue:tasks.overdue.length}
+        meta: {tasks:tasks, events:events, overdue:tasks.overdue.length, routine:routine}
       };
     }
 
@@ -8707,8 +8754,12 @@ function openEventFormFromCalendar(dateStr,timeStr){
       if(meta.tasks && meta.tasks.todo && meta.tasks.todo.length>=5){
         parts.push('<div class="dr-mgr-warn">⚠️ 未完了タスクが '+meta.tasks.todo.length+' 件と多めです</div>');
       }
+      // packet 425: ルーティン未完了警告
+      if(meta.routine && meta.routine.undone && meta.routine.undone.length>0){
+        parts.push('<div class="dr-mgr-warn">⚠️ ルーティン未完了 '+meta.routine.undone.length+' 件 / 実行率 '+meta.routine.rate+'%</div>');
+      }
       if(parts.length===0){
-        parts.push('<div class="dr-mgr-ok">✅ 期限切れ・未完了は許容範囲です。お疲れさまでした。</div>');
+        parts.push('<div class="dr-mgr-ok">✅ 期限切れ・未完了・ルーティンは許容範囲です。お疲れさまでした。</div>');
       }
       body.innerHTML = parts.join('');
     }
