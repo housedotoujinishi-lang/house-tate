@@ -3708,6 +3708,46 @@ async function loadTodos(){
 })();
 // ==== ここまで packet 483 todos persistence ====
 
+// ==== packet 484: 権限判定 helper 群（Phase 1：判定関数のみ、既存判定箇所は触らない）====
+// packet 464 で設計した 30 項目権限マトリクスを段階的に集約。
+// Phase 1 では「helper を提供する」だけで、既存の currentUser.perm==='admin' 判定は壊さない。
+// 各 helper は currentUser を参照、未ログイン時は false を返す。
+function isOwner(){
+  try{return !!(currentUser && currentUser.perm==='owner');}catch(e){return false;}
+}
+function isAdmin(){
+  try{return !!(currentUser && (currentUser.perm==='admin'||currentUser.perm==='owner'));}catch(e){return false;}
+}
+function isManager(){
+  // 「店長」role を持つ
+  try{return !!(currentUser && currentUser.role && currentUser.role.indexOf('店長')>=0);}catch(e){return false;}
+}
+function isSupportAdmin(){
+  // サポート + admin
+  try{return !!(currentUser && isAdmin() && currentUser.role && currentUser.role.indexOf('サポート')>=0);}catch(e){return false;}
+}
+function isStaff(){
+  try{return !!(currentUser && currentUser.perm==='staff');}catch(e){return false;}
+}
+// 操作系判定（packet 464 マトリクス §2.2 参照）
+function canManageAccounts(){return isAdmin();}                      // アカウント発行/編集
+function canEditKpi(){return isManager() || isOwner();}              // KPI 目標編集（店長 or owner）
+function canCloseMonthly(){return isManager() || isOwner();}         // 月次確定
+function canEditOthersTasks(){return isAdmin();}                     // 他人タスク編集
+function canEditOthersSchedule(){return isAdmin();}                  // 他人予定作成（staff は将来禁止対象）
+function canEditKintai(){return isAdmin();}                          // 勤怠修正（他人）
+function canDeleteAccount(){return isAdmin();}                       // アカウント削除
+function canIssueAccount(){return isAdmin();}                        // アカウント発行
+function canViewManagerPanel(){return isManager() || isAdmin();}     // 店長指示パネル閲覧
+function canSendManagerInstruction(){return isManager();}            // 店長指示発信（店長のみ）
+function canEditRoutines(){return isAdmin();}                        // ルーティン編集（admin 系）
+function canEditShifts(){return isManager() || isAdmin();}           // シフト編集
+
+// packet 484: 既存判定箇所は触らず、helper 経由で書き換える際の参考用。
+// 段階的移行：Phase 2 以降で staff の他人予定作成禁止 / staff の他人タスク編集禁止 / 店長指示パネル発信者制限 等を実装。
+try{console.warn('[packet 484] permission helpers defined: isOwner/isAdmin/isManager/isSupportAdmin/isStaff/canManageAccounts/canEditKpi/canCloseMonthly/canEditOthersTasks/canEditOthersSchedule/canEditKintai/canDeleteAccount/canIssueAccount/canViewManagerPanel/canSendManagerInstruction/canEditRoutines/canEditShifts');}catch(e){}
+// ==== ここまで packet 484 permission helpers ====
+
 function renderKintaiPage(){
   const now=new Date();
   document.getElementById('kt-sub').textContent=`${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日（${WD_ALL[now.getDay()]}）`;
