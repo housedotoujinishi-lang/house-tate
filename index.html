@@ -3609,6 +3609,105 @@ async function loadEvents(){
 })();
 // ==== ここまで packet 482 events persistence ====
 
+// ==== packet 483: ToDo 永続化（テーブル未作成時は in-memory 継続）====
+// state.todos は members index ベース（state.todos[mi]=[todo,...]）
+// uid キーに正規化して保存/復元、events と同じパターン
+let _p483_todosTableExists=null;
+let _p483_todosSaveTimer=null;
+function _todosFlatten(){
+  if(typeof state==='undefined'||!state||!Array.isArray(state.todos))return [];
+  if(typeof members==='undefined'||!Array.isArray(members))return [];
+  const out=[];
+  state.todos.forEach((arr,mi)=>{
+    if(!Array.isArray(arr))return;
+    const uid=(members[mi]&&members[mi].uid)||null;
+    if(!uid)return;
+    arr.forEach(td=>{
+      if(!td||!td.t||!td.date)return;
+      out.push({
+        uid: uid,
+        t: td.t,
+        cat: td.cat||'その他',
+        done: !!td.done,
+        date: td.date
+      });
+    });
+  });
+  return out;
+}
+async function saveTodos(){
+  if(_p483_todosTableExists===false)return;
+  const rows=_todosFlatten();
+  if(rows.length===0)return;
+  try{
+    const r=await fetch(`${SB_URL}/rest/v1/todos`,{
+      method:'POST',
+      headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`,
+                'Content-Type':'application/json', Prefer:'return=minimal' },
+      body:JSON.stringify(rows)
+    });
+    if(r.status===404){_p483_todosTableExists=false;try{console.warn('[packet 483 saveTodos] table not found, fallback to in-memory');}catch(e){}return;}
+    if(!r.ok){const t=await r.text();try{console.warn('[packet 483 saveTodos] failed',r.status,t.substring(0,200));}catch(e){}return;}
+    _p483_todosTableExists=true;
+    try{console.warn('[packet 483 saveTodos] OK rows:',rows.length);}catch(e){}
+  }catch(e){try{console.warn('[packet 483 saveTodos] exception:',e&&e.message);}catch(e2){}}
+}
+function _persistTodos(){
+  if(_p483_todosTableExists===false)return;
+  if(_p483_todosSaveTimer)clearTimeout(_p483_todosSaveTimer);
+  _p483_todosSaveTimer=setTimeout(saveTodos, 1500);
+}
+async function loadTodos(){
+  try{
+    const r=await fetch(`${SB_URL}/rest/v1/todos?order=date`,{
+      headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, Accept:'application/json' }
+    });
+    if(r.status===404){_p483_todosTableExists=false;try{console.warn('[packet 483 loadTodos] table not found, in-memory continue');}catch(e){}return;}
+    if(!r.ok){try{console.warn('[packet 483 loadTodos] failed',r.status);}catch(e){}return;}
+    const rows=await r.json();
+    if(!Array.isArray(rows)||rows.length===0){_p483_todosTableExists=true;return;}
+    _p483_todosTableExists=true;
+    if(typeof state==='undefined'||!state||!Array.isArray(state.todos))return;
+    if(typeof members==='undefined'||!Array.isArray(members))return;
+    const uidToMi={};
+    members.forEach((m,mi)=>{if(m&&m.uid)uidToMi[m.uid]=mi;});
+    state.todos.forEach((_,mi)=>{state.todos[mi]=[];});
+    rows.forEach(row=>{
+      const mi=uidToMi[row.uid];
+      if(mi===undefined)return;
+      if(!state.todos[mi])state.todos[mi]=[];
+      state.todos[mi].push({t:row.t, cat:row.cat||'その他', done:!!row.done, date:row.date});
+    });
+    try{console.warn('[packet 483 loadTodos] restored rows:',rows.length);}catch(e){}
+  }catch(e){try{console.warn('[packet 483 loadTodos] exception:',e&&e.message);}catch(e2){}}
+}
+// ToDo 追加 button（td-add / day-td-add）click 後に _persistTodos
+(function patchTodosPersistHook(){
+  function init(){
+    try{
+      const td=document.getElementById('td-add');
+      if(td && td.dataset.p483Bound!=='1'){
+        td.dataset.p483Bound='1';
+        td.addEventListener('click',()=>setTimeout(_persistTodos,800));
+      }
+    }catch(e){}
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);
+  else init();
+  setTimeout(init,1000);setTimeout(init,3000);
+})();
+(function patchTodosAutoLoadP483(){
+  function tryLoad(){
+    if(typeof currentUser!=='undefined' && currentUser){
+      loadTodos().then(()=>{
+        try{if(typeof renderTodoStrip==='function')renderTodoStrip();}catch(e){}
+      }).catch(()=>{});
+    }
+  }
+  setTimeout(tryLoad, 5500);
+})();
+// ==== ここまで packet 483 todos persistence ====
+
 function renderKintaiPage(){
   const now=new Date();
   document.getElementById('kt-sub').textContent=`${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日（${WD_ALL[now.getDay()]}）`;
