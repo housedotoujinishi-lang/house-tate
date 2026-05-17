@@ -1751,6 +1751,27 @@ async function saveTasks() {
   await sbUpsert('tasks', rows, 'id');
 }
 
+// packet 440: タスク永続化ヘルパー（debounce 800ms、保存失敗時は console.warn + 軽いトースト、画面は壊さない）
+let _persistTasksTimer = null;
+let _persistTasksInFlight = false;
+function _persistTasks(){
+  try{
+    if(_persistTasksTimer)clearTimeout(_persistTasksTimer);
+    _persistTasksTimer = setTimeout(async function(){
+      if(_persistTasksInFlight)return;
+      _persistTasksInFlight = true;
+      try{
+        if(typeof saveTasks==='function')await saveTasks();
+      }catch(e){
+        try{console.warn('packet 440 saveTasks error:',e);}catch(e2){}
+        try{if(typeof showToast==='function')showToast('⚠ タスク保存に失敗（再操作で再試行）',2500);}catch(e2){}
+      }finally{
+        _persistTasksInFlight = false;
+      }
+    }, 800);
+  }catch(e){try{console.warn('packet 440 _persistTasks error:',e);}catch(e2){}}
+}
+
 async function saveCustomers() {
   if(!customers.length) return;
   const rows = customers.map(c => ({
@@ -2641,7 +2662,7 @@ function renderDayTimeline(vis,dstr){
 }
 function setupDayEvForm(){['day-ef-s','day-ef-e'].forEach((id,i)=>{const s=document.getElementById(id);if(!s)return;s.innerHTML='';for(let h=8;h<=20;h++){['00','30'].forEach(mn=>{const o=document.createElement('option');o.value=`${h}:${mn}`;o.textContent=`${h}:${mn}`;s.appendChild(o);});}if(i===1)s.value='10:30';});}
 function renderDayRight(){const list=document.getElementById('day-td-list');if(!list)return;const mi=singleMi()>=0?singleMi():0;const dstr=ds(selDate);const todos=(state.todos[mi]||[]).filter(t=>t.date===dstr);if(!todos.length){list.innerHTML='<div style="color:var(--t4);font-size:10px;padding:3px 0">ToDoなし</div>';return;}list.innerHTML='';todos.forEach(td=>{const idx=state.todos[mi].indexOf(td);const cs=CAT_S[td.cat]||CAT_S['その他'];const d=document.createElement('div');d.className='tdi'+(td.done?' done':'');d.innerHTML=`<div class="tick${td.done?' on':''}"></div><span class="tit">${td.t}</span><span class="tibdg" style="background:${cs.bg};color:${cs.tx}">${td.cat}</span><button class="tidel">×</button>`;d.querySelector('.tick').onclick=()=>{state.todos[mi][idx].done=!td.done;renderDayRight();renderTodoStrip();};d.querySelector('.tidel').onclick=e=>{e.stopPropagation();state.todos[mi].splice(idx,1);renderDayRight();renderTodoStrip();};list.appendChild(d);});}
-function renderPoolPreview(){const el=document.getElementById('pool-preview');if(!el)return;const mi=singleMi()>=0?singleMi():0;const ua=state.tasks.filter(p=>p.toIdx===null&&!p.done);if(!ua.length){el.innerHTML='<div style="font-size:10px;color:var(--t4);padding:3px 0">未割当なし</div>';return;}el.innerHTML='';ua.slice(0,3).forEach(p=>{const cs=CAT_S[p.cat]||CAT_S['その他'];const d=document.createElement('div');d.className='pmini';d.innerHTML=`<span style="flex:1;font-size:10px;color:var(--t1);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.title}</span><span style="font-size:9px;padding:1px 5px;border-radius:5px;background:${cs.bg};color:${cs.tx};font-weight:700;flex-shrink:0">${p.cat}</span><button class="pclm">自分に</button>`;d.querySelector('button').onclick=()=>{const t=state.tasks.find(x=>x.id===p.id);if(t){t.toIdx=mi;t.fromName=currentUser?.name||'管理者';}if(!state.todos[mi])state.todos[mi]=[];state.todos[mi].push({t:p.title,cat:p.cat,done:false,date:ds(selDate)});renderPoolPreview();renderTodoStrip();renderTaskBoard();};el.appendChild(d);});}
+function renderPoolPreview(){const el=document.getElementById('pool-preview');if(!el)return;const mi=singleMi()>=0?singleMi():0;const ua=state.tasks.filter(p=>p.toIdx===null&&!p.done);if(!ua.length){el.innerHTML='<div style="font-size:10px;color:var(--t4);padding:3px 0">未割当なし</div>';return;}el.innerHTML='';ua.slice(0,3).forEach(p=>{const cs=CAT_S[p.cat]||CAT_S['その他'];const d=document.createElement('div');d.className='pmini';d.innerHTML=`<span style="flex:1;font-size:10px;color:var(--t1);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.title}</span><span style="font-size:9px;padding:1px 5px;border-radius:5px;background:${cs.bg};color:${cs.tx};font-weight:700;flex-shrink:0">${p.cat}</span><button class="pclm">自分に</button>`;d.querySelector('button').onclick=()=>{const t=state.tasks.find(x=>x.id===p.id);if(t){t.toIdx=mi;t.fromName=currentUser?.name||'管理者';}if(!state.todos[mi])state.todos[mi]=[];state.todos[mi].push({t:p.title,cat:p.cat,done:false,date:ds(selDate)});renderPoolPreview();renderTodoStrip();renderTaskBoard();_persistTasks();};el.appendChild(d);});}
 function buildTimeOptions(sel,val){sel.innerHTML='';for(let h=0;h<=23;h++){['00','30'].forEach(mn=>{const o=document.createElement('option');o.value=`${h}:${mn}`;o.textContent=`${h}:${mn}`;if(`${h}:${mn}`===val)o.selected=true;sel.appendChild(o);});};}
 function showEvModal(ev,mi){const ex=document.getElementById('evm');if(ex)ex.remove();const m=members[mi]||members[0];const bg=mkModal('evm',m.c,'予定を編集');
 // Build time select options html
@@ -2659,6 +2680,7 @@ document.getElementById('evmd').onclick=()=>{if(state.events[mi])state.events[mi
 const evToTask=document.getElementById('ev-to-task');if(evToTask)evToTask.onclick=()=>{
   state.tasks.push({id:state.nextId++,title:ev.title,cat:ev.cat,pri:'mid',toIdx:mi,fromName:currentUser?.name||'管理者',deadline:ev.date,done:false});
   bg.remove();renderTaskBoard();updateBadges();showToast('タスクに追加しました');
+  _persistTasks();
 };
 document.getElementById('evm-save').onclick=()=>{
   const newTitle=document.getElementById('evm-title').value.trim();if(!newTitle)return;
@@ -2793,7 +2815,7 @@ function renderTaskBoard(){
 
     // 戻すボタン
     body.querySelectorAll('.done-undo').forEach(btn=>{
-      btn.onclick=e=>{e.stopPropagation();const t=state.tasks.find(x=>x.id===+btn.dataset.id);if(t){t.done=false;renderTaskBoard();}};
+      btn.onclick=e=>{e.stopPropagation();const t=state.tasks.find(x=>x.id===+btn.dataset.id);if(t){t.done=false;renderTaskBoard();_persistTasks();}};
     });
     updateBadges();return;
   }
@@ -3172,6 +3194,7 @@ function showKAddModal(colKey,mi){
     bg.remove();
     renderTaskBoard();
     showToast('タスクを追加しました');
+    _persistTasks();
   };
 }
 
@@ -3391,11 +3414,11 @@ function showTaskDetail(task){
   // ボタン：管理者はフル、自分のタスクはコメント保存のみ、他人のは閉じるのみ
   if(isAdminUser){
     macts(bg,'<button class="mbtn mbcl" id="tdmc2">閉じる</button><button class="mbtn mbok" id="td-rs">変更・保存</button><button class="mbtn mbdel" id="td-del">削除</button>');
-    document.getElementById('td-rs').onclick=()=>{const val=document.getElementById('td-reas').value;const t=state.tasks.find(x=>x.id===task.id);if(t){t.toIdx=val==='pool'?null:parseInt(val);const cmt=document.getElementById('td-comment');if(cmt)t.comment=cmt.value.trim();}bg.remove();renderTaskBoard();renderPoolPreview();};
-    document.getElementById('td-del').onclick=()=>{if(!confirm('削除しますか？'))return;const idx=state.tasks.findIndex(x=>x.id===task.id);if(idx>=0)state.tasks.splice(idx,1);bg.remove();renderTaskBoard();renderPoolPreview();};
+    document.getElementById('td-rs').onclick=()=>{const val=document.getElementById('td-reas').value;const t=state.tasks.find(x=>x.id===task.id);if(t){t.toIdx=val==='pool'?null:parseInt(val);const cmt=document.getElementById('td-comment');if(cmt)t.comment=cmt.value.trim();}bg.remove();renderTaskBoard();renderPoolPreview();_persistTasks();};
+    document.getElementById('td-del').onclick=()=>{if(!confirm('削除しますか？'))return;const idx=state.tasks.findIndex(x=>x.id===task.id);if(idx>=0)state.tasks.splice(idx,1);bg.remove();renderTaskBoard();renderPoolPreview();_persistTasks();};
   } else if(isMyTask){
     macts(bg,'<button class="mbtn mbcl" id="tdmc2">閉じる</button><button class="mbtn mbok" id="td-rs">コメントを保存</button>');
-    document.getElementById('td-rs').onclick=()=>{const t=state.tasks.find(x=>x.id===task.id);if(t){const cmt=document.getElementById('td-comment');if(cmt)t.comment=cmt.value.trim();}bg.remove();renderTaskBoard();showToast('コメントを保存しました');};
+    document.getElementById('td-rs').onclick=()=>{const t=state.tasks.find(x=>x.id===task.id);if(t){const cmt=document.getElementById('td-comment');if(cmt)t.comment=cmt.value.trim();}bg.remove();renderTaskBoard();showToast('コメントを保存しました');_persistTasks();};
   } else {
     macts(bg,'<button class="mbtn mbcl" id="tdmc2">閉じる</button>');
   }
@@ -3459,7 +3482,7 @@ function generateNippo(uid){const acc=accounts.find(a=>a.uid===uid)||currentUser
 
 function showNippoModal(uid){const text=generateNippo(uid);const bg=mkModal('npm','var(--navy)','📄 日報を生成');mttlAfter(bg,`<textarea id="nippo-text" style="width:100%;height:280px;padding:9px;border:1.5px solid var(--bo);border-radius:var(--r);font-size:11px;line-height:1.7;resize:vertical;outline:none;font-family:monospace">${text}</textarea>`);macts(bg,'<button class="mbtn mbcl" id="npmc">閉じる</button><button class="mbtn mbok" id="np-copy">📋 コピー</button>');document.getElementById('npmc').onclick=()=>bg.remove();document.getElementById('np-copy').onclick=()=>{navigator.clipboard?.writeText(document.getElementById('nippo-text').value).then(()=>showToast('日報をコピーしました')).catch(()=>{document.getElementById('nippo-text').select();document.execCommand('copy');showToast('日報をコピーしました');});};}
 
-function showMonthCloseModal(){const y=today.getFullYear(),m=today.getMonth();const sacc=staffAccs();const totalSales=sacc.reduce((s,a)=>s+(personalSalesGoals[a.uid]?.actual||0),0);const totalInc=sacc.reduce((s,a)=>s+calcIncentive(a.uid),0);const bonuses=calcBonuses();const bg=mkModal('mcm','var(--navy)',`📦 ${y}年${m+1}月 月次確定`);mttlAfter(bg,`<div style="background:var(--navy-lt);border-radius:var(--r);padding:12px 14px;margin-bottom:12px"><div style="font-size:11px;font-weight:800;color:var(--navy);margin-bottom:8px">📊 確定前サマリー</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><div><div style="font-size:9px;color:var(--t3);margin-bottom:2px">店舗売上合計</div><div style="font-size:16px;font-weight:800;color:var(--navy)">${fmtMoney(totalSales)}</div></div><div><div style="font-size:9px;color:var(--t3);margin-bottom:2px">インセン総額</div><div style="font-size:16px;font-weight:800;color:var(--gold2)">${fmtMoney(totalInc)}</div></div></div></div><div style="background:var(--re-lt);border:1.5px solid #fca5a5;border-radius:var(--r);padding:10px 12px;margin-bottom:12px"><div style="font-size:11px;font-weight:800;color:var(--re);margin-bottom:4px">⚠️ リセットされるデータ</div><div style="font-size:10px;color:var(--t2);line-height:1.8">・今月の売上報告 / 件数進捗<br>・勤怠打刻ログ<br>・完了済みタスク<br><span style="color:var(--t3)">※ 未完了タスク・シフトは引き継がれます</span></div></div>`);macts(bg,'<button class="mbtn mbcl" id="mc-cancel">キャンセル</button><button class="mbtn mbdel" id="mc-exec" style="background:var(--navy)">✅ 月次確定する</button>');document.getElementById('mc-cancel').onclick=()=>bg.remove();document.getElementById('mc-exec').onclick=()=>{if(!window.monthArchive)window.monthArchive={};const archKey=`${y}-${String(m+1).padStart(2,'0')}`;window.monthArchive[archKey]={totalSales,totalInc,closedAt:Date.now()};staffAccs().forEach(a=>{salesReports[a.uid]=[];personalCountProgress[a.uid]={};ALL_COUNT_KEYS.forEach(k=>{personalCountProgress[a.uid][k]=0;});if(personalSalesGoals[a.uid]){personalSalesGoals[a.uid].actual=0;personalSalesGoals[a.uid].breakdown={};personalSalesGoals[a.uid].counts={};SALES_CATS.forEach(k=>{personalSalesGoals[a.uid].breakdown[k]=0;personalSalesGoals[a.uid].counts[k]=0;});}if(kintaiDB[a.uid]){Object.keys(kintaiDB[a.uid]).forEach(ds=>{if(ds.startsWith(`${y}-${String(m+1).padStart(2,'0')}`))delete kintaiDB[a.uid][ds];});}});state.tasks=state.tasks.filter(t=>!t.done);storeSalesGoal.actual=0;bg.remove();showToast(`${y}年${m+1}月の月次確定が完了しました 🎉`,4000);renderReportPage();};}
+function showMonthCloseModal(){const y=today.getFullYear(),m=today.getMonth();const sacc=staffAccs();const totalSales=sacc.reduce((s,a)=>s+(personalSalesGoals[a.uid]?.actual||0),0);const totalInc=sacc.reduce((s,a)=>s+calcIncentive(a.uid),0);const bonuses=calcBonuses();const bg=mkModal('mcm','var(--navy)',`📦 ${y}年${m+1}月 月次確定`);mttlAfter(bg,`<div style="background:var(--navy-lt);border-radius:var(--r);padding:12px 14px;margin-bottom:12px"><div style="font-size:11px;font-weight:800;color:var(--navy);margin-bottom:8px">📊 確定前サマリー</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><div><div style="font-size:9px;color:var(--t3);margin-bottom:2px">店舗売上合計</div><div style="font-size:16px;font-weight:800;color:var(--navy)">${fmtMoney(totalSales)}</div></div><div><div style="font-size:9px;color:var(--t3);margin-bottom:2px">インセン総額</div><div style="font-size:16px;font-weight:800;color:var(--gold2)">${fmtMoney(totalInc)}</div></div></div></div><div style="background:var(--re-lt);border:1.5px solid #fca5a5;border-radius:var(--r);padding:10px 12px;margin-bottom:12px"><div style="font-size:11px;font-weight:800;color:var(--re);margin-bottom:4px">⚠️ リセットされるデータ</div><div style="font-size:10px;color:var(--t2);line-height:1.8">・今月の売上報告 / 件数進捗<br>・勤怠打刻ログ<br>・完了済みタスク<br><span style="color:var(--t3)">※ 未完了タスク・シフトは引き継がれます</span></div></div>`);macts(bg,'<button class="mbtn mbcl" id="mc-cancel">キャンセル</button><button class="mbtn mbdel" id="mc-exec" style="background:var(--navy)">✅ 月次確定する</button>');document.getElementById('mc-cancel').onclick=()=>bg.remove();document.getElementById('mc-exec').onclick=()=>{if(!window.monthArchive)window.monthArchive={};const archKey=`${y}-${String(m+1).padStart(2,'0')}`;window.monthArchive[archKey]={totalSales,totalInc,closedAt:Date.now()};staffAccs().forEach(a=>{salesReports[a.uid]=[];personalCountProgress[a.uid]={};ALL_COUNT_KEYS.forEach(k=>{personalCountProgress[a.uid][k]=0;});if(personalSalesGoals[a.uid]){personalSalesGoals[a.uid].actual=0;personalSalesGoals[a.uid].breakdown={};personalSalesGoals[a.uid].counts={};SALES_CATS.forEach(k=>{personalSalesGoals[a.uid].breakdown[k]=0;personalSalesGoals[a.uid].counts[k]=0;});}if(kintaiDB[a.uid]){Object.keys(kintaiDB[a.uid]).forEach(ds=>{if(ds.startsWith(`${y}-${String(m+1).padStart(2,'0')}`))delete kintaiDB[a.uid][ds];});}});state.tasks=state.tasks.filter(t=>!t.done);_persistTasks();storeSalesGoal.actual=0;bg.remove();showToast(`${y}年${m+1}月の月次確定が完了しました 🎉`,4000);renderReportPage();};}
 
 function renderReportPage(){const el=document.getElementById('report-content');if(!el)return;const sacc=staffAccs();const y=today.getFullYear(),m=today.getMonth();const pendingReqs=punchRequests.filter(r=>r.status==='pending').length;let h=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px"><div style="font-size:16px;font-weight:800;color:var(--navy)">📊 月次レポート <span style="font-size:12px;color:var(--t3);font-weight:600">${y}年${m+1}月</span></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button onclick="exportKintaiCSV()" style="padding:6px 14px;border-radius:var(--r);border:1.5px solid var(--bo2);background:var(--s1);color:var(--t2);font-size:11px;font-weight:700;cursor:pointer">📥 勤怠CSV</button><button onclick="exportSalesCSV()" style="padding:6px 14px;border-radius:var(--r);border:1.5px solid var(--bo2);background:var(--s1);color:var(--t2);font-size:11px;font-weight:700;cursor:pointer">📥 売上CSV</button><button onclick="showMonthCloseModal()" style="padding:6px 16px;border-radius:var(--r);border:none;background:var(--navy);color:#fff;font-size:11px;font-weight:800;cursor:pointer">📦 月次確定</button></div></div>`;h+=`<div style="background:var(--s1);border:1.5px solid ${pendingReqs?'var(--gold2)':'var(--bo)'};border-radius:var(--r2);padding:12px 14px;margin-bottom:14px"><div style="font-size:11px;font-weight:800;color:var(--navy);margin-bottom:8px">🕐 打刻修正申請 ${pendingReqs?`<span style="background:var(--re);color:#fff;border-radius:8px;padding:1px 7px;font-size:10px">${pendingReqs}</span>`:''}</div><div id="punch-req-area"></div></div>`;h+=`<div style="background:var(--s1);border:1.5px solid var(--bo);border-radius:var(--r2);overflow:hidden;margin-bottom:14px"><div style="padding:10px 14px;border-bottom:1px solid var(--bo);font-size:11px;font-weight:800;color:var(--navy)">🧑‍💼 勤怠サマリー（${y}年${m+1}月）</div><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:11px"><thead><tr style="background:var(--navy)">${['担当者','出勤日数','労働時間','休憩時間','残業時間'].map(h2=>`<th style="padding:6px 10px;color:rgba(255,255,255,.85);text-align:center;border:1px solid rgba(255,255,255,.1);white-space:nowrap">${h2}</th>`).join('')}</tr></thead><tbody>`;sacc.forEach((acc,i)=>{const stats=calcPeriodStats(acc.uid,y,m);const otMs=calcOtMs(stats.wMs);const rowBg=i%2===0?'var(--s1)':'var(--s2)';h+=`<tr><td style="padding:6px 10px;border:1px solid var(--bo);background:${rowBg}"><div style="display:flex;align-items:center;gap:5px"><div style="width:18px;height:18px;border-radius:50%;background:${acc.c};display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:800;color:#fff">${acc.name[0]}</div>${acc.name}</div></td><td style="padding:6px 10px;border:1px solid var(--bo);text-align:center;font-weight:700;color:var(--navy);background:${rowBg}">${stats.days}日</td><td style="padding:6px 10px;border:1px solid var(--bo);text-align:center;font-weight:700;color:var(--navy);background:${rowBg}">${fmtH(stats.wMs)}</td><td style="padding:6px 10px;border:1px solid var(--bo);text-align:center;color:var(--t2);background:${rowBg}">${fmtH(stats.bMs)}</td><td style="padding:6px 10px;border:1px solid var(--bo);text-align:center;font-weight:700;color:${otMs>0?'var(--re)':'var(--gr)'};background:${rowBg}">${fmtH(otMs)}</td></tr>`;});h+=`</tbody></table></div></div>`;h+=`<div style="background:var(--s1);border:1.5px solid var(--bo);border-radius:var(--r2);overflow:hidden;margin-bottom:14px"><div style="padding:10px 14px;border-bottom:1px solid var(--bo);font-size:11px;font-weight:800;color:var(--navy)">💰 売上サマリー（${y}年${m+1}月）</div><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:11px"><thead><tr style="background:var(--navy)">${['担当者','目標','実績','達成率','カット','課税ベース','インセン'].map(h2=>`<th style="padding:6px 10px;color:rgba(255,255,255,.85);text-align:center;border:1px solid rgba(255,255,255,.1);white-space:nowrap">${h2}</th>`).join('')}</tr></thead><tbody>`;let totalTarget=0,totalActual=0,totalInc2=0;sacc.forEach((acc,i)=>{const sg=personalSalesGoals[acc.uid]||{target:0,actual:0};const pct=sg.target>0?Math.min(Math.round(sg.actual/sg.target*100),100):0;const cut=effCut(acc.uid);const base=Math.max(sg.actual-cut,0);const inc=calcIncentive(acc.uid);const c=pct>=100?'var(--gr)':pct>=60?'var(--navy)':'var(--am)';totalTarget+=sg.target;totalActual+=sg.actual;totalInc2+=inc;const rowBg=i%2===0?'var(--s1)':'var(--s2)';h+=`<tr><td style="padding:6px 10px;border:1px solid var(--bo);background:${rowBg}"><div style="display:flex;align-items:center;gap:5px"><div style="width:18px;height:18px;border-radius:50%;background:${acc.c};display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:800;color:#fff">${acc.name[0]}</div>${acc.name}</div></td><td style="padding:6px 10px;border:1px solid var(--bo);text-align:right;background:${rowBg}">${fmtMoney(sg.target)}</td><td style="padding:6px 10px;border:1px solid var(--bo);text-align:right;font-weight:700;color:${c};background:${rowBg}">${fmtMoney(sg.actual)}</td><td style="padding:6px 10px;border:1px solid var(--bo);text-align:center;font-weight:800;color:${c};background:${rowBg}">${pct}%</td><td style="padding:6px 10px;border:1px solid var(--bo);text-align:right;color:var(--t3);background:${rowBg}">${fmtMoney(cut)}</td><td style="padding:6px 10px;border:1px solid var(--bo);text-align:right;background:${rowBg}">${fmtMoney(base)}</td><td style="padding:6px 10px;border:1px solid var(--bo);text-align:right;font-weight:700;color:var(--gold2);background:${rowBg}">${fmtMoney(inc)}</td></tr>`;});h+=`</tbody></table></div></div>`;h+=`<div style="background:var(--s1);border:1.5px solid var(--bo);border-radius:var(--r2);padding:12px 14px;margin-bottom:14px"><div style="font-size:11px;font-weight:800;color:var(--navy);margin-bottom:10px">📄 日報生成</div><div style="display:flex;gap:8px;flex-wrap:wrap">`;sacc.forEach(acc=>{h+=`<button onclick="showNippoModal('${acc.uid}')" style="display:flex;align-items:center;gap:6px;padding:7px 14px;border-radius:var(--r);border:1.5px solid var(--bo2);background:var(--s1);color:var(--t1);font-size:11px;font-weight:700;cursor:pointer"><div style="width:18px;height:18px;border-radius:50%;background:${acc.c};display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:800;color:#fff">${acc.name[0]}</div>${acc.name} の日報</button>`;});h+=`</div></div>`;el.innerHTML=h;renderPunchRequests();}
 
@@ -9838,6 +9861,7 @@ function openEventFormFromCalendar(dateStr,timeStr){
                 if('status' in t)t.status = 'done';
                 showToast('タスクを完了にしました');
                 try{if(typeof renderTaskBoard==='function')renderTaskBoard();}catch(e){}
+                try{if(typeof _persistTasks==='function')_persistTasks();}catch(e){}
                 renderList();
               }
             }
@@ -9891,6 +9915,7 @@ function openEventFormFromCalendar(dateStr,timeStr){
               _mucAct(refId)._open = true;
               showToast(target ? ('担当を「'+target+'」に変更') : '担当を未割当に変更');
               try{if(typeof renderTaskBoard==='function')renderTaskBoard();}catch(e){}
+              try{if(typeof _persistTasks==='function')_persistTasks();}catch(e){}
               populateAssigneeFilter();
               renderList();
             }
@@ -9914,6 +9939,7 @@ function openEventFormFromCalendar(dateStr,timeStr){
               _mucAct(refId)._open = true;
               showToast('期限を '+newDl+' に延長');
               try{if(typeof renderTaskBoard==='function')renderTaskBoard();}catch(e){}
+              try{if(typeof _persistTasks==='function')_persistTasks();}catch(e){}
               renderList();
             }
             break;
