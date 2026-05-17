@@ -1063,6 +1063,17 @@ body.task-dragging [data-id]:not(.dragging-this){opacity:1!important}
   <div class="page" id="page-kintai">
     <div class="sp">
       <div class="pgh"><div class="pgt">🕐 勤怠管理</div><div id="kt-sub" style="font-size:10px;color:var(--t3)"></div></div>
+      <!-- packet 485: 勤怠 CSV 出力（admin / 店長 / canEditKintai のみ表示）-->
+      <div id="kintai-export-area" style="display:none;margin-bottom:10px;padding:8px 10px;background:var(--s2);border-radius:8px">
+        <div style="font-size:11px;font-weight:800;color:var(--navy);margin-bottom:6px">📤 勤怠 CSV 出力（Excel 互換、BOM 付き UTF-8）</div>
+        <div style="display:flex;gap:4px;flex-wrap:wrap">
+          <button class="pbtn" data-kx-range="today" style="flex:1;min-width:60px;padding:5px;font-size:10px;background:var(--navy);color:#fff;font-weight:700">今日</button>
+          <button class="pbtn" data-kx-range="week" style="flex:1;min-width:60px;padding:5px;font-size:10px;background:var(--navy);color:#fff;font-weight:700">今週</button>
+          <button class="pbtn" data-kx-range="month" style="flex:1;min-width:60px;padding:5px;font-size:10px;background:var(--navy);color:#fff;font-weight:700">今月</button>
+          <button class="pbtn" data-kx-range="year" style="flex:1;min-width:60px;padding:5px;font-size:10px;background:var(--navy);color:#fff;font-weight:700">今年</button>
+          <button class="pbtn" data-kx-range="summary" style="flex:1;min-width:80px;padding:5px;font-size:10px;background:var(--gold);color:var(--navy);font-weight:700">集計CSV</button>
+        </div>
+      </div>
       <div id="kt-content"></div>
     </div>
   </div>
@@ -3747,6 +3758,145 @@ function canEditShifts(){return isManager() || isAdmin();}           // シフ�
 // 段階的移行：Phase 2 以降で staff の他人予定作成禁止 / staff の他人タスク編集禁止 / 店長指示パネル発信者制限 等を実装。
 try{console.warn('[packet 484] permission helpers defined: isOwner/isAdmin/isManager/isSupportAdmin/isStaff/canManageAccounts/canEditKpi/canCloseMonthly/canEditOthersTasks/canEditOthersSchedule/canEditKintai/canDeleteAccount/canIssueAccount/canViewManagerPanel/canSendManagerInstruction/canEditRoutines/canEditShifts');}catch(e){}
 // ==== ここまで packet 484 permission helpers ====
+
+// ==== packet 485: 勤怠 CSV(Excel 互換) 出力 ====
+// BOM 付き UTF-8、Excel で文字化けせず開ける
+// 範囲：今日 / 今週 / 今月 / 今年 / 集計CSV
+// 対象：削除済み除外 + localStorage uid 順
+// 個人情報・顧客情報は含めない、パスワードも含めない
+function _csvEsc(v){
+  if(v===null||v===undefined)return '';
+  const s=String(v);
+  if(/[",\n\r]/.test(s))return '"'+s.replace(/"/g,'""')+'"';
+  return s;
+}
+function _csvDownload(filename, rows){
+  // BOM ﻿ を先頭に付けて UTF-8 で出力（Excel で開いても文字化けしない）
+  const csv='﻿'+rows.map(r=>r.map(_csvEsc).join(',')).join('\r\n');
+  try{
+    const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;a.download=filename;
+    document.body.appendChild(a);a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    return true;
+  }catch(e){try{console.warn('[packet 485 csv] download failed:',e&&e.message);}catch(e2){}return false;}
+}
+function _kintaiDateRange(range){
+  // 返り値：{from, to, label}（YYYY-MM-DD 文字列）
+  const t=new Date(); t.setHours(0,0,0,0);
+  if(range==='today'){
+    const d=localStr(t);return {from:d,to:d,label:d};
+  }
+  if(range==='week'){
+    const dow=t.getDay(); const diffToMon=dow===0?-6:1-dow;
+    const mon=new Date(t);mon.setDate(t.getDate()+diffToMon);
+    const sun=new Date(mon);sun.setDate(mon.getDate()+6);
+    return {from:localStr(mon),to:localStr(sun),label:localStr(mon)+'_'+localStr(sun)};
+  }
+  if(range==='month'){
+    const y=t.getFullYear(),m=t.getMonth();
+    const first=localStr(new Date(y,m,1));
+    const last=localStr(new Date(y,m+1,0));
+    return {from:first,to:last,label:y+String(m+1).padStart(2,'0')};
+  }
+  if(range==='year'){
+    const y=t.getFullYear();
+    return {from:y+'-01-01',to:y+'-12-31',label:String(y)};
+  }
+  return {from:localStr(t),to:localStr(t),label:'today'};
+}
+function _hhmm(ts){
+  if(!ts)return '';
+  try{const d=new Date(ts);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');}catch(e){return '';}
+}
+function exportKintaiCsv(range){
+  try{console.warn('[packet 485 csv] export range:',range);}catch(e){}
+  if(typeof accounts==='undefined' || !Array.isArray(accounts)){alert('accounts 未初期化');return;}
+  const targets=_getActiveAccountsSorted();
+  if(targets.length===0){alert('対象アカウントなし');return;}
+  if(range==='summary'){
+    // 集計 CSV：当月の各 uid の集計
+    const{y,m}=shiftMo;
+    const header=['担当者名','uid','期間','出勤日数','延べ労働時間(時間)','延べ休憩時間(時間)','延べ残業時間(時間)'];
+    const rows=[header];
+    targets.forEach(acc=>{
+      const stats=calcPeriodStats(acc.uid, y, m);
+      const otMs=calcOtMs(stats.wMs);
+      rows.push([
+        acc.name, acc.uid, y+'-'+String(m+1).padStart(2,'0'),
+        stats.days,
+        (stats.wMs/3600000).toFixed(2),
+        (stats.bMs/3600000).toFixed(2),
+        (otMs/3600000).toFixed(2)
+      ]);
+    });
+    _csvDownload('kintai_summary_'+y+String(m+1).padStart(2,'0')+'.csv', rows);
+    return;
+  }
+  // 日別 CSV
+  const{from,to,label}=_kintaiDateRange(range);
+  const header=['担当者名','uid','日付','出勤時刻','退勤時刻','休憩時間(分)','実働時間(分)','残業時間(分)','ステータス','備考'];
+  const rows=[header];
+  targets.forEach(acc=>{
+    const kt=kintaiDB[acc.uid]||{};
+    const dates=Object.keys(kt).filter(d=>d>=from && d<=to).sort();
+    dates.forEach(d=>{
+      const k=kt[d];
+      if(!k)return;
+      const{wMs,bMs}=calcTimes(acc.uid, d);
+      const inLog=k.logs && k.logs.find(l=>l.type==='in');
+      const outLog=k.logs && [...k.logs].reverse().find(l=>l.type==='out');
+      const otMs=calcOtMs(wMs);
+      rows.push([
+        acc.name, acc.uid, d,
+        inLog?_hhmm(inLog.ts):'',
+        outLog?_hhmm(outLog.ts):'',
+        Math.round(bMs/60000),
+        Math.round(wMs/60000),
+        Math.round(otMs/60000),
+        k.status||'',
+        ''  // 備考は将来用空欄
+      ]);
+    });
+  });
+  const fname='kintai_'+label.replace(/-/g,'')+'.csv';
+  _csvDownload(fname, rows);
+  try{if(typeof showToast==='function')showToast('📤 CSV 出力完了：'+fname);}catch(e){}
+}
+// 勤怠ページ表示時に export エリアの可視性を更新（admin / canEditKintai のみ表示）
+(function patchKintaiExportAreaP485(){
+  function update(){
+    try{
+      const el=document.getElementById('kintai-export-area');
+      if(!el)return;
+      const visible=typeof canEditKintai==='function' && canEditKintai();
+      el.style.display=visible?'block':'none';
+    }catch(e){}
+  }
+  function bindBtns(){
+    const buttons=document.querySelectorAll('[data-kx-range]');
+    buttons.forEach(b=>{
+      if(b.dataset.p485Bound==='1')return;
+      b.dataset.p485Bound='1';
+      b.addEventListener('click',()=>exportKintaiCsv(b.dataset.kxRange));
+    });
+  }
+  function init(){
+    update();bindBtns();
+    try{
+      const obs=new MutationObserver(()=>{update();bindBtns();});
+      obs.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['class']});
+    }catch(e){}
+    setTimeout(()=>{update();bindBtns();},1000);
+    setTimeout(()=>{update();bindBtns();},3000);
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);
+  else init();
+})();
+// ==== ここまで packet 485 kintai csv ====
 
 function renderKintaiPage(){
   const now=new Date();
