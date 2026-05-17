@@ -2452,9 +2452,16 @@ function bindEvForm(){
     const tmi=mi2>=0?mi2:0;
     if(!state.events[tmi])state.events[tmi]=[];
     state.events[tmi].push({title:t,cat,date:dstr,sh,sm,eh,em,mi:tmi});
+    // packet 442: 追加先 mi が絞り込み外の場合、selectedMembers に追加して表示されるようにする
+    try{if(window.selectedMembers && selectedMembers.size>0 && !selectedMembers.has(tmi))selectedMembers.add(tmi);}catch(e){}
     document.getElementById('ef-t').value='';
     const bar=document.getElementById('ev-add-bar');if(bar)bar.style.display='none';
-    showToast('予定を追加しました');render();
+    showToast('予定を追加しました');
+    // packet 442: 表示反映を確実にするため、render() に加えて renderCal() を直接呼ぶ
+    // （layoutMode!=='both' でも renderCal がスキップされないように二重発火、既存ロジックを壊さない）
+    try{render();}catch(e){try{console.warn('packet 442 render error:',e);}catch(e2){}}
+    try{if(typeof renderCal==='function')renderCal();}catch(e){try{console.warn('packet 442 renderCal error:',e);}catch(e2){}}
+    try{if(typeof renderFilterPills==='function')renderFilterPills();}catch(e){}
   };
 }
 
