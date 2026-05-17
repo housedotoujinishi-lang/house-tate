@@ -125,6 +125,26 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-siz
 .voice-btn[disabled]{opacity:.4;cursor:not-allowed}
 .voice-btn-memo{margin-top:4px}
 @keyframes vbpulse{0%,100%{box-shadow:0 0 0 0 rgba(220,38,38,.45)}50%{box-shadow:0 0 0 6px rgba(220,38,38,0)}}
+/* packet 412: ホーム司令塔ストリップ（スマホ専用、PC は display:none）*/
+.mob-cmd-strip{display:none}
+@media(max-width:768px){
+  .mob-cmd-strip{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:6px 10px 12px;padding:0}
+  .mob-cmd-card{display:flex;flex-direction:column;align-items:flex-start;gap:3px;padding:11px 12px;background:var(--s1);border:1.5px solid var(--bo);border-radius:10px;cursor:pointer;text-align:left;width:100%;min-height:74px;transition:background .15s,border-color .15s,transform .1s;font-family:inherit;color:var(--t1)}
+  .mob-cmd-card:active{transform:scale(.97)}
+  .mob-cmd-card:hover{background:var(--s2);border-color:#0a3d7c}
+  .mob-cmd-emoji{font-size:18px;line-height:1}
+  .mob-cmd-t{font-size:12px;font-weight:800;color:var(--navy);line-height:1.3}
+  .mob-cmd-body{font-size:10px;color:var(--t2);line-height:1.4;font-weight:600}
+  .mob-cmd-card.has-count .mob-cmd-body{color:#0a3d7c;font-weight:700}
+  .mob-cmd-card.has-alert{border-color:#dc2626;background:#fef2f2}
+  .mob-cmd-card.has-alert .mob-cmd-body{color:#b91c1c}
+  .mob-cmd-consul{background:linear-gradient(135deg,#0a3d7c 0%,#1e5fa8 100%);border-color:#0a3d7c;color:#fff}
+  .mob-cmd-consul .mob-cmd-t{color:#fff}
+  .mob-cmd-consul .mob-cmd-body{color:rgba(255,255,255,.88)}
+  .mob-cmd-report{background:linear-gradient(135deg,#c2410c 0%,#ea580c 100%);border-color:#c2410c;color:#fff}
+  .mob-cmd-report .mob-cmd-t{color:#fff}
+  .mob-cmd-report .mob-cmd-body{color:rgba(255,255,255,.88)}
+}
 /* packet 409: AI 相談窓口（ホームカード + モーダル）*/
 .ai-consul-home-card{margin:12px;padding:0;background:linear-gradient(135deg,#0a3d7c 0%,#1e5fa8 100%);border-radius:14px;cursor:pointer;box-shadow:0 3px 10px rgba(10,61,124,.18);transition:transform .15s,box-shadow .15s;color:#fff;overflow:hidden;border:0}
 .ai-consul-home-card:hover{transform:translateY(-1px);box-shadow:0 5px 14px rgba(10,61,124,.28)}
@@ -751,6 +771,39 @@ body.task-dragging [data-id]:not(.dragging-this){opacity:1!important}
             <div class="ai-consul-home-card-sub">困ったら、まずここに相談。<br>追客・査定・タスク・予定・文面作成をＡＩチームが整理します。</div>
             <div class="ai-consul-home-card-cta">▶ 相談する</div>
           </div>
+        </div>
+        <!-- packet 412: ホーム司令塔ストリップ（スマホ専用、PC では display:none）+ packet 413 日報カード追加 -->
+        <div id="mobile-cmd-strip" class="mob-cmd-strip" aria-label="今日の司令塔">
+          <button type="button" class="mob-cmd-card" data-mob-cmd="task">
+            <span class="mob-cmd-emoji">📋</span>
+            <span class="mob-cmd-t">今日のタスク</span>
+            <span class="mob-cmd-body" id="mob-cmd-task-body">今日やることを確認</span>
+          </button>
+          <button type="button" class="mob-cmd-card" data-mob-cmd="event">
+            <span class="mob-cmd-emoji">📅</span>
+            <span class="mob-cmd-t">今日の予定</span>
+            <span class="mob-cmd-body" id="mob-cmd-event-body">予定と時間を確認</span>
+          </button>
+          <button type="button" class="mob-cmd-card" data-mob-cmd="alert">
+            <span class="mob-cmd-emoji">⚠️</span>
+            <span class="mob-cmd-t">未完了・注意</span>
+            <span class="mob-cmd-body" id="mob-cmd-alert-body">抜け漏れを確認</span>
+          </button>
+          <button type="button" class="mob-cmd-card mob-cmd-consul" data-mob-cmd="consul">
+            <span class="mob-cmd-emoji">💬</span>
+            <span class="mob-cmd-t">ＡＩ相談窓口</span>
+            <span class="mob-cmd-body">迷ったらここ</span>
+          </button>
+          <button type="button" class="mob-cmd-card" data-mob-cmd="tip">
+            <span class="mob-cmd-emoji">💡</span>
+            <span class="mob-cmd-t">今日のマメ知識</span>
+            <span class="mob-cmd-body">1枚だけ学ぶ</span>
+          </button>
+          <button type="button" class="mob-cmd-card mob-cmd-report" data-mob-cmd="report">
+            <span class="mob-cmd-emoji">📝</span>
+            <span class="mob-cmd-t">日報</span>
+            <span class="mob-cmd-body">今日の日報を作る</span>
+          </button>
         </div>
         <div id="dash-content"></div>
       </div>
@@ -8027,6 +8080,160 @@ function openEventFormFromCalendar(dateStr,timeStr){
   }
 })();
 // ==== ここまで packet 409 ====
+// ==== packet 412: ホーム司令塔ストリップ（スマホ専用、件数取得 + クリック遷移） ====
+(function patchMobileCmdStrip(){
+  try{
+    function pad2(n){return (n<10?'0':'')+n;}
+    function todayStr(){const d=new Date();return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate());}
+
+    function getTodayTaskCount(){
+      try{
+        if(!window.state || !state.tasks)return null;
+        const t=todayStr();
+        let count=0;
+        state.tasks.forEach(function(x){
+          if(!x)return;
+          const done = x.done===true || x.status==='done';
+          if(done)return;
+          const dl = x.deadline || x.dl || '';
+          if(dl===t)count++;
+        });
+        return count;
+      }catch(e){return null;}
+    }
+
+    function getTodayEventCount(){
+      try{
+        if(!window.state || !state.events)return null;
+        const t=todayStr();
+        let count=0;
+        state.events.forEach(function(arr){
+          if(!Array.isArray(arr))return;
+          arr.forEach(function(ev){
+            if(!ev)return;
+            const d = ev.date || ev.day || '';
+            if(d===t)count++;
+          });
+        });
+        return count;
+      }catch(e){return null;}
+    }
+
+    function getAlertCount(){
+      try{
+        if(!window.state || !state.tasks)return null;
+        const t=todayStr();
+        let count=0;
+        state.tasks.forEach(function(x){
+          if(!x)return;
+          const done = x.done===true || x.status==='done';
+          if(done)return;
+          const dl = x.deadline || x.dl || '';
+          if(dl && dl < t)count++;
+        });
+        return count;
+      }catch(e){return null;}
+    }
+
+    function setBody(id, primary, hasCount, hasAlert){
+      const el = document.getElementById(id);
+      if(!el)return;
+      el.textContent = primary;
+      const card = el.closest('.mob-cmd-card');
+      if(!card)return;
+      card.classList.toggle('has-count', !!hasCount);
+      card.classList.toggle('has-alert', !!hasAlert);
+    }
+
+    function refresh(){
+      try{
+        const tk = getTodayTaskCount();
+        if(tk!==null && tk>0)setBody('mob-cmd-task-body', tk+' 件 / 今日やることを確認', true, false);
+        else if(tk===0)setBody('mob-cmd-task-body', '0 件 / 今日やることを確認', false, false);
+        else setBody('mob-cmd-task-body', '今日やることを確認', false, false);
+
+        const ev = getTodayEventCount();
+        if(ev!==null && ev>0)setBody('mob-cmd-event-body', ev+' 件 / 予定と時間を確認', true, false);
+        else if(ev===0)setBody('mob-cmd-event-body', '0 件 / 予定と時間を確認', false, false);
+        else setBody('mob-cmd-event-body', '予定と時間を確認', false, false);
+
+        const al = getAlertCount();
+        if(al!==null && al>0)setBody('mob-cmd-alert-body', al+' 件 期限切れ / 抜け漏れを確認', false, true);
+        else if(al===0)setBody('mob-cmd-alert-body', '期限切れなし / 抜け漏れを確認', false, false);
+        else setBody('mob-cmd-alert-body', '抜け漏れを確認', false, false);
+      }catch(e){}
+    }
+
+    function onCardClick(action){
+      try{
+        switch(action){
+          case 'task':
+            if(typeof switchPage==='function')switchPage('cal');
+            setTimeout(function(){
+              try{
+                const tab=document.querySelector('.tbtab[data-tt="unassigned"]');
+                if(tab)tab.click();
+              }catch(e){}
+            },180);
+            break;
+          case 'event':
+            if(typeof switchPage==='function')switchPage('cal');
+            break;
+          case 'alert':
+            if(typeof switchPage==='function')switchPage('cal');
+            setTimeout(function(){
+              try{
+                const tab=document.querySelector('.tbtab[data-tt="all"]');
+                if(tab)tab.click();
+              }catch(e){}
+            },180);
+            break;
+          case 'consul':
+            // packet 409 の AI 相談窓口モーダルを呼び出す
+            try{
+              const card=document.getElementById('ai-consul-home-card');
+              if(card)card.click();
+            }catch(e){}
+            break;
+          case 'tip':
+            if(typeof switchPage==='function')switchPage('knowledge-portal');
+            break;
+          case 'report':
+            // packet 413 日報ページへ
+            if(typeof switchPage==='function'){
+              try{switchPage('daily-report');}catch(e){
+                try{switchPage('dash');}catch(e2){}
+              }
+            }
+            break;
+        }
+      }catch(e){}
+    }
+
+    function init(){
+      const strip = document.getElementById('mobile-cmd-strip');
+      if(!strip)return;
+      if(strip.dataset.p412Bound==='1')return;
+      strip.dataset.p412Bound='1';
+      const cards = strip.querySelectorAll('[data-mob-cmd]');
+      cards.forEach(function(c){
+        c.addEventListener('click',function(){onCardClick(c.getAttribute('data-mob-cmd'));});
+      });
+      refresh();
+      // 5 分ごとに件数更新（軽量）
+      setInterval(refresh, 5*60*1000);
+      // ホーム表示時にも更新
+      document.querySelectorAll('.bn-tab[data-bnpg="dash"]').forEach(function(t){
+        t.addEventListener('click', function(){setTimeout(refresh, 240);});
+      });
+    }
+    if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);
+    else init();
+  }catch(e){
+    try{console.warn('packet 412 mobile cmd strip init error:',e);}catch(e2){}
+  }
+})();
+// ==== ここまで packet 412 ====
 </script>
 </body>
 </html>
