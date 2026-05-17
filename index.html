@@ -3199,8 +3199,28 @@ function showKAddModal(colKey,mi){
       comment:'',
     });
     bg.remove();
+    // packet 444 B案: 追加されたタスクの状況に応じて適切なタブへ自動切替
+    let _p444Where='担当別タブ';
+    try{
+      const newTask=state.tasks[state.tasks.length-1];
+      const _myMi=members.findIndex(m=>m.uid===currentUser?.uid);
+      if(newTask){
+        if(newTask.toIdx===null){tbTab='unassigned';_p444Where='未割当タブ';}
+        else if(newTask.toIdx===_myMi){tbTab='mine';_p444Where='個人タブ';}
+        else{tbTab='all';_p444Where='担当別タブ';}
+      }
+    }catch(e){}
     renderTaskBoard();
-    showToast('タスクを追加しました');
+    // packet 444 C案: 案内トースト（追加先タブ + フィルタ警告）
+    try{
+      let _p444FilterWarn='';
+      if(typeof taskFilter!=='undefined'){
+        if(taskFilter.period && taskFilter.period!=='all' && taskFilter.period!=='')_p444FilterWarn+=' / 期間フィルタ中';
+        if(taskFilter.cat)_p444FilterWarn+=' / カテゴリフィルタ中';
+      }
+      if(_p444FilterWarn)showToast('タスクを追加しました（'+_p444Where+'に表示'+_p444FilterWarn+'。全期間／全カテゴリをご確認ください）',3500);
+      else showToast('タスクを追加しました（'+_p444Where+'に表示）');
+    }catch(e){showToast('タスクを追加しました');}
     _persistTasks();
   };
 }
@@ -10060,6 +10080,128 @@ function openEventFormFromCalendar(dateStr,timeStr){
   }
 })();
 // ==== ここまで packet 427 ====
+// ==== packet 444: 日間カレンダーにタスク表示（renderDay 非破壊ラップ、月間/週間には出さない） ====
+(function patchDayCalendarTaskDisplay(){
+  try{
+    function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];});}
+    function _td(t){if(!t)return '';return (t.deadline||t.dl||t.due||t.dueDate||t.date||t.day||'');}
+    function _done(t){if(!t)return false;return (t.done===true||t.status==='done'||t.completed===true||t.complete===true);}
+
+    function appendTasksToDayCalendar(){
+      try{
+        const calView = document.getElementById('cal-view');
+        if(!calView)return;
+        // 日ビュー以外なら何もしない（curV !== 'day'）
+        if(typeof curV !== 'undefined' && curV !== 'day')return;
+        if(typeof selDate === 'undefined')return;
+
+        // selDate 該当日付（ローカル時間で YYYY-MM-DD）
+        const pad=function(n){return (n<10?'0':'')+n;};
+        const dstr = selDate.getFullYear()+'-'+pad(selDate.getMonth()+1)+'-'+pad(selDate.getDate());
+
+        if(!window.state || !Array.isArray(state.tasks))return;
+
+        // 表示中メンバー（visMis）の範囲のタスクのみ表示
+        let visList = [];
+        try{if(typeof visMis==='function')visList = visMis();}catch(e){}
+        const visSet = new Set(visList);
+
+        const tasks = state.tasks.filter(function(t){
+          if(!t || _done(t))return false;
+          if(_td(t) !== dstr)return false;
+          // 表示中メンバー or 未割当 のみ
+          if(t.toIdx==null)return true;
+          if(visSet.size===0)return true;
+          return visSet.has(t.toIdx);
+        });
+
+        // 既存ストリップ除去（再描画対応）
+        const ex = document.getElementById('day-task-strip');
+        if(ex)ex.remove();
+        if(!tasks.length)return;
+
+        const strip = document.createElement('div');
+        strip.id = 'day-task-strip';
+        strip.style.cssText = 'padding:8px 14px;background:#f0fdf4;border-bottom:1px solid #bbf7d0;display:flex;flex-direction:column;gap:5px';
+        let h = '<div style="font-size:10px;font-weight:800;color:#15803d;margin-bottom:3px">🧩 今日のタスク（'+tasks.length+' 件）</div>';
+        h += '<div style="display:flex;flex-direction:column;gap:4px">';
+        tasks.forEach(function(t){
+          let cs = {bg:'#f1f5f9',tx:'#334155'};
+          try{if(typeof CAT_S!=='undefined' && CAT_S[t.cat])cs=CAT_S[t.cat];}catch(e){}
+          let assignee = '未割当';
+          try{
+            if(typeof t.toIdx==='number' && window.members && members[t.toIdx])assignee = members[t.toIdx].n;
+          }catch(e){}
+          const priColor = t.pri==='high'?'#dc2626':t.pri==='mid'?'#d97706':'#94a3b8';
+          h += '<div class="day-task-item" data-task-id="'+esc(String(t.id))+'" style="background:#fff;border:1px solid #bbf7d0;border-left:4px solid '+priColor+';border-radius:6px;padding:6px 9px;display:flex;align-items:center;gap:7px;cursor:pointer;flex-wrap:wrap">';
+          h += '<span style="font-size:10px;color:#15803d;font-weight:800;flex-shrink:0">🧩タスク</span>';
+          h += '<span style="font-size:11px;font-weight:700;color:#0a3d7c;flex:1;min-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(t.title||'')+'</span>';
+          if(t.cat)h += '<span style="font-size:9px;padding:1px 6px;border-radius:5px;background:'+cs.bg+';color:'+cs.tx+';font-weight:700;flex-shrink:0">'+esc(t.cat)+'</span>';
+          h += '<span style="font-size:9px;color:#64748b;flex-shrink:0">👤 '+esc(assignee)+'</span>';
+          h += '<button class="day-task-done" data-task-id="'+esc(String(t.id))+'" type="button" style="font-size:10px;padding:3px 8px;border-radius:5px;border:1px solid #15803d;background:#15803d;color:#fff;font-weight:700;cursor:pointer;flex-shrink:0">✓ 完了</button>';
+          h += '</div>';
+        });
+        h += '</div>';
+        strip.innerHTML = h;
+
+        // 挿入位置：cal-view の最上部
+        if(calView.firstChild)calView.insertBefore(strip, calView.firstChild);
+        else calView.appendChild(strip);
+
+        // ✓完了ボタン
+        strip.querySelectorAll('.day-task-done').forEach(function(btn){
+          btn.addEventListener('click', function(ev){
+            try{ev.stopPropagation();}catch(e){}
+            const tid = btn.getAttribute('data-task-id');
+            const t = state.tasks.find(function(x){return String(x && x.id)===String(tid);});
+            if(!t)return;
+            t.done = true;
+            if('status' in t)t.status='done';
+            try{if(typeof renderTaskBoard==='function')renderTaskBoard();}catch(e){}
+            try{if(typeof _persistTasks==='function')_persistTasks();}catch(e){}
+            try{if(typeof renderDay==='function')renderDay();}catch(e){}
+            try{if(typeof showToast==='function')showToast('タスクを完了にしました');}catch(e){}
+          });
+        });
+        // タスクカードクリックで詳細
+        strip.querySelectorAll('.day-task-item').forEach(function(item){
+          item.addEventListener('click', function(ev){
+            if(ev.target.classList && ev.target.classList.contains('day-task-done'))return;
+            const tid = item.getAttribute('data-task-id');
+            const t = state.tasks.find(function(x){return String(x && x.id)===String(tid);});
+            if(t && typeof showTaskDetail==='function'){
+              try{showTaskDetail(t);}catch(e){}
+            }
+          });
+        });
+      }catch(e){
+        try{console.warn('packet 444 appendTasksToDayCalendar error:',e);}catch(e2){}
+      }
+    }
+
+    // renderDay 非破壊ラップ（複数回読込でも 1 回のみ）
+    function wrap(){
+      try{
+        if(typeof renderDay!=='function')return false;
+        if(renderDay._p444Wrapped)return true;
+        const orig = renderDay;
+        window.renderDay = function(){
+          const r = orig.apply(this, arguments);
+          try{ appendTasksToDayCalendar(); }catch(e){}
+          return r;
+        };
+        window.renderDay._p444Wrapped = true;
+        return true;
+      }catch(e){return false;}
+    }
+
+    if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',wrap);
+    else wrap();
+  }catch(e){
+    try{console.warn('packet 444 patch init error:',e);}catch(e2){}
+  }
+})();
+// ==== ここまで packet 444 ====
 </script>
 </body>
 </html>
