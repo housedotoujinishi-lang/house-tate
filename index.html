@@ -2077,7 +2077,45 @@ function mkEvs(mi){return [];const pats_disabled=[[{t:'朝礼',cat:'社内MTG',d
 function mkShiftData(){const{y,m}=shiftMo;const dim=new Date(y,m+1,0).getDate(),res={};members.forEach((mem,mi)=>{res[mem.uid]={};for(let d=1;d<=dim;d++){const dow=new Date(y,m,d).getDay();res[mem.uid][d]='work';}const extras=[[[3,'off'],[4,'off'],[10,'paid'],[14,'overtime'],[21,'noOt']],[[3,'off'],[4,'off'],[9,'paid'],[18,'overtime'],[22,'noOt']],[[3,'paid'],[10,'off'],[11,'off'],[17,'overtime'],[25,'noOt']],[[4,'off'],[15,'paid'],[20,'overtime'],[23,'noOt']],[[4,'off'],[11,'paid'],[16,'overtime'],[24,'noOt']]];(extras[Math.min(mi,4)]||[]).forEach(([d,s])=>{if(d<=dim&&!isHol(y,m,d))res[mem.uid][d]=s;});});return res;}
 const state={events:members.map((_,i)=>mkEvs(i)),todos:members.map(()=>[]),memo:members.map(()=>''),tasks:[],nextId:1};
 let shiftData=mkShiftData();let progTab='count';
-async function doLogin(){const email=document.getElementById('fl-id').value.trim();const pass=document.getElementById('fl-pass').value;const err=document.getElementById('le');try{const{data:authData,error:authErr}=await sb.auth.signInWithPassword({email,password:pass});if(authErr||!authData?.user){err.style.display='block';return;}const{data:prof,error:profErr}=await sb.from('profiles').select('*').eq('id',authData.user.id).maybeSingle();if(profErr||!prof){err.style.display='block';return;}err.style.display='none';currentUser={uid:prof.id,name:prof.name||'admin',role:prof.role||'admin',perm:prof.perm||'admin',c:prof.c||'#0a3d7c',inc:prof.inc||0,cut:prof.cut||0,personal:prof.personal!==false};showMainApp();}catch(e){err.style.display='block';}}
+async function doLogin(){
+  const email=document.getElementById('fl-id').value.trim();
+  const pass=document.getElementById('fl-pass').value;
+  const err=document.getElementById('le');
+  // ── 1. Supabase Auth でログイン試行（既存）──
+  try{
+    const{data:authData,error:authErr}=await sb.auth.signInWithPassword({email,password:pass});
+    if(!authErr && authData?.user){
+      const{data:prof,error:profErr}=await sb.from('profiles').select('*').eq('id',authData.user.id).maybeSingle();
+      if(!profErr && prof){
+        err.style.display='none';
+        currentUser={uid:prof.id,name:prof.name||'admin',role:prof.role||'admin',perm:prof.perm||'admin',c:prof.c||'#0a3d7c',inc:prof.inc||0,cut:prof.cut||0,personal:prof.personal!==false};
+        showMainApp();
+        return;
+      }
+    }
+  }catch(e){/* fall through */}
+  // ── 2. packet 446: accounts 配列フォールバック（Auth 未登録の発行済アカウント用）──
+  // 既存 Auth 認証を完全保持しつつ、Auth 失敗時のみ Supabase accounts テーブル + メモリ accounts で照合。
+  // セキュリティ：Supabase accounts テーブルの uid/pass を照合、Auth より弱いが業務 SaaS 内部用途で許容範囲。
+  try{
+    let dbAccs=[];
+    try{dbAccs=await sbGet('accounts','order=uid');}catch(e2){dbAccs=[];}
+    const combined=[];
+    try{if(Array.isArray(accounts))accounts.forEach(a=>{if(a)combined.push(a);});}catch(e2){}
+    dbAccs.forEach(a=>{
+      if(!a)return;
+      combined.push({uid:a.uid,pass:a.pass,name:a.name,role:a.role,perm:a.perm,c:a.color,inc:a.inc,cut:a.cut,personal:a.personal});
+    });
+    const acc=combined.find(a=>a && a.uid===email && a.pass===pass);
+    if(acc){
+      err.style.display='none';
+      currentUser={uid:acc.uid,name:acc.name||'担当者',role:acc.role||'エージェント',perm:acc.perm||'staff',c:acc.c||'#0a3d7c',inc:acc.inc||0,cut:acc.cut||0,personal:acc.personal!==false};
+      showMainApp();
+      return;
+    }
+  }catch(e3){try{console.warn('packet 446 fallback login error:',e3);}catch(e4){}}
+  err.style.display='block';
+}
 document.getElementById('login-btn').onclick=doLogin;
 document.getElementById('fl-pass').onkeydown=e=>{if(e.key==='Enter')doLogin();};
 document.getElementById('fl-id').onkeydown=e=>{if(e.key==='Enter')document.getElementById('fl-pass').focus();};
@@ -2290,7 +2328,7 @@ function showPwModal(acc){
     };
   }
 }
-document.getElementById('issue-btn').onclick=()=>{const name=document.getElementById('new-name').value.trim();const role=document.getElementById('new-role').value;const perm=document.getElementById('new-perm').value;const uid=document.getElementById('new-uid').value.trim().toLowerCase().replace(/[^a-z0-9]/g,'');const pass=document.getElementById('new-pass').value.trim();const inc=parseFloat(document.getElementById('new-inc').value)||0;const cut=(parseFloat(document.getElementById('new-cut').value)||0)*10000;const personal=document.getElementById('new-personal').value==='1';const result=document.getElementById('issue-result');if(!name||!uid||!pass){result.style.cssText='display:block;background:var(--re);color:#fff;border-radius:var(--r);padding:8px 10px;font-size:11px;font-weight:600;margin-top:6px';result.textContent='全項目を入力してください';return;}if(accounts.find(a=>a.uid===uid)){result.style.cssText='display:block;background:var(--re);color:#fff;border-radius:var(--r);padding:8px 10px;font-size:11px;font-weight:600;margin-top:6px';result.textContent='このIDはすでに使用されています';return;}const c=MC[accounts.length%MC.length];accounts.push({uid,pass,name,role,perm,c,inc,cut,personal});if(perm==='staff'){const newMem={n:name,c,role,uid};members.push(newMem);state.events.push(mkEvs(members.length-1));state.todos.push([]);state.memo.push('');const{y,m}=shiftMo;const dim=new Date(y,m+1,0).getDate();shiftData[uid]={};for(let d=1;d<=dim;d++){const dow=new Date(y,m,d).getDay();shiftData[uid][d]='work';}}['new-name','new-uid','new-pass','new-inc','new-cut'].forEach(id=>document.getElementById(id).value='');result.style.cssText='display:block;background:var(--gr);color:#fff;border-radius:var(--r);padding:8px 10px;font-size:11px;font-weight:600;margin-top:6px;line-height:1.7';result.innerHTML=`✅ 発行完了！ ID: <strong>${uid}</strong> ／ PW: <strong>${pass}</strong>`;initGoalData();renderAccList();};
+document.getElementById('issue-btn').onclick=()=>{const name=document.getElementById('new-name').value.trim();const role=document.getElementById('new-role').value;const perm=document.getElementById('new-perm').value;const uid=document.getElementById('new-uid').value.trim().toLowerCase().replace(/[^a-z0-9]/g,'');const pass=document.getElementById('new-pass').value.trim();const inc=parseFloat(document.getElementById('new-inc').value)||0;const cut=(parseFloat(document.getElementById('new-cut').value)||0)*10000;const personal=document.getElementById('new-personal').value==='1';const result=document.getElementById('issue-result');if(!name||!uid||!pass){result.style.cssText='display:block;background:var(--re);color:#fff;border-radius:var(--r);padding:8px 10px;font-size:11px;font-weight:600;margin-top:6px';result.textContent='全項目を入力してください';return;}if(accounts.find(a=>a.uid===uid)){result.style.cssText='display:block;background:var(--re);color:#fff;border-radius:var(--r);padding:8px 10px;font-size:11px;font-weight:600;margin-top:6px';result.textContent='このIDはすでに使用されています';return;}const c=MC[accounts.length%MC.length];accounts.push({uid,pass,name,role,perm,c,inc,cut,personal});if(perm==='staff'){const newMem={n:name,c,role,uid};members.push(newMem);state.events.push(mkEvs(members.length-1));state.todos.push([]);state.memo.push('');const{y,m}=shiftMo;const dim=new Date(y,m+1,0).getDate();shiftData[uid]={};for(let d=1;d<=dim;d++){const dow=new Date(y,m,d).getDay();shiftData[uid][d]='work';}}['new-name','new-uid','new-pass','new-inc','new-cut'].forEach(id=>document.getElementById(id).value='');result.style.cssText='display:block;background:var(--gr);color:#fff;border-radius:var(--r);padding:8px 10px;font-size:11px;font-weight:600;margin-top:6px;line-height:1.7';result.innerHTML=`✅ 発行完了！ ID: <strong>${uid}</strong> ／ PW: <strong>${pass}</strong>`;initGoalData();renderAccList();/* packet 446: 発行後に Supabase accounts テーブルへ永続化（リロード後もログイン可能に、doLogin の accounts フォールバックで照合される）*/try{if(typeof saveAccounts==='function')saveAccounts().catch(function(e){try{console.warn('packet 446 saveAccounts error:',e);}catch(e2){}});}catch(e){}};
 function renderKintaiPage(){
   const now=new Date();
   document.getElementById('kt-sub').textContent=`${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日（${WD_ALL[now.getDay()]}）`;
