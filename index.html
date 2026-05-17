@@ -2600,7 +2600,7 @@ function bindEvForm(){
 
 function renderMonth(){
   document.getElementById('bot-panels').style.display='grid';
-  const vis=visMis();const isMulti=vis.length>1;
+  let vis=visMis();if(vis.length===0&&typeof state!=='undefined'&&state&&Array.isArray(state.events)){vis=state.events.map((_,i)=>i).filter(i=>Array.isArray(state.events[i])&&state.events[i].length>0);try{console.warn('[packet 460] vis empty (members empty), fallback to state.events indices:',vis);}catch(e){}}const isMulti=vis.length>1;
   const first=new Date(viewY,viewMo,1);
   const sdow=(first.getDay()+6)%7,dim=new Date(viewY,viewMo+1,0).getDate();
   let h=`<div><div class="caldn">`;
@@ -2629,7 +2629,7 @@ function renderMonth(){
         if(isMulti){
           h+=`<div class="shavs">`;
           vis.forEach(mi=>{
-            const mem=members[mi];const st=getShiftSt(mi,dstr);
+            const mem=members[mi]||{n:'未割当',c:'#999'};const st=getShiftSt(mi,dstr);
             h+=`<div class="shavd" style="background:${st==='work'?mem.c:SCOL[st]?.bg||mem.c};opacity:${st==='off'?.4:1}">${mem.n[0]}</div>`;
           });
           h+=`</div>`;
@@ -2673,7 +2673,7 @@ function renderMonth(){
 document.querySelectorAll('.mjump[data-d]').forEach(el=>{el.onclick=e=>{e.stopPropagation();e.preventDefault();const dstr=el.dataset.d;if(!dstr)return;const[y,m,d]=dstr.split('-').map(Number);selDate=new Date(y,m-1,d);curV='day';document.querySelectorAll('.vp').forEach(x=>x.classList.remove('on'));document.querySelector('.vp[data-v="day"]')?.classList.add('on');render();};});document.querySelectorAll('.erow').forEach(el=>{el.onclick=e=>{e.stopPropagation();const ev=JSON.parse(el.dataset.ev);showEvModal(ev,ev.mi);};});}
 function wkDays(){const a=[];for(let i=0;i<7;i++){const d=new Date(wkStart);d.setDate(wkStart.getDate()+i);a.push(d);}return a;}
 const SLOTS=[];for(let h=9;h<=19;h++){SLOTS.push({h,m:0});SLOTS.push({h,m:30});}
-function renderWeek(){const _bp2=document.getElementById('bot-panels');if(_bp2)_bp2.style.display='grid';const days=wkDays();const vis=visMis();const cols=`36px repeat(7,1fr)`;let h=`<div class="ww"><div class="wi" style="grid-template-columns:${cols}"><div class="whdrow" style="grid-column:1/-1;display:grid;grid-template-columns:${cols}"><div></div>`;days.forEach((d,i)=>{const isTod=isT(d),isSel=d.toDateString()===selDate.toDateString();const nc='whdn'+(isTod?' td':i===5?' sat':i===6?' sun':'');const mi0=vis[0]??0;const st=vis.length===1?getShiftSt(mi0,localStr(d)):'work';const sc=SCOL[st]||SCOL.work;h+=`<div class="whd${isSel?' selc':''}" data-dow="${i}"><div class="whdwd" style="${i===5?'color:var(--navy)':i===6?'color:var(--re)':''}">${WD_JP[i]}</div><div class="${nc} whdn" data-djump="${localStr(d)}" style="cursor:pointer" title="日ビューへ">${d.getDate()}</div>${vis.length===1&&st!=='work'?`<span class="whdsh" style="background:${sc.bg};color:${sc.tx}">${SLBL[st]}</span>`:''}</div>`;});h+=`</div>`;SLOTS.forEach(({h:hr,m:mn})=>{const half=mn===30;h+=`<div class="wslot${half?' half':''}" style="grid-column:1/-1;display:grid;grid-template-columns:${cols}"><div class="wtime">${!half?`${hr}:00`:''}</div>`;days.forEach((d,di)=>{const isTod=isT(d);const dstr=localStr(d);let evs=[];vis.forEach(mi=>{state.events[mi]?.filter(e=>e.date===dstr&&e.sh===hr&&e.sm===mn).forEach(e=>evs.push({...e,mi}));});h+=`<div class="wcell${isTod?' tdbg':''}" data-cal-date="${dstr}" data-cal-time="${hr}:${mn===0?'00':'30'}">`;evs.forEach(e=>{const cs=CAT_S[e.cat]||CAT_S['その他'];const mem=members[e.mi]||{n:'未割当',c:'#999'};const dur=(e.eh*60+e.em)-(e.sh*60+e.sm);const ht=Math.max(dur/30*32-4,12);h+=`<div class="evblk" draggable="true" style="top:2px;height:${ht}px;background:${cs.bg};color:${cs.tx};border-left-color:${mem.c};cursor:grab" data-ev='${JSON.stringify(e)}'>${vis.length>1?`[${mem.n[0]}] `:''}${fmt(e.sh,e.sm)} ${e.title}</div>`;});h+=`</div>`;});h+=`</div>`;});h+=`</div></div>`;document.getElementById('cal-view').innerHTML=h;document.querySelectorAll('.whd[data-dow]').forEach(el=>{el.onclick=()=>{selDate=wkDays()[+el.dataset.dow];renderWeek();renderTodoStrip();renderPeriod();};});
+function renderWeek(){const _bp2=document.getElementById('bot-panels');if(_bp2)_bp2.style.display='grid';const days=wkDays();let vis=visMis();if(vis.length===0&&typeof state!=='undefined'&&state&&Array.isArray(state.events)){vis=state.events.map((_,i)=>i).filter(i=>Array.isArray(state.events[i])&&state.events[i].length>0);try{console.warn('[packet 460] vis empty (members empty), fallback to state.events indices:',vis);}catch(e){}}const cols=`36px repeat(7,1fr)`;let h=`<div class="ww"><div class="wi" style="grid-template-columns:${cols}"><div class="whdrow" style="grid-column:1/-1;display:grid;grid-template-columns:${cols}"><div></div>`;days.forEach((d,i)=>{const isTod=isT(d),isSel=d.toDateString()===selDate.toDateString();const nc='whdn'+(isTod?' td':i===5?' sat':i===6?' sun':'');const mi0=vis[0]??0;const st=vis.length===1?getShiftSt(mi0,localStr(d)):'work';const sc=SCOL[st]||SCOL.work;h+=`<div class="whd${isSel?' selc':''}" data-dow="${i}"><div class="whdwd" style="${i===5?'color:var(--navy)':i===6?'color:var(--re)':''}">${WD_JP[i]}</div><div class="${nc} whdn" data-djump="${localStr(d)}" style="cursor:pointer" title="日ビューへ">${d.getDate()}</div>${vis.length===1&&st!=='work'?`<span class="whdsh" style="background:${sc.bg};color:${sc.tx}">${SLBL[st]}</span>`:''}</div>`;});h+=`</div>`;SLOTS.forEach(({h:hr,m:mn})=>{const half=mn===30;h+=`<div class="wslot${half?' half':''}" style="grid-column:1/-1;display:grid;grid-template-columns:${cols}"><div class="wtime">${!half?`${hr}:00`:''}</div>`;days.forEach((d,di)=>{const isTod=isT(d);const dstr=localStr(d);let evs=[];vis.forEach(mi=>{state.events[mi]?.filter(e=>e.date===dstr&&e.sh===hr&&e.sm===mn).forEach(e=>evs.push({...e,mi}));});h+=`<div class="wcell${isTod?' tdbg':''}" data-cal-date="${dstr}" data-cal-time="${hr}:${mn===0?'00':'30'}">`;evs.forEach(e=>{const cs=CAT_S[e.cat]||CAT_S['その他'];const mem=members[e.mi]||{n:'未割当',c:'#999'};const dur=(e.eh*60+e.em)-(e.sh*60+e.sm);const ht=Math.max(dur/30*32-4,12);h+=`<div class="evblk" draggable="true" style="top:2px;height:${ht}px;background:${cs.bg};color:${cs.tx};border-left-color:${mem.c};cursor:grab" data-ev='${JSON.stringify(e)}'>${vis.length>1?`[${mem.n[0]}] `:''}${fmt(e.sh,e.sm)} ${e.title}</div>`;});h+=`</div>`;});h+=`</div>`;});h+=`</div></div>`;document.getElementById('cal-view').innerHTML=h;document.querySelectorAll('.whd[data-dow]').forEach(el=>{el.onclick=()=>{selDate=wkDays()[+el.dataset.dow];renderWeek();renderTodoStrip();renderPeriod();};});
 document.querySelectorAll('.whdn[data-djump]').forEach(el=>{el.onclick=e=>{e.stopPropagation();e.preventDefault();const dstr=el.dataset.djump;if(!dstr)return;const[y,m,d]=dstr.split('-').map(Number);selDate=new Date(y,m-1,d);curV='day';document.querySelectorAll('.vp').forEach(x=>x.classList.remove('on'));document.querySelector('.vp[data-v="day"]')?.classList.add('on');render();};});document.querySelectorAll('.evblk').forEach(el=>{
   el.onclick=e=>{e.stopPropagation();const ev=JSON.parse(el.dataset.ev);showEvModal(ev,ev.mi);};
   el.ondragstart=e=>{e.dataTransfer.setData('text/plain',JSON.stringify({ev:JSON.parse(el.dataset.ev),mi:el.dataset.ev?JSON.parse(el.dataset.ev).mi:0}));e.dataTransfer.effectAllowed='move';el.style.opacity='.4';};
@@ -2708,7 +2708,7 @@ document.querySelectorAll('.wcell').forEach(cell=>{
   });
 });}
 const DSLOTS=[];for(let h=8;h<=20;h++){DSLOTS.push({h,m:0});DSLOTS.push({h,m:30});}
-function renderDay(){const _bp=document.getElementById('bot-panels');if(_bp)_bp.style.display='none';const vis=visMis();const mi=vis[0]??0;const dstr=ds(selDate);const st=getShiftSt(mi,dstr);const sc=SCOL[st]||SCOL.work;let allEvs=[];vis.forEach(vmi=>{state.events[vmi]?.filter(e=>e.date===dstr).forEach(e=>allEvs.push({...e,mi:vmi}));});allEvs.sort((a,b)=>a.sh*60+a.sm-(b.sh*60+b.sm));let h=`<div class="dayl"><div class="daycol"><div id="day-timeline" style="padding:8px 14px;background:var(--s1);border-bottom:1px solid var(--bo)"></div><div class="dayh"><div class="dayht">${selDate.getMonth()+1}月${selDate.getDate()}日（${WD_JP[(selDate.getDay()+6)%7]}）${isT(selDate)?'　今日':''}${vis.length===1?' ／ '+members[mi].n:''}</div>${vis.length===1?`<button class="shcyc" id="scb" style="background:${sc.bg};color:${sc.tx}">${SLBL[st]} 切替</button>`:'<div></div>'}</div><div class="daytg">`;DSLOTS.forEach(({h:hr,m:mn})=>{const isHalf=mn===30;h+=`<div class="dsrow${isHalf?' half':''}"><div class="dtl">${!isHalf?`${hr}:00`:''}</div><div class="dez" data-cal-date="${dstr}" data-cal-time="${hr}:${mn===0?'00':'30'}">`;allEvs.filter(e=>e.sh===hr&&e.sm===mn).forEach(e=>{const cs=CAT_S[e.cat]||CAT_S['その他'];const mem=members[e.mi]||{n:'未割当',c:'#999'};const dur=(e.eh*60+e.em)-(e.sh*60+e.sm);const ht=Math.max(dur/30*44-4,22);h+=`<div class="devblk" draggable="true" style="top:2px;height:${ht}px;background:${cs.bg};color:${cs.tx};border-left-color:${mem.c};cursor:grab" data-ev='${JSON.stringify(e)}' data-mi="${e.mi}"><div class="devt">${fmt(e.sh,e.sm)} 〜 ${fmt(e.eh,e.em)}</div><div class="devttl">${e.title}</div></div>`;});h+=`</div></div>`;});h+=`</div></div><div class="dayrc"><div class="drps"><div class="drpt"><div class="drptd"></div>ToDo</div><div id="day-td-list"></div><div class="tdac"><input type="text" id="day-td-in" placeholder="ToDoを追加..."/><div class="tdacr"><select id="day-td-cat"><option>架電</option><option>追客</option><option>査定</option><option>事務</option><option>その他</option></select><button id="day-td-add">追加</button></div></div></div><div class="drps"><div class="drpt"><div class="drptd" style="background:var(--gold2)"></div>メモ</div><textarea class="memoa" id="day-memo" placeholder="商談メモ...">${state.memo[mi]||''}</textarea></div><div class="drps"><div class="drpt"><div class="drptd" style="background:var(--gr)"></div>予定追加</div><button class="evaddsm" id="day-ev-toggle">＋ 予定を追加</button><div class="evfc" id="day-ev-form"><div class="efr"><span class="efl">内容</span><input id="day-ef-t" placeholder="例：架電"/></div><div class="efr"><span class="efl">種別</span><select id="day-ef-cat"><option>架電</option><option>追客</option><option>査定</option><option>訪問</option><option>契約</option><option>事務</option><option>社内MTG</option></select></div><div class="efr"><span class="efl">開始</span><select id="day-ef-s"></select><span style="margin:0 2px;font-size:9px;color:var(--t3)">〜</span><select id="day-ef-e"></select></div><button class="efsave" id="day-ef-save">登録</button></div></div></div></div>`;document.getElementById('cal-view').innerHTML=h;const scb=document.getElementById('scb');if(scb&&vis.length===1){scb.onclick=()=>{const{y,m2}=shiftMo;const uid=members[mi].uid;const dd=selDate.getDate();const hol=isHol(shiftMo.y,shiftMo.m,dd);const cur=shiftData[uid]?.[dd]||'off';const i=WDCYC.indexOf(cur);let ni=(i+1)%WDCYC.length;if(WDCYC[ni]==='overtime'&&countOt(uid)>=OTL)ni=(ni+1)%WDCYC.length;let next=WDCYC[ni];if(!shiftData[uid])shiftData[uid]={};shiftData[uid][dd]=next;renderDay();};}document.querySelectorAll('.devblk').forEach(el=>{
+function renderDay(){const _bp=document.getElementById('bot-panels');if(_bp)_bp.style.display='none';let vis=visMis();if(vis.length===0&&typeof state!=='undefined'&&state&&Array.isArray(state.events)){vis=state.events.map((_,i)=>i).filter(i=>Array.isArray(state.events[i])&&state.events[i].length>0);try{console.warn('[packet 460] vis empty (members empty), fallback to state.events indices:',vis);}catch(e){}}const mi=vis[0]??0;const dstr=ds(selDate);const st=getShiftSt(mi,dstr);const sc=SCOL[st]||SCOL.work;let allEvs=[];vis.forEach(vmi=>{state.events[vmi]?.filter(e=>e.date===dstr).forEach(e=>allEvs.push({...e,mi:vmi}));});allEvs.sort((a,b)=>a.sh*60+a.sm-(b.sh*60+b.sm));let h=`<div class="dayl"><div class="daycol"><div id="day-timeline" style="padding:8px 14px;background:var(--s1);border-bottom:1px solid var(--bo)"></div><div class="dayh"><div class="dayht">${selDate.getMonth()+1}月${selDate.getDate()}日（${WD_JP[(selDate.getDay()+6)%7]}）${isT(selDate)?'　今日':''}${vis.length===1?' ／ '+((members[mi]&&members[mi].n)||'未割当'):''}</div>${vis.length===1?`<button class="shcyc" id="scb" style="background:${sc.bg};color:${sc.tx}">${SLBL[st]} 切替</button>`:'<div></div>'}</div><div class="daytg">`;DSLOTS.forEach(({h:hr,m:mn})=>{const isHalf=mn===30;h+=`<div class="dsrow${isHalf?' half':''}"><div class="dtl">${!isHalf?`${hr}:00`:''}</div><div class="dez" data-cal-date="${dstr}" data-cal-time="${hr}:${mn===0?'00':'30'}">`;allEvs.filter(e=>e.sh===hr&&e.sm===mn).forEach(e=>{const cs=CAT_S[e.cat]||CAT_S['その他'];const mem=members[e.mi]||{n:'未割当',c:'#999'};const dur=(e.eh*60+e.em)-(e.sh*60+e.sm);const ht=Math.max(dur/30*44-4,22);h+=`<div class="devblk" draggable="true" style="top:2px;height:${ht}px;background:${cs.bg};color:${cs.tx};border-left-color:${mem.c};cursor:grab" data-ev='${JSON.stringify(e)}' data-mi="${e.mi}"><div class="devt">${fmt(e.sh,e.sm)} 〜 ${fmt(e.eh,e.em)}</div><div class="devttl">${e.title}</div></div>`;});h+=`</div></div>`;});h+=`</div></div><div class="dayrc"><div class="drps"><div class="drpt"><div class="drptd"></div>ToDo</div><div id="day-td-list"></div><div class="tdac"><input type="text" id="day-td-in" placeholder="ToDoを追加..."/><div class="tdacr"><select id="day-td-cat"><option>架電</option><option>追客</option><option>査定</option><option>事務</option><option>その他</option></select><button id="day-td-add">追加</button></div></div></div><div class="drps"><div class="drpt"><div class="drptd" style="background:var(--gold2)"></div>メモ</div><textarea class="memoa" id="day-memo" placeholder="商談メモ...">${state.memo[mi]||''}</textarea></div><div class="drps"><div class="drpt"><div class="drptd" style="background:var(--gr)"></div>予定追加</div><button class="evaddsm" id="day-ev-toggle">＋ 予定を追加</button><div class="evfc" id="day-ev-form"><div class="efr"><span class="efl">内容</span><input id="day-ef-t" placeholder="例：架電"/></div><div class="efr"><span class="efl">種別</span><select id="day-ef-cat"><option>架電</option><option>追客</option><option>査定</option><option>訪問</option><option>契約</option><option>事務</option><option>社内MTG</option></select></div><div class="efr"><span class="efl">開始</span><select id="day-ef-s"></select><span style="margin:0 2px;font-size:9px;color:var(--t3)">〜</span><select id="day-ef-e"></select></div><button class="efsave" id="day-ef-save">登録</button></div></div></div></div>`;document.getElementById('cal-view').innerHTML=h;const scb=document.getElementById('scb');if(scb&&vis.length===1){scb.onclick=()=>{const{y,m2}=shiftMo;if(!members[mi])return;const uid=members[mi].uid;const dd=selDate.getDate();const hol=isHol(shiftMo.y,shiftMo.m,dd);const cur=shiftData[uid]?.[dd]||'off';const i=WDCYC.indexOf(cur);let ni=(i+1)%WDCYC.length;if(WDCYC[ni]==='overtime'&&countOt(uid)>=OTL)ni=(ni+1)%WDCYC.length;let next=WDCYC[ni];if(!shiftData[uid])shiftData[uid]={};shiftData[uid][dd]=next;renderDay();};}document.querySelectorAll('.devblk').forEach(el=>{
   el.onclick=()=>showEvModal(JSON.parse(el.dataset.ev),+el.dataset.mi);
   el.ondragstart=e=>{
     e.dataTransfer.setData('text/plain',JSON.stringify({ev:JSON.parse(el.dataset.ev),mi:+el.dataset.mi}));
@@ -10564,13 +10564,77 @@ function openEventFormFromCalendar(dateStr,timeStr){
       try{if(typeof renderCal==='function'){renderCal();try{console.warn('[packet 456 ef-save] renderCal() also called');}catch(e){}}}catch(e){try{console.warn('[packet 456 ef-save] renderCal() error:',e&&e.message);}catch(e2){}}
       try{if(typeof renderFilterPills==='function'){renderFilterPills();}}catch(e){}
       // packet 456: render 完了後、追加 event が実際に DOM に出ているか検証
+      let _p460_occ=0;
       try{
         const calView=document.getElementById('cal-view');
         if(calView){
-          const occurrencesInDOM=(calView.innerHTML.match(new RegExp(t.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'g'))||[]).length;
-          console.warn('[packet 456 ef-save] title "'+t+'" occurrences in cal-view DOM after render:',occurrencesInDOM);
+          _p460_occ=(calView.innerHTML.match(new RegExp(t.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'g'))||[]).length;
+          console.warn('[packet 460 ef-save] title "'+t+'" occurrences in cal-view DOM after render:',_p460_occ);
         }
       }catch(e){}
+      // packet 460: stopgap — render 完了後も title が DOM に無ければ「📅 追加予定」ストリップを cal-view 末尾に追記
+      // 既存 renderMonth/Week/Day が members 不在等で events を取りこぼした場合の最後の保険。
+      // state.events 全体から当日分（curV='day'）／表示中年月（'month'）／週範囲（'week'）の event を拾い、
+      // 既存 DOM に出ていないものだけ簡易表示する。
+      try{
+        if(_p460_occ===0){
+          const calView=document.getElementById('cal-view');
+          if(calView && typeof state!=='undefined' && state && Array.isArray(state.events)){
+            // 現在の表示範囲の date を計算
+            let inRange=function(){return false;};
+            try{
+              if(typeof curV!=='undefined'){
+                if(curV==='day' && typeof selDate!=='undefined' && typeof ds==='function'){
+                  const tdstr=ds(selDate);inRange=function(d){return d===tdstr;};
+                }else if(curV==='week' && typeof wkDays==='function' && typeof localStr==='function'){
+                  const wdSet=new Set(wkDays().map(d=>localStr(d)));inRange=function(d){return wdSet.has(d);};
+                }else if(curV==='month' && typeof viewY!=='undefined' && typeof viewMo!=='undefined'){
+                  const yp=String(viewY),mp=String(viewMo+1).padStart(2,'0');inRange=function(d){return typeof d==='string' && d.startsWith(yp+'-'+mp+'-');};
+                }
+              }
+            }catch(e){}
+            // 全 state.events から表示範囲内 event を拾う
+            const fallbackEvs=[];
+            state.events.forEach((arr,vmi)=>{
+              if(!Array.isArray(arr))return;
+              arr.forEach(e=>{
+                if(!e||!e.date||!inRange(e.date))return;
+                fallbackEvs.push({...e,_vmi:vmi});
+              });
+            });
+            // 既存 DOM に既に出ているものを除外（title + date + sh + sm でユニーク判定）
+            const html=calView.innerHTML;
+            const missing=fallbackEvs.filter(e=>{
+              const t2=String(e.title||'');
+              if(!t2)return false;
+              return html.indexOf(t2)<0;
+            });
+            try{console.warn('[packet 460 ef-save] fallback strip: missing events:',missing.length,missing);}catch(e){}
+            if(missing.length>0){
+              const stripId='p460-event-fallback-strip';
+              const old=document.getElementById(stripId);if(old)old.remove();
+              const strip=document.createElement('div');
+              strip.id=stripId;
+              strip.style.cssText='margin:8px;padding:10px 12px;background:#fff3cd;border:1.5px solid #f59e0b;border-radius:8px;font-size:11px;color:#78350f;line-height:1.6';
+              let stripHtml='<div style="font-weight:800;margin-bottom:6px">📅 追加予定（描画フォールバック表示・members 不在等で本描画から漏れた予定）</div>';
+              missing.forEach(e=>{
+                const sh=e.sh??'-',sm=String(e.sm??0).padStart(2,'0');
+                const eh=e.eh??'-',em=String(e.em??0).padStart(2,'0');
+                const mem=(typeof members!=='undefined' && members[e._vmi])||{n:'未割当'};
+                stripHtml+='<div style="padding:4px 0;border-top:1px solid #fde68a">'+
+                  '<span style="display:inline-block;background:#f59e0b;color:#fff;padding:1px 6px;border-radius:4px;font-size:9px;margin-right:6px">'+(e.cat||'その他')+'</span>'+
+                  '<strong>'+String(e.title)+'</strong> '+
+                  '<span style="color:#92400e">'+e.date+' '+sh+':'+sm+'〜'+eh+':'+em+'</span> '+
+                  '<span style="color:#92400e">（'+(mem.n||'未割当')+'）</span>'+
+                  '</div>';
+              });
+              strip.innerHTML=stripHtml;
+              calView.appendChild(strip);
+              try{console.warn('[packet 460 ef-save] fallback strip appended with',missing.length,'events');}catch(e){}
+            }
+          }
+        }
+      }catch(e){try{console.warn('[packet 460 ef-save] fallback strip error:',e&&e.message);}catch(e2){}}
     }catch(e){
       try{console.warn('[packet 456 ef-save] handler outer error:',e&&e.message,e&&e.stack);}catch(e2){}
     }
