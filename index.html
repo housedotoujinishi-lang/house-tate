@@ -2078,42 +2078,90 @@ function mkShiftData(){const{y,m}=shiftMo;const dim=new Date(y,m+1,0).getDate(),
 const state={events:members.map((_,i)=>mkEvs(i)),todos:members.map(()=>[]),memo:members.map(()=>''),tasks:[],nextId:1};
 let shiftData=mkShiftData();let progTab='count';
 async function doLogin(){
-  const email=document.getElementById('fl-id').value.trim();
-  const pass=document.getElementById('fl-pass').value;
+  const rawId=document.getElementById('fl-id').value.trim();
+  const password=document.getElementById('fl-pass').value;
   const err=document.getElementById('le');
-  // ── 1. Supabase Auth でログイン試行（既存）──
+  // ── A. 入力値検証 ──
+  if(!rawId || !password){
+    err.style.display='block';
+    try{console.warn('[packet 448 login] empty id or password');}catch(e){}
+    return;
+  }
+  try{console.warn('[packet 448 login] try Auth for id:', rawId);}catch(e){}
+  // ── B. Supabase Auth でログイン試行（既存、完全保持）──
   try{
-    const{data:authData,error:authErr}=await sb.auth.signInWithPassword({email,password:pass});
+    const{data:authData,error:authErr}=await sb.auth.signInWithPassword({email:rawId,password});
     if(!authErr && authData?.user){
       const{data:prof,error:profErr}=await sb.from('profiles').select('*').eq('id',authData.user.id).maybeSingle();
       if(!profErr && prof){
         err.style.display='none';
         currentUser={uid:prof.id,name:prof.name||'admin',role:prof.role||'admin',perm:prof.perm||'admin',c:prof.c||'#0a3d7c',inc:prof.inc||0,cut:prof.cut||0,personal:prof.personal!==false};
+        try{console.warn('[packet 448 login] Auth + profiles OK');}catch(e){}
         showMainApp();
         return;
+      }else{
+        try{console.warn('[packet 448 login] Auth OK but profiles missing, try fallback');}catch(e){}
       }
+    }else{
+      try{console.warn('[packet 448 login] Auth signin failed, try fallback');}catch(e){}
     }
-  }catch(e){/* fall through */}
-  // ── 2. packet 446: accounts 配列フォールバック（Auth 未登録の発行済アカウント用）──
-  // 既存 Auth 認証を完全保持しつつ、Auth 失敗時のみ Supabase accounts テーブル + メモリ accounts で照合。
-  // セキュリティ：Supabase accounts テーブルの uid/pass を照合、Auth より弱いが業務 SaaS 内部用途で許容範囲。
+  }catch(e){
+    try{console.warn('[packet 448 login] Auth threw, try fallback:', e&&e.message);}catch(e2){}
+  }
+  // ── C. packet 448: accounts フォールバック強化（Auth 未登録の発行済アカウント用）──
+  // accounts は L1930 で空配列初期化、loadAllFromDB はログイン後 → ログイン画面では空。
+  // sbGet で未認証 SELECT を試行（RLS で読める設定なら効く）、加えてメモリ accounts も結合。
+  // ID は rawId / 正規化版（半角小文字英数字）両方で照合、片方マッチでログイン成立。
   try{
-    let dbAccs=[];
-    try{dbAccs=await sbGet('accounts','order=uid');}catch(e2){dbAccs=[];}
-    const combined=[];
-    try{if(Array.isArray(accounts))accounts.forEach(a=>{if(a)combined.push(a);});}catch(e2){}
-    dbAccs.forEach(a=>{
-      if(!a)return;
-      combined.push({uid:a.uid,pass:a.pass,name:a.name,role:a.role,perm:a.perm,c:a.color,inc:a.inc,cut:a.cut,personal:a.personal});
+    // 入力 ID の正規化（発行側 issue-btn は .toLowerCase().replace(/[^a-z0-9]/g,'') 加工済）
+    const normId=String(rawId).toLowerCase().replace(/[^a-z0-9]/g,'');
+    const idCandidates=[rawId];
+    if(normId && normId!==rawId)idCandidates.push(normId);
+
+    // 1) メモリ accounts
+    let memArr=[];
+    try{if(Array.isArray(accounts))memArr=accounts.filter(a=>a);}catch(e){}
+    try{console.warn('[packet 448 login] memory accounts count:', memArr.length);}catch(e){}
+
+    // 2) sbGet('accounts')（未認証では RLS で空になる可能性あり、失敗してもログイン続行）
+    let dbArr=[];
+    try{
+      const r=await sbGet('accounts','order=uid');
+      if(Array.isArray(r))dbArr=r.map(a=>({uid:a.uid,pass:a.pass,name:a.name,role:a.role,perm:a.perm,c:a.color,inc:a.inc,cut:a.cut,personal:a.personal}));
+    }catch(e){
+      try{console.warn('[packet 448 login] sbGet accounts failed (RLS or unauth):', e&&e.message);}catch(e2){}
+    }
+    try{console.warn('[packet 448 login] sbGet accounts count:', dbArr.length);}catch(e){}
+
+    // 3) 結合 + uid 重複排除（メモリ優先）
+    const seen=new Set();
+    const dedup=[];
+    [...memArr,...dbArr].forEach(a=>{
+      if(!a || !a.uid || seen.has(a.uid))return;
+      seen.add(a.uid);
+      dedup.push(a);
     });
-    const acc=combined.find(a=>a && a.uid===email && a.pass===pass);
+    try{console.warn('[packet 448 login] combined dedup count:', dedup.length);}catch(e){}
+
+    // 4) ID 候補 × dedup で照合、パスワード一致を要件
+    let acc=null, matchedId=null;
+    for(const cand of idCandidates){
+      const found=dedup.find(a=>a && a.uid===cand && a.pass===password);
+      if(found){acc=found; matchedId=cand; break;}
+    }
+
     if(acc){
       err.style.display='none';
       currentUser={uid:acc.uid,name:acc.name||'担当者',role:acc.role||'エージェント',perm:acc.perm||'staff',c:acc.c||'#0a3d7c',inc:acc.inc||0,cut:acc.cut||0,personal:acc.personal!==false};
+      try{console.warn('[packet 448 login] accounts fallback OK, matched id:', matchedId);}catch(e){}
       showMainApp();
       return;
+    }else{
+      try{console.warn('[packet 448 login] accounts fallback no match (tried ids:', idCandidates.length, ')');}catch(e){}
     }
-  }catch(e3){try{console.warn('packet 446 fallback login error:',e3);}catch(e4){}}
+  }catch(e){
+    try{console.warn('[packet 448 login] fallback error:', e&&e.message);}catch(e2){}
+  }
   err.style.display='block';
 }
 document.getElementById('login-btn').onclick=doLogin;
@@ -2328,7 +2376,7 @@ function showPwModal(acc){
     };
   }
 }
-document.getElementById('issue-btn').onclick=()=>{const name=document.getElementById('new-name').value.trim();const role=document.getElementById('new-role').value;const perm=document.getElementById('new-perm').value;const uid=document.getElementById('new-uid').value.trim().toLowerCase().replace(/[^a-z0-9]/g,'');const pass=document.getElementById('new-pass').value.trim();const inc=parseFloat(document.getElementById('new-inc').value)||0;const cut=(parseFloat(document.getElementById('new-cut').value)||0)*10000;const personal=document.getElementById('new-personal').value==='1';const result=document.getElementById('issue-result');if(!name||!uid||!pass){result.style.cssText='display:block;background:var(--re);color:#fff;border-radius:var(--r);padding:8px 10px;font-size:11px;font-weight:600;margin-top:6px';result.textContent='全項目を入力してください';return;}if(accounts.find(a=>a.uid===uid)){result.style.cssText='display:block;background:var(--re);color:#fff;border-radius:var(--r);padding:8px 10px;font-size:11px;font-weight:600;margin-top:6px';result.textContent='このIDはすでに使用されています';return;}const c=MC[accounts.length%MC.length];accounts.push({uid,pass,name,role,perm,c,inc,cut,personal});if(perm==='staff'){const newMem={n:name,c,role,uid};members.push(newMem);state.events.push(mkEvs(members.length-1));state.todos.push([]);state.memo.push('');const{y,m}=shiftMo;const dim=new Date(y,m+1,0).getDate();shiftData[uid]={};for(let d=1;d<=dim;d++){const dow=new Date(y,m,d).getDay();shiftData[uid][d]='work';}}['new-name','new-uid','new-pass','new-inc','new-cut'].forEach(id=>document.getElementById(id).value='');result.style.cssText='display:block;background:var(--gr);color:#fff;border-radius:var(--r);padding:8px 10px;font-size:11px;font-weight:600;margin-top:6px;line-height:1.7';result.innerHTML=`✅ 発行完了！ ID: <strong>${uid}</strong> ／ PW: <strong>${pass}</strong>`;initGoalData();renderAccList();/* packet 446: 発行後に Supabase accounts テーブルへ永続化（リロード後もログイン可能に、doLogin の accounts フォールバックで照合される）*/try{if(typeof saveAccounts==='function')saveAccounts().catch(function(e){try{console.warn('packet 446 saveAccounts error:',e);}catch(e2){}});}catch(e){}};
+document.getElementById('issue-btn').onclick=()=>{const name=document.getElementById('new-name').value.trim();const role=document.getElementById('new-role').value;const perm=document.getElementById('new-perm').value;const uid=document.getElementById('new-uid').value.trim().toLowerCase().replace(/[^a-z0-9]/g,'');const pass=document.getElementById('new-pass').value.trim();const inc=parseFloat(document.getElementById('new-inc').value)||0;const cut=(parseFloat(document.getElementById('new-cut').value)||0)*10000;const personal=document.getElementById('new-personal').value==='1';const result=document.getElementById('issue-result');if(!name||!uid||!pass){result.style.cssText='display:block;background:var(--re);color:#fff;border-radius:var(--r);padding:8px 10px;font-size:11px;font-weight:600;margin-top:6px';result.textContent='全項目を入力してください';return;}if(accounts.find(a=>a.uid===uid)){result.style.cssText='display:block;background:var(--re);color:#fff;border-radius:var(--r);padding:8px 10px;font-size:11px;font-weight:600;margin-top:6px';result.textContent='このIDはすでに使用されています';return;}const c=MC[accounts.length%MC.length];accounts.push({uid,pass,name,role,perm,c,inc,cut,personal});if(perm==='staff'){const newMem={n:name,c,role,uid};members.push(newMem);state.events.push(mkEvs(members.length-1));state.todos.push([]);state.memo.push('');const{y,m}=shiftMo;const dim=new Date(y,m+1,0).getDate();shiftData[uid]={};for(let d=1;d<=dim;d++){const dow=new Date(y,m,d).getDay();shiftData[uid][d]='work';}}['new-name','new-uid','new-pass','new-inc','new-cut'].forEach(id=>document.getElementById(id).value='');result.style.cssText='display:block;background:var(--gr);color:#fff;border-radius:var(--r);padding:8px 10px;font-size:11px;font-weight:600;margin-top:6px;line-height:1.7';result.innerHTML=`✅ 発行完了！ ID: <strong>${uid}</strong> ／ PW: <strong>${pass}</strong>`;initGoalData();renderAccList();/* packet 446/448: 発行後に Supabase accounts テーブルへ永続化（リロード後もログイン可能に、doLogin の accounts フォールバックで照合される）*/try{if(typeof saveAccounts==='function'){try{console.warn('[packet 448 issue] calling saveAccounts for uid:',uid,' memory accounts count:',accounts.length);}catch(e2){}saveAccounts().then(function(){try{console.warn('[packet 448 issue] saveAccounts OK for uid:',uid);}catch(e2){}}).catch(function(e){try{console.warn('[packet 448 issue] saveAccounts error for uid:',uid,'msg:',e&&e.message);}catch(e2){}});}}catch(e){try{console.warn('[packet 448 issue] saveAccounts exception:',e&&e.message);}catch(e2){}}};
 function renderKintaiPage(){
   const now=new Date();
   document.getElementById('kt-sub').textContent=`${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日（${WD_ALL[now.getDay()]}）`;
