@@ -1750,29 +1750,41 @@ async function sbDelete(table, eq) {
 }
 
 // ── ローカルキャッシュをDBに保存 ──
+// packet 468: Supabase accounts テーブルに存在することが確認できる列のみに sanitize。
+// 実機エラー（PGRST204: Could not find the 'personal' column）で判明：
+// - personal 列は accounts テーブルに存在しない
+// - 安全のため必要最小限の 5 列（uid/pass/name/role/perm）のみ送信
+// - color/inc/cut は他コードで読書ありエラーが出ていないため schema 存在を「想定」するが、
+//   本 packet では「存在不明の列は送らない」方針に従い除外。
+//   c/inc/cut/personal は in-memory のみで保持（リロード後は loadAllFromDB 側で defaults を補完）。
+const _DB_ACCOUNT_COLUMNS_SAFE = ['uid','pass','name','role','perm'];
+function _sanitizeAccountForDb(a){
+  // 存在確認できる列のみを抽出。未確認の列（personal, color, inc, cut 等）は送らない。
+  const out={};
+  _DB_ACCOUNT_COLUMNS_SAFE.forEach(k=>{ if(a[k]!==undefined) out[k]=a[k]; });
+  return out;
+}
 async function saveAccounts() {
   // packet 466: 空配列なら skip（リロード直後の race で空保存して既存を消すリスク防止）
   if(!Array.isArray(accounts) || accounts.length===0){
     try{console.warn('[packet 466 saveAccounts] accounts empty, skip save (prevents wiping DB)');}catch(e){}
     return;
   }
-  const rows = accounts.map(a => ({
-    uid: a.uid, pass: a.pass, name: a.name, role: a.role,
-    perm: a.perm, color: a.c, inc: a.inc||0, cut: a.cut||0, personal: a.personal!==false
-  }));
-  try{console.warn('[packet 466 saveAccounts] upserting',rows.length,'rows, uids:',rows.map(r=>r.uid).join(','));}catch(e){}
+  // packet 468: sanitize 適用（personal/color/inc/cut 等の不存在列を除外）
+  const rows = accounts.map(a => _sanitizeAccountForDb(a));
+  try{console.warn('[packet 468 saveAccounts] upserting',rows.length,'rows (sanitized to',_DB_ACCOUNT_COLUMNS_SAFE.join('/'),'), uids:',rows.map(r=>r.uid).join(','));}catch(e){}
   await sbUpsert('accounts', rows, 'uid');
   // packet 466: 保存後に sbGet で件数検証（RLS で SELECT 不可なら検証 skip）
   try{
     const back = await sbGet('accounts', 'order=uid');
     const memUids = new Set(rows.map(r=>r.uid));
     const missing = [...memUids].filter(u=>!back.find(b=>b && b.uid===u));
-    try{console.warn('[packet 466 saveAccounts] verify: db count =',back.length,', missing in db:',missing.length, missing.length>0?missing:'');}catch(e){}
+    try{console.warn('[packet 468 saveAccounts] verify: db count =',back.length,', missing in db:',missing.length, missing.length>0?missing:'');}catch(e){}
     if(missing.length>0){
       try{if(typeof showToast==='function')showToast('⚠ Supabase 保存検証失敗：'+missing.length+'件が DB に反映されていません', 5000);}catch(e){}
     }
   }catch(e){
-    try{console.warn('[packet 466 saveAccounts] verify error (RLS で SELECT 不可の可能性):',e&&e.message);}catch(e2){}
+    try{console.warn('[packet 468 saveAccounts] verify error (RLS で SELECT 不可の可能性):',e&&e.message);}catch(e2){}
   }
 }
 
@@ -1849,10 +1861,19 @@ async function loadAllFromDB() {
     // legacy uid ベースのカスタムソートは Auth 移行に伴い廃止（既定の order=uid 順に従う）
     if(accs.length > 0) {
       accounts.length = 0;
-      accs.forEach(a => accounts.push({
-        uid: a.uid, pass: a.pass, name: a.name, role: a.role,
-        perm: a.perm, c: a.color, inc: a.inc, cut: a.cut, personal: a.personal
-      }));
+      // packet 468: DB に存在しない列（color/inc/cut/personal 等）は undefined になるため default を補完。
+      // MC は L1898 で定義済（colors array）。インデックス基準で循環割当。
+      accs.forEach((a,idx) => {
+        const defaultColor=(typeof MC!=='undefined' && Array.isArray(MC) && MC.length>0)?MC[idx%MC.length]:'#0a3d7c';
+        accounts.push({
+          uid: a.uid, pass: a.pass, name: a.name, role: a.role, perm: a.perm,
+          // 以下は schema 存在不明列、undefined 時は安全な default で補完
+          c: a.color || defaultColor,
+          inc: (typeof a.inc==='number')?a.inc:0,
+          cut: (typeof a.cut==='number')?a.cut:0,
+          personal: (a.personal===true || a.personal===false)?a.personal:false
+        });
+      });
       // members を再構築
       members.length = 0;
       accounts.forEach(a => members.push({ n: a.name, c: a.c, role: a.role, uid: a.uid }));
