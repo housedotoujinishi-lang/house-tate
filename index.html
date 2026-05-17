@@ -125,6 +125,56 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-siz
 .voice-btn[disabled]{opacity:.4;cursor:not-allowed}
 .voice-btn-memo{margin-top:4px}
 @keyframes vbpulse{0%,100%{box-shadow:0 0 0 0 rgba(220,38,38,.45)}50%{box-shadow:0 0 0 6px rgba(220,38,38,0)}}
+/* packet 427: 店長未完了つぶし 静的MVP */
+.muc-wrap{padding:14px 14px 80px;max-width:920px;margin:0 auto}
+.muc-hdr{margin-bottom:10px}
+.muc-h2{font-size:18px;color:#b91c1c;margin:0 0 4px;font-weight:800}
+.muc-sub{font-size:11px;color:var(--t3);line-height:1.5}
+.muc-card{background:#fff;border:1px solid var(--bo);border-radius:10px;padding:12px;margin-bottom:10px}
+.muc-card-h{font-size:13px;font-weight:800;color:#b91c1c;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--bo)}
+.muc-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.muc-l{font-size:11px;font-weight:700;color:var(--t2)}
+.muc-sel{padding:6px 9px;border:1.5px solid var(--bo);border-radius:6px;font-size:12px;outline:none;color:var(--t1);background:#fff}
+.muc-sel:focus{border-color:#b91c1c}
+.muc-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:10px}
+.muc-sum-cell{background:var(--s1);border-radius:8px;padding:8px;text-align:center}
+.muc-sum-lbl{font-size:10px;color:var(--t3);font-weight:700}
+.muc-sum-val{font-size:18px;color:#b91c1c;font-weight:900;line-height:1.2}
+.muc-list{display:flex;flex-direction:column;gap:6px;min-height:60px}
+.muc-empty{text-align:center;padding:24px;color:var(--t3);font-size:12px}
+.muc-item{background:var(--s1);border:1.5px solid var(--bo);border-radius:8px;padding:10px 12px;display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap}
+.muc-item.kind-overdue{border-left:4px solid #dc2626;background:#fef2f2}
+.muc-item.kind-today{border-left:4px solid #d97706;background:#fffbeb}
+.muc-item.kind-stale{border-left:4px solid #7c3aed}
+.muc-item.kind-memo{border-left:4px solid #c2410c}
+.muc-item.kind-routine{border-left:4px solid #0a3d7c}
+.muc-item.kind-aiconsul{border-left:4px solid #15803d}
+.muc-item-l{flex:1;min-width:200px}
+.muc-item-h{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:4px;font-size:10px}
+.muc-tag{padding:2px 7px;border-radius:9px;font-weight:700;background:var(--s2);color:var(--t2)}
+.muc-tag-overdue{background:#fee2e2;color:#b91c1c}
+.muc-tag-today{background:#fef3c7;color:#92400e}
+.muc-tag-stale{background:#ede9fe;color:#6d28d9}
+.muc-tag-memo{background:#ffedd5;color:#9a3412}
+.muc-tag-routine{background:#dbeafe;color:#0a3d7c}
+.muc-tag-aiconsul{background:#dcfce7;color:#15803d}
+.muc-item-t{font-size:13px;font-weight:700;color:var(--t1);line-height:1.5;word-wrap:break-word}
+.muc-item-meta{font-size:10px;color:var(--t3);margin-top:2px}
+.muc-item-acts{display:flex;gap:4px;flex-wrap:wrap;align-items:center}
+.muc-mini{padding:5px 10px;border-radius:6px;border:1.5px solid var(--bo);background:#fff;font-size:11px;font-weight:700;cursor:pointer;color:var(--t2);min-height:30px}
+.muc-mini:hover{background:var(--s2)}
+.muc-mini.muc-mini-done{background:#15803d;color:#fff;border-color:#15803d}
+.muc-mini.muc-mini-nav{background:#0a3d7c;color:#fff;border-color:#0a3d7c}
+.muc-btn{padding:8px 14px;border-radius:8px;border:0;font-size:12px;font-weight:700;cursor:pointer;min-height:36px}
+.muc-btn-primary{background:#b91c1c;color:#fff}
+.muc-btn-tertiary{background:var(--s2);color:var(--t2);border:1.5px solid var(--bo)}
+.muc-back{margin-top:14px;display:flex;justify-content:center;gap:6px;flex-wrap:wrap}
+@media(max-width:768px){
+  .muc-wrap{padding:10px 10px 80px}
+  .muc-h2{font-size:16px}
+  .muc-summary{grid-template-columns:repeat(2,1fr)}
+  .muc-item-l{min-width:140px}
+}
 /* packet 414: メモ帳 静的MVP */
 .mn-wrap{padding:14px 14px 80px;max-width:760px;margin:0 auto}
 .mn-hdr{margin-bottom:10px}
@@ -1403,6 +1453,44 @@ textarea.ai-team-input{resize:vertical;min-height:60px}
       <div id="mw-cards"></div>
     </div>
   </div>
+  <!-- packet 427: 店長未完了つぶし（管理者専用、静的MVP）-->
+  <div class="page" id="page-manager-undone">
+    <div class="muc-wrap">
+      <div class="muc-hdr">
+        <h2 class="muc-h2">🚨 店長未完了つぶし</h2>
+        <div class="muc-sub">未完了タスク・期限切れ・対応要メモ・ルーティン未完了を担当者別に確認。完了で即反映。</div>
+      </div>
+      <div class="muc-card">
+        <div class="muc-row">
+          <div class="muc-l">担当者</div>
+          <select id="muc-filter-assignee" class="muc-sel">
+            <option value="">全員</option>
+          </select>
+          <div class="muc-l">種別</div>
+          <select id="muc-filter-type" class="muc-sel">
+            <option value="">すべて</option>
+            <option value="overdue">期限切れ</option>
+            <option value="today">今日中</option>
+            <option value="stale">3日以上放置</option>
+            <option value="memo">対応要メモ</option>
+            <option value="routine">ルーティン未完了</option>
+            <option value="aiconsul">AI相談メモ</option>
+          </select>
+          <button id="muc-refresh" type="button" class="muc-btn muc-btn-tertiary">🔄 再集計</button>
+        </div>
+        <div id="muc-summary" class="muc-summary"></div>
+      </div>
+      <div class="muc-card">
+        <div class="muc-card-h">未完了一覧</div>
+        <div id="muc-list" class="muc-list"></div>
+      </div>
+      <div class="muc-back">
+        <button onclick="switchPage('dash')" type="button" class="muc-btn muc-btn-tertiary">← ホームに戻る</button>
+        <button onclick="switchPage('memo')" type="button" class="muc-btn muc-btn-tertiary">📒 メモ帳</button>
+        <button onclick="switchPage('daily-report')" type="button" class="muc-btn muc-btn-tertiary">📝 日報</button>
+      </div>
+    </div>
+  </div>
   <!-- packet 413: 日報出力 静的MVP（外部送信なし、localStorage 保存なし）-->
   <div class="page" id="page-daily-report">
     <div class="dr-wrap">
@@ -1958,11 +2046,11 @@ function showMainApp(){
   const roleLabel=roleByRole||(isAdmin?'管理者':isOwner?'管理者':'スタッフ');
   if(isHighPerm){rb.textContent=roleLabel;rb.style.cssText='background:var(--gold);color:var(--navy);padding:1px 6px;border-radius:7px;font-size:9px;font-weight:800';}
   else{rb.textContent='スタッフ';rb.style.cssText='background:rgba(255,255,255,.15);color:#fff;padding:1px 6px;border-radius:7px;font-size:9px;font-weight:700';}
-  // packet 422: PCトップナビ並び順整理（ボス指定順、ホーム→管理→メモ→カレンダー→タスク→ルーティン→シフト→勤怠→KPI→月次レポート→AI会議→AI名鑑→AI組織図→メンバー稼働→豆知識）
+  // packet 422 + 427: PCトップナビ並び順整理 + 店長未完了つぶしタブ（管理者末尾に追加）
   // カレンダーとタスクは同一 cal ページに統合済のため、ラベル違いで 2 エントリ並列配置（両方とも switchPage('cal')）。
   // 顧客タブは絶対に復活させない（packet 322 防御維持）。
   const tabs=isHighPerm
-    ?[['dash','🏠 ホーム'],['accounts','👑 管理'],['memo','📒 メモ'],['cal','📅 カレンダー'],['cal','📋 タスク'],['routine','📋 ルーティン'],['shift','📋 シフト'],['kintai','🕐 勤怠'],['goal','🎯 KPI'],['report','📊 月次レポート'],['aiteam','🧠 AI会議'],['ai-members','🤖 AI名鑑'],['ai-org','🏢 AI組織図'],['member-workload','👥 メンバー稼働'],['knowledge-portal','📚 豆知識']]
+    ?[['dash','🏠 ホーム'],['accounts','👑 管理'],['memo','📒 メモ'],['cal','📅 カレンダー'],['cal','📋 タスク'],['routine','📋 ルーティン'],['shift','📋 シフト'],['kintai','🕐 勤怠'],['goal','🎯 KPI'],['report','📊 月次レポート'],['aiteam','🧠 AI会議'],['ai-members','🤖 AI名鑑'],['ai-org','🏢 AI組織図'],['member-workload','👥 メンバー稼働'],['knowledge-portal','📚 豆知識'],['manager-undone','🚨 未完了つぶし']]
     :[['dash','🏠 ホーム'],['memo','📒 メモ'],['cal','📅 カレンダー'],['cal','📋 タスク'],['routine','📋 ルーティン'],['shift','📋 シフト'],['kintai','🕐 勤怠'],['goal','🎯 KPI'],['aiteam','🧠 AI会議'],['ai-members','🤖 AI名鑑'],['ai-org','🏢 AI組織図'],['member-workload','👥 メンバー稼働'],['knowledge-portal','📚 豆知識']];
   tabs.forEach(([pg,lbl],idx)=>{
     const b=document.createElement('button');
@@ -9304,6 +9392,295 @@ function openEventFormFromCalendar(dateStr,timeStr){
   }
 })();
 // ==== ここまで packet 414 ====
+// ==== packet 427: 店長未完了つぶし 静的MVP（読み取り + state.tasks done フラグ更新のみ、外部送信なし） ====
+(function patchManagerUndoneCrush(){
+  try{
+    function pad2(n){return (n<10?'0':'')+n;}
+    function todayStr(){const d=new Date();return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate());}
+    function daysAgo(n){const d=new Date();d.setDate(d.getDate()-n);return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate());}
+    function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];});}
+
+    function _taskDeadline(x){if(!x)return '';return (x.deadline || x.dl || x.due || x.dueDate || x.deadlineDate || x.date || '');}
+    function _taskDone(x){if(!x)return false;return (x.done===true || x.status==='done' || x.completed===true || x.complete===true);}
+    function _taskAssignee(x){
+      if(!x)return '';
+      const a = x.assignee || x.to || x.uid || x.assigneeUid || x.member || '';
+      // uid を name に変換
+      if(a && window.members){
+        try{
+          const m = members.find(function(mm){return mm.uid===a || mm.n===a;});
+          if(m)return m.n;
+        }catch(e){}
+      }
+      return a;
+    }
+    function _taskTitle(x){if(!x)return '';return (x.title || x.t || x.name || '');}
+
+    function getAssigneeList(){
+      const set = new Set();
+      try{
+        if(Array.isArray(window.members))members.forEach(function(m){if(m && m.n)set.add(m.n);});
+      }catch(e){}
+      try{
+        if(window.state && Array.isArray(state.tasks)){
+          state.tasks.forEach(function(x){const a=_taskAssignee(x);if(a)set.add(a);});
+        }
+      }catch(e){}
+      return Array.from(set);
+    }
+
+    function collectItems(){
+      const out = [];
+      const today = todayStr();
+      const threeDaysAgo = daysAgo(3);
+
+      // 1. タスク（期限切れ / 今日中 / 3日以上放置）
+      try{
+        if(window.state && Array.isArray(state.tasks)){
+          state.tasks.forEach(function(x,i){
+            try{
+              if(!x || _taskDone(x))return;
+              const dl = _taskDeadline(x);
+              const title = _taskTitle(x);
+              const assignee = _taskAssignee(x) || '未割当';
+              if(!title)return;
+              let kind=null;
+              if(dl && dl < today)kind='overdue';
+              else if(dl && dl === today)kind='today';
+              else if(!dl || dl < threeDaysAgo){
+                // 期限なし or 古い登録（推測）
+                if(!dl && x.createdAt && x.createdAt.slice(0,10) < threeDaysAgo)kind='stale';
+                else if(!dl)kind='stale';
+              }
+              if(!kind)return;
+              out.push({
+                kind: kind,
+                source: 'task',
+                refId: x.id || i,
+                title: title,
+                assignee: assignee,
+                meta: (dl ? '期限:'+dl : '期限なし')
+              });
+            }catch(e){}
+          });
+        }
+      }catch(e){}
+
+      // 2. 対応要メモ
+      try{
+        if(Array.isArray(window._memoNotes)){
+          window._memoNotes.forEach(function(m){
+            try{
+              if(!m || m.archived || m.done)return;
+              if(!m.todo && !m.pin && m.origin!=='ai-consultation')return;
+              const kind = m.origin==='ai-consultation' ? 'aiconsul' : 'memo';
+              out.push({
+                kind: kind,
+                source: 'memo',
+                refId: m.id,
+                title: m.text.length>80 ? m.text.slice(0,80)+'…' : m.text,
+                assignee: m.author || '担当者',
+                meta: (m.category||'メモ') + ' / ' + (m.createdAt||'').slice(0,16).replace('T',' ')
+              });
+            }catch(e){}
+          });
+        }
+      }catch(e){}
+
+      // 3. ルーティン未完了
+      try{
+        if(typeof getStaticRoutineTemplates==='function' && typeof getRoutineDoneIds==='function'){
+          const tmpl = getStaticRoutineTemplates();
+          const doneIds = getRoutineDoneIds() || [];
+          if(tmpl && Array.isArray(tmpl.daily)){
+            tmpl.daily.forEach(function(r){
+              try{
+                if(!r || doneIds.indexOf(r.id)>=0)return;
+                const title = r.title || r.name || r.label || r.id;
+                if(!title)return;
+                out.push({
+                  kind: 'routine',
+                  source: 'routine',
+                  refId: r.id,
+                  title: title,
+                  assignee: r.assignee || r.owner || '全員',
+                  meta: '今日のルーティン'
+                });
+              }catch(e){}
+            });
+          }
+        }
+      }catch(e){}
+
+      return out;
+    }
+
+    function renderSummary(items){
+      const sum = document.getElementById('muc-summary');
+      if(!sum)return;
+      const counts = {overdue:0, today:0, stale:0, memo:0, routine:0, aiconsul:0};
+      items.forEach(function(it){if(counts[it.kind]!=null)counts[it.kind]++;});
+      sum.innerHTML =
+        '<div class="muc-sum-cell"><div class="muc-sum-lbl">期限切れ</div><div class="muc-sum-val" style="color:#dc2626">'+counts.overdue+'</div></div>'
+        +'<div class="muc-sum-cell"><div class="muc-sum-lbl">今日中</div><div class="muc-sum-val" style="color:#d97706">'+counts.today+'</div></div>'
+        +'<div class="muc-sum-cell"><div class="muc-sum-lbl">対応要メモ</div><div class="muc-sum-val" style="color:#c2410c">'+(counts.memo+counts.aiconsul)+'</div></div>'
+        +'<div class="muc-sum-cell"><div class="muc-sum-lbl">ルーティン未完了</div><div class="muc-sum-val" style="color:#0a3d7c">'+counts.routine+'</div></div>';
+    }
+
+    function renderList(){
+      const listEl = document.getElementById('muc-list');
+      if(!listEl)return;
+      const all = collectItems();
+      renderSummary(all);
+
+      const fa = (document.getElementById('muc-filter-assignee')||{}).value || '';
+      const ft = (document.getElementById('muc-filter-type')||{}).value || '';
+      let items = all.slice();
+      if(fa)items = items.filter(function(x){return x.assignee===fa;});
+      if(ft)items = items.filter(function(x){return x.kind===ft;});
+      // 並び順：期限切れ → 今日中 → AI 相談 → メモ → ルーティン → stale
+      const order = {overdue:0, today:1, aiconsul:2, memo:3, routine:4, stale:5};
+      items.sort(function(a,b){return (order[a.kind]||9)-(order[b.kind]||9);});
+
+      if(!items.length){
+        listEl.innerHTML = '<div class="muc-empty">該当する未完了はありません。お疲れさまでした。</div>';
+        return;
+      }
+      let h='';
+      items.forEach(function(it){
+        const tagLbl = it.kind==='overdue'?'⚠ 期限切れ':it.kind==='today'?'⏰ 今日中':it.kind==='stale'?'🕰 3日以上':it.kind==='memo'?'📒 対応要':it.kind==='routine'?'🔄 ルーティン':it.kind==='aiconsul'?'💬 AI相談':'';
+        h += '<div class="muc-item kind-'+esc(it.kind)+'" data-kind="'+esc(it.kind)+'" data-source="'+esc(it.source)+'" data-ref="'+esc(String(it.refId))+'">';
+        h += '<div class="muc-item-l">';
+        h += '<div class="muc-item-h">';
+        h += '<span class="muc-tag muc-tag-'+esc(it.kind)+'">'+tagLbl+'</span>';
+        h += '<span class="muc-tag">👤 '+esc(it.assignee)+'</span>';
+        h += '</div>';
+        h += '<div class="muc-item-t">'+esc(it.title)+'</div>';
+        h += '<div class="muc-item-meta">'+esc(it.meta)+'</div>';
+        h += '</div>';
+        h += '<div class="muc-item-acts">';
+        if(it.source==='task'){
+          h += '<button class="muc-mini muc-mini-done" data-act="task-done" data-ref="'+esc(String(it.refId))+'">✓ 完了</button>';
+          h += '<button class="muc-mini muc-mini-nav" data-act="task-open">→ タスク画面</button>';
+        }else if(it.source==='memo'){
+          h += '<button class="muc-mini muc-mini-done" data-act="memo-done" data-ref="'+esc(String(it.refId))+'">✓ 完了</button>';
+          h += '<button class="muc-mini muc-mini-nav" data-act="memo-open">→ メモ帳</button>';
+        }else if(it.source==='routine'){
+          h += '<button class="muc-mini muc-mini-nav" data-act="routine-open">→ ルーティン画面</button>';
+        }
+        h += '</div>';
+        h += '</div>';
+      });
+      listEl.innerHTML = h;
+    }
+
+    function onListAction(action, refId){
+      try{
+        switch(action){
+          case 'task-done':
+            if(window.state && Array.isArray(state.tasks)){
+              const t = state.tasks.find(function(x){return String(x && x.id)===String(refId);});
+              if(t){
+                t.done = true;
+                if('status' in t)t.status = 'done';
+                showToast('タスクを完了にしました');
+                try{if(typeof renderTaskBoard==='function')renderTaskBoard();}catch(e){}
+                renderList();
+              }
+            }
+            break;
+          case 'task-open':
+            if(typeof switchPage==='function')switchPage('cal');
+            break;
+          case 'memo-done':
+            if(Array.isArray(window._memoNotes)){
+              const m = window._memoNotes.find(function(x){return String(x && x.id)===String(refId);});
+              if(m){m.done = true; showToast('メモを完了にしました'); renderList();}
+            }
+            break;
+          case 'memo-open':
+            if(typeof switchPage==='function')switchPage('memo');
+            break;
+          case 'routine-open':
+            if(typeof switchPage==='function')switchPage('routine');
+            break;
+        }
+      }catch(e){}
+    }
+
+    function showToast(msg){
+      try{
+        const id='muc-toast';
+        const ex=document.getElementById(id); if(ex)ex.remove();
+        const t=document.createElement('div');
+        t.id=id;
+        t.style.cssText='position:fixed;left:50%;bottom:80px;transform:translateX(-50%);z-index:10000;background:#b91c1c;color:#fff;padding:9px 16px;border-radius:18px;font-size:12px;font-weight:700;box-shadow:0 4px 12px rgba(0,0,0,.25);pointer-events:none;max-width:90vw;text-align:center';
+        t.textContent=msg;
+        document.body.appendChild(t);
+        setTimeout(function(){try{t.style.transition='opacity .4s';t.style.opacity='0';}catch(e){}},2400);
+        setTimeout(function(){try{t.remove();}catch(e){}},2900);
+      }catch(e){}
+    }
+
+    function populateAssigneeFilter(){
+      const sel = document.getElementById('muc-filter-assignee');
+      if(!sel)return;
+      const cur = sel.value;
+      const list = getAssigneeList();
+      let h = '<option value="">全員</option>';
+      list.forEach(function(a){h += '<option value="'+esc(a)+'">'+esc(a)+'</option>';});
+      sel.innerHTML = h;
+      if(cur)sel.value = cur;
+    }
+
+    function init(){
+      const page = document.getElementById('page-manager-undone');
+      if(!page)return;
+      if(page.dataset.p427Bound==='1')return;
+      page.dataset.p427Bound='1';
+
+      populateAssigneeFilter();
+
+      ['muc-filter-assignee','muc-filter-type'].forEach(function(id){
+        const e=document.getElementById(id);
+        if(e)e.addEventListener('change',renderList);
+      });
+      const rf = document.getElementById('muc-refresh');
+      if(rf)rf.addEventListener('click',function(){populateAssigneeFilter();renderList();});
+
+      const list = document.getElementById('muc-list');
+      if(list){
+        list.addEventListener('click',function(ev){
+          const btn = ev.target.closest('button[data-act]');
+          if(!btn)return;
+          const act = btn.getAttribute('data-act');
+          const ref = btn.getAttribute('data-ref') || (btn.closest('.muc-item')||{}).getAttribute && btn.closest('.muc-item').getAttribute('data-ref');
+          if(act)onListAction(act, ref);
+        });
+      }
+
+      renderList();
+
+      // ナビでこのページに切り替えた時に毎回更新
+      try{
+        const orig = window.switchPage;
+        if(typeof orig==='function' && !orig._p427Wrapped){
+          window.switchPage = function(pg){
+            const r = orig.apply(this, arguments);
+            try{if(pg==='manager-undone'){populateAssigneeFilter();renderList();}}catch(e){}
+            return r;
+          };
+          window.switchPage._p427Wrapped = true;
+        }
+      }catch(e){}
+    }
+    if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);
+    else init();
+  }catch(e){
+    try{console.warn('packet 427 manager undone crush init error:',e);}catch(e2){}
+  }
+})();
+// ==== ここまで packet 427 ====
 </script>
 </body>
 </html>
