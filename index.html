@@ -1034,6 +1034,13 @@ body.task-dragging [data-id]:not(.dragging-this){opacity:1!important}
             </div>
             <div id="hard-del-result" style="display:none;border-radius:var(--r);padding:8px 10px;font-size:10px;font-weight:600;margin-top:6px;line-height:1.7;font-family:monospace;white-space:pre-wrap;word-break:break-all"></div>
           </div>
+          <!-- packet 481: Supabase 永続化テーブル存在診断（events / todos / daily_reports 等）-->
+          <div id="schema-probe-section" style="margin-top:14px;padding-top:10px;border-top:1.5px solid var(--bo)">
+            <div style="font-size:11px;font-weight:800;color:var(--navy);margin-bottom:6px">📋 永続化テーブル存在診断</div>
+            <div style="font-size:10px;color:var(--t3);line-height:1.6;margin-bottom:6px">events / todos / daily_reports 等の永続化用テーブルが Supabase に作成済みか確認します。未作成の場合、in-memory 継続。SQL 実行は別作業。</div>
+            <button class="pbtn" id="schema-probe-btn" style="width:100%;padding:6px;font-size:11px;background:var(--navy);color:#fff;font-weight:700">📋 テーブル存在チェック</button>
+            <div id="schema-probe-result" style="display:none;border-radius:var(--r);padding:8px 10px;font-size:10px;font-weight:600;margin-top:6px;line-height:1.7;font-family:monospace;white-space:pre-wrap;word-break:break-all"></div>
+          </div>
           <!-- packet 466: Supabase 接続診断 + 再保存（リロード後にアカウントが消える問題の切り分け）-->
           <div id="supabase-diag-section" style="margin-top:14px;padding-top:10px;border-top:1.5px solid var(--bo)">
             <div style="font-size:11px;font-weight:800;color:var(--navy);margin-bottom:6px">🔧 Supabase 接続診断</div>
@@ -3408,6 +3415,76 @@ document.getElementById('issue-btn').onclick=()=>{
   else init();
 })();
 // ==== ここまで packet 480 hard delete ====
+
+// ==== packet 481: 永続化テーブル存在診断（events / todos / daily_reports / routines / kpi_goals）====
+// 各テーブルに HEAD 相当のリクエスト（select limit 1）して 200/404/その他 status で判定
+// SQL 実行・テーブル作成は本 packet では行わない、結果表示と提案 SQL を画面に出すまで
+(function patchSchemaProbeP481(){
+  const _TABLES_TO_PROBE=['events','todos','daily_reports','routines','routine_assignments','kpi_goals'];
+  async function probeTable(table){
+    try{
+      const r=await fetch(`${SB_URL}/rest/v1/${table}?limit=1`,{
+        headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, Accept:'application/json' }
+      });
+      let body='';try{body=await r.text();}catch(e){body='';}
+      return {table, status:r.status, ok:r.ok, body:(body||'').substring(0,200)};
+    }catch(e){
+      return {table, status:0, ok:false, body:(e&&e.message)||'fetch failed'};
+    }
+  }
+  function bind(){
+    const btn=document.getElementById('schema-probe-btn');
+    if(!btn||btn.dataset.p481Bound==='1')return false;
+    btn.dataset.p481Bound='1';
+    btn.addEventListener('click',async function(){
+      try{console.warn('[packet 481 schema-probe] click fired');}catch(e){}
+      const result=document.getElementById('schema-probe-result');
+      if(result){result.style.display='block';result.style.background='var(--s2)';result.innerHTML='⏳ 診断中...';}
+      const results=[];
+      for(const t of _TABLES_TO_PROBE){
+        const r=await probeTable(t);
+        results.push(r);
+        try{console.warn('[packet 481 schema-probe]',t,'status:',r.status,'ok:',r.ok);}catch(e){}
+      }
+      let html='<strong>📋 永続化テーブル存在診断</strong>\n';
+      html+='───────────────────────────\n';
+      const missing=[];
+      results.forEach(r=>{
+        let mark='', verdict='';
+        if(r.status===200||r.status===206){mark='✅';verdict='存在 + SELECT 可能';}
+        else if(r.status===401||r.status===403){mark='🔒';verdict='存在するが RLS で SELECT 拒否';}
+        else if(r.status===404){mark='❌';verdict='テーブル未作成';missing.push(r.table);}
+        else if(r.status===0){mark='🌐';verdict='ネットワーク不達 / CORS';}
+        else{mark='❓';verdict='status '+r.status;}
+        html+='  '+mark+' '+r.table+'：'+verdict+'\n';
+      });
+      if(missing.length>0){
+        html+='\n<strong>⚠ 未作成テーブル：'+missing.join(', ')+'</strong>\n';
+        html+='Supabase ダッシュボードで以下の CREATE TABLE が必要（ボス判断後別作業）：\n';
+        html+='  (詳細は docs/PERSISTENCE_SCHEMA_AND_TABLE_PROBE_PACKET_481.md 参照)\n';
+        html+='  events / todos / daily_reports / routines / routine_assignments / kpi_goals\n';
+        html+='  各テーブルの CREATE TABLE 文 + RLS policy（INSERT/SELECT/UPDATE for anon）が必要\n';
+      }else{
+        html+='\n✅ すべての永続化テーブルが存在\n';
+      }
+      if(result){result.style.background=missing.length>0?'rgba(254,243,199,.5)':'rgba(209,250,229,.4)';result.innerHTML=html;}
+    });
+    try{console.warn('[packet 481 schema-probe] bound');}catch(e){}
+    return true;
+  }
+  function init(){
+    bind();
+    try{
+      const obs=new MutationObserver(function(){try{if(bind())obs.disconnect();}catch(e){}});
+      obs.observe(document.body,{childList:true,subtree:true});
+    }catch(e){}
+    setTimeout(bind,1000);
+    setTimeout(bind,3000);
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);
+  else init();
+})();
+// ==== ここまで packet 481 schema probe ====
 
 function renderKintaiPage(){
   const now=new Date();
