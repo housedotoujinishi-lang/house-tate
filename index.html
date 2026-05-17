@@ -2578,6 +2578,8 @@ function renderCalNav(){
     if(!bar)return;
     const showing=bar.style.display==='none'||!bar.style.display;
     bar.style.display=showing?'block':'none';
+    // packet 456: スマホ CSS との整合のため .ev-add-bar-open class を同期
+    try{if(showing){bar.classList.add('ev-add-bar-open');}else{bar.classList.remove('ev-add-bar-open');}}catch(e){}
     if(showing){setupEvForm();document.getElementById('ef-t')?.focus();}
   };
 }
@@ -10464,10 +10466,10 @@ function openEventFormFromCalendar(dateStr,timeStr){
 (function patchEfSaveBindingP454(){
   function efSaveHandler(){
     try{
-      try{console.warn('[packet 454 ef-save] click fired');}catch(e){}
+      try{console.warn('[packet 456 ef-save] click fired');}catch(e){}
       const tEl=document.getElementById('ef-t');
       const t=((tEl && tEl.value) || '').trim();
-      if(!t){alert('内容を入力してください');try{console.warn('[packet 454 ef-save] empty title, abort');tEl&&tEl.focus();}catch(e){}return;}
+      if(!t){alert('内容を入力してください');try{console.warn('[packet 456 ef-save] empty title, abort');tEl&&tEl.focus();}catch(e){}return;}
       const cat=(document.getElementById('ef-cat')?.value)||'その他';
       const dstr=(document.getElementById('ef-day')?.value)||(typeof todayStr!=='undefined'?todayStr:new Date().toISOString().slice(0,10));
       const sv=(document.getElementById('ef-s')?.value)||'9:00';
@@ -10475,44 +10477,96 @@ function openEventFormFromCalendar(dateStr,timeStr){
       const svParts=String(sv).split(':');const evParts=String(ev2).split(':');
       const sh=parseInt(svParts[0],10)||9, sm=parseInt(svParts[1],10)||0;
       const eh=parseInt(evParts[0],10)||10, em=parseInt(evParts[1],10)||0;
-      try{console.warn('[packet 454 ef-save] values:',{t,cat,dstr,sv,ev2,sh,sm,eh,em});}catch(e){}
+      try{console.warn('[packet 456 ef-save] values:',{t,cat,dstr,sv,ev2,sh,sm,eh,em});}catch(e){}
       // state 検査（typeof で lexical state を取得、window 不参照）
-      if(typeof state==='undefined' || !state){try{console.warn('[packet 454 ef-save] state unavailable');}catch(e){}return;}
-      if(!Array.isArray(state.events)){try{console.warn('[packet 454 ef-save] state.events not array');}catch(e){}return;}
+      if(typeof state==='undefined' || !state){try{console.warn('[packet 456 ef-save] state unavailable');}catch(e){}return;}
+      if(!Array.isArray(state.events)){try{console.warn('[packet 456 ef-save] state.events not array');}catch(e){}return;}
+      // packet 456: 環境ダンプ（curV/viewY/viewMo/selDate/layoutMode/cal-view 存在/page-cal active）
+      try{
+        const dump={
+          curV:(typeof curV!=='undefined')?curV:'n/a',
+          viewY:(typeof viewY!=='undefined')?viewY:'n/a',
+          viewMo:(typeof viewMo!=='undefined')?viewMo:'n/a',
+          selDate:(typeof selDate!=='undefined'&&selDate)?selDate.toString():'n/a',
+          layoutMode:(typeof layoutMode!=='undefined')?layoutMode:'n/a',
+          calViewExists:!!document.getElementById('cal-view'),
+          pageCalActive:!!document.getElementById('page-cal')?.classList.contains('on'),
+          membersLen:(typeof members!=='undefined'&&Array.isArray(members))?members.length:'n/a',
+          stateEventsLen:state.events.length,
+          stateEventsLengths:state.events.map(a=>Array.isArray(a)?a.length:'n/a'),
+          selectedMembers:(typeof selectedMembers!=='undefined'&&selectedMembers)?[...selectedMembers]:'n/a',
+          currentUserUid:(typeof currentUser!=='undefined'&&currentUser)?currentUser.uid:'n/a',
+          currentUserName:(typeof currentUser!=='undefined'&&currentUser)?currentUser.name:'n/a'
+        };
+        console.warn('[packet 456 ef-save] env dump BEFORE push:', dump);
+      }catch(e){}
       // tmi 算出：singleMi() 優先 → currentUser.uid 一致 → 0 fallback
       let mi2=-1;
       try{if(typeof singleMi==='function')mi2=singleMi();}catch(e){}
       if(mi2<0 && typeof members!=='undefined' && Array.isArray(members) && typeof currentUser!=='undefined' && currentUser){
         try{mi2=members.findIndex(m=>m && m.uid===currentUser.uid);}catch(e){}
       }
-      const tmi=mi2>=0?mi2:0;
-      try{console.warn('[packet 454 ef-save] mi2:',mi2,'tmi:',tmi,'members.length:',(typeof members!=='undefined'&&Array.isArray(members))?members.length:'n/a');}catch(e){}
-      // state.events[tmi] 確保
+      let tmi=mi2>=0?mi2:0;
+      // packet 456: members[tmi] 不存在時の防衛（render側 members[e.mi].c で throw を防止）
+      if(typeof members!=='undefined' && Array.isArray(members) && members.length>0 && !members[tmi]){
+        const fallbackTmi=members.findIndex(m=>m);
+        try{console.warn('[packet 456 ef-save] members[tmi='+tmi+'] missing, fallback to first valid:',fallbackTmi);}catch(e){}
+        if(fallbackTmi>=0)tmi=fallbackTmi;
+      }
+      try{console.warn('[packet 456 ef-save] mi2:',mi2,'tmi:',tmi,'members[tmi]:',(typeof members!=='undefined'&&members[tmi])?members[tmi].n:'undefined');}catch(e){}
+      // state.events[tmi] 確保 + 配列サイズも members.length に合わせる
+      if(typeof members!=='undefined' && Array.isArray(members)){
+        while(state.events.length<members.length)state.events.push([]);
+      }
       if(!state.events[tmi])state.events[tmi]=[];
       const before=state.events[tmi].length;
       // event 構造を既存 mkEvs / ka-save / renderMonth/Week/Day と完全一致させる
-      const newEv={title:t,cat:cat,date:dstr,sh:sh,sm:sm,eh:eh,em:em,mi:tmi};
+      // 既存 modal-save (L2833) は {title,cat,date,sh,sm,eh,em} (mi 無)、
+      // 既存 dragdrop (L2738) は {...ev,sh,sm,eh,em}、
+      // 既存 day-ef-save (L2742) は {title,cat,date,sh,sm,eh,em} (mi 無)。
+      // 我々は mi を明示してもよい（render で {...e,mi} 上書きされる）が、念のため mi 無の最小構造に統一する。
+      const newEv={title:t,cat:cat,date:dstr,sh:sh,sm:sm,eh:eh,em:em};
       state.events[tmi].push(newEv);
-      try{console.warn('[packet 454 ef-save] state.events['+tmi+'].length:',before,'->',state.events[tmi].length,' newEv:',newEv);}catch(e){}
+      try{console.warn('[packet 456 ef-save] PUSH OK state.events['+tmi+'].length:',before,'->',state.events[tmi].length,' newEv:',newEv);}catch(e){}
+      try{console.warn('[packet 456 ef-save] env dump AFTER push state.events[tmi]:', JSON.parse(JSON.stringify(state.events[tmi])));}catch(e){}
       // 絞り込み中の場合、追加先 mi が見えるように selectedMembers に追加（typeof で lexical scope）
       try{
         if(typeof selectedMembers!=='undefined' && selectedMembers && selectedMembers.size>0 && !selectedMembers.has(tmi)){
           selectedMembers.add(tmi);
-          try{console.warn('[packet 454 ef-save] selectedMembers.add('+tmi+')');}catch(e){}
+          try{console.warn('[packet 456 ef-save] selectedMembers.add('+tmi+')');}catch(e){}
         }
-      }catch(e){try{console.warn('[packet 454 ef-save] selectedMembers update error:',e&&e.message);}catch(e2){}}
+      }catch(e){try{console.warn('[packet 456 ef-save] selectedMembers update error:',e&&e.message);}catch(e2){}}
       // 入力欄リセット + バー閉じる
       if(tEl)tEl.value='';
       const bar=document.getElementById('ev-add-bar');
       if(bar){try{bar.style.display='none';}catch(e){}try{bar.classList.remove('ev-add-bar-open');}catch(e){}}
       // トースト
       try{if(typeof showToast==='function')showToast('予定を追加しました');}catch(e){}
-      // 再描画：render + renderCal + renderFilterPills の三段を順に呼出
-      try{if(typeof render==='function'){render();try{console.warn('[packet 454 ef-save] render called');}catch(e){}}}catch(e){try{console.warn('[packet 454 ef-save] render error:',e&&e.message);}catch(e2){}}
-      try{if(typeof renderCal==='function'){renderCal();try{console.warn('[packet 454 ef-save] renderCal called');}catch(e){}}}catch(e){try{console.warn('[packet 454 ef-save] renderCal error:',e&&e.message);}catch(e2){}}
-      try{if(typeof renderFilterPills==='function'){renderFilterPills();try{console.warn('[packet 454 ef-save] renderFilterPills called');}catch(e){}}}catch(e){try{console.warn('[packet 454 ef-save] renderFilterPills error:',e&&e.message);}catch(e2){}}
+      // packet 456: 再描画を curV に応じて renderMonth/Week/Day を直接呼出（layoutMode 条件回避）
+      // render() は layoutMode==='both' のときしか renderCal() を呼ばないため、
+      // 直接呼ぶことで board モード等でも確実に再描画する。
+      try{
+        if(typeof curV!=='undefined'){
+          if(curV==='month' && typeof renderMonth==='function'){renderMonth();try{console.warn('[packet 456 ef-save] renderMonth direct called');}catch(e){}}
+          else if(curV==='week' && typeof renderWeek==='function'){renderWeek();try{console.warn('[packet 456 ef-save] renderWeek direct called');}catch(e){}}
+          else if(curV==='day' && typeof renderDay==='function'){renderDay();try{console.warn('[packet 456 ef-save] renderDay direct called');}catch(e){}}
+          else{try{console.warn('[packet 456 ef-save] curV not recognized:',curV);}catch(e){}}
+        }
+      }catch(e){try{console.warn('[packet 456 ef-save] direct render error:',e&&e.message,e&&e.stack);}catch(e2){}}
+      // 既存 render() / renderCal() / renderFilterPills() も並行呼出（packet 454 既存挙動保持）
+      try{if(typeof render==='function'){render();try{console.warn('[packet 456 ef-save] render() also called');}catch(e){}}}catch(e){try{console.warn('[packet 456 ef-save] render() error:',e&&e.message);}catch(e2){}}
+      try{if(typeof renderCal==='function'){renderCal();try{console.warn('[packet 456 ef-save] renderCal() also called');}catch(e){}}}catch(e){try{console.warn('[packet 456 ef-save] renderCal() error:',e&&e.message);}catch(e2){}}
+      try{if(typeof renderFilterPills==='function'){renderFilterPills();}}catch(e){}
+      // packet 456: render 完了後、追加 event が実際に DOM に出ているか検証
+      try{
+        const calView=document.getElementById('cal-view');
+        if(calView){
+          const occurrencesInDOM=(calView.innerHTML.match(new RegExp(t.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'g'))||[]).length;
+          console.warn('[packet 456 ef-save] title "'+t+'" occurrences in cal-view DOM after render:',occurrencesInDOM);
+        }
+      }catch(e){}
     }catch(e){
-      try{console.warn('[packet 454 ef-save] handler outer error:',e&&e.message,e&&e.stack);}catch(e2){}
+      try{console.warn('[packet 456 ef-save] handler outer error:',e&&e.message,e&&e.stack);}catch(e2){}
     }
   }
 
@@ -10522,7 +10576,7 @@ function openEventFormFromCalendar(dateStr,timeStr){
     if(saveBtn.dataset.p454Bound==='1')return true;
     saveBtn.dataset.p454Bound='1';
     saveBtn.addEventListener('click', efSaveHandler);
-    try{console.warn('[packet 454 ef-save] bound to button:', saveBtn);}catch(e){}
+    try{console.warn('[packet 456 ef-save] bound to button:', saveBtn);}catch(e){}
     return true;
   }
 
@@ -10530,7 +10584,7 @@ function openEventFormFromCalendar(dateStr,timeStr){
   try{window._p454_efSaveBind=bind;}catch(e){}
 
   function init(){
-    try{bind();}catch(e){try{console.warn('[packet 454 ef-save] init bind error:',e&&e.message);}catch(e2){}}
+    try{bind();}catch(e){try{console.warn('[packet 456 ef-save] init bind error:',e&&e.message);}catch(e2){}}
     // ev-add-bar が後から差し替わるケースに備え MutationObserver で再 bind 試行
     try{
       const obs=new MutationObserver(function(){
@@ -10545,7 +10599,7 @@ function openEventFormFromCalendar(dateStr,timeStr){
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);
   else init();
 })();
-// ==== ここまで packet 454 ====
+// ==== ここまで packet 454 / 456 ====
 </script>
 </body>
 </html>
