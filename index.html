@@ -246,6 +246,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-siz
   .mob-cmd-report{background:linear-gradient(135deg,#c2410c 0%,#ea580c 100%);border-color:#c2410c;color:#fff}
   .mob-cmd-report .mob-cmd-t{color:#fff}
   .mob-cmd-report .mob-cmd-body{color:rgba(255,255,255,.88)}
+  .mob-cmd-todo{background:linear-gradient(135deg,#15803d 0%,#22c55e 100%);border-color:#15803d;color:#fff}
+  .mob-cmd-todo .mob-cmd-t{color:#fff}
+  .mob-cmd-todo .mob-cmd-body{color:rgba(255,255,255,.88)}
 }
 /* packet 409: AI 相談窓口（ホームカード + モーダル）*/
 .ai-consul-home-card{margin:12px;padding:0;background:linear-gradient(135deg,#0a3d7c 0%,#1e5fa8 100%);border-radius:14px;cursor:pointer;box-shadow:0 3px 10px rgba(10,61,124,.18);transition:transform .15s,box-shadow .15s;color:#fff;overflow:hidden;border:0}
@@ -874,41 +877,27 @@ body.task-dragging [data-id]:not(.dragging-this){opacity:1!important}
             <div class="ai-consul-home-card-cta">▶ 相談する</div>
           </div>
         </div>
-        <!-- packet 412: ホーム司令塔ストリップ（スマホ専用、PC では display:none）+ packet 413 日報カード追加 -->
-        <div id="mobile-cmd-strip" class="mob-cmd-strip" aria-label="今日の司令塔">
+        <!-- packet 412 + packet 420 補正: ホーム司令塔ストリップを 4 ショートカットに絞る（タスクボード / カレンダー / 本日のToDo / メモ）-->
+        <!-- 日報・AI相談窓口・マメ知識は常設しない方針、それぞれの画面内導線・既存カードからアクセス -->
+        <div id="mobile-cmd-strip" class="mob-cmd-strip" aria-label="ショートカット">
           <button type="button" class="mob-cmd-card" data-mob-cmd="task">
             <span class="mob-cmd-emoji">📋</span>
-            <span class="mob-cmd-t">今日のタスク</span>
-            <span class="mob-cmd-body" id="mob-cmd-task-body">今日やることを確認</span>
+            <span class="mob-cmd-t">タスクボード</span>
+            <span class="mob-cmd-body" id="mob-cmd-task-body">今日のタスクを確認</span>
           </button>
-          <button type="button" class="mob-cmd-card" data-mob-cmd="event">
+          <button type="button" class="mob-cmd-card" data-mob-cmd="cal">
             <span class="mob-cmd-emoji">📅</span>
-            <span class="mob-cmd-t">今日の予定</span>
+            <span class="mob-cmd-t">カレンダー</span>
             <span class="mob-cmd-body" id="mob-cmd-event-body">予定と時間を確認</span>
           </button>
-          <button type="button" class="mob-cmd-card" data-mob-cmd="alert">
-            <span class="mob-cmd-emoji">⚠️</span>
-            <span class="mob-cmd-t">未完了・注意</span>
-            <span class="mob-cmd-body" id="mob-cmd-alert-body">抜け漏れを確認</span>
-          </button>
-          <button type="button" class="mob-cmd-card mob-cmd-consul" data-mob-cmd="consul">
-            <span class="mob-cmd-emoji">💬</span>
-            <span class="mob-cmd-t">ＡＩ相談窓口</span>
-            <span class="mob-cmd-body">迷ったらここ</span>
-          </button>
-          <button type="button" class="mob-cmd-card" data-mob-cmd="tip">
-            <span class="mob-cmd-emoji">💡</span>
-            <span class="mob-cmd-t">今日のマメ知識</span>
-            <span class="mob-cmd-body">1枚だけ学ぶ</span>
-          </button>
-          <button type="button" class="mob-cmd-card mob-cmd-report" data-mob-cmd="report">
-            <span class="mob-cmd-emoji">📝</span>
-            <span class="mob-cmd-t">日報</span>
-            <span class="mob-cmd-body">今日の日報を作る</span>
+          <button type="button" class="mob-cmd-card mob-cmd-todo" data-mob-cmd="todo">
+            <span class="mob-cmd-emoji">✓</span>
+            <span class="mob-cmd-t">本日のToDo</span>
+            <span class="mob-cmd-body">ToDoを追加・確認</span>
           </button>
           <button type="button" class="mob-cmd-card mob-cmd-memo" data-mob-cmd="memo">
             <span class="mob-cmd-emoji">📒</span>
-            <span class="mob-cmd-t">メモ帳</span>
+            <span class="mob-cmd-t">メモ</span>
             <span class="mob-cmd-body" id="mob-cmd-memo-body">気づきを残す</span>
           </button>
         </div>
@@ -1969,10 +1958,11 @@ function showMainApp(){
   const roleLabel=roleByRole||(isAdmin?'管理者':isOwner?'管理者':'スタッフ');
   if(isHighPerm){rb.textContent=roleLabel;rb.style.cssText='background:var(--gold);color:var(--navy);padding:1px 6px;border-radius:7px;font-size:9px;font-weight:800';}
   else{rb.textContent='スタッフ';rb.style.cssText='background:rgba(255,255,255,.15);color:#fff;padding:1px 6px;border-radius:7px;font-size:9px;font-weight:700';}
-  // packet 420: PC ナビに 📒 メモ帳 / 📝 日報 を追加（PC では .topnav に表示、スマホは .topnav .ntab{display:none} で従来通り非表示）
+  // packet 420: PC ナビに 📒 メモ帳 を追加（メモは PC でも開ける導線必須、ボス補足指示）
+  // 日報・AI相談窓口・マメ知識・ルーティンはショートカットに常設しない方針（各画面内導線で OK）
   const tabs=isHighPerm
-    ?[['dash','🏠 ホーム'],['accounts','👑 管理'],['kintai','🕐 勤怠'],['cal','📅 カレンダー/タスク'],['shift','📋 シフト'],['goal','🎯 目標KPI'],['report','📊 月次レポート'],['aiteam','🧠 AI会議'],['member-workload','👥 メンバー稼働'],['ai-members','🤖 AI名鑑'],['ai-org','🏢 AI組織図'],['knowledge-portal','📚 マメ知識'],['routine','📋 ルーティン'],['memo','📒 メモ帳'],['daily-report','📝 日報']]
-    :[['dash','🏠 ホーム'],['kintai','🕐 勤怠'],['cal','📅 カレンダー/タスク'],['shift','📋 シフト'],['goal','🎯 目標KPI'],['aiteam','🧠 AI会議'],['member-workload','👥 メンバー稼働'],['ai-members','🤖 AI名鑑'],['ai-org','🏢 AI組織図'],['knowledge-portal','📚 マメ知識'],['routine','📋 ルーティン'],['memo','📒 メモ帳'],['daily-report','📝 日報']];
+    ?[['dash','🏠 ホーム'],['accounts','👑 管理'],['kintai','🕐 勤怠'],['cal','📅 カレンダー/タスク'],['shift','📋 シフト'],['goal','🎯 目標KPI'],['report','📊 月次レポート'],['aiteam','🧠 AI会議'],['member-workload','👥 メンバー稼働'],['ai-members','🤖 AI名鑑'],['ai-org','🏢 AI組織図'],['knowledge-portal','📚 マメ知識'],['routine','📋 ルーティン'],['memo','📒 メモ帳']]
+    :[['dash','🏠 ホーム'],['kintai','🕐 勤怠'],['cal','📅 カレンダー/タスク'],['shift','📋 シフト'],['goal','🎯 目標KPI'],['aiteam','🧠 AI会議'],['member-workload','👥 メンバー稼働'],['ai-members','🤖 AI名鑑'],['ai-org','🏢 AI組織図'],['knowledge-portal','📚 マメ知識'],['routine','📋 ルーティン'],['memo','📒 メモ帳']];
   tabs.forEach(([pg,lbl],idx)=>{
     const b=document.createElement('button');
     b.className='ntab'+(idx===0?' on':'');b.dataset.pg=pg;b.textContent=lbl;
@@ -8383,10 +8373,16 @@ function openEventFormFromCalendar(dateStr,timeStr){
         else if(ev===0)setBody('mob-cmd-event-body', '0 件 / 予定と時間を確認', false, false);
         else setBody('mob-cmd-event-body', '予定と時間を確認', false, false);
 
-        const al = getAlertCount();
-        if(al!==null && al>0)setBody('mob-cmd-alert-body', al+' 件 期限切れ / 抜け漏れを確認', false, true);
-        else if(al===0)setBody('mob-cmd-alert-body', '期限切れなし / 抜け漏れを確認', false, false);
-        else setBody('mob-cmd-alert-body', '抜け漏れを確認', false, false);
+        // 期限切れタスクがある場合、タスクボードカードを has-alert で赤背景表示（注意カード廃止、4 ショートカット方針）
+        try{
+          const al = getAlertCount();
+          const taskCard = document.getElementById('mob-cmd-task-body');
+          if(al!==null && al>0 && taskCard){
+            const card = taskCard.closest('.mob-cmd-card');
+            if(card){card.classList.add('has-alert');}
+            taskCard.textContent = (tk!==null?tk+' 件 ／ ':'')+'期限切れ '+al+' 件 ⚠';
+          }
+        }catch(e){}
       }catch(e){}
     }
 
@@ -8394,6 +8390,7 @@ function openEventFormFromCalendar(dateStr,timeStr){
       try{
         switch(action){
           case 'task':
+            // タスクボード（カレンダーページ + 未割当タブ）
             if(typeof switchPage==='function')switchPage('cal');
             setTimeout(function(){
               try{
@@ -8402,38 +8399,26 @@ function openEventFormFromCalendar(dateStr,timeStr){
               }catch(e){}
             },180);
             break;
-          case 'event':
+          case 'cal':
+            // カレンダー画面
             if(typeof switchPage==='function')switchPage('cal');
             break;
-          case 'alert':
+          case 'todo':
+            // 本日の ToDo：カレンダー画面 + スマホ用 ＋ToDo 導線 or PC 用 #td-in にフォーカス
             if(typeof switchPage==='function')switchPage('cal');
             setTimeout(function(){
               try{
-                const tab=document.querySelector('.tbtab[data-tt="all"]');
-                if(tab)tab.click();
+                // スマホ：packet 396/399 の m-todo-add ボタン
+                const mt=document.getElementById('m-todo-add');
+                if(mt && window.innerWidth<769){mt.click();return;}
+                // PC：#td-in にフォーカス
+                const td=document.getElementById('td-in');
+                if(td){try{td.focus({preventScroll:true});}catch(e){try{td.focus();}catch(e2){}}td.scrollIntoView({behavior:'smooth',block:'center'});}
               }catch(e){}
-            },180);
-            break;
-          case 'consul':
-            // packet 409 の AI 相談窓口モーダルを呼び出す
-            try{
-              const card=document.getElementById('ai-consul-home-card');
-              if(card)card.click();
-            }catch(e){}
-            break;
-          case 'tip':
-            if(typeof switchPage==='function')switchPage('knowledge-portal');
-            break;
-          case 'report':
-            // packet 413 日報ページへ
-            if(typeof switchPage==='function'){
-              try{switchPage('daily-report');}catch(e){
-                try{switchPage('dash');}catch(e2){}
-              }
-            }
+            },200);
             break;
           case 'memo':
-            // packet 416 hotfix: packet 414 メモ帳ページへ（packet 412 で抜けていた分岐を追加）
+            // packet 414 メモ帳ページへ
             if(typeof switchPage==='function'){
               try{switchPage('memo');}catch(e){
                 try{switchPage('dash');}catch(e2){}
