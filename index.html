@@ -1018,6 +1018,16 @@ body.task-dragging [data-id]:not(.dragging-this){opacity:1!important}
             <button class="pbtn" id="bulk-issue-btn" style="width:100%;padding:8px;font-size:12px;background:var(--gold);color:var(--navy);font-weight:800">🚀 6 名を一括発行する</button>
             <div id="bulk-issue-result" style="display:none;border-radius:var(--r);padding:8px 10px;font-size:11px;font-weight:600;margin-top:6px;line-height:1.7"></div>
           </div>
+          <!-- packet 466: Supabase 接続診断 + 再保存（リロード後にアカウントが消える問題の切り分け）-->
+          <div id="supabase-diag-section" style="margin-top:14px;padding-top:10px;border-top:1.5px solid var(--bo)">
+            <div style="font-size:11px;font-weight:800;color:var(--navy);margin-bottom:6px">🔧 Supabase 接続診断</div>
+            <div style="font-size:10px;color:var(--t3);line-height:1.6;margin-bottom:6px">リロード後にアカウントが消える場合の切り分け用。メモリと DB の件数を比較し、差分を再保存できます。</div>
+            <div style="display:flex;gap:4px;flex-wrap:wrap">
+              <button class="pbtn" id="sb-diag-check-btn" style="flex:1;padding:6px;font-size:11px;background:var(--navy);color:#fff;font-weight:700">🔍 件数チェック</button>
+              <button class="pbtn" id="sb-diag-resave-btn" style="flex:1;padding:6px;font-size:11px;background:var(--am);color:#fff;font-weight:700">🔄 全アカウント再保存</button>
+            </div>
+            <div id="sb-diag-result" style="display:none;border-radius:var(--r);padding:8px 10px;font-size:10px;font-weight:600;margin-top:6px;line-height:1.7;font-family:monospace"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -1721,7 +1731,13 @@ async function sbUpsert(table, data, onConflict='') {
                'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates' },
     body: JSON.stringify(data)
   });
-  if(!r.ok) throw new Error(await r.text());
+  // packet 466: 詳細ログ追加（パスワード本体は出さず、rows 件数のみ）
+  if(!r.ok) {
+    const errText = await r.text();
+    try{console.warn('[packet 466 sbUpsert]',table,'FAILED status:',r.status,'statusText:',r.statusText,'body:',errText);}catch(e){}
+    throw new Error('sbUpsert '+table+' status='+r.status+' '+errText);
+  }
+  try{console.warn('[packet 466 sbUpsert]',table,'OK status:',r.status,'rows:',Array.isArray(data)?data.length:1);}catch(e){}
   return r.status < 300;
 }
 
@@ -1735,11 +1751,29 @@ async function sbDelete(table, eq) {
 
 // ── ローカルキャッシュをDBに保存 ──
 async function saveAccounts() {
+  // packet 466: 空配列なら skip（リロード直後の race で空保存して既存を消すリスク防止）
+  if(!Array.isArray(accounts) || accounts.length===0){
+    try{console.warn('[packet 466 saveAccounts] accounts empty, skip save (prevents wiping DB)');}catch(e){}
+    return;
+  }
   const rows = accounts.map(a => ({
     uid: a.uid, pass: a.pass, name: a.name, role: a.role,
     perm: a.perm, color: a.c, inc: a.inc||0, cut: a.cut||0, personal: a.personal!==false
   }));
+  try{console.warn('[packet 466 saveAccounts] upserting',rows.length,'rows, uids:',rows.map(r=>r.uid).join(','));}catch(e){}
   await sbUpsert('accounts', rows, 'uid');
+  // packet 466: 保存後に sbGet で件数検証（RLS で SELECT 不可なら検証 skip）
+  try{
+    const back = await sbGet('accounts', 'order=uid');
+    const memUids = new Set(rows.map(r=>r.uid));
+    const missing = [...memUids].filter(u=>!back.find(b=>b && b.uid===u));
+    try{console.warn('[packet 466 saveAccounts] verify: db count =',back.length,', missing in db:',missing.length, missing.length>0?missing:'');}catch(e){}
+    if(missing.length>0){
+      try{if(typeof showToast==='function')showToast('⚠ Supabase 保存検証失敗：'+missing.length+'件が DB に反映されていません', 5000);}catch(e){}
+    }
+  }catch(e){
+    try{console.warn('[packet 466 saveAccounts] verify error (RLS で SELECT 不可の可能性):',e&&e.message);}catch(e2){}
+  }
 }
 
 async function saveKintai(uid, date) {
@@ -1807,8 +1841,10 @@ async function saveSalesReports(uid) {
 async function loadAllFromDB() {
   showLoadingOverlay('データを読み込み中...');
   try {
+    try{console.warn('[packet 466 loadAllFromDB] start, mem accounts.length:',accounts.length);}catch(e){}
     // アカウント
     const accs = await sbGet('accounts', 'order=uid');
+    try{console.warn('[packet 466 loadAllFromDB] sbGet accounts count:',accs.length,', uids:',accs.map(a=>a&&a.uid).join(','));}catch(e){}
 
     // legacy uid ベースのカスタムソートは Auth 移行に伴い廃止（既定の order=uid 順に従う）
     if(accs.length > 0) {
@@ -1824,8 +1860,11 @@ async function loadAllFromDB() {
       while(state.events.length < members.length) state.events.push([]);
       while(state.todos.length < members.length) state.todos.push([]);
       while(state.memo.length < members.length) state.memo.push('');
+      try{console.warn('[packet 466 loadAllFromDB] restored accounts.length:',accounts.length,'members.length:',members.length);}catch(e){}
     } else {
       // 初回: ハードコードアカウントをDBに保存
+      // packet 466: accounts が空なら saveAccounts はスキップ済（DB ワイプ防止）
+      try{console.warn('[packet 466 loadAllFromDB] db accounts empty, attempting saveAccounts (will skip if mem also empty)');}catch(e){}
       await saveAccounts();
     }
 
@@ -1874,11 +1913,25 @@ async function loadAllFromDB() {
     });
     accounts.forEach(a => rebuildSalesFromReports(a.uid));
 
+    // packet 466: 読込完了後、accounts ページ表示中なら明示的に renderAccList、
+    //  さらにカレンダー / タスクボードも当該ページ表示中なら再描画
+    try{
+      if(document.getElementById('page-accounts')?.classList.contains('on') && typeof renderAccList==='function'){
+        renderAccList();
+        try{console.warn('[packet 466 loadAllFromDB] renderAccList called (accounts page active)');}catch(e){}
+      }
+      if(document.getElementById('page-cal')?.classList.contains('on') && typeof render==='function'){
+        render();
+        try{console.warn('[packet 466 loadAllFromDB] render() called (cal page active)');}catch(e){}
+      }
+    }catch(e){try{console.warn('[packet 466 loadAllFromDB] post-load render error:',e&&e.message);}catch(e2){}}
+
     hideLoadingOverlay();
-    showToast('✅ データを読み込みました');
+    showToast('✅ データを読み込みました（accounts:'+accounts.length+'件）');
   } catch(e) {
     hideLoadingOverlay();
     console.error('DB load error:', e);
+    try{console.warn('[packet 466 loadAllFromDB] FAILED:',e&&e.message,e&&e.stack);}catch(e2){}
     showToast('⚠ オフラインで動作中（データは保存されません）');
   }
 }
@@ -2562,6 +2615,110 @@ document.getElementById('issue-btn').onclick=()=>{
   else init();
 })();
 // ==== ここまで packet 462 一括発行 ====
+
+// ==== packet 466: Supabase 接続診断 + 全アカウント再保存 ====
+// リロード後にアカウントが消える問題の切り分け用。
+// 「🔍 件数チェック」：メモリ accounts と Supabase accounts の件数を比較、差分表示
+// 「🔄 全アカウント再保存」：現在のメモリ accounts を Supabase に強制 upsert（手動 force save）
+// パスワード値は console / localStorage に出さない（uid と件数のみ）
+(function patchSupabaseDiagP466(){
+  function bindCheck(){
+    const btn=document.getElementById('sb-diag-check-btn');
+    if(!btn || btn.dataset.p466Bound==='1')return false;
+    btn.dataset.p466Bound='1';
+    btn.addEventListener('click',async function(){
+      try{console.warn('[packet 466 sb-diag-check] click fired');}catch(e){}
+      const result=document.getElementById('sb-diag-result');
+      if(result){result.style.display='block';result.style.background='var(--s2)';result.style.color='var(--t1)';result.innerHTML='⏳ 確認中...';}
+      let memCount=0,dbCount=0,dbUids=[],memUids=[];
+      try{
+        if(typeof accounts!=='undefined' && Array.isArray(accounts)){
+          memCount=accounts.length;
+          memUids=accounts.map(a=>a&&a.uid).filter(Boolean);
+        }
+      }catch(e){}
+      try{
+        const dbList=await sbGet('accounts','order=uid');
+        if(Array.isArray(dbList)){
+          dbCount=dbList.length;
+          dbUids=dbList.map(a=>a&&a.uid).filter(Boolean);
+        }
+        try{console.warn('[packet 466 sb-diag-check] mem:',memCount,'db:',dbCount,'memUids:',memUids,'dbUids:',dbUids);}catch(e){}
+      }catch(e){
+        try{console.warn('[packet 466 sb-diag-check] sbGet failed:',e&&e.message);}catch(e2){}
+        if(result){result.style.background='var(--re-lt,#fee)';result.style.color='var(--re)';result.innerHTML='❌ Supabase 接続失敗：'+(e&&e.message||'unknown').substring(0,200);}
+        try{if(typeof showToast==='function')showToast('❌ Supabase 接続失敗（RLS で SELECT 不可の可能性）',5000);}catch(e2){}
+        return;
+      }
+      // 差分計算
+      const missingInDb=memUids.filter(u=>!dbUids.includes(u));
+      const missingInMem=dbUids.filter(u=>!memUids.includes(u));
+      let html='<div style="font-weight:800;margin-bottom:4px">📊 件数比較</div>';
+      html+='<div>メモリ accounts：<strong>'+memCount+'</strong>件　uids: '+(memUids.join(', ')||'(なし)')+'</div>';
+      html+='<div>Supabase DB：<strong>'+dbCount+'</strong>件　uids: '+(dbUids.join(', ')||'(なし)')+'</div>';
+      if(missingInDb.length>0){
+        html+='<div style="margin-top:6px;color:var(--re);font-weight:700">⚠ DB に未保存：'+missingInDb.join(', ')+'</div>';
+        html+='<div style="font-size:9px;color:var(--t3)">→「🔄 全アカウント再保存」で再 upsert を試行可能</div>';
+      }
+      if(missingInMem.length>0){
+        html+='<div style="margin-top:6px;color:var(--am);font-weight:700">ℹ メモリにない（DB のみ）：'+missingInMem.join(', ')+'</div>';
+        html+='<div style="font-size:9px;color:var(--t3)">→ リロード or 再ログインで反映される想定</div>';
+      }
+      if(missingInDb.length===0 && missingInMem.length===0){
+        html+='<div style="margin-top:6px;color:var(--gr);font-weight:700">✅ メモリと DB が完全一致</div>';
+      }
+      if(result){result.style.background=missingInDb.length>0?'rgba(254,202,202,.4)':'rgba(209,250,229,.4)';result.style.color='var(--t1)';result.innerHTML=html;}
+    });
+    try{console.warn('[packet 466 sb-diag-check] bound');}catch(e){}
+    return true;
+  }
+  function bindResave(){
+    const btn=document.getElementById('sb-diag-resave-btn');
+    if(!btn || btn.dataset.p466Bound==='1')return false;
+    btn.dataset.p466Bound='1';
+    btn.addEventListener('click',async function(){
+      try{console.warn('[packet 466 sb-diag-resave] click fired');}catch(e){}
+      if(typeof accounts==='undefined' || !Array.isArray(accounts) || accounts.length===0){
+        try{if(typeof showToast==='function')showToast('⚠ メモリに accounts なし、再保存する内容がありません',3500);}catch(e){}
+        return;
+      }
+      if(!confirm('現在メモリ内の '+accounts.length+' 件のアカウントを Supabase に強制再保存します。続行しますか？'))return;
+      const result=document.getElementById('sb-diag-result');
+      if(result){result.style.display='block';result.style.background='var(--s2)';result.style.color='var(--t1)';result.innerHTML='⏳ 再保存中...';}
+      try{
+        if(typeof saveAccounts==='function'){
+          try{console.warn('[packet 466 sb-diag-resave] calling saveAccounts, accounts.length:',accounts.length);}catch(e){}
+          await saveAccounts();
+          try{console.warn('[packet 466 sb-diag-resave] saveAccounts OK');}catch(e){}
+          if(result){result.style.background='rgba(209,250,229,.4)';result.innerHTML='✅ 再保存完了（'+accounts.length+'件）<br><span style="font-size:9px;color:var(--t3)">「🔍 件数チェック」で DB 反映を確認できます</span>';}
+          try{if(typeof showToast==='function')showToast('✅ '+accounts.length+'件 再保存完了');}catch(e){}
+        }else{
+          if(result){result.innerHTML='❌ saveAccounts function not found';}
+        }
+      }catch(e){
+        try{console.warn('[packet 466 sb-diag-resave] saveAccounts error:',e&&e.message);}catch(e2){}
+        if(result){result.style.background='rgba(254,202,202,.4)';result.innerHTML='❌ 再保存失敗：'+(e&&e.message||'unknown').substring(0,200);}
+        try{if(typeof showToast==='function')showToast('❌ 再保存失敗（Console 確認）',5000);}catch(e2){}
+      }
+    });
+    try{console.warn('[packet 466 sb-diag-resave] bound');}catch(e){}
+    return true;
+  }
+  function init(){
+    bindCheck();bindResave();
+    try{
+      const obs=new MutationObserver(function(){
+        try{const c=bindCheck();const r=bindResave();if(c && r)obs.disconnect();}catch(e){}
+      });
+      obs.observe(document.body,{childList:true,subtree:true});
+    }catch(e){}
+    setTimeout(function(){bindCheck();bindResave();},1000);
+    setTimeout(function(){bindCheck();bindResave();},3000);
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);
+  else init();
+})();
+// ==== ここまで packet 466 接続診断 ====
 function renderKintaiPage(){
   const now=new Date();
   document.getElementById('kt-sub').textContent=`${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日（${WD_ALL[now.getDay()]}）`;
