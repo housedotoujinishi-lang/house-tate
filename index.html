@@ -1899,9 +1899,9 @@ async function loadAllFromDB() {
           personal: (a.personal===true || a.personal===false)?a.personal:false
         });
       });
-      // members を再構築
+      // members を再構築（packet 472: 削除済みは members に入れない、カレンダー / タスク等にも出さない）
       members.length = 0;
-      accounts.forEach(a => members.push({ n: a.name, c: a.c, role: a.role, uid: a.uid }));
+      accounts.forEach(a => { if(!_isDisabledAccount(a)) members.push({ n: a.name, c: a.c, role: a.role, uid: a.uid }); });
       // state.events/todos/memo サイズ合わせ
       while(state.events.length < members.length) state.events.push([]);
       while(state.todos.length < members.length) state.todos.push([]);
@@ -2256,6 +2256,15 @@ async function doLogin(){
       if(found){acc=found; matchedId=cand; break;}
     }
 
+    // packet 472: 削除済み（perm='disabled' or role='削除済み'）はログイン拒否
+    if(acc && _isDisabledAccount(acc)){
+      try{console.warn('[packet 472 login] matched but disabled account, reject:', matchedId);}catch(e){}
+      try{if(typeof showToast==='function')showToast('このアカウントは無効化されています',4000);}catch(e){}
+      err.style.display='block';
+      err.textContent='このアカウントは無効化されています';
+      return;
+    }
+
     if(acc){
       err.style.display='none';
       currentUser={uid:acc.uid,name:acc.name||'担当者',role:acc.role||'エージェント',perm:acc.perm||'staff',c:acc.c||'#0a3d7c',inc:acc.inc||0,cut:acc.cut||0,personal:acc.personal!==false};
@@ -2425,7 +2434,55 @@ function renderAccList(){
   // インセン調整ボタンはadminのみ
   const adjBtn=document.getElementById('adj-inc-btn');
   if(adjBtn)adjBtn.style.display=(currentUser?.perm==='admin'||currentUser?.perm==='owner')?'inline-block':'none';
-  document.getElementById('acc-cnt').textContent=`${accounts.length}件`;const list=document.getElementById('acc-list');list.innerHTML='';accounts.forEach(acc=>{const isAdm=acc.perm==='admin';const el=document.createElement('div');el.className='ai';el.innerHTML=`<div class="aav" style="background:${acc.c}">${acc.name[0]}</div><div class="ainf"><div class="anm">${acc.name}</div><div class="aid">ID: <strong>${acc.uid}</strong> ／ ${acc.role}${acc.inc?` ／ インセン${acc.inc}%`:''}${acc.cut?` ／ カット${fmtMoney(acc.cut)}`:''}${acc.personal?' ／ 個人売上制度':''}</div></div><span class="${isAdm?'pa':'ps'}">${isAdm?'管理者':'スタッフ'}</span><button class="pwb" data-uid="${acc.uid}">PW</button>${acc.uid!=='tochioka'?`<button class="db" data-uid="${acc.uid}">×</button>`:''}`;list.appendChild(el);});list.querySelectorAll('.pwb').forEach(el=>{el.onclick=()=>{const a=accounts.find(x=>x.uid===el.dataset.uid);if(a)showPwModal(a);};});list.querySelectorAll('.db').forEach(el=>{el.onclick=()=>{const a=accounts.find(x=>x.uid===el.dataset.uid);if(!a||!confirm(`「${a.name}」を削除しますか？`))return;accounts=accounts.filter(x=>x.uid!==el.dataset.uid);renderAccList();};});}
+  // packet 472: 論理削除フィルタ。disabled / 削除済み は通常一覧から除外
+  const _activeAccs=accounts.filter(a=>a && !_isDisabledAccount(a));
+  document.getElementById('acc-cnt').textContent=`${_activeAccs.length}件（DB全${accounts.length}件中）`;
+  const list=document.getElementById('acc-list');list.innerHTML='';
+  _activeAccs.forEach(acc=>{const isAdm=acc.perm==='admin';const el=document.createElement('div');el.className='ai';el.innerHTML=`<div class="aav" style="background:${acc.c}">${acc.name[0]}</div><div class="ainf"><div class="anm">${acc.name}</div><div class="aid">ID: <strong>${acc.uid}</strong> ／ ${acc.role}${acc.inc?` ／ インセン${acc.inc}%`:''}${acc.cut?` ／ カット${fmtMoney(acc.cut)}`:''}${acc.personal?' ／ 個人売上制度':''}</div></div><span class="${isAdm?'pa':'ps'}">${isAdm?'管理者':'スタッフ'}</span><button class="pwb" data-uid="${acc.uid}">PW</button><button class="db" data-uid="${acc.uid}">×</button>`;list.appendChild(el);});
+  list.querySelectorAll('.pwb').forEach(el=>{el.onclick=()=>{const a=accounts.find(x=>x.uid===el.dataset.uid);if(a)showPwModal(a);};});
+  // packet 472: 論理削除（disabled マーク + saveAccounts 経由 DB 反映）、自分自身禁止 + 最後の管理者禁止
+  list.querySelectorAll('.db').forEach(el=>{el.onclick=()=>{
+    const uid=el.dataset.uid;
+    const a=accounts.find(x=>x.uid===uid);
+    if(!a)return;
+    // ガード 1：自分自身を削除不可
+    if(typeof currentUser!=='undefined' && currentUser && currentUser.uid===uid){
+      alert('自分自身のアカウントは削除できません。');
+      return;
+    }
+    // ガード 2：最後の有効管理者を削除不可
+    const activeAdmins=accounts.filter(x=>x && !_isDisabledAccount(x) && (x.perm==='admin'||x.perm==='owner'));
+    if(activeAdmins.length<=1 && (a.perm==='admin'||a.perm==='owner')){
+      alert('最後の有効な管理者アカウントは削除できません。\n別の管理者を作成してから削除してください。');
+      return;
+    }
+    if(!confirm(`「${a.name}」を削除済みにします。\nログインできなくなり、通常一覧には表示されません。\nよろしいですか？`))return;
+    // 論理削除：role / perm / pass を無効化（物理 DELETE しない、UPDATE policy のみで動作）
+    a.role='削除済み';
+    a.perm='disabled';
+    a.pass='disabled_'+a.uid+'_'+Date.now();  // 無効化された推測困難なダミー値
+    try{console.warn('[packet 472 delete] logical delete uid:',a.uid,' name:',a.name,' perm->disabled, role->削除済み');}catch(e){}
+    renderAccList();
+    // Supabase へ反映（packet 468 sanitize により uid/pass/name/role/perm のみ送信、UPDATE policy で merge-duplicates）
+    try{
+      if(typeof saveAccounts==='function'){
+        saveAccounts().then(function(){
+          try{if(typeof showToast==='function')showToast('✅ アカウントを削除済みにしました');}catch(e){}
+        }).catch(function(e){
+          try{console.warn('[packet 472 delete] saveAccounts error:',e&&e.message);}catch(e2){}
+          try{if(typeof showToast==='function')showToast('⚠ DB 反映失敗、メモリは更新済（リロード復活リスク）',4000);}catch(e2){}
+        });
+      }
+    }catch(e){try{console.warn('[packet 472 delete] saveAccounts exception:',e&&e.message);}catch(e2){}}
+  };});
+}
+// packet 472: 削除済み判定（role / perm のどちらかで判定）
+function _isDisabledAccount(a){
+  if(!a)return false;
+  if(a.perm==='disabled')return true;
+  if(a.role==='削除済み')return true;
+  return false;
+}
 function showPwModal(acc){
   const bg=mkModal('pwm',acc.c,`${acc.name} のアカウント情報`);
   mttlAfter(bg,`
