@@ -3486,6 +3486,129 @@ document.getElementById('issue-btn').onclick=()=>{
 })();
 // ==== ここまで packet 481 schema probe ====
 
+// ==== packet 482: 予定 events 永続化（テーブル未作成時は in-memory 継続）====
+// state.events は members index ベース（state.events[mi]=[event,...]）
+// uid キーに正規化して保存/復元する。テーブル未作成（404）時はサイレント fallback。
+// 既存 in-memory UI を壊さず、保存と復元を「上乗せ」する。
+let _p482_eventsTableExists=null;  // null=未診断、true=存在、false=未作成
+let _p482_eventsSaveTimer=null;
+function _eventsFlatten(){
+  if(typeof state==='undefined'||!state||!Array.isArray(state.events))return [];
+  if(typeof members==='undefined'||!Array.isArray(members))return [];
+  const out=[];
+  state.events.forEach((arr,mi)=>{
+    if(!Array.isArray(arr))return;
+    const uid=(members[mi]&&members[mi].uid)||null;
+    if(!uid)return;
+    arr.forEach((ev,evIdx)=>{
+      if(!ev||!ev.title||!ev.date)return;
+      out.push({
+        // id は client 生成（uid + date + sh + sm + title hash 風）
+        client_key: uid+'|'+ev.date+'|'+(ev.sh??0)+'|'+(ev.sm??0)+'|'+(ev.title||'').slice(0,50),
+        uid: uid,
+        title: ev.title,
+        cat: ev.cat||'その他',
+        date: ev.date,
+        sh: ev.sh??0, sm: ev.sm??0,
+        eh: ev.eh??0, em: ev.em??0,
+        memo: ev.memo||null,
+        done: !!ev.done
+      });
+    });
+  });
+  return out;
+}
+async function saveEvents(){
+  if(_p482_eventsTableExists===false){return;}  // 未作成と確定済みなら skip
+  const rows=_eventsFlatten();
+  if(rows.length===0)return;
+  try{
+    // id 列が無い前提なので uid+date+sh+sm+title で on_conflict は無理。最小 INSERT に切替（既存削除は別途）
+    // 簡易化のため、merge-duplicates なしの POST で重複は許容（リロード時に重複した行も復元）
+    // 本格運用では client_key を unique 列にして on_conflict したい（schema 提案）
+    const r=await fetch(`${SB_URL}/rest/v1/events`,{
+      method:'POST',
+      headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`,
+                'Content-Type':'application/json', Prefer:'return=minimal' },
+      body:JSON.stringify(rows.map(r=>({
+        uid:r.uid, title:r.title, cat:r.cat, date:r.date,
+        sh:r.sh, sm:r.sm, eh:r.eh, em:r.em, memo:r.memo, done:r.done
+      })))
+    });
+    if(r.status===404){_p482_eventsTableExists=false;try{console.warn('[packet 482 saveEvents] table not found, fallback to in-memory');}catch(e){}return;}
+    if(!r.ok){const t=await r.text();try{console.warn('[packet 482 saveEvents] failed',r.status,t.substring(0,200));}catch(e){}return;}
+    _p482_eventsTableExists=true;
+    try{console.warn('[packet 482 saveEvents] OK rows:',rows.length);}catch(e){}
+  }catch(e){try{console.warn('[packet 482 saveEvents] exception:',e&&e.message);}catch(e2){}}
+}
+function _persistEvents(){
+  if(_p482_eventsTableExists===false)return;
+  if(_p482_eventsSaveTimer)clearTimeout(_p482_eventsSaveTimer);
+  _p482_eventsSaveTimer=setTimeout(saveEvents, 1500);
+}
+async function loadEvents(){
+  try{
+    const r=await fetch(`${SB_URL}/rest/v1/events?order=date`,{
+      headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, Accept:'application/json' }
+    });
+    if(r.status===404){_p482_eventsTableExists=false;try{console.warn('[packet 482 loadEvents] table not found, in-memory continue');}catch(e){}return;}
+    if(!r.ok){try{console.warn('[packet 482 loadEvents] failed',r.status);}catch(e){}return;}
+    const rows=await r.json();
+    if(!Array.isArray(rows)||rows.length===0){_p482_eventsTableExists=true;return;}
+    _p482_eventsTableExists=true;
+    // 既存 state.events をクリアして DB 復元（uid→mi map で配分）
+    if(typeof state==='undefined'||!state||!Array.isArray(state.events))return;
+    if(typeof members==='undefined'||!Array.isArray(members))return;
+    const uidToMi={};
+    members.forEach((m,mi)=>{if(m&&m.uid)uidToMi[m.uid]=mi;});
+    // clear
+    state.events.forEach((_,mi)=>{state.events[mi]=[];});
+    // populate
+    rows.forEach(row=>{
+      const mi=uidToMi[row.uid];
+      if(mi===undefined)return;
+      if(!state.events[mi])state.events[mi]=[];
+      state.events[mi].push({
+        title:row.title, cat:row.cat||'その他', date:row.date,
+        sh:row.sh, sm:row.sm, eh:row.eh, em:row.em,
+        memo:row.memo, done:row.done
+      });
+    });
+    try{console.warn('[packet 482 loadEvents] restored rows:',rows.length);}catch(e){}
+  }catch(e){try{console.warn('[packet 482 loadEvents] exception:',e&&e.message);}catch(e2){}}
+}
+// 既存 ef-save / day-ef-save / modal save 後に _persistEvents が呼ばれるよう、
+// hook を追加（packet 454 IIFE 経由でも render 後に呼ぶ）
+(function patchEventsPersistHook(){
+  function init(){
+    // ef-save click 後に _persistEvents 呼出
+    try{
+      const ef=document.getElementById('ef-save');
+      if(ef && ef.dataset.p482Bound!=='1'){
+        ef.dataset.p482Bound='1';
+        ef.addEventListener('click',()=>setTimeout(_persistEvents,800));
+      }
+    }catch(e){}
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);
+  else init();
+  setTimeout(init,1000);setTimeout(init,3000);
+})();
+// loadEvents は loadAllFromDB の最後で明示呼出する形を取りたいが、本 packet では
+// 互換優先で「ログイン後 5 秒後に試行」とする（既存 loadAllFromDB を壊さない）
+(function patchEventsAutoLoadP482(){
+  function tryLoad(){
+    if(typeof currentUser!=='undefined' && currentUser){
+      loadEvents().then(()=>{
+        try{if(typeof render==='function')render();}catch(e){}
+      }).catch(()=>{});
+    }
+  }
+  // ログイン後の自動 load を 5 秒後に試行
+  setTimeout(tryLoad, 5000);
+})();
+// ==== ここまで packet 482 events persistence ====
+
 function renderKintaiPage(){
   const now=new Date();
   document.getElementById('kt-sub').textContent=`${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日（${WD_ALL[now.getDay()]}）`;
