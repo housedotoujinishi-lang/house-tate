@@ -991,6 +991,11 @@ body.task-dragging [data-id]:not(.dragging-this){opacity:1!important}
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
         <div class="card">
           <div class="ct">登録アカウント <span class="cb" id="acc-cnt"></span></div>
+          <!-- packet 474: 削除済み表示トグル + 復元ボタン用 -->
+          <label id="show-disabled-wrap" style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--t3);margin-bottom:6px;cursor:pointer;user-select:none">
+            <input type="checkbox" id="show-disabled-accounts" style="width:13px;height:13px;cursor:pointer">
+            <span>🗂 削除済みアカウントも表示する</span>
+          </label>
           <div id="acc-list"></div>
         </div>
         <div class="card" id="issue-section">
@@ -2435,10 +2440,67 @@ function renderAccList(){
   const adjBtn=document.getElementById('adj-inc-btn');
   if(adjBtn)adjBtn.style.display=(currentUser?.perm==='admin'||currentUser?.perm==='owner')?'inline-block':'none';
   // packet 472: 論理削除フィルタ。disabled / 削除済み は通常一覧から除外
+  // packet 474: トグル ON のとき削除済みも表示、復元ボタン提供
   const _activeAccs=accounts.filter(a=>a && !_isDisabledAccount(a));
-  document.getElementById('acc-cnt').textContent=`${_activeAccs.length}件（DB全${accounts.length}件中）`;
+  const _disabledAccs=accounts.filter(a=>a && _isDisabledAccount(a));
+  const _toggle=document.getElementById('show-disabled-accounts');
+  const _showDisabled=!!(_toggle && _toggle.checked);
+  document.getElementById('acc-cnt').textContent=`${_activeAccs.length}件（DB全${accounts.length}件中、削除済${_disabledAccs.length}件）`;
+  // packet 474: トグル change を一度だけ bind
+  if(_toggle && _toggle.dataset.p474Bound!=='1'){_toggle.dataset.p474Bound='1';_toggle.addEventListener('change',()=>{try{renderAccList();}catch(e){}});}
   const list=document.getElementById('acc-list');list.innerHTML='';
   _activeAccs.forEach(acc=>{const isAdm=acc.perm==='admin';const el=document.createElement('div');el.className='ai';el.innerHTML=`<div class="aav" style="background:${acc.c}">${acc.name[0]}</div><div class="ainf"><div class="anm">${acc.name}</div><div class="aid">ID: <strong>${acc.uid}</strong> ／ ${acc.role}${acc.inc?` ／ インセン${acc.inc}%`:''}${acc.cut?` ／ カット${fmtMoney(acc.cut)}`:''}${acc.personal?' ／ 個人売上制度':''}</div></div><span class="${isAdm?'pa':'ps'}">${isAdm?'管理者':'スタッフ'}</span><button class="pwb" data-uid="${acc.uid}">PW</button><button class="db" data-uid="${acc.uid}">×</button>`;list.appendChild(el);});
+  // packet 474: トグル ON のとき削除済みも表示
+  if(_showDisabled && _disabledAccs.length>0){
+    const hdr=document.createElement('div');
+    hdr.style.cssText='margin-top:14px;padding-top:8px;border-top:1.5px dashed var(--bo);font-size:10px;font-weight:800;color:var(--t3)';
+    hdr.textContent='🗂 削除済みアカウント（'+_disabledAccs.length+' 件）';
+    list.appendChild(hdr);
+    _disabledAccs.forEach(acc=>{
+      const el=document.createElement('div');
+      el.className='ai';
+      el.style.opacity='.65';
+      el.style.background='rgba(254,202,202,.18)';
+      const origName=(acc.name||acc.uid||'?')[0];
+      el.innerHTML=`<div class="aav" style="background:#999">${origName}</div><div class="ainf"><div class="anm" style="text-decoration:line-through;color:var(--t3)">${acc.name||'(名前なし)'}</div><div class="aid">ID: <strong>${acc.uid}</strong> ／ <span style="color:var(--re);font-weight:800">削除済み</span></div></div><span class="ps" style="background:var(--re);color:#fff">削除済み</span><button class="rsb" data-uid="${acc.uid}" style="padding:4px 9px;border-radius:6px;border:1.5px solid var(--gr);background:var(--gr);color:#fff;font-size:10px;font-weight:700;cursor:pointer">↩ 復元</button>`;
+      list.appendChild(el);
+    });
+    // packet 474: 復元ボタン handler
+    list.querySelectorAll('.rsb').forEach(el=>{el.onclick=()=>{
+      const uid=el.dataset.uid;
+      const a=accounts.find(x=>x.uid===uid);
+      if(!a)return;
+      const profile=_DEFAULT_ACCOUNT_PROFILES[uid];
+      const restoreMsg=profile
+        ? `「${profile.name}」を復元します。\n  役割: ${profile.role}\n  権限: ${profile.perm==='admin'?'管理者':'スタッフ'}\n  パスワード: ${profile.pass}（初期値、後で変更推奨）\nよろしいですか？`
+        : `「${a.uid}」を復元します。\n  役割: エージェント\n  権限: スタッフ\n  パスワード: ${'restored_'+uid+'_'+Date.now()}（一時値、必ず変更してください）\nよろしいですか？`;
+      if(!confirm(restoreMsg))return;
+      if(profile){
+        a.name=profile.name||a.name||a.uid;
+        a.role=profile.role;
+        a.perm=profile.perm;
+        a.pass=profile.pass;
+        try{console.warn('[packet 474 restore] known uid:',uid,' -> role:',profile.role,' perm:',profile.perm,' passLen:',profile.pass.length);}catch(e){}
+      }else{
+        a.name=a.name && a.name!=='(名前なし)' ? a.name : a.uid;
+        a.role='エージェント';
+        a.perm='staff';
+        a.pass='restored_'+uid+'_'+Date.now();
+        try{console.warn('[packet 474 restore] unknown uid:',uid,' -> role: エージェント / perm: staff / temp pass');}catch(e){}
+      }
+      renderAccList();
+      try{
+        if(typeof saveAccounts==='function'){
+          saveAccounts().then(function(){
+            try{if(typeof showToast==='function')showToast('✅ アカウントを復元しました');}catch(e){}
+          }).catch(function(e){
+            try{console.warn('[packet 474 restore] saveAccounts error:',e&&e.message);}catch(e2){}
+            try{if(typeof showToast==='function')showToast('⚠ DB 反映失敗（リロード復活リスク）',4000);}catch(e2){}
+          });
+        }
+      }catch(e){try{console.warn('[packet 474 restore] saveAccounts exception:',e&&e.message);}catch(e2){}}
+    };});
+  }
   list.querySelectorAll('.pwb').forEach(el=>{el.onclick=()=>{const a=accounts.find(x=>x.uid===el.dataset.uid);if(a)showPwModal(a);};});
   // packet 472: 論理削除（disabled マーク + saveAccounts 経由 DB 反映）、自分自身禁止 + 最後の管理者禁止
   list.querySelectorAll('.db').forEach(el=>{el.onclick=()=>{
@@ -2483,6 +2545,16 @@ function _isDisabledAccount(a){
   if(a.role==='削除済み')return true;
   return false;
 }
+// packet 474: 既定アカウントプロフィール（uid → 復元時 / 一括発行時の標準値）
+// 知っている uid なら役割 / 権限 / 仮パスワードを自動復元、unknown は エージェント/staff/一時値で fallback
+const _DEFAULT_ACCOUNT_PROFILES={
+  yoshimura:{pass:'yoshimura2026',name:'芳村',role:'査定担当',perm:'admin'},
+  tochioka: {pass:'tochioka2026', name:'杤岡', role:'店長',     perm:'admin'},
+  yasumi:   {pass:'yasumi2026',   name:'安見', role:'エージェント',perm:'staff'},
+  sano:     {pass:'sano2026',     name:'佐野', role:'エージェント',perm:'staff'},
+  tominaga: {pass:'tominaga2026', name:'冨永', role:'エージェント',perm:'staff'},
+  ban:      {pass:'ban2026',      name:'伴',   role:'サポート',  perm:'admin'}
+};
 function showPwModal(acc){
   const bg=mkModal('pwm',acc.c,`${acc.name} のアカウント情報`);
   mttlAfter(bg,`
@@ -2627,12 +2699,45 @@ document.getElementById('issue-btn').onclick=()=>{
         try{console.warn('[packet 462 bulk-issue] accounts unavailable');}catch(e){}
         return;
       }
-      if(!confirm('6 名のアカウントを一括発行します。既存 ID はスキップされます。続行しますか？'))return;
-      const added=[];const skipped=[];
+      if(!confirm('6 名のアカウントを一括発行します。\n既存有効 ID はスキップ、削除済み ID は復元します。\n続行しますか？'))return;
+      const added=[];const restored=[];const skipped=[];
       _bulkAccounts.forEach(b=>{
         try{
           const exists=accounts.find(a=>a && a.uid===b.uid);
-          if(exists){skipped.push(b.uid);try{console.warn('[packet 462 bulk-issue] skip existing uid:',b.uid);}catch(e){}return;}
+          // packet 474: 既存だが削除済みなら復元、有効ならスキップ
+          if(exists){
+            if(typeof _isDisabledAccount==='function' && _isDisabledAccount(exists)){
+              // 復元（uid 一致行を in-place 更新、accounts.push しない）
+              exists.name=b.name;
+              exists.role=b.role;
+              exists.perm=b.perm;
+              exists.pass=b.pass;
+              if(!exists.c){
+                exists.c=(typeof MC!=='undefined'&&Array.isArray(MC))?MC[accounts.indexOf(exists)%MC.length]:'#0a3d7c';
+              }
+              restored.push({uid:b.uid,name:b.name,passLen:b.pass.length});
+              try{console.warn('[packet 474 bulk-issue] restored disabled uid:',b.uid,' name:',b.name);}catch(e){}
+              // members への補完追加（disabled の間 members から外されていた可能性）
+              try{
+                if(typeof members!=='undefined' && Array.isArray(members)){
+                  const memExists=members.find(m=>m && m.uid===b.uid);
+                  if(!memExists){
+                    members.push({n:b.name,c:exists.c||'#0a3d7c',role:b.role,uid:b.uid});
+                    if(typeof state!=='undefined' && state){
+                      if(Array.isArray(state.events))state.events.push([]);
+                      if(Array.isArray(state.todos))state.todos.push([]);
+                      if(Array.isArray(state.memo))state.memo.push('');
+                    }
+                  }
+                }
+              }catch(e){}
+              return;
+            }
+            // 有効な同じ uid → スキップ
+            skipped.push(b.uid);
+            try{console.warn('[packet 462 bulk-issue] skip existing active uid:',b.uid);}catch(e){}
+            return;
+          }
           const c=(typeof MC!=='undefined'&&Array.isArray(MC))?MC[accounts.length%MC.length]:'#0a3d7c';
           const newAcc={uid:b.uid,pass:b.pass,name:b.name,role:b.role,perm:b.perm,c:c,inc:0,cut:0,personal:false};
           accounts.push(newAcc);
@@ -2667,19 +2772,21 @@ document.getElementById('issue-btn').onclick=()=>{
       const result=document.getElementById('bulk-issue-result');
       if(result){
         let html='<div style="font-weight:800;margin-bottom:6px">✅ 発行完了</div>';
-        html+='<div style="margin-bottom:4px">新規発行：<strong>'+added.length+'</strong> 件　スキップ：<strong>'+skipped.length+'</strong> 件</div>';
-        if(added.length>0){
+        html+='<div style="margin-bottom:4px">新規発行：<strong>'+added.length+'</strong> 件　復元：<strong>'+restored.length+'</strong> 件　スキップ：<strong>'+skipped.length+'</strong> 件</div>';
+        if(added.length>0 || restored.length>0){
           html+='<div style="margin-top:6px;padding:6px 8px;background:rgba(255,255,255,.7);border-radius:6px;color:var(--navy);font-family:monospace;font-size:10px;line-height:1.8">';
-          // 表示用に発行時のパスワード一覧（DOM 一時表示のみ、localStorage 保存なし）
           _bulkAccounts.forEach(b=>{
-            if(added.find(a=>a.uid===b.uid)){
-              html+='<div>'+b.name+'（'+b.role+'）：<strong>'+b.uid+'</strong> / <strong>'+b.pass+'</strong></div>';
+            const wasAdded=added.find(a=>a.uid===b.uid);
+            const wasRestored=restored.find(a=>a.uid===b.uid);
+            if(wasAdded || wasRestored){
+              const tag=wasAdded?'🆕':'↩';
+              html+='<div>'+tag+' '+b.name+'（'+b.role+'）：<strong>'+b.uid+'</strong> / <strong>'+b.pass+'</strong></div>';
             }
           });
           html+='</div><div style="margin-top:6px;font-size:9px;color:var(--t3)">⚠ 各自ログイン後にパスワード変更を推奨</div>';
         }
         if(skipped.length>0){
-          html+='<div style="margin-top:6px;font-size:10px;color:var(--t3)">スキップ：'+skipped.join(' / ')+'</div>';
+          html+='<div style="margin-top:6px;font-size:10px;color:var(--t3)">スキップ（既に有効）：'+skipped.join(' / ')+'</div>';
         }
         result.style.cssText='display:block;background:var(--gr);color:#fff;border-radius:var(--r);padding:8px 10px;font-size:11px;font-weight:600;margin-top:6px;line-height:1.7';
         result.innerHTML=html;
@@ -2687,7 +2794,7 @@ document.getElementById('issue-btn').onclick=()=>{
       // UI 更新
       try{if(typeof initGoalData==='function')initGoalData();}catch(e){}
       try{if(typeof renderAccList==='function')renderAccList();}catch(e){}
-      try{if(typeof showToast==='function')showToast('✅ '+added.length+' 件発行 ／ '+skipped.length+' 件スキップ');}catch(e){}
+      try{if(typeof showToast==='function')showToast('✅ '+added.length+' 件発行 ／ '+restored.length+' 件復元 ／ '+skipped.length+' 件スキップ');}catch(e){}
       // Supabase 永続化
       try{
         if(typeof saveAccounts==='function'){
