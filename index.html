@@ -169,6 +169,29 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-siz
 .muc-btn-primary{background:#b91c1c;color:#fff}
 .muc-btn-tertiary{background:var(--s2);color:var(--t2);border:1.5px solid var(--bo)}
 .muc-back{margin-top:14px;display:flex;justify-content:center;gap:6px;flex-wrap:wrap}
+/* packet 433: 店長対応指示パネル */
+.muc-mgr-panel{width:100%;margin-top:8px;border:1px solid var(--bo);border-radius:8px;background:#fafafa;overflow:hidden}
+.muc-mgr-summary{padding:8px 12px;font-size:11px;font-weight:700;color:#b91c1c;cursor:pointer;list-style:none;background:#fef2f2;border-bottom:1px solid #fecaca;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.muc-mgr-summary::-webkit-details-marker{display:none}
+.muc-mgr-summary::before{content:'▶';font-size:9px;color:#b91c1c;transition:transform .15s;margin-right:2px}
+details[open] .muc-mgr-summary::before{transform:rotate(90deg)}
+.muc-status-badge{background:#fbbf24;color:#78350f;padding:2px 7px;border-radius:9px;font-size:9px;font-weight:700}
+.muc-comment-badge{background:#0a3d7c;color:#fff;padding:2px 7px;border-radius:9px;font-size:9px;font-weight:700}
+.muc-mgr-body{padding:10px 12px;display:flex;flex-direction:column;gap:8px;background:#fff}
+.muc-tpl-row{display:flex;flex-wrap:wrap;gap:4px}
+.muc-tpl{padding:4px 9px;border-radius:6px;border:1.5px solid #fed7aa;background:#fff7ed;color:#9a3412;font-size:10px;font-weight:700;cursor:pointer;min-height:28px}
+.muc-tpl:hover{background:#ffedd5}
+.muc-comment{width:100%;min-height:64px;padding:8px 10px;border:1.5px solid var(--bo);border-radius:6px;font-size:12px;font-family:inherit;resize:vertical;outline:none;color:var(--t1);background:#fff;box-sizing:border-box;line-height:1.6}
+.muc-comment:focus{border-color:#b91c1c}
+.muc-mgr-row{display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+.muc-mgr-lbl{font-size:10px;font-weight:700;color:var(--t2);margin-right:2px}
+.muc-reassign{padding:5px 9px;border:1.5px solid var(--bo);border-radius:6px;font-size:11px;outline:none;color:var(--t1);background:#fff;min-height:30px;font-family:inherit;flex:1;min-width:120px;max-width:200px}
+.muc-reassign:focus{border-color:#b91c1c}
+.muc-mgr-extend{background:#0a3d7c;color:#fff;border-color:#0a3d7c}
+.muc-status-btn{background:#fff;color:var(--t2);border:1.5px solid var(--bo)}
+.muc-status-btn.active{background:#fbbf24;color:#78350f;border-color:#d97706}
+.muc-mgr-copy{background:#15803d;color:#fff;border-color:#15803d;margin-left:auto}
+.muc-mgr-note{font-size:9px;color:var(--t3);background:#fef3c7;padding:5px 8px;border-radius:5px;border-left:3px solid #d97706;line-height:1.5}
 @media(max-width:768px){
   .muc-wrap{padding:10px 10px 80px}
   .muc-h2{font-size:16px}
@@ -176,6 +199,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-siz
   .muc-item-l{min-width:140px}
   /* packet 431: スマホで未割当注意セルが幅指定で崩れないように */
   .muc-summary > [style*="grid-column:span"]{grid-column:span 2!important}
+  /* packet 433: スマホ調整 */
+  .muc-mgr-row{gap:5px}
+  .muc-tpl{font-size:10px;padding:5px 8px;min-height:30px}
+  .muc-reassign{min-width:100px;max-width:none;flex:1 1 100%}
+  .muc-mgr-copy{margin-left:0;width:100%}
 }
 /* packet 414: メモ帳 静的MVP */
 .mn-wrap{padding:14px 14px 80px;max-width:760px;margin:0 auto}
@@ -9635,12 +9663,168 @@ function openEventFormFromCalendar(dateStr,timeStr){
           h += '<button class="muc-mini muc-mini-nav" data-act="routine-open">→ ルーティン画面</button>';
         }
         h += '</div>';
+
+        // packet 433: 店長対応指示パネル（タスクのみ表示、in-memory ストア）
+        if(it.source==='task'){
+          const actData = (window._mucActions && window._mucActions[String(it.refId)]) || {};
+          const statusLbl = actData.status==='checking' ? '🔍 店長確認中' :
+                            actData.status==='instructed' ? '📨 指示済み' :
+                            actData.status==='waiting' ? '⏳ 対応待ち' : '';
+          h += '<details class="muc-mgr-panel" data-ref="'+esc(String(it.refId))+'"'+(actData._open?' open':'')+'>';
+          h += '<summary class="muc-mgr-summary">👑 店長指示パネル'+(statusLbl?' <span class="muc-status-badge">'+esc(statusLbl)+'</span>':'')+(actData.comment?' <span class="muc-comment-badge">💬 コメントあり</span>':'')+'</summary>';
+          h += '<div class="muc-mgr-body">';
+          // テンプレ
+          h += '<div class="muc-tpl-row">';
+          ['今日中に対応してください','まず電話だけ入れてください','メモを残してください','店長確認後に完了でOK','明日に延期して対応','担当変更を検討'].forEach(function(t){
+            h += '<button class="muc-tpl" data-act="tpl" data-ref="'+esc(String(it.refId))+'" data-tpl="'+esc(t)+'">'+esc(t)+'</button>';
+          });
+          h += '</div>';
+          // コメント欄
+          h += '<textarea class="muc-comment" data-ref="'+esc(String(it.refId))+'" placeholder="店長コメント（例：安見さん、まず電話を入れてください）">'+esc(actData.comment||'')+'</textarea>';
+          // 再アサイン + 期限延長 行
+          h += '<div class="muc-mgr-row">';
+          h += '<label class="muc-mgr-lbl">再アサイン</label>';
+          h += '<select class="muc-reassign" data-act="reassign" data-ref="'+esc(String(it.refId))+'">';
+          h += '<option value="">- 変更しない -</option>';
+          h += '<option value="__UNASSIGN__"'+(it.assignee==='未割当'?' selected':'')+'>未割当</option>';
+          try{
+            const memberList = getAssigneeList().filter(function(n){return n!=='未割当';});
+            memberList.forEach(function(n){
+              h += '<option value="'+esc(n)+'"'+(n===it.assignee?' selected':'')+'>'+esc(n)+'</option>';
+            });
+          }catch(e){}
+          h += '</select>';
+          h += '<label class="muc-mgr-lbl">期限延長</label>';
+          h += '<button class="muc-mini muc-mgr-extend" data-act="extend" data-ref="'+esc(String(it.refId))+'" data-days="1">明日へ</button>';
+          h += '<button class="muc-mini muc-mgr-extend" data-act="extend" data-ref="'+esc(String(it.refId))+'" data-days="3">3日後</button>';
+          h += '<button class="muc-mini muc-mgr-extend" data-act="extend" data-ref="'+esc(String(it.refId))+'" data-days="7">来週</button>';
+          h += '</div>';
+          // ステータス + コピー
+          h += '<div class="muc-mgr-row">';
+          h += '<label class="muc-mgr-lbl">ステータス</label>';
+          h += '<button class="muc-mini muc-status-btn'+(actData.status==='checking'?' active':'')+'" data-act="status" data-ref="'+esc(String(it.refId))+'" data-status="checking">🔍 確認中</button>';
+          h += '<button class="muc-mini muc-status-btn'+(actData.status==='instructed'?' active':'')+'" data-act="status" data-ref="'+esc(String(it.refId))+'" data-status="instructed">📨 指示済</button>';
+          h += '<button class="muc-mini muc-status-btn'+(actData.status==='waiting'?' active':'')+'" data-act="status" data-ref="'+esc(String(it.refId))+'" data-status="waiting">⏳ 対応待</button>';
+          h += '<button class="muc-mini muc-status-btn" data-act="status" data-ref="'+esc(String(it.refId))+'" data-status="">クリア</button>';
+          h += '<button class="muc-mini muc-mgr-copy" data-act="copy-inst" data-ref="'+esc(String(it.refId))+'">📋 指示をコピー</button>';
+          h += '</div>';
+          h += '<div class="muc-mgr-note">※ 店長コメント・ステータスは画面内のみ保持。リロードで消えます。外部送信なし。</div>';
+          h += '</div>';
+          h += '</details>';
+        }
+
         h += '</div>';
       });
       listEl.innerHTML = h;
+      // packet 433: コメント textarea の入力を in-memory ストアに反映
+      try{
+        listEl.querySelectorAll('.muc-comment').forEach(function(ta){
+          ta.addEventListener('input', function(){
+            const ref = ta.getAttribute('data-ref');
+            if(!ref)return;
+            if(!window._mucActions)window._mucActions={};
+            if(!window._mucActions[ref])window._mucActions[ref]={};
+            window._mucActions[ref].comment = ta.value || '';
+          });
+          // details が開いた状態を維持するために focus 時にも記録
+          ta.addEventListener('focus', function(){
+            const ref = ta.getAttribute('data-ref');
+            if(!ref)return;
+            if(!window._mucActions)window._mucActions={};
+            if(!window._mucActions[ref])window._mucActions[ref]={};
+            window._mucActions[ref]._open = true;
+          });
+        });
+      }catch(e){}
     }
 
-    function onListAction(action, refId){
+    // packet 433: in-memory ストア（コメント / ステータス / 開閉状態のみ。リロードで消える、localStorage 保存なし）
+    if(!window._mucActions)window._mucActions={};
+
+    function _mucAct(refId){
+      if(!window._mucActions)window._mucActions={};
+      if(!window._mucActions[refId])window._mucActions[refId]={};
+      return window._mucActions[refId];
+    }
+
+    function _findTask(refId){
+      try{
+        if(!window.state || !Array.isArray(state.tasks))return null;
+        return state.tasks.find(function(x){return String(x && x.id)===String(refId);}) || null;
+      }catch(e){return null;}
+    }
+
+    function _pad2(n){return (n<10?'0':'')+n;}
+    function _addDaysStr(baseStr, days){
+      try{
+        const d = baseStr ? new Date(baseStr+'T00:00:00') : new Date();
+        if(isNaN(d.getTime()))return '';
+        d.setDate(d.getDate()+days);
+        return d.getFullYear()+'-'+_pad2(d.getMonth()+1)+'-'+_pad2(d.getDate());
+      }catch(e){return '';}
+    }
+
+    // packet 433: コピー用指示文の組み立て
+    function _buildInstructionText(t, refId){
+      const act = _mucAct(refId);
+      const assignee = _taskAssignee(t) || '未割当';
+      const title = _taskTitle(t) || '(タイトルなし)';
+      const dl = _taskDeadline(t);
+      const lines = [];
+      lines.push('【未完了対応指示】');
+      lines.push('担当：'+assignee);
+      lines.push('内容：'+title);
+      lines.push('期限：'+(dl || '未設定'));
+      if(act.status){
+        const lbl = act.status==='checking'?'店長確認中':act.status==='instructed'?'指示済み':act.status==='waiting'?'対応待ち':act.status;
+        lines.push('状態：'+lbl);
+      }
+      if(act.comment)lines.push('店長指示：'+act.comment);
+      return lines.join('\n');
+    }
+
+    function _copyToClipboard(text, okMsg){
+      const fb = function(){
+        try{
+          const ta = document.createElement('textarea');
+          ta.value = text;
+          ta.style.cssText='position:fixed;left:-9999px;top:-9999px';
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand('copy');
+          ta.remove();
+          showToast(okMsg||'コピーしました');
+        }catch(e){_openCopyFallbackModal(text);}
+      };
+      try{
+        if(navigator && navigator.clipboard && navigator.clipboard.writeText){
+          navigator.clipboard.writeText(text).then(function(){showToast(okMsg||'コピーしました');}).catch(fb);
+        }else{fb();}
+      }catch(e){fb();}
+    }
+
+    function _openCopyFallbackModal(text){
+      try{
+        const id='muc-copy-modal';
+        const ex=document.getElementById(id); if(ex)ex.remove();
+        const overlay=document.createElement('div');
+        overlay.id=id;
+        overlay.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:18px';
+        overlay.innerHTML='<div style="background:#fff;border-radius:12px;max-width:520px;width:100%;max-height:90vh;overflow:auto;padding:16px;border-top:6px solid #b91c1c">'
+          +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div style="font-size:15px;font-weight:800;color:#b91c1c">📋 指示文を手動コピー</div><button id="muc-copy-close" type="button" style="background:0;border:0;font-size:22px;color:#666;cursor:pointer;padding:4px 10px;min-width:40px;min-height:40px">✕</button></div>'
+          +'<textarea id="muc-copy-text" readonly style="width:100%;min-height:200px;padding:10px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:12px;line-height:1.7;font-family:inherit;box-sizing:border-box;background:#f8fafc"></textarea>'
+          +'<div style="margin-top:10px;text-align:center"><button id="muc-copy-ok" type="button" style="padding:10px 18px;background:#b91c1c;color:#fff;border:0;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;min-height:40px">閉じる</button></div>'
+          +'</div>';
+        document.body.appendChild(overlay);
+        const ta=document.getElementById('muc-copy-text'); if(ta)ta.value=text;
+        const close=function(){try{overlay.remove();}catch(e){}};
+        document.getElementById('muc-copy-close').addEventListener('click',close);
+        document.getElementById('muc-copy-ok').addEventListener('click',close);
+        overlay.addEventListener('click',function(ev){if(ev.target===overlay)close();});
+      }catch(e){}
+    }
+
+    function onListAction(action, refId, el){
       try{
         switch(action){
           case 'task-done':
@@ -9669,6 +9853,89 @@ function openEventFormFromCalendar(dateStr,timeStr){
             break;
           case 'routine-open':
             if(typeof switchPage==='function')switchPage('routine');
+            break;
+          // packet 433: 店長対応指示パネル
+          case 'tpl':
+            // 指示テンプレ→コメント欄に追記
+            {
+              const tpl = el && el.getAttribute('data-tpl');
+              if(!tpl)break;
+              const act = _mucAct(refId);
+              act._open = true;
+              const cur = act.comment || '';
+              act.comment = cur ? (cur + (cur.endsWith('\n')?'':'\n') + tpl) : tpl;
+              renderList();
+              showToast('指示テンプレを追加');
+            }
+            break;
+          case 'reassign':
+            // 担当者再アサイン（state.tasks の assignee フィールドを更新、既存フィールド名は preserve）
+            {
+              if(!el)break;
+              const newVal = el.value;
+              if(!newVal)break;
+              const t = _findTask(refId);
+              if(!t){showToast('タスクが見つかりません');break;}
+              const target = (newVal==='__UNASSIGN__') ? '' : newVal;
+              // 既存に存在する assignee 系フィールドだけ更新（新規キー追加を避ける）
+              const keys = ['assignee','to','assigneeName','assignedTo','uid','assigneeUid','member','owner'];
+              let updated = false;
+              keys.forEach(function(k){
+                if(k in t){t[k] = target; updated = true;}
+              });
+              // 既存フィールドがない場合のみ 'assignee' を新規セット（最後の手段）
+              if(!updated){t.assignee = target;}
+              _mucAct(refId)._open = true;
+              showToast(target ? ('担当を「'+target+'」に変更') : '担当を未割当に変更');
+              try{if(typeof renderTaskBoard==='function')renderTaskBoard();}catch(e){}
+              populateAssigneeFilter();
+              renderList();
+            }
+            break;
+          case 'extend':
+            // 期限延長（既存 deadline 系フィールドのみ更新、新規キー追加なし）
+            {
+              if(!el)break;
+              const days = parseInt(el.getAttribute('data-days')||'0', 10);
+              if(!days || isNaN(days))break;
+              const t = _findTask(refId);
+              if(!t){showToast('タスクが見つかりません');break;}
+              const today = todayStr();
+              const cur = _taskDeadline(t) || today;
+              const newDl = _addDaysStr(cur < today ? today : cur, days);
+              if(!newDl){showToast('期限を変更できませんでした');break;}
+              const keys = ['deadline','dl','due','dueDate','deadlineDate','date'];
+              let updated = false;
+              keys.forEach(function(k){if(k in t){t[k] = newDl; updated = true;}});
+              if(!updated){t.deadline = newDl;}
+              _mucAct(refId)._open = true;
+              showToast('期限を '+newDl+' に延長');
+              try{if(typeof renderTaskBoard==='function')renderTaskBoard();}catch(e){}
+              renderList();
+            }
+            break;
+          case 'status':
+            // ステータス変更（in-memory のみ）
+            {
+              if(!el)break;
+              const s = el.getAttribute('data-status') || '';
+              const act = _mucAct(refId);
+              act.status = s;
+              act._open = true;
+              renderList();
+              if(s)showToast('ステータス：'+(s==='checking'?'店長確認中':s==='instructed'?'指示済み':s==='waiting'?'対応待ち':s));
+              else showToast('ステータスをクリア');
+            }
+            break;
+          case 'copy-inst':
+            // 指示文をクリップボードへコピー
+            {
+              const t = _findTask(refId);
+              if(!t){showToast('タスクが見つかりません');break;}
+              const txt = _buildInstructionText(t, refId);
+              _copyToClipboard(txt, '指示文をコピーしました');
+              _mucAct(refId)._open = true;
+            }
             break;
         }
       }catch(e){}
@@ -9717,11 +9984,21 @@ function openEventFormFromCalendar(dateStr,timeStr){
       const list = document.getElementById('muc-list');
       if(list){
         list.addEventListener('click',function(ev){
-          const btn = ev.target.closest('button[data-act]');
+          const btn = ev.target.closest('[data-act]');
           if(!btn)return;
+          // packet 433: button だけでなく select の change からも来るが、click では select の値変化は来ないので、change ハンドラを別途登録
+          if(btn.tagName==='SELECT')return;
           const act = btn.getAttribute('data-act');
           const ref = btn.getAttribute('data-ref') || (btn.closest('.muc-item')||{}).getAttribute && btn.closest('.muc-item').getAttribute('data-ref');
-          if(act)onListAction(act, ref);
+          if(act)onListAction(act, ref, btn);
+        });
+        // packet 433: select 変更（reassign）対応
+        list.addEventListener('change',function(ev){
+          const sel = ev.target.closest('select[data-act]');
+          if(!sel)return;
+          const act = sel.getAttribute('data-act');
+          const ref = sel.getAttribute('data-ref');
+          if(act && ref)onListAction(act, ref, sel);
         });
       }
 
