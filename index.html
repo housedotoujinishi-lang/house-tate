@@ -2376,7 +2376,68 @@ function showPwModal(acc){
     };
   }
 }
-document.getElementById('issue-btn').onclick=()=>{const name=document.getElementById('new-name').value.trim();const role=document.getElementById('new-role').value;const perm=document.getElementById('new-perm').value;const uid=document.getElementById('new-uid').value.trim().toLowerCase().replace(/[^a-z0-9]/g,'');const pass=document.getElementById('new-pass').value.trim();const inc=parseFloat(document.getElementById('new-inc').value)||0;const cut=(parseFloat(document.getElementById('new-cut').value)||0)*10000;const personal=document.getElementById('new-personal').value==='1';const result=document.getElementById('issue-result');if(!name||!uid||!pass){result.style.cssText='display:block;background:var(--re);color:#fff;border-radius:var(--r);padding:8px 10px;font-size:11px;font-weight:600;margin-top:6px';result.textContent='全項目を入力してください';return;}if(accounts.find(a=>a.uid===uid)){result.style.cssText='display:block;background:var(--re);color:#fff;border-radius:var(--r);padding:8px 10px;font-size:11px;font-weight:600;margin-top:6px';result.textContent='このIDはすでに使用されています';return;}const c=MC[accounts.length%MC.length];accounts.push({uid,pass,name,role,perm,c,inc,cut,personal});if(perm==='staff'){const newMem={n:name,c,role,uid};members.push(newMem);state.events.push(mkEvs(members.length-1));state.todos.push([]);state.memo.push('');const{y,m}=shiftMo;const dim=new Date(y,m+1,0).getDate();shiftData[uid]={};for(let d=1;d<=dim;d++){const dow=new Date(y,m,d).getDay();shiftData[uid][d]='work';}}['new-name','new-uid','new-pass','new-inc','new-cut'].forEach(id=>document.getElementById(id).value='');result.style.cssText='display:block;background:var(--gr);color:#fff;border-radius:var(--r);padding:8px 10px;font-size:11px;font-weight:600;margin-top:6px;line-height:1.7';result.innerHTML=`✅ 発行完了！ ID: <strong>${uid}</strong> ／ PW: <strong>${pass}</strong>`;initGoalData();renderAccList();/* packet 446/448: 発行後に Supabase accounts テーブルへ永続化（リロード後もログイン可能に、doLogin の accounts フォールバックで照合される）*/try{if(typeof saveAccounts==='function'){try{console.warn('[packet 448 issue] calling saveAccounts for uid:',uid,' memory accounts count:',accounts.length);}catch(e2){}saveAccounts().then(function(){try{console.warn('[packet 448 issue] saveAccounts OK for uid:',uid);}catch(e2){}}).catch(function(e){try{console.warn('[packet 448 issue] saveAccounts error for uid:',uid,'msg:',e&&e.message);}catch(e2){}});}}catch(e){try{console.warn('[packet 448 issue] saveAccounts exception:',e&&e.message);}catch(e2){}}};
+// packet 452: issue-btn ハンドラに段階別診断ログ追加。発火・検証・push・saveAccounts 各段階で uid と memory count を出力。
+document.getElementById('issue-btn').onclick=()=>{
+  try{console.warn('[packet 452 issue] click fired');}catch(e){}
+  const name=document.getElementById('new-name').value.trim();
+  const role=document.getElementById('new-role').value;
+  const perm=document.getElementById('new-perm').value;
+  const uid=document.getElementById('new-uid').value.trim().toLowerCase().replace(/[^a-z0-9]/g,'');
+  const pass=document.getElementById('new-pass').value.trim();
+  const inc=parseFloat(document.getElementById('new-inc').value)||0;
+  const cut=(parseFloat(document.getElementById('new-cut').value)||0)*10000;
+  const personal=document.getElementById('new-personal').value==='1';
+  const result=document.getElementById('issue-result');
+  try{console.warn('[packet 452 issue] values: name='+name+', role='+role+', perm='+perm+', uid='+uid+', passLen='+pass.length);}catch(e){}
+  if(!name||!uid||!pass){
+    result.style.cssText='display:block;background:var(--re);color:#fff;border-radius:var(--r);padding:8px 10px;font-size:11px;font-weight:600;margin-top:6px';
+    result.textContent='全項目を入力してください';
+    try{console.warn('[packet 452 issue] validation failed (empty fields)');}catch(e){}
+    return;
+  }
+  if(accounts.find(a=>a.uid===uid)){
+    result.style.cssText='display:block;background:var(--re);color:#fff;border-radius:var(--r);padding:8px 10px;font-size:11px;font-weight:600;margin-top:6px';
+    result.textContent='このIDはすでに使用されています';
+    try{console.warn('[packet 452 issue] duplicate uid:', uid);}catch(e){}
+    return;
+  }
+  const c=MC[accounts.length%MC.length];
+  const beforeLen=accounts.length;
+  accounts.push({uid,pass,name,role,perm,c,inc,cut,personal});
+  try{console.warn('[packet 452 issue] accounts.length:',beforeLen,'->',accounts.length);}catch(e){}
+  if(perm==='staff'){
+    const newMem={n:name,c,role,uid};
+    members.push(newMem);
+    state.events.push(mkEvs(members.length-1));
+    state.todos.push([]);
+    state.memo.push('');
+    const{y,m}=shiftMo;
+    const dim=new Date(y,m+1,0).getDate();
+    shiftData[uid]={};
+    for(let d=1;d<=dim;d++){const dow=new Date(y,m,d).getDay();shiftData[uid][d]='work';}
+    try{console.warn('[packet 452 issue] members.length now:', members.length);}catch(e){}
+  }
+  ['new-name','new-uid','new-pass','new-inc','new-cut'].forEach(id=>document.getElementById(id).value='');
+  result.style.cssText='display:block;background:var(--gr);color:#fff;border-radius:var(--r);padding:8px 10px;font-size:11px;font-weight:600;margin-top:6px;line-height:1.7';
+  result.innerHTML=`✅ 発行完了！ ID: <strong>${uid}</strong> ／ PW: <strong>${pass}</strong>`;
+  initGoalData();
+  renderAccList();
+  // packet 446/448/452: Supabase accounts テーブルへ永続化（リロード後もログイン可、doLogin の accounts フォールバックで照合）
+  try{
+    if(typeof saveAccounts==='function'){
+      try{console.warn('[packet 452 issue] calling saveAccounts for uid:',uid,' memory accounts count:',accounts.length);}catch(e2){}
+      saveAccounts().then(function(){
+        try{console.warn('[packet 452 issue] saveAccounts OK for uid:',uid);}catch(e2){}
+        try{if(typeof showToast==='function')showToast('✅ アカウントを Supabase に保存しました');}catch(e2){}
+      }).catch(function(e){
+        try{console.warn('[packet 452 issue] saveAccounts error for uid:',uid,'msg:',e&&e.message);}catch(e2){}
+        try{if(typeof showToast==='function')showToast('⚠ Supabase 保存失敗（メモリには残存、リロードで失われます）',3500);}catch(e2){}
+      });
+    }else{
+      try{console.warn('[packet 452 issue] saveAccounts function not found');}catch(e2){}
+    }
+  }catch(e){try{console.warn('[packet 452 issue] saveAccounts exception:',e&&e.message);}catch(e2){}}
+};
 function renderKintaiPage(){
   const now=new Date();
   document.getElementById('kt-sub').textContent=`${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日（${WD_ALL[now.getDay()]}）`;
@@ -2522,13 +2583,18 @@ function renderCalNav(){
 }
 
 // 予定追加フォーム（ef-close / ef-save）のバインド — DOM構築後に一度だけ実行
+// packet 452 修正: window.selectedMembers は selectedMembers が let なので常に undefined だった。
+// typeof 検査に置換。さらに saveBtn.onclick 発火・state.events.push 到達の診断ログを全段階に追加。
 function bindEvForm(){
   const closeBtn=document.getElementById('ef-close');
   if(closeBtn)closeBtn.onclick=()=>{const bar=document.getElementById('ev-add-bar');if(bar)bar.style.display='none';};
   const saveBtn=document.getElementById('ef-save');
-  if(!saveBtn)return;
+  if(!saveBtn){try{console.warn('[packet 452 ef-save] saveBtn not found at bind time');}catch(e){}return;}
+  try{console.warn('[packet 452 ef-save] bound to button:', saveBtn);}catch(e){}
   saveBtn.onclick=()=>{
-    const t=document.getElementById('ef-t')?.value.trim();if(!t){alert('内容を入力してください');return;}
+    try{console.warn('[packet 452 ef-save] click fired');}catch(e){}
+    const t=document.getElementById('ef-t')?.value.trim();
+    if(!t){alert('内容を入力してください');try{console.warn('[packet 452 ef-save] empty title, abort');}catch(e){}return;}
     const cat=document.getElementById('ef-cat')?.value||'その他';
     const dstr=document.getElementById('ef-day')?.value||todayStr;
     const sv=document.getElementById('ef-s')?.value||'9:00';
@@ -2536,17 +2602,24 @@ function bindEvForm(){
     const[sh,sm]=sv.split(':').map(Number);const[eh,em]=ev2.split(':').map(Number);
     const mi2=singleMi()>=0?singleMi():members.findIndex(m=>m.uid===currentUser?.uid);
     const tmi=mi2>=0?mi2:0;
+    try{console.warn('[packet 452 ef-save] values:',{t,cat,dstr,sv,ev2,mi2,tmi});}catch(e){}
     if(!state.events[tmi])state.events[tmi]=[];
+    const before=state.events[tmi].length;
     state.events[tmi].push({title:t,cat,date:dstr,sh,sm,eh,em,mi:tmi});
-    // packet 442: 追加先 mi が絞り込み外の場合、selectedMembers に追加して表示されるようにする
-    try{if(window.selectedMembers && selectedMembers.size>0 && !selectedMembers.has(tmi))selectedMembers.add(tmi);}catch(e){}
+    try{console.warn('[packet 452 ef-save] state.events['+tmi+'].length:',before,'->',state.events[tmi].length);}catch(e){}
+    // packet 442 / 452: 追加先 mi が絞り込み外の場合、selectedMembers に追加（typeof 検査で lexical scope へ確実到達）
+    try{
+      if(typeof selectedMembers!=='undefined' && selectedMembers && selectedMembers.size>0 && !selectedMembers.has(tmi)){
+        selectedMembers.add(tmi);
+        try{console.warn('[packet 452 ef-save] selectedMembers.add('+tmi+')');}catch(e){}
+      }
+    }catch(e){try{console.warn('[packet 452 ef-save] selectedMembers update error:',e&&e.message);}catch(e2){}}
     document.getElementById('ef-t').value='';
     const bar=document.getElementById('ev-add-bar');if(bar)bar.style.display='none';
     showToast('予定を追加しました');
-    // packet 442: 表示反映を確実にするため、render() に加えて renderCal() を直接呼ぶ
-    // （layoutMode!=='both' でも renderCal がスキップされないように二重発火、既存ロジックを壊さない）
-    try{render();}catch(e){try{console.warn('packet 442 render error:',e);}catch(e2){}}
-    try{if(typeof renderCal==='function')renderCal();}catch(e){try{console.warn('packet 442 renderCal error:',e);}catch(e2){}}
+    // packet 442 / 452: 表示反映を確実にするため、render() に加えて renderCal() を直接呼ぶ
+    try{render();try{console.warn('[packet 452 ef-save] render called');}catch(e){}}catch(e){try{console.warn('[packet 452 ef-save] render error:',e&&e.message);}catch(e2){}}
+    try{if(typeof renderCal==='function'){renderCal();try{console.warn('[packet 452 ef-save] renderCal called');}catch(e){}}}catch(e){try{console.warn('[packet 452 ef-save] renderCal error:',e&&e.message);}catch(e2){}}
     try{if(typeof renderFilterPills==='function')renderFilterPills();}catch(e){}
   };
 }
@@ -2806,7 +2879,12 @@ function renderTaskBoard(){
   const myMi=members.findIndex(m=>m.uid===currentUser?.uid);
   body.style.cssText='';
   // フィルター同期
-  const pSel=document.getElementById('tf-period');const cSel=document.getElementById('tf-cat');
+  // packet 452: id 重複 tf-cat（L1038 入力フォーム + L1050 フィルタバー）対策。
+  // 旧: getElementById('tf-cat') は最初の要素＝入力フォームの select を取得し、
+  // フィルタ値 ''（全カテゴリ）で毎回上書きしていた。
+  // 修正: フィルタバーに限定して取得。
+  const pSel=document.querySelector('#task-filter-bar #tf-period')||document.getElementById('tf-period');
+  const cSel=document.querySelector('#task-filter-bar #tf-cat');
   if(pSel)pSel.value=taskFilter.period;if(cSel)cSel.value=taskFilter.cat;
 
   // ── タブバインド ──
@@ -10288,10 +10366,10 @@ function openEventFormFromCalendar(dateStr,timeStr){
   }
 })();
 // ==== ここまで packet 444 ====
-// ==== packet 450: 左側タスク追加フォーム tf-save 保存結線（保存ロジック未実装の致命バグ修正） ====
-// 既存 #tb-form 内の tf-title / tf-cat / tf-pri / tf-to / tf-dead から値取得 → state.tasks.push
-// id 重複（tf-cat が L1038 追加フォーム + L1050 フィルタバーに存在）対策として tb-form 内 querySelector で取得
-// packet 444 B+C案（タブ自動切替 + 案内トースト + フィルタ警告）+ packet 440 _persistTasks 連携
+// ==== packet 450 / 452: 左側タスク追加フォーム tf-save 保存結線 ====
+// packet 452 修正: packet 450 の `!window.state` 検査は const state がスクリプトスコープで
+// window に bind しないため常に true → return で push 不到達の致命バグだった。
+// typeof チェックに置換し、currentUser/members も同様修正。診断ログ追加。
 (function patchTfSaveBinding(){
   try{
     function bind(){
@@ -10300,15 +10378,17 @@ function openEventFormFromCalendar(dateStr,timeStr){
       if(!save || !tbForm)return false;
       if(save.dataset.p450Bound==='1')return true;
       save.dataset.p450Bound='1';
+      try{console.warn('[packet 452 tf-save] bound to button:', save);}catch(e){}
       save.addEventListener('click', function(){
         try{
+          try{console.warn('[packet 452 tf-save] click fired');}catch(e){}
           const titleEl = tbForm.querySelector('#tf-title');
           const catEl   = tbForm.querySelector('#tf-cat');
           const priEl   = tbForm.querySelector('#tf-pri');
           const toEl    = tbForm.querySelector('#tf-to');
           const deadEl  = tbForm.querySelector('#tf-dead');
           const title = (titleEl && titleEl.value || '').trim();
-          if(!title){alert('タスク内容を入力してください');if(titleEl)try{titleEl.focus();}catch(e){}return;}
+          if(!title){alert('タスク内容を入力してください');if(titleEl)try{titleEl.focus();}catch(e){}try{console.warn('[packet 452 tf-save] empty title, abort');}catch(e){}return;}
           const cat = (catEl && catEl.value) || 'その他';
           const pri = (priEl && priEl.value) || 'mid';
           const toVal = toEl ? toEl.value : '';
@@ -10318,8 +10398,14 @@ function openEventFormFromCalendar(dateStr,timeStr){
             const n = parseInt(toVal, 10);
             if(!isNaN(n))toIdx = n;
           }
-          const fromName = (window.currentUser && currentUser.name) || '管理者';
-          if(!window.state || !Array.isArray(state.tasks)){console.warn('[packet 450] state.tasks unavailable');return;}
+          try{console.warn('[packet 452 tf-save] values:',{title,cat,pri,toVal,toIdx,dead});}catch(e){}
+          // packet 452: window.state ではなく typeof で lexical state を検査
+          if(typeof state==='undefined' || !state || !Array.isArray(state.tasks)){
+            try{console.warn('[packet 452 tf-save] state.tasks unavailable');}catch(e){}
+            return;
+          }
+          const fromName = (typeof currentUser!=='undefined' && currentUser && currentUser.name) || '管理者';
+          const before = state.tasks.length;
           state.tasks.push({
             id: state.nextId++,
             title: title,
@@ -10333,14 +10419,15 @@ function openEventFormFromCalendar(dateStr,timeStr){
             comment: '',
             createdAt: new Date().toISOString()
           });
+          try{console.warn('[packet 452 tf-save] state.tasks.length:',before,'->',state.tasks.length);}catch(e){}
           // 入力欄リセット
           if(titleEl)titleEl.value='';
           if(deadEl)deadEl.value='';
-          // packet 444 B案: タブ自動切替
+          // packet 444 B案: タブ自動切替（packet 452: window.members → typeof members）
           let _where = '担当別タブ';
           try{
             const newTask = state.tasks[state.tasks.length-1];
-            const _myMi = (window.members && currentUser) ? members.findIndex(m=>m.uid===currentUser.uid) : -1;
+            const _myMi = (typeof members!=='undefined' && members && typeof currentUser!=='undefined' && currentUser) ? members.findIndex(m=>m.uid===currentUser.uid) : -1;
             if(newTask){
               if(newTask.toIdx===null){if(typeof tbTab!=='undefined')tbTab='unassigned';_where='未割当タブ';}
               else if(newTask.toIdx===_myMi){if(typeof tbTab!=='undefined')tbTab='mine';_where='個人タブ';}
@@ -10348,9 +10435,9 @@ function openEventFormFromCalendar(dateStr,timeStr){
             }
           }catch(e){}
           // タスクボード再描画
-          try{if(typeof renderTaskBoard==='function')renderTaskBoard();}catch(e){}
+          try{if(typeof renderTaskBoard==='function'){renderTaskBoard();try{console.warn('[packet 452 tf-save] renderTaskBoard called');}catch(e){}}}catch(e){try{console.warn('[packet 452 tf-save] renderTaskBoard error:',e&&e.message);}catch(e2){}}
           // 日間カレンダーへの反映（packet 444、renderDay 経由）
-          try{if(typeof render==='function')render();}catch(e){}
+          try{if(typeof render==='function'){render();try{console.warn('[packet 452 tf-save] render called');}catch(e){}}}catch(e){try{console.warn('[packet 452 tf-save] render error:',e&&e.message);}catch(e2){}}
           // packet 444 C案: 案内トースト + フィルタ警告
           try{
             let _warn = '';
@@ -10362,8 +10449,8 @@ function openEventFormFromCalendar(dateStr,timeStr){
             else{if(typeof showToast==='function')showToast('タスクを追加しました（'+_where+'に表示）');}
           }catch(e){try{if(typeof showToast==='function')showToast('タスクを追加しました');}catch(e2){}}
           // packet 440 永続化
-          try{if(typeof _persistTasks==='function')_persistTasks();}catch(e){}
-        }catch(e){try{console.warn('[packet 450] tf-save error:',e&&e.message);}catch(e2){}}
+          try{if(typeof _persistTasks==='function'){_persistTasks();try{console.warn('[packet 452 tf-save] _persistTasks dispatched');}catch(e){}}}catch(e){try{console.warn('[packet 452 tf-save] _persistTasks error:',e&&e.message);}catch(e2){}}
+        }catch(e){try{console.warn('[packet 452 tf-save] handler error:',e&&e.message);}catch(e2){}}
       });
       return true;
     }
@@ -10380,9 +10467,9 @@ function openEventFormFromCalendar(dateStr,timeStr){
     }
     if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);
     else init();
-  }catch(e){try{console.warn('[packet 450] patch init error:',e&&e.message);}catch(e2){}}
+  }catch(e){try{console.warn('[packet 452 tf-save] patch init error:',e&&e.message);}catch(e2){}}
 })();
-// ==== ここまで packet 450 ====
+// ==== ここまで packet 450 / 452 ====
 </script>
 </body>
 </html>
