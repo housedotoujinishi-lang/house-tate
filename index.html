@@ -1453,6 +1453,7 @@ textarea.ai-team-input{resize:vertical;min-height:60px}
         <div id="dr-mgr-body" class="dr-mgr-body">「日報を生成」を押すと、未完了 / 期限切れ / ルーティン未完了が表示されます。</div>
       </div>
       <div class="dr-back">
+        <button onclick="switchPage('memo')" type="button" class="dr-btn dr-btn-tertiary">📒 メモ帳を開く</button>
         <button onclick="switchPage('dash')" type="button" class="dr-btn dr-btn-tertiary">← ホームに戻る</button>
       </div>
     </div>
@@ -1521,6 +1522,7 @@ textarea.ai-team-input{resize:vertical;min-height:60px}
         <div id="mn-list" class="mn-list"></div>
       </div>
       <div class="mn-back">
+        <button onclick="switchPage('daily-report')" type="button" class="mn-btn mn-btn-tertiary">📝 日報を開く</button>
         <button onclick="switchPage('dash')" type="button" class="mn-btn mn-btn-tertiary">← ホームに戻る</button>
       </div>
     </div>
@@ -1967,9 +1969,10 @@ function showMainApp(){
   const roleLabel=roleByRole||(isAdmin?'管理者':isOwner?'管理者':'スタッフ');
   if(isHighPerm){rb.textContent=roleLabel;rb.style.cssText='background:var(--gold);color:var(--navy);padding:1px 6px;border-radius:7px;font-size:9px;font-weight:800';}
   else{rb.textContent='スタッフ';rb.style.cssText='background:rgba(255,255,255,.15);color:#fff;padding:1px 6px;border-radius:7px;font-size:9px;font-weight:700';}
+  // packet 420: PC ナビに 📒 メモ帳 / 📝 日報 を追加（PC では .topnav に表示、スマホは .topnav .ntab{display:none} で従来通り非表示）
   const tabs=isHighPerm
-    ?[['dash','🏠 ホーム'],['accounts','👑 管理'],['kintai','🕐 勤怠'],['cal','📅 カレンダー/タスク'],['shift','📋 シフト'],['goal','🎯 目標KPI'],['report','📊 月次レポート'],['aiteam','🧠 AI会議'],['member-workload','👥 メンバー稼働'],['ai-members','🤖 AI名鑑'],['ai-org','🏢 AI組織図'],['knowledge-portal','📚 マメ知識'],['routine','📋 ルーティン']]
-    :[['dash','🏠 ホーム'],['kintai','🕐 勤怠'],['cal','📅 カレンダー/タスク'],['shift','📋 シフト'],['goal','🎯 目標KPI'],['aiteam','🧠 AI会議'],['member-workload','👥 メンバー稼働'],['ai-members','🤖 AI名鑑'],['ai-org','🏢 AI組織図'],['knowledge-portal','📚 マメ知識'],['routine','📋 ルーティン']];
+    ?[['dash','🏠 ホーム'],['accounts','👑 管理'],['kintai','🕐 勤怠'],['cal','📅 カレンダー/タスク'],['shift','📋 シフト'],['goal','🎯 目標KPI'],['report','📊 月次レポート'],['aiteam','🧠 AI会議'],['member-workload','👥 メンバー稼働'],['ai-members','🤖 AI名鑑'],['ai-org','🏢 AI組織図'],['knowledge-portal','📚 マメ知識'],['routine','📋 ルーティン'],['memo','📒 メモ帳'],['daily-report','📝 日報']]
+    :[['dash','🏠 ホーム'],['kintai','🕐 勤怠'],['cal','📅 カレンダー/タスク'],['shift','📋 シフト'],['goal','🎯 目標KPI'],['aiteam','🧠 AI会議'],['member-workload','👥 メンバー稼働'],['ai-members','🤖 AI名鑑'],['ai-org','🏢 AI組織図'],['knowledge-portal','📚 マメ知識'],['routine','📋 ルーティン'],['memo','📒 メモ帳'],['daily-report','📝 日報']];
   tabs.forEach(([pg,lbl],idx)=>{
     const b=document.createElement('button');
     b.className='ntab'+(idx===0?' on':'');b.dataset.pg=pg;b.textContent=lbl;
