@@ -1026,7 +1026,12 @@ body.task-dragging [data-id]:not(.dragging-this){opacity:1!important}
               <button class="pbtn" id="sb-diag-check-btn" style="flex:1;padding:6px;font-size:11px;background:var(--navy);color:#fff;font-weight:700">🔍 件数チェック</button>
               <button class="pbtn" id="sb-diag-resave-btn" style="flex:1;padding:6px;font-size:11px;background:var(--am);color:#fff;font-weight:700">🔄 全アカウント再保存</button>
             </div>
-            <div id="sb-diag-result" style="display:none;border-radius:var(--r);padding:8px 10px;font-size:10px;font-weight:600;margin-top:6px;line-height:1.7;font-family:monospace"></div>
+            <!-- packet 470: 1 件だけ最小 payload で test_account_probe を upsert、status/body を画面表示 -->
+            <div style="margin-top:6px;display:flex;gap:4px;flex-wrap:wrap">
+              <button class="pbtn" id="sb-diag-probe-btn" style="flex:1;padding:6px;font-size:11px;background:var(--re);color:#fff;font-weight:700">🧪 DB 保存テスト（1 件）</button>
+              <button class="pbtn" id="sb-diag-probe-cleanup-btn" style="flex:1;padding:6px;font-size:11px;background:var(--t3);color:#fff;font-weight:700">🗑 テストレコード削除</button>
+            </div>
+            <div id="sb-diag-result" style="display:none;border-radius:var(--r);padding:8px 10px;font-size:10px;font-weight:600;margin-top:6px;line-height:1.7;font-family:monospace;white-space:pre-wrap;word-break:break-all"></div>
           </div>
         </div>
       </div>
@@ -1773,7 +1778,25 @@ async function saveAccounts() {
   // packet 468: sanitize 適用（personal/color/inc/cut 等の不存在列を除外）
   const rows = accounts.map(a => _sanitizeAccountForDb(a));
   try{console.warn('[packet 468 saveAccounts] upserting',rows.length,'rows (sanitized to',_DB_ACCOUNT_COLUMNS_SAFE.join('/'),'), uids:',rows.map(r=>r.uid).join(','));}catch(e){}
-  await sbUpsert('accounts', rows, 'uid');
+  // packet 470: upsert 失敗を画面にも出すため try-catch でラップ
+  try{
+    await sbUpsert('accounts', rows, 'uid');
+  }catch(e){
+    const errMsg=String(e&&e.message||e);
+    try{console.warn('[packet 470 saveAccounts] sbUpsert FAILED:',errMsg);}catch(e2){}
+    // 診断パネルにも表示
+    try{
+      const result=document.getElementById('sb-diag-result');
+      if(result){
+        result.style.display='block';
+        result.style.background='rgba(254,202,202,.5)';
+        result.style.color='var(--re)';
+        result.innerHTML='<strong>❌ saveAccounts FAILED</strong>\n'+_escHtml(errMsg);
+      }
+    }catch(e3){}
+    try{if(typeof showToast==='function')showToast('❌ Supabase 保存失敗（診断パネル参照）',5000);}catch(e2){}
+    throw e;
+  }
   // packet 466: 保存後に sbGet で件数検証（RLS で SELECT 不可なら検証 skip）
   try{
     const back = await sbGet('accounts', 'order=uid');
@@ -1787,6 +1810,8 @@ async function saveAccounts() {
     try{console.warn('[packet 468 saveAccounts] verify error (RLS で SELECT 不可の可能性):',e&&e.message);}catch(e2){}
   }
 }
+// packet 470: HTML エスケープ（診断パネル安全表示用）
+function _escHtml(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
 async function saveKintai(uid, date) {
   const k = kintaiDB[uid]?.[date];
@@ -2740,6 +2765,201 @@ document.getElementById('issue-btn').onclick=()=>{
   else init();
 })();
 // ==== ここまで packet 466 接続診断 ====
+
+// ==== packet 470: DB 保存テスト probe（accounts 書込真因切り分け）====
+// 「🧪 DB 保存テスト（1 件）」：最小 payload で test_account_probe を upsert、
+//   status/statusText/body を画面表示、続けて sbGet 検証
+// 「🗑 テストレコード削除」：probe レコードを accounts テーブルから削除
+// パスワード値は本番運用パスワードではない（probe 専用）、console には passLen のみ
+(function patchDbWriteProbeP470(){
+  const _PROBE_UID='test_account_probe';
+  const _PROBE_PAYLOAD={uid:_PROBE_UID, pass:'test2026', name:'保存テスト', role:'エージェント', perm:'staff'};
+
+  // 直接 fetch して response 詳細を取得（sbUpsert は throw のみで status code を失うため）
+  async function rawUpsert(table, data, onConflict){
+    const url=`${SB_URL}/rest/v1/${table}${onConflict?'?on_conflict='+onConflict:''}`;
+    const r=await fetch(url,{
+      method:'POST',
+      headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`,
+                'Content-Type':'application/json', Prefer:'resolution=merge-duplicates,return=representation' },
+      body:JSON.stringify(data)
+    });
+    let body='';
+    try{body=await r.text();}catch(e){body='(read body failed)';}
+    return {status:r.status, statusText:r.statusText, ok:r.ok, body};
+  }
+  async function rawDelete(table, eq){
+    const r=await fetch(`${SB_URL}/rest/v1/${table}?${eq}`,{
+      method:'DELETE',
+      headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}` }
+    });
+    let body='';
+    try{body=await r.text();}catch(e){body=''}
+    return {status:r.status, statusText:r.statusText, ok:r.ok, body};
+  }
+
+  function showResult(html, bgColor){
+    const result=document.getElementById('sb-diag-result');
+    if(!result)return;
+    result.style.display='block';
+    result.style.background=bgColor||'var(--s2)';
+    result.style.color='var(--t1)';
+    result.innerHTML=html;
+  }
+  function classify(status){
+    if(status===0)return '🌐 ネットワーク不達 / CORS';
+    if(status===400)return '📐 schema 不一致（列名 or 型 mismatch、PGRST204 等）';
+    if(status===401)return '🔒 認証エラー（apikey 不正 or 期限切れ）';
+    if(status===403)return '🚫 RLS / 権限拒否（policy で INSERT/UPDATE 不可）';
+    if(status===409)return '⚠ onConflict / unique 制約不一致';
+    if(status>=200 && status<300)return '✅ 書込成功（要 sbGet 検証）';
+    if(status>=500)return '💥 Supabase 側エラー';
+    return '❓ 不明（'+status+'）';
+  }
+
+  function bindProbe(){
+    const btn=document.getElementById('sb-diag-probe-btn');
+    if(!btn || btn.dataset.p470Bound==='1')return false;
+    btn.dataset.p470Bound='1';
+    btn.addEventListener('click',async function(){
+      try{console.warn('[packet 470 probe] click fired, payload uid:',_PROBE_UID,'passLen:',_PROBE_PAYLOAD.pass.length);}catch(e){}
+      if(!confirm('test_account_probe で 1 件だけ書込テストします。実行しますか？\n（あとで「🗑 テストレコード削除」で消せます）'))return;
+      showResult('⏳ 書込テスト中...','var(--s2)');
+      // Step 1: upsert（rawUpsert で詳細 response 取得）
+      let upRes=null,err1=null;
+      try{
+        upRes=await rawUpsert('accounts', [_PROBE_PAYLOAD], 'uid');
+      }catch(e){err1=e;}
+      const upClass=upRes?classify(upRes.status):'⚠ fetch 例外';
+      try{console.warn('[packet 470 probe] upsert response:',upRes,'err:',err1&&err1.message);}catch(e){}
+      // Step 2: sbGet で検証
+      let getRes=null,err2=null,found=false;
+      try{
+        getRes=await sbGet('accounts','uid=eq.'+encodeURIComponent(_PROBE_UID));
+        found=Array.isArray(getRes) && getRes.length>0 && getRes.find(r=>r.uid===_PROBE_UID);
+      }catch(e){err2=e;}
+      try{console.warn('[packet 470 probe] sbGet response:',getRes,'err:',err2&&err2.message,'found:',!!found);}catch(e){}
+      // 画面表示組み立て
+      let html='<strong>🧪 DB 保存テスト結果</strong>\n';
+      html+='───────────────────────────\n';
+      html+='<strong>① Upsert payload</strong>（payload は 5 列、pass は test2026）\n';
+      html+='  table: accounts\n';
+      html+='  onConflict: uid\n';
+      html+='  uid: '+_PROBE_UID+'\n';
+      html+='  columns: uid / pass / name / role / perm\n\n';
+      if(upRes){
+        html+='<strong>② Upsert response</strong>\n';
+        html+='  status: '+upRes.status+' '+_escHtml(upRes.statusText||'')+'\n';
+        html+='  ok: '+upRes.ok+'\n';
+        html+='  分類: '+upClass+'\n';
+        html+='  body: '+_escHtml((upRes.body||'').substring(0,500))+'\n\n';
+      }else{
+        html+='<strong>② Upsert response</strong>\n';
+        html+='  ❌ fetch 例外: '+_escHtml((err1&&err1.message)||'unknown')+'\n\n';
+      }
+      html+='<strong>③ sbGet 検証（uid=eq.test_account_probe）</strong>\n';
+      if(err2){
+        html+='  ❌ sbGet 例外: '+_escHtml((err2&&err2.message)||'unknown')+'\n';
+      }else{
+        html+='  rows returned: '+(Array.isArray(getRes)?getRes.length:'(not array)')+'\n';
+        html+='  found probe uid: '+(found?'✅ YES':'❌ NO')+'\n';
+      }
+      html+='\n<strong>④ 判定</strong>\n';
+      if(upRes && upRes.ok && found){
+        html+='  ✅ <strong>書込 + 読込ともに成功</strong>\n';
+        html+='  → 6 名一括保存が失敗する理由は別。payload 内の他 row の uid 衝突 / 行ごとの列差異 / Prefer header 等を疑う\n';
+        showResult(html,'rgba(209,250,229,.4)');
+      }else if(upRes && upRes.ok && !found){
+        html+='  ⚠ <strong>書込は成功（'+upRes.status+'）だが SELECT で見えない</strong>\n';
+        html+='  → RLS の SELECT policy が anon を拒否している可能性\n';
+        html+='  → Supabase ダッシュボードで accounts テーブルの RLS を確認\n';
+        showResult(html,'rgba(254,243,199,.5)');
+      }else if(upRes && upRes.status===400){
+        html+='  ❌ <strong>schema 不一致（status 400）</strong>\n';
+        html+='  → body の "Could not find the X column" を確認。X 列を payload から除外する必要あり\n';
+        html+='  → 現在の whitelist：uid / pass / name / role / perm\n';
+        html+='  → これらの中に DB 列にないものがあれば、whitelist から除外して再テスト\n';
+        showResult(html,'rgba(254,202,202,.5)');
+      }else if(upRes && (upRes.status===401 || upRes.status===403)){
+        html+='  ❌ <strong>RLS / 権限拒否（status '+upRes.status+'）</strong>\n';
+        html+='  → Supabase ダッシュボードで accounts テーブルの RLS policy を確認\n';
+        html+='  → anon role に INSERT / UPDATE 権限を付与する必要あり\n';
+        html+='  → 提案 SQL（ボス判断後の別作業）：\n';
+        html+='     create policy "anon can insert accounts" on accounts for insert to anon with check (true);\n';
+        html+='     create policy "anon can update accounts" on accounts for update to anon using (true);\n';
+        showResult(html,'rgba(254,202,202,.5)');
+      }else if(upRes && upRes.status===409){
+        html+='  ❌ <strong>onConflict / unique 制約不一致（status 409）</strong>\n';
+        html+='  → uid 列に unique / primary key 制約がない可能性\n';
+        html+='  → Supabase ダッシュボードで accounts.uid に PRIMARY KEY or UNIQUE INDEX を確認\n';
+        showResult(html,'rgba(254,202,202,.5)');
+      }else{
+        html+='  ❌ <strong>'+(upRes?('status '+upRes.status+' '+(upRes.statusText||'')):'fetch 例外')+'</strong>\n';
+        html+='  → body と分類を確認、判定不能の場合 Console ログを共有\n';
+        showResult(html,'rgba(254,202,202,.5)');
+      }
+    });
+    try{console.warn('[packet 470 probe] bound');}catch(e){}
+    return true;
+  }
+
+  function bindCleanup(){
+    const btn=document.getElementById('sb-diag-probe-cleanup-btn');
+    if(!btn || btn.dataset.p470Bound==='1')return false;
+    btn.dataset.p470Bound='1';
+    btn.addEventListener('click',async function(){
+      try{console.warn('[packet 470 probe cleanup] click fired');}catch(e){}
+      if(!confirm('test_account_probe レコードを Supabase から削除します。続行しますか？'))return;
+      showResult('⏳ テストレコード削除中...','var(--s2)');
+      let delRes=null,err=null;
+      try{
+        delRes=await rawDelete('accounts','uid=eq.'+encodeURIComponent(_PROBE_UID));
+      }catch(e){err=e;}
+      try{console.warn('[packet 470 probe cleanup] delete response:',delRes,'err:',err&&err.message);}catch(e){}
+      let html='<strong>🗑 テストレコード削除結果</strong>\n';
+      html+='  uid: '+_PROBE_UID+'\n';
+      if(delRes){
+        html+='  status: '+delRes.status+' '+_escHtml(delRes.statusText||'')+'\n';
+        html+='  ok: '+delRes.ok+'\n';
+        html+='  body: '+_escHtml((delRes.body||'').substring(0,200))+'\n';
+        html+=delRes.ok?'  ✅ 削除完了（or 該当行無し）':'  ⚠ 削除失敗（'+classify(delRes.status)+'）';
+        showResult(html, delRes.ok?'rgba(209,250,229,.4)':'rgba(254,202,202,.5)');
+      }else{
+        html+='  ❌ fetch 例外: '+_escHtml((err&&err.message)||'unknown');
+        showResult(html,'rgba(254,202,202,.5)');
+      }
+      // メモリ accounts からも除去（probe を本番リストに残さない）
+      try{
+        if(typeof accounts!=='undefined' && Array.isArray(accounts)){
+          const idx=accounts.findIndex(a=>a&&a.uid===_PROBE_UID);
+          if(idx>=0){accounts.splice(idx,1);try{console.warn('[packet 470 probe cleanup] removed from memory accounts');}catch(e){}}
+        }
+        if(typeof members!=='undefined' && Array.isArray(members)){
+          const idx=members.findIndex(m=>m&&m.uid===_PROBE_UID);
+          if(idx>=0){members.splice(idx,1);}
+        }
+        if(typeof renderAccList==='function')renderAccList();
+      }catch(e){}
+    });
+    try{console.warn('[packet 470 probe cleanup] bound');}catch(e){}
+    return true;
+  }
+
+  function init(){
+    bindProbe();bindCleanup();
+    try{
+      const obs=new MutationObserver(function(){
+        try{const p=bindProbe();const c=bindCleanup();if(p && c)obs.disconnect();}catch(e){}
+      });
+      obs.observe(document.body,{childList:true,subtree:true});
+    }catch(e){}
+    setTimeout(function(){bindProbe();bindCleanup();},1000);
+    setTimeout(function(){bindProbe();bindCleanup();},3000);
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);
+  else init();
+})();
+// ==== ここまで packet 470 probe ====
 function renderKintaiPage(){
   const now=new Date();
   document.getElementById('kt-sub').textContent=`${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日（${WD_ALL[now.getDay()]}）`;
