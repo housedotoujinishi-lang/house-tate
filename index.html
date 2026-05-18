@@ -1723,7 +1723,50 @@ textarea.ai-team-input{resize:vertical;min-height:60px}
         <p class="ai-team-mini-note">⚠ 入力内容はDB／localStorageに保存されません。リロードで消えます。<br>顧客名・電話・メール・住所・物件住所などのPIIは入力しないでください。</p>
         <button id="ai-team-start" class="ai-team-btn">🚀 AI会議を開始</button>
       </div>
+      <!-- packet 494: AI 議論システム拡張 TOP3（健全性スコア / Devil's Advocate / ボス 1on1） -->
+      <div class="ai-team-card" id="p494-devils-advocate-card" style="margin-top:14px">
+        <div style="font-size:14px;font-weight:800;color:#0a3d7c;margin-bottom:6px">😈 Devil's Advocate 今週の担当</div>
+        <div style="font-size:11px;color:#666;line-height:1.6;margin-bottom:8px">「全員賛成会議」を構造的に防ぐ。毎回 1 名を「あえて反対する係」に指定（packet 494）。</div>
+        <div id="p494-da-current" style="background:#fef2f2;border:1.5px solid #fecaca;border-radius:8px;padding:10px 12px;margin-bottom:8px;font-size:13px;font-weight:700;color:#991b1b"></div>
+        <div style="font-size:11px;color:#666;margin-bottom:4px;font-weight:700">ローテーション表</div>
+        <table id="p494-da-table" style="width:100%;font-size:11px;border-collapse:collapse;border:1px solid var(--bo);border-radius:6px;overflow:hidden">
+          <thead><tr style="background:var(--s2)"><th style="padding:5px 8px;text-align:left;border-bottom:1px solid var(--bo);font-weight:700">週</th><th style="padding:5px 8px;text-align:left;border-bottom:1px solid var(--bo);font-weight:700">Devil's Advocate 担当</th></tr></thead>
+          <tbody>
+            <tr data-da-week="0"><td style="padding:5px 8px;border-bottom:1px solid var(--bo)">第1週</td><td style="padding:5px 8px;border-bottom:1px solid var(--bo);font-weight:700">信長</td></tr>
+            <tr data-da-week="1"><td style="padding:5px 8px;border-bottom:1px solid var(--bo)">第2週</td><td style="padding:5px 8px;border-bottom:1px solid var(--bo);font-weight:700">秀吉</td></tr>
+            <tr data-da-week="2"><td style="padding:5px 8px;border-bottom:1px solid var(--bo)">第3週</td><td style="padding:5px 8px;border-bottom:1px solid var(--bo);font-weight:700">エジソン</td></tr>
+            <tr data-da-week="3"><td style="padding:5px 8px">第4週</td><td style="padding:5px 8px;font-weight:700">ジョブズ</td></tr>
+          </tbody>
+        </table>
+        <div style="margin-top:6px;font-size:10px;color:#666">緊急時の常設 Devil's Advocate：<b style="color:#991b1b">家康</b>（深刻なリスク議題で常設）</div>
+      </div>
+      <div class="ai-team-card" id="p494-1on1-card" style="margin-top:14px">
+        <div style="font-size:14px;font-weight:800;color:#0a3d7c;margin-bottom:6px">☀ ボス 1on1 モード</div>
+        <div style="font-size:11px;color:#666;line-height:1.6;margin-bottom:8px">ボスが AI 1 人と直接対話する定型枠（5 分目安）。朝のルーティンに（packet 494）。全部やる必要はない。選んで使う。</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px">
+          <button type="button" class="p494-1on1-btn" data-1on1="morning" style="padding:10px 8px;border-radius:8px;border:1.5px solid var(--bo);background:#fff;cursor:pointer;text-align:left;min-height:60px;display:flex;flex-direction:column;justify-content:center"><span style="font-size:12px;font-weight:800;color:#0a3d7c">☀ 朝会</span><span style="font-size:10px;color:#666">ソルティ / 5 分 / 今日の議題</span></button>
+          <button type="button" class="p494-1on1-btn" data-1on1="risk" style="padding:10px 8px;border-radius:8px;border:1.5px solid var(--bo);background:#fff;cursor:pointer;text-align:left;min-height:60px;display:flex;flex-direction:column;justify-content:center"><span style="font-size:12px;font-weight:800;color:#5e3b1f">⚠ リスクレビュー</span><span style="font-size:10px;color:#666">家康 / 5 分 / 🔴🟡 確認</span></button>
+          <button type="button" class="p494-1on1-btn" data-1on1="strategy" style="padding:10px 8px;border-radius:8px;border:1.5px solid var(--bo);background:#fff;cursor:pointer;text-align:left;min-height:60px;display:flex;flex-direction:column;justify-content:center"><span style="font-size:12px;font-weight:800;color:#1a1a1a">🎯 戦略確認</span><span style="font-size:10px;color:#666">信長 / 5 分 / TOP3 進捗</span></button>
+          <button type="button" class="p494-1on1-btn" data-1on1="sales" style="padding:10px 8px;border-radius:8px;border:1.5px solid var(--bo);background:#fff;cursor:pointer;text-align:left;min-height:60px;display:flex;flex-direction:column;justify-content:center"><span style="font-size:12px;font-weight:800;color:#b45309">📈 営業ダッシュ</span><span style="font-size:10px;color:#666">秀吉 / 5 分 / KPI・追客</span></button>
+          <button type="button" class="p494-1on1-btn" data-1on1="dev" style="padding:10px 8px;border-radius:8px;border:1.5px solid var(--bo);background:#fff;cursor:pointer;text-align:left;min-height:60px;display:flex;flex-direction:column;justify-content:center"><span style="font-size:12px;font-weight:800;color:#15803d">💻 開発ステータス</span><span style="font-size:10px;color:#666">エジソン / 5 分 / packet 進捗</span></button>
+          <button type="button" class="p494-1on1-btn" data-1on1="ui" style="padding:10px 8px;border-radius:8px;border:1.5px solid var(--bo);background:#fff;cursor:pointer;text-align:left;min-height:60px;display:flex;flex-direction:column;justify-content:center"><span style="font-size:12px;font-weight:800;color:#7c3aed">🎨 UI レビュー</span><span style="font-size:10px;color:#666">ジョブズ / 任意 / 改善案</span></button>
+        </div>
+      </div>
       <div id="ai-team-result"></div>
+    </div>
+  </div>
+  <!-- packet 494: ボス 1on1 モーダル（共通、6 種類の対話で内容差替え） -->
+  <div id="p494-1on1-modal" style="position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.55);display:none;align-items:flex-start;justify-content:center;padding:20px 12px;overflow-y:auto">
+    <div style="background:#fff;border-radius:12px;max-width:560px;width:100%;max-height:calc(100vh - 40px);overflow-y:auto;border-top:6px solid #0a3d7c;display:flex;flex-direction:column">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;padding:14px 16px 8px;gap:10px;border-bottom:1px solid var(--bo)">
+        <div>
+          <div id="p494-1on1-title" style="font-size:16px;font-weight:800;color:#0a3d7c;line-height:1.4"></div>
+          <div id="p494-1on1-sub" style="font-size:11px;color:var(--t3);margin-top:2px;line-height:1.5"></div>
+        </div>
+        <button type="button" id="p494-1on1-close" aria-label="閉じる" style="background:0;border:0;font-size:22px;color:var(--t3);cursor:pointer;padding:4px 10px;line-height:1;min-width:40px;min-height:40px;border-radius:8px">✕</button>
+      </div>
+      <div id="p494-1on1-body" style="padding:14px 16px;font-size:13px;line-height:1.7;color:var(--t1);white-space:pre-wrap;word-break:break-word"></div>
+      <div style="padding:8px 16px 14px;font-size:10px;color:#999;border-top:1px solid var(--bo);background:var(--s1)">※ 定型対話テンプレ（静的 MVP）。外部送信 / localStorage 保存なし。実際の数値は会議や直近の業務状況に応じてボスとソルティで埋めてください。</div>
     </div>
   </div>
 </div>
@@ -5961,7 +6004,217 @@ function renderAITeamPage(){
   bindAITeamPiiWarn();
   const btn=document.getElementById('ai-team-start');
   if(btn)btn.onclick=startAIMeeting;
+  // packet 494: Devil's Advocate ローテ表示 + ボス 1on1 ボタン bind
+  try{_p494_renderDevilsAdvocateCard();}catch(e){try{console.warn('[packet 494 DA render]',e&&e.message);}catch(_){}}
+  try{_p494_bind1on1Buttons();}catch(e){try{console.warn('[packet 494 1on1 bind]',e&&e.message);}catch(_){}}
 }
+
+// ═══════════════════════════════════════
+// packet 494: AI 議論システム拡張 TOP3（v0.9.244）
+// ① 議論健全性スコア表示（会議終了時に renderAIMeetingResult から呼出）
+// ② Devil's Advocate ローテ表示（週ローテ、今週担当をハイライト）
+// ③ ボス 1on1 モード（6 つの定型対話）
+// 外部送信 / localStorage 保存 / 顧客情報なし。すべて in-memory + 静的テンプレ。
+// MutationObserver / 多段 setTimeout 新規追加なし（packet 490 軽量化維持）。
+// ═══════════════════════════════════════
+function _p494_currentWeekIdx(){
+  // ISO 週番号ベース、0-3 にマップ
+  try{
+    const d=new Date();
+    const tmp=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));
+    tmp.setUTCDate(tmp.getUTCDate()+4-(tmp.getUTCDay()||7));
+    const yearStart=new Date(Date.UTC(tmp.getUTCFullYear(),0,1));
+    const weekNo=Math.ceil(((tmp-yearStart)/86400000+1)/7);
+    return ((weekNo-1)%4+4)%4;
+  }catch(e){return 0;}
+}
+const _P494_DA_ROTATION=['信長','秀吉','エジソン','ジョブズ'];
+const _P494_DA_PHILOSOPHY={
+  '信長':'戦略・優先順位・「待て」を許さない視点で反対する',
+  '秀吉':'営業現場の感覚・顧客心理から反対する',
+  'エジソン':'技術的実装可能性・テストカバレッジから反対する',
+  'ジョブズ':'UX・美意識・スマホ操作性から反対する'
+};
+function _p494_renderDevilsAdvocateCard(){
+  try{
+    const wIdx=_p494_currentWeekIdx();
+    const who=_P494_DA_ROTATION[wIdx]||'信長';
+    const cur=document.getElementById('p494-da-current');
+    if(cur){
+      cur.innerHTML='😈 今週（第'+(wIdx+1)+'週）の Devil\'s Advocate：<span style="font-size:15px">'+who+'</span><div style="font-size:11px;font-weight:600;color:#7f1d1d;margin-top:3px;line-height:1.5">役割：'+(_P494_DA_PHILOSOPHY[who]||'')+'</div>';
+    }
+    // ローテ表で今週行をハイライト
+    try{
+      const rows=document.querySelectorAll('#p494-da-table tr[data-da-week]');
+      rows.forEach(function(tr){
+        const w=parseInt(tr.getAttribute('data-da-week'),10);
+        if(w===wIdx){tr.style.background='#fef2f2';tr.style.fontWeight='700';}
+        else{tr.style.background='';tr.style.fontWeight='';}
+      });
+    }catch(e){}
+  }catch(e){try{console.warn('[packet 494 _p494_renderDevilsAdvocateCard]',e&&e.message);}catch(_){}}
+}
+
+// ボス 1on1 定型テンプレ（静的、外部送信なし）
+const _P494_1ON1_TEMPLATES={
+  morning:{
+    title:'☀ 朝会（5 分）— ソルティ',
+    sub:'今日の議題・未決事項 3 つ',
+    body:'おはようございます、ボス。\n\n【今日の議題】\n1. （業務優先タスク）\n2. （承認待ち案件）\n3. （クライアント対応）\n\n【未決事項】\n・packet 進捗の確認待ち\n・KPI 目標値の見直し\n・週次レビュー\n\n【今日の判断ポイント】\n本日中に決めていただきたいこと：（最大 3 つ）\n\n【私からのお願い】\n優先順位を一言いただければ、各 AI に展開します。'
+  },
+  risk:{
+    title:'⚠ リスクレビュー（5 分）— 家康',
+    sub:'🔴🟡 項目の確認',
+    body:'ボス、お時間を 5 分いただきます。家康です。\n\n【🔴（即停止案件）】\n・（該当時のみ列挙、なければ「本日 0 件」）\n\n【🟡（要承認・要慎重）】\n・本番 GAS 実行待ち\n・本番スプレッドシート書換待ち\n・パスワード / hash 化の進捗\n\n【🟢（進行中・問題なし）】\n・docs 整備 / 設計側 push\n・改善案の作成\n\n【既存破壊への警戒点】\n・Supabase テーブル変更がないこと\n・顧客タブ復活がないこと\n・admin「管理者」/ 冨永「未定」維持\n\n【提案】\nリスクなしを確認してから、本日の packet を進めることを推奨いたします。'
+  },
+  strategy:{
+    title:'🎯 戦略確認（5 分）— 信長',
+    sub:'今週 TOP3 の進捗',
+    body:'信長だ。簡潔に。\n\n【今週の TOP3】\n1. （媒介取得 / 反響対応 / packet 完成 のいずれか）\n2. （次に重要な業務目標）\n3. （リソース割当が要る案件）\n\n【進捗】\n・TOP1：進行中 ／ 残工程 X\n・TOP2：未着手 ／ 着手判断要\n・TOP3：完了 ／ 振り返り推奨\n\n【捨てる候補】\n進行が遅い案件は思い切って次週送り。\n\n【判断要請】\nTOP1 を最優先で続けるか、新規 packet に切替か。ボスの一言で決める。'
+  },
+  sales:{
+    title:'📈 営業ダッシュ（5 分）— 秀吉',
+    sub:'営業 KPI・追客状況',
+    body:'秀吉、ご報告申し上げます！\n\n【今週の営業 KPI】\n・反響件数：X 件\n・初回架電率：X%\n・不在 SMS 率：X%\n・訪問査定アポ率：X%\n・媒介取得：X 件\n\n【追客状況】\n・長期追客：X 名\n・新規反響：X 名（初動 5 分以内：X 件）\n・査定書送付フォロー：X 件\n\n【気になる案件】\n・（顧客名イニシャル）：迷い中、フォロー要\n・（顧客名イニシャル）：競合と比較中、決定打を打つタイミング\n\n【今週の勝負どころ】\n反響対応の初動率を上げて、初回印象で勝つ。\nボス、号令をください！'
+  },
+  dev:{
+    title:'💻 開発ステータス（5 分）— エジソン',
+    sub:'packet 進捗・push 待ち',
+    body:'エジソンです。ステータスを 5 分でご報告します。\n\n【完了 packet】\n・直近：v0.9.242（AI 相談・メモ転記・カウンター hotfix）公開済み\n\n【進行中 packet】\n・packet 494（AI 議論システム拡張 TOP3）：実装中\n\n【push 待ち】\n・house-tate-source ahead 状態の有無を確認\n・JS syntax は node --check で OK 確認済み\n\n【既存破壊チェック】\n・MutationObserver 新規追加なし（packet 490 軽量化維持）\n・多段 setTimeout なし\n・Supabase / SQL / RLS / Auth 変更なし\n\n【承認要請】\npacket 494 commit を確認後、通常 push を承認いただけますでしょうか。'
+  },
+  ui:{
+    title:'🎨 UI レビュー（任意）— ジョブズ',
+    sub:'今週の改善案',
+    body:'今週、私が気になった UI を 3 つお伝えします。\n\n【改善案 1】\nホームのワンタップカウンター：±ボタンが見やすくなった（packet 492）。次は数字の視認性を上げる余地あり。\n\n【改善案 2】\nAI 相談モーダルの結果表示：背景色 / フォントサイズ良好。スマホでスクロール時の自動 scrollIntoView は維持してほしい。\n\n【改善案 3】\nボス 1on1 モードのカード（今ここ）：6 つのボタンは選びやすいが、本来はスマホで「タップ → スワイプ → 完了」の 3 ステップで終わるべき。次の packet で検討。\n\n【美意識基準】\n・タップ数を減らす\n・色を減らす\n・文字を読みやすくする\n・スマホ片手操作で完結する\n\nボスのお時間が許せば、次の packet で 1 つだけ採用してください。'
+  }
+};
+function _p494_bind1on1Buttons(){
+  try{
+    const btns=document.querySelectorAll('.p494-1on1-btn');
+    btns.forEach(function(b){
+      if(b.dataset.p494Bound==='1')return;
+      b.dataset.p494Bound='1';
+      b.addEventListener('click',function(){
+        const key=b.getAttribute('data-1on1');
+        _p494_open1on1Modal(key);
+      });
+    });
+    const cl=document.getElementById('p494-1on1-close');
+    if(cl && cl.dataset.p494Bound!=='1'){
+      cl.dataset.p494Bound='1';
+      cl.addEventListener('click',_p494_close1on1Modal);
+    }
+    const overlay=document.getElementById('p494-1on1-modal');
+    if(overlay && overlay.dataset.p494Bound!=='1'){
+      overlay.dataset.p494Bound='1';
+      overlay.addEventListener('click',function(ev){if(ev.target===overlay)_p494_close1on1Modal();});
+    }
+  }catch(e){try{console.warn('[packet 494 _p494_bind1on1Buttons]',e&&e.message);}catch(_){}}
+}
+function _p494_open1on1Modal(key){
+  try{
+    const tmpl=_P494_1ON1_TEMPLATES[key];
+    if(!tmpl)return;
+    const m=document.getElementById('p494-1on1-modal');
+    const t=document.getElementById('p494-1on1-title');
+    const s=document.getElementById('p494-1on1-sub');
+    const b=document.getElementById('p494-1on1-body');
+    if(t)t.textContent=tmpl.title;
+    if(s)s.textContent=tmpl.sub;
+    if(b)b.textContent=tmpl.body;
+    if(m)m.style.display='flex';
+  }catch(e){try{console.warn('[packet 494 _p494_open1on1Modal]',e&&e.message);}catch(_){}}
+}
+function _p494_close1on1Modal(){
+  try{
+    const m=document.getElementById('p494-1on1-modal');
+    if(m)m.style.display='none';
+  }catch(e){}
+}
+
+// 議論健全性スコア：会議結果から A/B/C/D を算出
+function _p494_computeHealthScore(meeting, agents){
+  try{
+    const a = Array.isArray(agents) ? agents : [];
+    // 反論回数（risk 欄が空でない agent 数）
+    const objections = a.filter(function(x){return x && x.risk && String(x.risk).trim().length>0;}).length;
+    // 「修正」傾向（next 欄に「再検討 / 見直し / 保留 / 撤回 / 変更」を含む agent 数）
+    const revisions = a.filter(function(x){
+      if(!x)return false;
+      const txt = ((x.next||'')+' '+(x.opinion||'')+' '+(x.plan||'')).toString();
+      return /再検討|見直し|保留|撤回|変更|要修正/.test(txt);
+    }).length;
+    // 賛否分布：opinion 内に「すべき / 必要」と「慎重 / 反対 / 懸念」が混在するか
+    let positives=0, negatives=0;
+    a.forEach(function(x){
+      const txt = ((x && x.opinion)||'').toString();
+      if(/すべき|必要|推奨|進めるべき|採用/.test(txt))positives++;
+      if(/慎重|反対|懸念|危険|止める|待て|リスク/.test(txt))negatives++;
+    });
+    const balanced = (positives>0 && negatives>0);
+    // 🔴指摘の有無（risk 欄に「🔴」「重大」「致命的」）
+    const red = a.some(function(x){
+      const txt = ((x && x.risk)||'').toString();
+      return /🔴|重大|致命的|本番ダウン/.test(txt);
+    });
+    // スコアリング
+    let pts = 0;
+    if(objections >= 2) pts += 2; else if(objections === 1) pts += 1;
+    if(revisions >= 1) pts += 1;
+    if(balanced) pts += 1;
+    // 🔴 検出は減点（未対応想定の警告）
+    if(red) pts -= 1;
+    // 緊急度高 + 議論浅い場合は警告
+    if(meeting && meeting.urgency === '高' && objections < 2) pts -= 1;
+    // ランク
+    let rank, lbl, color;
+    if(pts >= 3){rank='A'; lbl='健全な議論'; color='#0d9e6e';}
+    else if(pts >= 2){rank='B'; lbl='概ね健全'; color='#60a5fa';}
+    else if(pts >= 1){rank='C'; lbl='偏りあり、要注意'; color='#e6b800';}
+    else{rank='D'; lbl='全員賛成 / 批判不足 / 要改議'; color='#d93025';}
+    return {rank:rank, label:lbl, color:color, objections:objections, revisions:revisions, balanced:balanced, red:red};
+  }catch(e){
+    return {rank:'C', label:'計算不能', color:'#999', objections:0, revisions:0, balanced:false, red:false};
+  }
+}
+function _p494_renderHealthScoreHtml(meeting, agents){
+  try{
+    const s = _p494_computeHealthScore(meeting, agents);
+    const e = (typeof escAITeamHtml==='function')?escAITeamHtml:(x=>String(x||''));
+    let h = '<div class="ai-team-section" style="border-left:4px solid '+e(s.color)+';padding-left:10px;background:'+e(s.color)+'14;border-radius:6px">';
+    h += '<div class="ai-team-section-title" style="color:'+e(s.color)+'">📊 議論健全性スコア（packet 494）</div>';
+    h += '<div style="font-size:22px;font-weight:800;color:'+e(s.color)+';margin:4px 0">'+e(s.rank)+' — '+e(s.label)+'</div>';
+    h += '<div class="ai-team-role-row"><b>反論回数：</b>'+e(s.objections)+(s.objections>=2?' ✅':' ⚠ 0〜1 件は批判機能不足')+'</div>';
+    h += '<div class="ai-team-role-row"><b>修正・見直し傾向：</b>'+e(s.revisions)+'（next/opinion に再検討/保留/見直し が含まれる AI 数）</div>';
+    h += '<div class="ai-team-role-row"><b>賛否分布：</b>'+(s.balanced?'✅ あり（賛成と慎重の両方が混在）':'⚠ 偏り（全員同方向の可能性）')+'</div>';
+    h += '<div class="ai-team-role-row"><b>🔴指摘：</b>'+(s.red?'⚠ 検出（議事録で対応確認を）':'✅ なし')+'</div>';
+    h += '<div class="ai-team-mini-note" style="margin-top:6px;color:#555">Devil\'s Advocate（今週担当）と組み合わせて、全員賛成会議を構造的に防ぎます。</div>';
+    h += '</div>';
+    return h;
+  }catch(e){return '';}
+}
+// 既存 renderAIMeetingResult をラップして、健全性スコアを末尾に追加（既存挙動を壊さない）
+try{
+  if(typeof renderAIMeetingResult==='function' && !renderAIMeetingResult._p494Wrapped){
+    const _origRender=renderAIMeetingResult;
+    renderAIMeetingResult=function(r){
+      const ret=_origRender.apply(this, arguments);
+      try{
+        const root=document.getElementById('ai-team-result');
+        if(root && r && r.agents){
+          const html=_p494_renderHealthScoreHtml(r.meeting, r.agents);
+          if(html){
+            const wrap=document.createElement('div');
+            wrap.innerHTML=html;
+            root.appendChild(wrap.firstChild);
+          }
+        }
+      }catch(e){try{console.warn('[packet 494 health score]',e&&e.message);}catch(_){}}
+      return ret;
+    };
+    renderAIMeetingResult._p494Wrapped=true;
+  }
+}catch(e){}
 function startAIMeeting(){
   const topic=document.getElementById('ai-team-topic').value.trim();
   if(!topic){alert('議題を入力してください');return;}
