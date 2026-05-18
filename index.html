@@ -1799,7 +1799,8 @@ textarea.ai-team-input{resize:vertical;min-height:60px}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);
   else boot();
   if(window.addEventListener)try{window.addEventListener('load',boot);}catch(e){}
-  setTimeout(boot,300);setTimeout(boot,1500);setTimeout(boot,4000);
+  // packet 490 hotfix: 4 段 setTimeout → 1 段に削減（メインスレッド占有回避）
+  setTimeout(boot,300);
   // packet 488: API を window に公開（後続コードからも呼べる）
   try{window._p488_ensureLoginVisible=ensureLoginVisible;window._p488_rebindLogin=rebindLogin;}catch(e){}
 })();
@@ -1840,6 +1841,52 @@ try{
     })
   };
 }
+
+// ═══════════════════════════════════════
+// packet 490: ページ応答なし / 起動後フリーズ hotfix
+// 目的：起動時にメインスレッドを圧迫しない。
+//   - packet 480/481/482/483/485 の init は未ログイン時 skip
+//   - 多段 setTimeout（1000/3000/5000）を撤去
+//   - 各 IIFE は window._p490_register(fn) で post-login queue に登録
+//   - showMainApp 完了後にまとめて 1 回だけ flush（class toggle ループも回避）
+// ═══════════════════════════════════════
+(function p490LazyInitInfra(){
+  try{
+    // queue は IIFE が _p490_register より先に走る場合のため push 先として用意
+    window._p490_queue = window._p490_queue || [];
+    window._p490_postLoginFns = window._p490_postLoginFns || [];
+    window._p490_flushed = false;
+    window._p490_register = function(fn){
+      if(typeof fn !== 'function') return;
+      window._p490_postLoginFns.push(fn);
+      // ログイン済 + 既に flush 完了後の登録は即実行
+      try{
+        if(window._p490_flushed && typeof currentUser !== 'undefined' && currentUser){
+          setTimeout(function(){try{fn();}catch(_){}}, 0);
+        }
+      }catch(_){}
+    };
+    // queue に push 済みだった IIFE 分を回収
+    window._p490_flushPostLogin = function(){
+      try{
+        if(typeof currentUser==='undefined' || !currentUser)return;
+        // queue 内の関数を _p490_postLoginFns に merge（重複ガード）
+        (window._p490_queue||[]).forEach(function(fn){
+          if(typeof fn==='function' && window._p490_postLoginFns.indexOf(fn)<0){
+            window._p490_postLoginFns.push(fn);
+          }
+        });
+        window._p490_queue = [];
+        const fns = window._p490_postLoginFns.slice();
+        // 1 つずつ setTimeout で分散実行（メインスレッド連続占有を回避）
+        fns.forEach(function(fn, i){
+          setTimeout(function(){try{fn();}catch(e){try{console.warn('[packet 490 postLogin]',e&&e.message);}catch(_){}}}, 50 + i*30);
+        });
+        window._p490_flushed = true;
+      }catch(e){try{console.warn('[packet 490 flush]',e&&e.message);}catch(_){}}
+    };
+  }catch(e){try{console.warn('[packet 490 infra]',e&&e.message);}catch(_){}}
+})();
 
 async function sbGet(table, params='') {
   const r = await fetch(`${SB_URL}/rest/v1/${table}?${params}`, {
@@ -2559,9 +2606,12 @@ bindEvForm();
     renderTaskBoard();
     document.querySelectorAll('.ntab').forEach(b=>b.classList.toggle('on',b.dataset.pg==='cal'));
   }
+  // packet 490 hotfix: ログイン完了後、packet 480/481/482/483/485 の遅延 init を順次実行
+  // setTimeout 50ms + 各 fn を 30ms ずつずらす（メインスレッド連続占有を回避）
+  try{if(typeof window._p490_flushPostLogin==='function')window._p490_flushPostLogin();}catch(_p490_flushErr){try{console.warn('[packet 490 showMainApp flush]',_p490_flushErr&&_p490_flushErr.message);}catch(_){}}
 }
 
-function switchPage(pg){if(pg==='crm'){pg='dash';/* packet 322: 顧客タブ強制無効化、dash に強制リダイレクト */}document.querySelectorAll('.ntab').forEach(b=>b.classList.toggle('on',b.dataset.pg===pg));document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));const pgEl=document.getElementById(`page-${pg}`);if(pgEl)pgEl.classList.add('on');if(pg==='dash')renderDash();if(pg==='accounts')renderAccList();if(pg==='kintai'){ktViewUid=currentUser.perm==='admin'?null:currentUser.uid;renderKintaiPage();}if(pg==='cal')render();if(pg==='shift')renderShift();if(pg==='goal'){initGoalData();renderGoalPage();}if(pg==='report')renderReportPage();if(pg==='aiteam')renderAITeamPage();if(pg==='member-workload')renderMemberWorkloadPage();if(pg==='ai-members')renderAIMembersPage();if(pg==='ai-org')renderAIOrgChartPage();if(pg==='realestate-knowledge')renderRealEstateKnowledgePage();if(pg==='routine')renderRoutinePage();if(pg==='sales-psy')renderSalesPsychologyPage();if(pg==='knowledge-portal')renderKnowledgePortalPage();if(pg==='role-knowledge')renderRoleKnowledgePage();if(pg==='knowledge-candidate-box'){try{renderKnowledgeCandidateBox();}catch(e){const r=document.getElementById('kc-cards');if(r)r.innerHTML='<div style="color:#b91c1c;padding:14px;background:#fef2f2;border-radius:6px;">AI 事典追加候補箱の読み込みに失敗しました。Console を確認してください。<br><code style="font-size:11px;">'+String(e&&e.message||e)+'</code></div>';}}}
+function switchPage(pg){if(pg==='crm'){pg='dash';/* packet 322: 顧客タブ強制無効化、dash に強制リダイレクト */}document.querySelectorAll('.ntab').forEach(b=>b.classList.toggle('on',b.dataset.pg===pg));document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));const pgEl=document.getElementById(`page-${pg}`);if(pgEl)pgEl.classList.add('on');if(pg==='dash')renderDash();if(pg==='accounts'){renderAccList();/* packet 490: accounts ページ表示時 packet 480/481 UI を bind */try{if(typeof window._p490_flushPostLogin==='function')window._p490_flushPostLogin();}catch(_){}}if(pg==='kintai'){ktViewUid=currentUser.perm==='admin'?null:currentUser.uid;renderKintaiPage();/* packet 490: kintai ページ表示時 packet 485 export UI を bind */try{if(typeof window._p485_initOnKintai==='function')window._p485_initOnKintai();}catch(_){}}if(pg==='cal')render();if(pg==='shift')renderShift();if(pg==='goal'){initGoalData();renderGoalPage();}if(pg==='report')renderReportPage();if(pg==='aiteam')renderAITeamPage();if(pg==='member-workload')renderMemberWorkloadPage();if(pg==='ai-members')renderAIMembersPage();if(pg==='ai-org')renderAIOrgChartPage();if(pg==='realestate-knowledge')renderRealEstateKnowledgePage();if(pg==='routine')renderRoutinePage();if(pg==='sales-psy')renderSalesPsychologyPage();if(pg==='knowledge-portal')renderKnowledgePortalPage();if(pg==='role-knowledge')renderRoleKnowledgePage();if(pg==='knowledge-candidate-box'){try{renderKnowledgeCandidateBox();}catch(e){const r=document.getElementById('kc-cards');if(r)r.innerHTML='<div style="color:#b91c1c;padding:14px;background:#fef2f2;border-radius:6px;">AI 事典追加候補箱の読み込みに失敗しました。Console を確認してください。<br><code style="font-size:11px;">'+String(e&&e.message||e)+'</code></div>';}}}
 function mkModal(id,barColor,title){const ex=document.getElementById(id);if(ex)ex.remove();const bg=document.createElement('div');bg.className='mbg';bg.id=id;bg.innerHTML=`<div class="modal"><div class="mbar" style="background:${barColor}"></div><button class="mclose" id="${id}-c">✕</button><div class="mttl">${title}</div><div class="macts"></div></div>`;document.body.appendChild(bg);document.getElementById(`${id}-c`).onclick=()=>bg.remove();bg.onclick=e=>{if(e.target===bg)bg.remove();};return bg;}
 function mttlAfter(bg,html){bg.querySelector('.mttl').insertAdjacentHTML('afterend',html);}
 function macts(bg,html){bg.querySelector('.macts').innerHTML=html;}
@@ -3500,22 +3550,15 @@ document.getElementById('issue-btn').onclick=()=>{
   }
 
   function init(){
+    // packet 490 hotfix: 未ログイン時は bind しない（admin 専用 UI、ログイン前は不要）
+    try{if(typeof currentUser==='undefined' || !currentUser)return;}catch(e){return;}
     bindBackup();bindExec();_updateTargetInfo();
-    try{
-      const obs=new MutationObserver(function(){
-        try{
-          const b=bindBackup(); const e=bindExec();
-          _updateTargetInfo();
-          if(b && e)obs.disconnect();
-        }catch(e){}
-      });
-      obs.observe(document.body,{childList:true,subtree:true});
-    }catch(e){}
-    setTimeout(function(){bindBackup();bindExec();_updateTargetInfo();},1000);
-    setTimeout(function(){bindBackup();bindExec();_updateTargetInfo();},3000);
+    // packet 490 hotfix: subtree:true の MutationObserver を撤去（メインスレッド圧迫の主因）
+    // 代わりに showMainApp 後の単発再 init を window._p490_postLogin に登録
   }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);
-  else init();
+  // packet 490 hotfix: 多段 setTimeout を撤去、ログイン後単発実行に集約
+  if(window._p490_register)window._p490_register(init);
+  else{try{(window._p490_queue=window._p490_queue||[]).push(init);}catch(e){}}
 })();
 // ==== ここまで packet 480 hard delete ====
 
@@ -3576,16 +3619,13 @@ document.getElementById('issue-btn').onclick=()=>{
     return true;
   }
   function init(){
+    // packet 490 hotfix: 未ログイン時 skip（admin 専用、ボタン押下時のみ fetch）
+    try{if(typeof currentUser==='undefined' || !currentUser)return;}catch(e){return;}
     bind();
-    try{
-      const obs=new MutationObserver(function(){try{if(bind())obs.disconnect();}catch(e){}});
-      obs.observe(document.body,{childList:true,subtree:true});
-    }catch(e){}
-    setTimeout(bind,1000);
-    setTimeout(bind,3000);
+    // packet 490 hotfix: subtree:true observer を撤去、多段 setTimeout も撤去
   }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);
-  else init();
+  if(window._p490_register)window._p490_register(init);
+  else{try{(window._p490_queue=window._p490_queue||[]).push(init);}catch(e){}}
 })();
 // ==== ここまで packet 481 schema probe ====
 
@@ -3684,7 +3724,8 @@ async function loadEvents(){
 // hook を追加（packet 454 IIFE 経由でも render 後に呼ぶ）
 (function patchEventsPersistHook(){
   function init(){
-    // ef-save click 後に _persistEvents 呼出
+    // packet 490 hotfix: 未ログイン時 skip + 多段 setTimeout 撤去
+    try{if(typeof currentUser==='undefined' || !currentUser)return;}catch(e){return;}
     try{
       const ef=document.getElementById('ef-save');
       if(ef && ef.dataset.p482Bound!=='1'){
@@ -3693,9 +3734,8 @@ async function loadEvents(){
       }
     }catch(e){}
   }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);
-  else init();
-  setTimeout(init,1000);setTimeout(init,3000);
+  if(window._p490_register)window._p490_register(init);
+  else{try{(window._p490_queue=window._p490_queue||[]).push(init);}catch(e){}}
 })();
 // loadEvents は loadAllFromDB の最後で明示呼出する形を取りたいが、本 packet では
 // 互換優先で「ログイン後 5 秒後に試行」とする（既存 loadAllFromDB を壊さない）
@@ -3707,8 +3747,10 @@ async function loadEvents(){
       }).catch(()=>{});
     }
   }
-  // ログイン後の自動 load を 5 秒後に試行
-  setTimeout(tryLoad, 5000);
+  // packet 490 hotfix: 未ログイン時の setTimeout(tryLoad,5000) 撤去。
+  // showMainApp 後の post-login queue で 1 回だけ実行（ログイン前は重い fetch しない）。
+  if(window._p490_register)window._p490_register(tryLoad);
+  else{try{(window._p490_queue=window._p490_queue||[]).push(tryLoad);}catch(e){}}
 })();
 // ==== ここまで packet 482 events persistence ====
 
@@ -3787,6 +3829,8 @@ async function loadTodos(){
 // ToDo 追加 button（td-add / day-td-add）click 後に _persistTodos
 (function patchTodosPersistHook(){
   function init(){
+    // packet 490 hotfix: 未ログイン時 skip + 多段 setTimeout 撤去
+    try{if(typeof currentUser==='undefined' || !currentUser)return;}catch(e){return;}
     try{
       const td=document.getElementById('td-add');
       if(td && td.dataset.p483Bound!=='1'){
@@ -3795,9 +3839,8 @@ async function loadTodos(){
       }
     }catch(e){}
   }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);
-  else init();
-  setTimeout(init,1000);setTimeout(init,3000);
+  if(window._p490_register)window._p490_register(init);
+  else{try{(window._p490_queue=window._p490_queue||[]).push(init);}catch(e){}}
 })();
 (function patchTodosAutoLoadP483(){
   function tryLoad(){
@@ -3807,7 +3850,9 @@ async function loadTodos(){
       }).catch(()=>{});
     }
   }
-  setTimeout(tryLoad, 5500);
+  // packet 490 hotfix: 未ログイン時の setTimeout(tryLoad,5500) 撤去、post-login 単発に集約
+  if(window._p490_register)window._p490_register(tryLoad);
+  else{try{(window._p490_queue=window._p490_queue||[]).push(tryLoad);}catch(e){}}
 })();
 // ==== ここまで packet 483 todos persistence ====
 
@@ -3984,16 +4029,16 @@ function exportKintaiCsv(range){
     });
   }
   function init(){
-    update();bindBtns();
-    try{
-      const obs=new MutationObserver(()=>{update();bindBtns();});
-      obs.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['class']});
-    }catch(e){}
-    setTimeout(()=>{update();bindBtns();},1000);
-    setTimeout(()=>{update();bindBtns();},3000);
+    // packet 490 hotfix: 未ログイン時 skip。さらに、subtree+attributes 監視で
+    // body 全体の class toggle ごとに update/bindBtns が走り「ページが応答しません」の
+    // 主因になっていた。MutationObserver を完全撤去し、post-login 単発 init + switchPage('kintai') 時のみ実行。
+    try{if(typeof currentUser==='undefined' || !currentUser)return;}catch(e){return;}
+    try{update();bindBtns();}catch(e){}
   }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);
-  else init();
+  // packet 490 hotfix: post-login で 1 回 init、switchPage('kintai') 時に window._p485_initOnKintai が呼ばれる前提
+  try{window._p485_initOnKintai=function(){try{init();}catch(e){}};}catch(e){}
+  if(window._p490_register)window._p490_register(init);
+  else{try{(window._p490_queue=window._p490_queue||[]).push(init);}catch(e){}}
 })();
 // ==== ここまで packet 485 kintai csv ====
 
