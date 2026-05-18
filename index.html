@@ -1771,6 +1771,31 @@ textarea.ai-team-input{resize:vertical;min-height:60px}
   </div>
 </div>
 
+  <!-- packet 497: ChatGPT 自動報告プレビューモーダル（共通、AI 会議 / AI 相談 / ボス 1on1 の結果を流入） -->
+  <div id="p497-report-modal" style="position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.55);display:none;align-items:flex-start;justify-content:center;padding:20px 12px;overflow-y:auto">
+    <div style="background:#fff;border-radius:12px;max-width:680px;width:100%;max-height:calc(100vh - 40px);overflow-y:auto;border-top:6px solid #0a3d7c;display:flex;flex-direction:column">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;padding:14px 16px 8px;gap:10px;border-bottom:1px solid var(--bo)">
+        <div>
+          <div style="font-size:16px;font-weight:800;color:#0a3d7c;line-height:1.4">🤖 ChatGPT へ自動報告（送信前プレビュー）</div>
+          <div style="font-size:11px;color:var(--t3);margin-top:2px;line-height:1.5">payload の中身を確認してから送信 / コピーしてください。パスワード・トークン・顧客情報は自動で伏せ字化されます。</div>
+        </div>
+        <button type="button" id="p497-report-close" aria-label="閉じる" style="background:0;border:0;font-size:22px;color:var(--t3);cursor:pointer;padding:4px 10px;line-height:1;min-width:40px;min-height:40px;border-radius:8px">✕</button>
+      </div>
+      <div id="p497-report-endpoint-note" style="margin:0 16px;padding:8px 10px;background:#fef3c7;border:1.5px solid #fcd34d;border-radius:8px;font-size:11px;color:#78350f;line-height:1.6;display:none">⚠ ChatGPT 自動報告 API は未設定です。Cloud Run / Edge Function の設定後に有効化されます。<br>現状はプレビュー表示とテキストコピーのみ可能です。送信ボタンは無効化されます。</div>
+      <div style="padding:12px 16px">
+        <div style="font-size:11px;font-weight:700;color:#0a3d7c;margin-bottom:4px">payload プレビュー（JSON）</div>
+        <pre id="p497-report-body" style="background:#f8fafc;border:1.5px solid var(--bo);border-radius:8px;padding:11px 13px;font-size:11px;line-height:1.7;color:var(--t1);font-family:'Menlo','Consolas',monospace;white-space:pre-wrap;word-break:break-all;max-height:50vh;overflow-y:auto;margin:0"></pre>
+      </div>
+      <div style="padding:8px 16px 14px;display:flex;gap:6px;flex-wrap:wrap;border-top:1px solid var(--bo)">
+        <button type="button" id="p497-report-send" style="flex:2;min-width:120px;padding:9px 14px;border-radius:8px;border:0;background:#0a3d7c;color:#fff;font-size:13px;font-weight:700;cursor:pointer;min-height:40px">📤 送信する</button>
+        <button type="button" id="p497-report-copy" style="flex:1;min-width:90px;padding:9px 14px;border-radius:8px;border:1.5px solid #0a3d7c;background:#fff;color:#0a3d7c;font-size:13px;font-weight:700;cursor:pointer;min-height:40px">📋 コピー</button>
+        <button type="button" id="p497-report-cancel" style="flex:1;min-width:90px;padding:9px 14px;border-radius:8px;border:1.5px solid var(--bo);background:#fff;color:var(--t2);font-size:13px;font-weight:700;cursor:pointer;min-height:40px">キャンセル</button>
+      </div>
+      <div id="p497-report-result" style="margin:0 16px 14px;padding:8px 10px;border-radius:8px;font-size:11px;font-weight:600;line-height:1.6;display:none"></div>
+      <div style="padding:8px 16px 14px;font-size:10px;color:#999;border-top:1px solid var(--bo);background:var(--s1)">※ フロントに OpenAI API キーは置きません。本番送信は Cloud Run / Supabase Edge Function 経由で別 packet 設定後に有効化されます。詳細は docs/AI_AGENT_FULL_SETTINGS_AND_CHATGPT_AUTO_REPORT_PACKET_497.md 参照。</div>
+    </div>
+  </div>
+
   <nav id="bottom-nav" style="display:none">
     <div class="bn-tab-wrap" onclick="switchPage('dash')"><button class="bn-tab" data-bnpg="dash"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>ホーム</button></div>
     <div class="bn-tab-wrap" onclick="switchPage('kintai')"><button class="bn-tab" data-bnpg="kintai"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>勤怠</button></div>
@@ -12764,6 +12789,489 @@ function openEventFormFromCalendar(dateStr,timeStr){
   else init();
 })();
 // ==== ここまで packet 454 / 456 ====
+
+// ═══════════════════════════════════════════════════════════════════════
+// packet 497: 全 AI 設定 + ChatGPT/OpenAI 自動報告 UI（v0.9.247）
+// 設計方針：
+//   - 全 AI に role / purpose / constraints / outputFormat / reportFormat /
+//     riskLevel / ownerArea を持たせる
+//   - AI 名鑑カード詳細・AI 会議結果・AI 相談・ボス 1on1 へ反映
+//   - ChatGPT 自動報告ボタン + 送信前プレビューモーダル
+//   - フロントに OpenAI API キーを置かない（実本番化は Cloud Run / Edge Function 経由、別 packet）
+//   - endpoint 未設定時は fallback 表示、コピーは可能
+//   - payload は password / token / 顧客情報 / Supabase URL / UUID を伏せ字化
+//   - packet 490 軽量化維持：MutationObserver 新規追加なし、多段 setTimeout なし、
+//     すべてユーザー操作起点
+// ═══════════════════════════════════════════════════════════════════════
+const _P497_ENDPOINT = '/api/jagai-report-to-chatgpt';
+const _P497_ENDPOINT_ENABLED = false;  // フロント単独では false、Cloud Run 設定後に true 化
+
+// 中心 6 名 + 暫定 fallback
+const _P497_AI_SETTINGS = {
+  // id（_P494_DA_ROTATION 名 / AI 会議 buildPseudoAgentOutputs / AI 名鑑 ID と整合）
+  '織田信長':{
+    role:'最終意思決定 / 戦略 / 優先順位 / 攻めの判断',
+    purpose:'TOP3 を決め、捨てるものを決め、ボス判断を絞り込む',
+    constraints:'感情・冗長を許さない / 1 行で結論 / 既存決定を簡単に覆さない',
+    outputFormat:'TOP3 / やらないこと / ボス判断ポイント',
+    reportFormat:'TOP3 + 捨てる候補 + ボス判断ポイント（各 1 行）',
+    riskLevel:'GREEN',
+    ownerArea:'戦略 / 優先順位 / 強制決定 / 新規エリア進出'
+  },
+  'ソルティ':{
+    role:'ボス専属 AI 秘書 / 議論整理 / 仲介役',
+    purpose:'ボス向けに 3 行要約 + 承認可否 + 次に貼る指示文を生成する',
+    constraints:'中立 / 敬語 / 感情を入れない / 越権発言禁止',
+    outputFormat:'3 行要約 / 承認可否 / 次に貼る指示文',
+    reportFormat:'3 行で言うと / 承認可否（✅/⚠/❌）/ 次に貼る指示文',
+    riskLevel:'GREEN',
+    ownerArea:'ボス窓口 / 議事録 / 圧縮 / 指示文ドラフト'
+  },
+  '豊臣秀吉':{
+    role:'営業司令塔 / 顧客心理の代弁 / 追客文面',
+    purpose:'反響対応・追客・営業 KPI を現場感で動かす',
+    constraints:'顧客情報を payload に出さない / 押し売り口調禁止',
+    outputFormat:'営業方針 / 顧客心理 / 追客文面',
+    reportFormat:'営業方針（1〜3 行）/ 顧客心理（ペルソナ）/ 追客文面案',
+    riskLevel:'YELLOW',
+    ownerArea:'営業 / 反響対応 / 追客 / 媒介取得 / 顧客代弁'
+  },
+  'トーマス・エジソン':{
+    role:'開発・自動化司令塔 / 実装可能性 / テスト',
+    purpose:'機能開発と hotfix を計画的・実用的に進める',
+    constraints:'未テスト push 禁止 / 本番 DB 直接書込禁止',
+    outputFormat:'原因 / 修正方針 / テスト項目 / push 可否',
+    reportFormat:'原因 / 修正方針 / テスト項目（箇条書き）/ push 可否（GO/NO-GO）',
+    riskLevel:'YELLOW',
+    ownerArea:'開発 / 自動化 / バグ修正 / packet 進捗 / push 判断'
+  },
+  '徳川家康':{
+    role:'リスク管理 / 法務・契約 / 長期視点 / 既存保護',
+    purpose:'急ぐ案件にもブレーキを掛け、長期で続く仕組みにする',
+    constraints:'スピード判断より検証を優先 / 既存破壊禁止',
+    outputFormat:'リスク / 禁止事項 / 安全策',
+    reportFormat:'リスク列挙（🔴🟡🟢 分類）/ 禁止事項 / 安全策・ロールバック手順',
+    riskLevel:'RED',
+    ownerArea:'リスク / 法令 / 既存資産保護 / RLS / Auth / バックアップ'
+  },
+  'スティーブ・ジョブズ':{
+    role:'制作司令塔 / UI / UX / 美意識',
+    purpose:'スマホ片手操作で完結する美しい UI に近づける',
+    constraints:'機能盛り過ぎ禁止 / タップ数を増やさない',
+    outputFormat:'UI 目的 / 問題点 / 改善案 / 文言案',
+    reportFormat:'UI 目的 / 問題点（箇条書き）/ 改善案（1〜3 案）/ 文言案',
+    riskLevel:'GREEN',
+    ownerArea:'UI / UX / スマホ操作 / コピー文言'
+  }
+};
+function _p497_getSettings(name){
+  if(!name)return _p497_settingsFallback(name||'AI');
+  if(_P497_AI_SETTINGS[name])return _P497_AI_SETTINGS[name];
+  // 部分一致（名鑑側で「家康（経営戦略）」のような表記の対応）
+  const keys=Object.keys(_P497_AI_SETTINGS);
+  for(const k of keys){if(name.indexOf(k)>=0 || k.indexOf(name)>=0)return _P497_AI_SETTINGS[k];}
+  return _p497_settingsFallback(name);
+}
+function _p497_settingsFallback(name){
+  return {
+    role:'未指定（暫定）',
+    purpose:'担当領域の観点で議論に貢献する',
+    constraints:'越権発言禁止 / 既存決定を簡単に覆さない',
+    outputFormat:'観点 / 意見 / リスク / 次アクション',
+    reportFormat:'観点 / 意見 / リスク / 次アクション（各 1 行）',
+    riskLevel:'GREEN',
+    ownerArea:'（暫定）'+name+' 担当領域'
+  };
+}
+
+// AI 相談カテゴリ → 主担当 AI マッピング
+const _P497_CONSULT_CATEGORY_TO_AIS = {
+  today:    ['ソルティ','織田信長','徳川家康'],
+  follow:   ['豊臣秀吉','徳川家康','ソルティ'],
+  appraisal:['豊臣秀吉','徳川家康','ソルティ'],
+  reply:    ['豊臣秀吉','スティーブ・ジョブズ','ソルティ'],
+  task:     ['ソルティ','織田信長','豊臣秀吉'],
+  manager:  ['織田信長','ソルティ','徳川家康'],
+  howto:    ['トーマス・エジソン','スティーブ・ジョブズ','ソルティ'],
+  team:     ['ソルティ','織田信長','徳川家康','豊臣秀吉','トーマス・エジソン','スティーブ・ジョブズ']
+};
+
+// payload 伏せ字化：password / pass / token / api key / Supabase URL / UUID / 顧客情報を除外・伏せ字
+function _p497_sanitizeString(s){
+  if(typeof s !== 'string')return s;
+  let out = s;
+  try{
+    // UUID（8-4-4-4-12）
+    out = out.replace(/\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\b/g, '[UUID]');
+    // Supabase URL
+    out = out.replace(/https?:\/\/[a-zA-Z0-9-]+\.supabase\.co[^\s"']*/g, '[SUPABASE_URL]');
+    // sb_publishable_ / sb_secret_ / sk_ / pk_ / Bearer xxx
+    out = out.replace(/\b(sb_(publishable|secret)_[A-Za-z0-9\-_.]+)/g, '[SUPABASE_KEY]');
+    out = out.replace(/\b(sk-[A-Za-z0-9\-_.]{8,})/g, '[OPENAI_KEY]');
+    out = out.replace(/\bBearer\s+[A-Za-z0-9\-_.]+/gi, 'Bearer [TOKEN]');
+    // password = / pass = / token = （URL クエリ / JSON 風）
+    out = out.replace(/("?(?:password|pass|pwd|token|api[_-]?key|refresh[_-]?token|service[_-]?role)"?\s*[:=]\s*)("[^"]*"|'[^']*'|[^,\s}]+)/gi, '$1"[REDACTED]"');
+    // 電話番号（日本フォーマット 緩め）
+    out = out.replace(/\b0\d{1,4}-\d{1,4}-\d{3,4}\b/g, '[TEL]');
+    out = out.replace(/\b0\d{9,10}\b/g, '[TEL]');
+    // email
+    out = out.replace(/\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b/g, '[EMAIL]');
+  }catch(e){}
+  return out;
+}
+const _P497_SENSITIVE_KEYS = ['password','pass','pwd','token','refreshToken','refresh_token','apiKey','api_key','serviceRole','service_role','SB_KEY','SB_URL','sb_url','sb_key','phone','tel','email','customerName','customer_name'];
+function _p497_sanitizeValue(v){
+  if(v == null)return v;
+  if(typeof v === 'string')return _p497_sanitizeString(v);
+  if(Array.isArray(v))return v.map(_p497_sanitizeValue);
+  if(typeof v === 'object'){
+    const out={};
+    Object.keys(v).forEach(function(k){
+      if(_P497_SENSITIVE_KEYS.indexOf(k)>=0){out[k]='[REDACTED]';return;}
+      out[k]=_p497_sanitizeValue(v[k]);
+    });
+    return out;
+  }
+  return v;
+}
+
+// payload 生成
+function _p497_generatePayload(opts){
+  // opts: {source, type, title, body, riskLevel, relatedPacket, aiSummary,
+  //        nobunagaTop3, ieyasuRisk, saltySummary, devilAdvocate, healthScore,
+  //        bossDecisionNeeded, claudeInstruction}
+  const requestedBy = (function(){
+    try{
+      if(typeof currentUser !== 'undefined' && currentUser){
+        return {uid:String(currentUser.uid||''), name:String(currentUser.name||''), perm:String(currentUser.perm||'')};
+      }
+    }catch(e){}
+    return {uid:'',name:'',perm:''};
+  })();
+  const raw = {
+    source: opts.source || 'house-tate',
+    type: opts.type || 'unknown',
+    title: opts.title || '',
+    body: opts.body || '',
+    riskLevel: opts.riskLevel || 'GREEN',
+    relatedPacket: opts.relatedPacket || '',
+    aiSummary: opts.aiSummary || '',
+    nobunagaTop3: opts.nobunagaTop3 || '',
+    ieyasuRisk: opts.ieyasuRisk || '',
+    saltySummary: opts.saltySummary || '',
+    devilAdvocate: opts.devilAdvocate || '',
+    healthScore: opts.healthScore || null,
+    bossDecisionNeeded: !!opts.bossDecisionNeeded,
+    claudeInstruction: opts.claudeInstruction || '',
+    createdAt: new Date().toISOString(),
+    requestedBy: requestedBy
+  };
+  return _p497_sanitizeValue(raw);
+}
+
+// 報告モーダル open/close/send/copy
+let _p497_currentPayload = null;
+function _p497_openReportModal(payload){
+  try{
+    _p497_currentPayload = payload || null;
+    const body=document.getElementById('p497-report-body');
+    const note=document.getElementById('p497-report-endpoint-note');
+    const send=document.getElementById('p497-report-send');
+    const result=document.getElementById('p497-report-result');
+    if(body)body.textContent = payload ? JSON.stringify(payload, null, 2) : '(payload 未生成)';
+    if(note)note.style.display = _P497_ENDPOINT_ENABLED ? 'none' : 'block';
+    if(send){
+      if(_P497_ENDPOINT_ENABLED){send.disabled=false; send.style.opacity='1'; send.style.cursor='pointer';}
+      else{send.disabled=true; send.style.opacity='0.5'; send.style.cursor='not-allowed';}
+    }
+    if(result){result.style.display='none';result.textContent='';}
+    const m=document.getElementById('p497-report-modal');
+    if(m)m.style.display='flex';
+  }catch(e){try{console.warn('[packet 497 openReportModal]',e&&e.message);}catch(_){}}
+}
+function _p497_closeReportModal(){
+  try{const m=document.getElementById('p497-report-modal'); if(m)m.style.display='none';}catch(e){}
+}
+async function _p497_sendReport(){
+  const result=document.getElementById('p497-report-result');
+  try{
+    if(!_P497_ENDPOINT_ENABLED){
+      if(result){result.style.display='block';result.style.background='#fef3c7';result.style.color='#78350f';result.textContent='⚠ endpoint 未設定のため送信できません。コピーをご利用ください。';}
+      return;
+    }
+    if(!_p497_currentPayload){
+      if(result){result.style.display='block';result.style.background='#fee2e2';result.style.color='#991b1b';result.textContent='❌ payload が未生成です。';}
+      return;
+    }
+    if(result){result.style.display='block';result.style.background='var(--s2)';result.style.color='var(--t1)';result.textContent='⏳ 送信中...';}
+    const r=await fetch(_P497_ENDPOINT,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(_p497_currentPayload)
+    });
+    if(r.ok){
+      if(result){result.style.background='#d1fae5';result.style.color='#065f46';result.textContent='✅ 送信成功（status '+r.status+'）';}
+    }else{
+      const t=await r.text().catch(()=>'');
+      if(result){result.style.background='#fee2e2';result.style.color='#991b1b';result.textContent='❌ 送信失敗（status '+r.status+'）：'+(t||'').substring(0,200);}
+    }
+  }catch(e){
+    if(result){result.style.display='block';result.style.background='#fee2e2';result.style.color='#991b1b';result.textContent='❌ 送信例外：'+(e&&e.message||'unknown');}
+  }
+}
+function _p497_copyReport(){
+  const result=document.getElementById('p497-report-result');
+  try{
+    if(!_p497_currentPayload){
+      if(result){result.style.display='block';result.style.background='#fee2e2';result.style.color='#991b1b';result.textContent='❌ payload が未生成です。';}
+      return;
+    }
+    const txt=JSON.stringify(_p497_currentPayload, null, 2);
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(txt).then(function(){
+        if(result){result.style.display='block';result.style.background='#d1fae5';result.style.color='#065f46';result.textContent='📋 コピー完了（'+txt.length+' 文字）';}
+      }).catch(function(e){
+        if(result){result.style.display='block';result.style.background='#fee2e2';result.style.color='#991b1b';result.textContent='❌ コピー失敗：'+(e&&e.message||'unknown');}
+      });
+    }else{
+      // fallback：textarea を作って execCommand
+      try{
+        const ta=document.createElement('textarea'); ta.value=txt; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+        if(result){result.style.display='block';result.style.background='#d1fae5';result.style.color='#065f46';result.textContent='📋 コピー完了（fallback）';}
+      }catch(e){
+        if(result){result.style.display='block';result.style.background='#fee2e2';result.style.color='#991b1b';result.textContent='❌ コピー fallback も失敗：'+(e&&e.message||'unknown');}
+      }
+    }
+  }catch(e){
+    if(result){result.style.display='block';result.style.background='#fee2e2';result.style.color='#991b1b';result.textContent='❌ コピー例外：'+(e&&e.message||'unknown');}
+  }
+}
+// モーダルの bind（一度だけ）
+(function _p497_bindReportModal(){
+  try{
+    const c=document.getElementById('p497-report-close'); if(c && c.dataset.p497Bound!=='1'){c.dataset.p497Bound='1'; c.addEventListener('click',_p497_closeReportModal);}
+    const cancel=document.getElementById('p497-report-cancel'); if(cancel && cancel.dataset.p497Bound!=='1'){cancel.dataset.p497Bound='1'; cancel.addEventListener('click',_p497_closeReportModal);}
+    const send=document.getElementById('p497-report-send'); if(send && send.dataset.p497Bound!=='1'){send.dataset.p497Bound='1'; send.addEventListener('click',_p497_sendReport);}
+    const copy=document.getElementById('p497-report-copy'); if(copy && copy.dataset.p497Bound!=='1'){copy.dataset.p497Bound='1'; copy.addEventListener('click',_p497_copyReport);}
+    const overlay=document.getElementById('p497-report-modal'); if(overlay && overlay.dataset.p497Bound!=='1'){overlay.dataset.p497Bound='1'; overlay.addEventListener('click',function(ev){if(ev.target===overlay)_p497_closeReportModal();});}
+  }catch(e){try{console.warn('[packet 497 bindReportModal]',e&&e.message);}catch(_){}}
+})();
+
+// AI 名鑑カードへの packet 497 設定反映（renderAIMemberCards を wrap）
+try{
+  if(typeof renderAIMemberCards === 'function' && !renderAIMemberCards._p497Wrapped){
+    const _origCards = renderAIMemberCards;
+    renderAIMemberCards = function(data, expandedSet){
+      const ret = _origCards.apply(this, arguments);
+      try{
+        const root=document.getElementById('ai-mem-cards'); if(!root)return ret;
+        const cards=root.querySelectorAll('.ai-mem-card');
+        cards.forEach(function(card){
+          if(card.dataset.p497Injected==='1')return;
+          card.dataset.p497Injected='1';
+          // カード内の名前を取得
+          const nameEl=card.querySelector('.ai-mem-name');
+          if(!nameEl)return;
+          const name=nameEl.textContent.trim();
+          const s=_p497_getSettings(name);
+          // 詳細セクションを取得（.ai-mem-detail）
+          const detail=card.querySelector('.ai-mem-detail');
+          if(!detail)return;
+          const e=(typeof escAIMemHtml==='function')?escAIMemHtml:(x=>String(x||''));
+          let h='<div class="ai-mem-row" style="border-top:1.5px dashed var(--bo);padding-top:6px;margin-top:6px;font-size:9px;font-weight:800;color:#0a3d7c;letter-spacing:.5px">━━ packet 497：AI 設定 ━━</div>';
+          h+='<div class="ai-mem-row"><b>目的：</b>'+e(s.purpose)+'</div>';
+          h+='<div class="ai-mem-row"><b>制約：</b>'+e(s.constraints)+'</div>';
+          h+='<div class="ai-mem-row"><b>出力形式：</b>'+e(s.outputFormat)+'</div>';
+          h+='<div class="ai-mem-row"><b>報告形式：</b>'+e(s.reportFormat)+'</div>';
+          h+='<div class="ai-mem-row"><b>リスクレベル：</b>'+e(s.riskLevel)+'</div>';
+          h+='<div class="ai-mem-row"><b>担当領域：</b>'+e(s.ownerArea)+'</div>';
+          detail.insertAdjacentHTML('beforeend', h);
+        });
+      }catch(e){try{console.warn('[packet 497 renderAIMemberCards wrap]',e&&e.message);}catch(_){}}
+      return ret;
+    };
+    renderAIMemberCards._p497Wrapped = true;
+  }
+}catch(e){}
+
+// AI 会議結果に「🤖 ChatGPT 自動報告」ボタンを追加 + 報告 payload 生成
+try{
+  if(typeof renderAIMeetingResult === 'function' && !renderAIMeetingResult._p497Wrapped){
+    const _origMeetingRender = renderAIMeetingResult;
+    renderAIMeetingResult = function(r){
+      const ret = _origMeetingRender.apply(this, arguments);
+      try{
+        const root=document.getElementById('ai-team-result');
+        if(!root || !r || !r.meeting)return ret;
+        // 既に packet 497 ボタンが入っていればスキップ
+        if(root.querySelector('[data-p497-report-btn]'))return ret;
+        const wrap=document.createElement('div');
+        wrap.setAttribute('data-p497-report-btn','meeting');
+        wrap.style.cssText='margin:18px 0 8px;padding:12px;background:#eff6ff;border:1.5px solid #93c5fd;border-radius:10px';
+        wrap.innerHTML='<div style="font-size:12px;font-weight:800;color:#0a3d7c;margin-bottom:6px">🤖 ChatGPT へ自動報告（packet 497）</div>'
+          +'<div style="font-size:11px;color:#1e3a8a;line-height:1.6;margin-bottom:8px">AI 会議の結論をボス向け要約 + 担当者指示 + 議事録に整形し、ChatGPT に送付します。payload は伏せ字化済み。</div>'
+          +'<button type="button" id="p497-meeting-report-btn" style="padding:9px 16px;border-radius:8px;border:0;background:#0a3d7c;color:#fff;font-size:13px;font-weight:700;cursor:pointer;min-height:40px">🤖 ChatGPT へ自動報告</button>';
+        root.appendChild(wrap);
+        const btn=document.getElementById('p497-meeting-report-btn');
+        if(btn && btn.dataset.p497Bound!=='1'){
+          btn.dataset.p497Bound='1';
+          btn.addEventListener('click', function(){
+            const agents=(r.agents||[]);
+            // 各 AI の reportFormat に従う代表発言を抽出
+            const findAgent=function(nm){return agents.find(function(a){return a && a.name && (a.name===nm || a.name.indexOf(nm)>=0);});};
+            const nobu=findAgent('信長')||findAgent('織田');
+            const ieya=findAgent('家康')||findAgent('徳川');
+            const salt=findAgent('ソルティ')||findAgent('じゃがい総司令官');
+            const dev=(typeof _P494_DA_ROTATION!=='undefined' && typeof _p494_currentWeekIdx==='function')?_P494_DA_ROTATION[_p494_currentWeekIdx()]:'';
+            const hs=(typeof _p494_computeHealthScore==='function')?_p494_computeHealthScore(r.meeting, agents):null;
+            const payload=_p497_generatePayload({
+              source:'ai-meeting',
+              type:'jagai_ai_meeting_report',
+              title:'AI 会議：'+(r.meeting.topic||''),
+              body:JSON.stringify({biz:r.meeting.biz,purpose:r.meeting.purpose,urgency:r.meeting.urgency,expected:r.meeting.expected}, null, 2),
+              riskLevel:(r.meeting.urgency==='高')?'YELLOW':'GREEN',
+              relatedPacket:'',
+              aiSummary:(r.integrated && r.integrated.purpose)||'',
+              nobunagaTop3:nobu?[nobu.plan, nobu.next].filter(Boolean).join(' / '):'',
+              ieyasuRisk:ieya?ieya.risk:'',
+              saltySummary:salt?[salt.opinion, salt.plan].filter(Boolean).join(' / '):'',
+              devilAdvocate:dev,
+              healthScore:hs,
+              bossDecisionNeeded:(r.boss && r.boss.decision_point)?true:false,
+              claudeInstruction:(r.boss && r.boss.next_approval)||''
+            });
+            _p497_openReportModal(payload);
+          });
+        }
+      }catch(e){try{console.warn('[packet 497 meeting wrap]',e&&e.message);}catch(_){}}
+      return ret;
+    };
+    renderAIMeetingResult._p497Wrapped = true;
+  }
+}catch(e){}
+
+// AI 相談 modal：カテゴリ選択時に推奨 AI を表示 + 結果末尾に ChatGPT 報告ボタン
+// 既存 packet 409 IIFE 内 _p494_buildAnswer のように、グローバル関数化されていないため
+// DOM 監視ではなく、ai-consul-input-area に対する click hook で対応する（dataset 重複防止）
+(function _p497_hookAIConsul(){
+  try{
+    // カテゴリボタン click 時に推奨 AI を表示
+    document.addEventListener('click', function(ev){
+      try{
+        const t=ev.target.closest && ev.target.closest('.ai-consul-cat-btn');
+        if(!t)return;
+        const key=t.getAttribute('data-cat');
+        if(!key)return;
+        const ais=_P497_CONSULT_CATEGORY_TO_AIS[key]||['ソルティ'];
+        // 既存 'ai-consul-input-ai' を補足する形で 'ai-consul-input-team' を作る
+        let teamEl=document.getElementById('ai-consul-input-team');
+        if(!teamEl){
+          const ia=document.getElementById('ai-consul-input-area');
+          if(!ia)return;
+          teamEl=document.createElement('div');
+          teamEl.id='ai-consul-input-team';
+          teamEl.style.cssText='font-size:10px;color:#1e3a8a;background:#eff6ff;border:1px solid #93c5fd;border-radius:6px;padding:6px 9px;margin-top:4px;line-height:1.6';
+          const refEl=document.getElementById('ai-consul-input-ai');
+          if(refEl && refEl.parentNode)refEl.parentNode.insertBefore(teamEl, refEl.nextSibling);
+          else ia.appendChild(teamEl);
+        }
+        teamEl.innerHTML='👥 packet 497：主担当 AI チーム → <b>'+ais.map(function(a){return a;}).join(' / ')+'</b>';
+      }catch(e){}
+    }, false);
+    // 「相談する」実行後に結果エリア下に ChatGPT 報告ボタンを表示
+    document.addEventListener('click', function(ev){
+      try{
+        const t=ev.target;
+        if(!t || t.id !== 'ai-consul-exec')return;
+        // 結果生成は packet 492 の executeConsultation 側で同期実行されるので、
+        // 100ms 後にボタンを差し込む（多段ではなく単発）
+        setTimeout(function(){
+          try{
+            const result=document.getElementById('ai-consul-result');
+            if(!result || result.style.display==='none' || !result.textContent)return;
+            if(document.getElementById('p497-consul-report-btn'))return;
+            const btn=document.createElement('button');
+            btn.id='p497-consul-report-btn';
+            btn.type='button';
+            btn.style.cssText='margin-top:8px;width:100%;padding:9px 14px;border-radius:8px;border:0;background:#0a3d7c;color:#fff;font-size:12px;font-weight:700;cursor:pointer;min-height:40px';
+            btn.textContent='🤖 ChatGPT へ自動報告（packet 497）';
+            btn.addEventListener('click', function(){
+              try{
+                const ta=document.getElementById('ai-consul-input');
+                const txt=(ta&&ta.value)?ta.value.trim():'';
+                const catEl=document.getElementById('ai-consul-input-cat');
+                const cat=(catEl?catEl.textContent.replace(/^▼\s*/, ''):'相談');
+                const ans=result.textContent || '';
+                // currentCat は packet 409 IIFE 内、外からは取得できないので body に含めない
+                const payload=_p497_generatePayload({
+                  source:'ai-consultation',
+                  type:'jagai_ai_consultation_report',
+                  title:'AI 相談：'+cat,
+                  body: '相談内容：\n'+txt+'\n\n回答：\n'+ans,
+                  riskLevel:'GREEN',
+                  saltySummary:'AI 相談カテゴリ「'+cat+'」を静的テンプレで回答。',
+                  bossDecisionNeeded:false,
+                  claudeInstruction:''
+                });
+                _p497_openReportModal(payload);
+              }catch(e){try{console.warn('[packet 497 consul report click]',e&&e.message);}catch(_){}}
+            });
+            result.parentNode.insertBefore(btn, result.nextSibling);
+          }catch(e){}
+        }, 100);
+      }catch(e){}
+    }, false);
+  }catch(e){try{console.warn('[packet 497 hookAIConsul]',e&&e.message);}catch(_){}}
+})();
+
+// ボス 1on1 モーダルへの ChatGPT 報告ボタン追加
+// 既存 _p494_open1on1Modal を wrap
+try{
+  if(typeof _p494_open1on1Modal === 'function' && !_p494_open1on1Modal._p497Wrapped){
+    const _origOpen = _p494_open1on1Modal;
+    _p494_open1on1Modal = function(key){
+      const ret = _origOpen.apply(this, arguments);
+      try{
+        const body=document.getElementById('p494-1on1-body');
+        if(!body)return ret;
+        // 既存ボタンを撤去（key 毎の差し替えで必ず新しく作る）
+        const old=document.getElementById('p497-1on1-report-btn');
+        if(old)old.remove();
+        const btn=document.createElement('button');
+        btn.id='p497-1on1-report-btn';
+        btn.type='button';
+        btn.style.cssText='margin-top:10px;width:100%;padding:9px 14px;border-radius:8px;border:0;background:#0a3d7c;color:#fff;font-size:12px;font-weight:700;cursor:pointer;min-height:40px';
+        btn.textContent='🤖 この 1on1 を ChatGPT へ自動報告（packet 497）';
+        btn.addEventListener('click', function(){
+          try{
+            const tmpl=(typeof _P494_1ON1_TEMPLATES!=='undefined')?_P494_1ON1_TEMPLATES[key]:null;
+            if(!tmpl)return;
+            // key → 担当 AI
+            const aiByKey={morning:'ソルティ', risk:'徳川家康', strategy:'織田信長', sales:'豊臣秀吉', dev:'トーマス・エジソン', ui:'スティーブ・ジョブズ'};
+            const aiName=aiByKey[key]||'AI';
+            const payload=_p497_generatePayload({
+              source:'boss-1on1',
+              type:'jagai_boss_1on1_report',
+              title:'ボス 1on1：'+tmpl.title,
+              body:tmpl.body,
+              riskLevel:(key==='risk')?'YELLOW':'GREEN',
+              aiSummary:tmpl.sub,
+              saltySummary:'担当 AI：'+aiName,
+              bossDecisionNeeded:(key==='risk'||key==='strategy'),
+              claudeInstruction:''
+            });
+            _p497_openReportModal(payload);
+          }catch(e){try{console.warn('[packet 497 1on1 report click]',e&&e.message);}catch(_){}}
+        });
+        body.appendChild(btn);
+      }catch(e){try{console.warn('[packet 497 1on1 wrap]',e&&e.message);}catch(_){}}
+      return ret;
+    };
+    _p494_open1on1Modal._p497Wrapped = true;
+  }
+}catch(e){}
+
+// ==== ここまで packet 497 ====
 </script>
 </body>
 </html>
