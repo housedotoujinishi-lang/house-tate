@@ -1747,12 +1747,99 @@ textarea.ai-team-input{resize:vertical;min-height:60px}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 // ═══════════════════════════════════════
+// packet 488: ログイン画面 boot fatal hotfix
+// 目的：起動経路のどこが落ちてもログイン画面だけは必ず表示される
+// 1) window error / unhandledrejection を catch（fatal を画面に出さない）
+// 2) Supabase CDN / sb.auth / fetch のいずれが失敗してもログイン画面は visible
+// 3) doLogin / login-btn の再 bind を多段 setTimeout + MutationObserver で保証
+// ═══════════════════════════════════════
+(function p488BootGuard(){
+  function _p488_hasUser(){try{return typeof currentUser!=='undefined'&&!!currentUser;}catch(e){return false;}}
+  function ensureLoginVisible(){
+    try{
+      if(_p488_hasUser())return;  // ログイン後は触らない
+      const ls=document.getElementById('login-screen');
+      const ma=document.getElementById('main-app');
+      const bn=document.getElementById('bottom-nav');
+      if(ls && ls.style.display==='none')ls.style.display='block';
+      if(ma && ma.style.display!=='none')ma.style.display='none';
+      if(bn && bn.style.display!=='none')bn.style.display='none';
+    }catch(e){}
+  }
+  function rebindLogin(){
+    try{
+      const btn=document.getElementById('login-btn');
+      if(btn && typeof doLogin==='function' && btn.dataset.p488Bound!=='1'){
+        btn.dataset.p488Bound='1';
+        btn.addEventListener('click',function(){try{doLogin();}catch(err){try{console.error('[packet 488 login click]',err&&err.message);}catch(_){}}},false);
+      }
+      const pass=document.getElementById('fl-pass');
+      if(pass && typeof doLogin==='function' && pass.dataset.p488Bound!=='1'){
+        pass.dataset.p488Bound='1';
+        pass.addEventListener('keydown',function(e){if(e.key==='Enter'){try{doLogin();}catch(err){try{console.error('[packet 488 enter]',err&&err.message);}catch(_){}}}},false);
+      }
+      const fid=document.getElementById('fl-id');
+      if(fid && fid.dataset.p488Bound!=='1'){
+        fid.dataset.p488Bound='1';
+        fid.addEventListener('keydown',function(e){if(e.key==='Enter'){try{document.getElementById('fl-pass').focus();}catch(_){}}},false);
+      }
+    }catch(e){}
+  }
+  function boot(){ensureLoginVisible();rebindLogin();}
+  try{
+    window.addEventListener('error',function(ev){
+      try{console.error('[packet 488 window.error]',ev&&ev.message,ev&&ev.filename,ev&&ev.lineno);}catch(_){}
+      try{ensureLoginVisible();rebindLogin();}catch(_){}
+    });
+    window.addEventListener('unhandledrejection',function(ev){
+      try{console.error('[packet 488 unhandledrejection]',ev&&ev.reason&&(ev.reason.message||ev.reason));}catch(_){}
+      try{ensureLoginVisible();rebindLogin();}catch(_){}
+    });
+  }catch(e){}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);
+  else boot();
+  if(window.addEventListener)try{window.addEventListener('load',boot);}catch(e){}
+  setTimeout(boot,300);setTimeout(boot,1500);setTimeout(boot,4000);
+  // packet 488: API を window に公開（後続コードからも呼べる）
+  try{window._p488_ensureLoginVisible=ensureLoginVisible;window._p488_rebindLogin=rebindLogin;}catch(e){}
+})();
+// ═══════════════════════════════════════
 // Supabase 連携
 // ═══════════════════════════════════════
 const SB_URL = 'https://roybwsamxrklvoxyduxg.supabase.co';
 const SB_KEY = 'sb_publishable_Nj0MUR1p-VYGYsF39tnkXA_j7c-5xfm';
 
-const sb = window.supabase.createClient(SB_URL, SB_KEY);
+// packet 488: Supabase CDN 失敗時の boot fatal 回避。
+// CDN ロード失敗 / ネットワーク不達 / ブロック等で window.supabase が undefined だった場合、
+// 旧来は const sb = window.supabase.createClient(...) で TypeError が throw され、
+// 以降の全 JS（login-btn 結線含む）が実行されず「ログイン画面が反応しない」状態に至る。
+// 本 hotfix では try-catch + fallback stub を導入し、ログイン画面 binding は守る。
+let sb;
+try{
+  if(!window.supabase || !window.supabase.createClient){
+    throw new Error('window.supabase not loaded (CDN failure?)');
+  }
+  sb = window.supabase.createClient(SB_URL, SB_KEY);
+}catch(_p488_sbErr){
+  try{console.error('[packet 488 sb init] Supabase init failed, using stub:',_p488_sbErr&&_p488_sbErr.message);}catch(_){}
+  // ログイン画面 binding を守るための最小 stub。実際の Auth 系は機能しない（doLogin の Auth 経路は失敗、
+  // accounts フォールバック経路は raw fetch なのでそちらが効く）
+  sb = {
+    auth:{
+      getSession: async()=>({data:{session:null}}),
+      signOut: async()=>{},
+      signInWithPassword: async()=>({data:null,error:new Error('Supabase unavailable')}),
+      onAuthStateChange: ()=>({data:{subscription:{unsubscribe:()=>{}}}})
+    },
+    from: ()=>({
+      select: ()=>({eq:()=>({maybeSingle:async()=>({data:null,error:null}), single:async()=>({data:null,error:null})}), limit:()=>({maybeSingle:async()=>({data:null,error:null})})}),
+      insert: async()=>({data:null,error:new Error('Supabase unavailable')}),
+      upsert: async()=>({data:null,error:new Error('Supabase unavailable')}),
+      update: ()=>({eq:async()=>({data:null,error:new Error('Supabase unavailable')})}),
+      delete: ()=>({eq:async()=>({data:null,error:new Error('Supabase unavailable')})})
+    })
+  };
+}
 
 async function sbGet(table, params='') {
   const r = await fetch(`${SB_URL}/rest/v1/${table}?${params}`, {
@@ -2327,9 +2414,14 @@ async function doLogin(){
   }
   err.style.display='block';
 }
-document.getElementById('login-btn').onclick=doLogin;
-document.getElementById('fl-pass').onkeydown=e=>{if(e.key==='Enter')doLogin();};
-document.getElementById('fl-id').onkeydown=e=>{if(e.key==='Enter')document.getElementById('fl-pass').focus();};
+// packet 488 hotfix: 旧来は無防備な top-level binding。null参照や上流の例外で
+// 結線が失われると「ログイン画面のボタンが反応しない」状態になる。
+// 各要素を try-catch で個別に保護し、packet 488 boot guard 側 (addEventListener) と二重化。
+try{const _lb=document.getElementById('login-btn');if(_lb)_lb.onclick=doLogin;}catch(_p488_e){try{console.error('[packet 488 login-btn bind]',_p488_e&&_p488_e.message);}catch(_){}}
+try{const _lp=document.getElementById('fl-pass');if(_lp)_lp.onkeydown=e=>{if(e.key==='Enter')doLogin();};}catch(_p488_e){try{console.error('[packet 488 fl-pass bind]',_p488_e&&_p488_e.message);}catch(_){}}
+try{const _li=document.getElementById('fl-id');if(_li)_li.onkeydown=e=>{if(e.key==='Enter'){const p=document.getElementById('fl-pass');if(p)p.focus();}};}catch(_p488_e){try{console.error('[packet 488 fl-id bind]',_p488_e&&_p488_e.message);}catch(_){}}
+// packet 488 hotfix: packet 488 boot guard の再 bind も即時試行
+try{if(typeof window._p488_rebindLogin==='function')window._p488_rebindLogin();}catch(_){}
 document.getElementById('logout-btn').onclick=async()=>{try{await sb.auth.signOut();}catch(e){}currentUser=null;localStorage.removeItem('ht_session');if(clockTimer)clearInterval(clockTimer);document.getElementById('main-app').style.display='none';document.getElementById('login-screen').style.display='block';document.getElementById('bottom-nav').style.display='none';document.getElementById('fl-id').value='';document.getElementById('fl-pass').value='';document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));};
 function showMainApp(){
   document.getElementById('login-screen').style.display='none';
@@ -3746,7 +3838,13 @@ function canEditKpi(){return isManager() || isOwner();}              // KPI 目�
 function canCloseMonthly(){return isManager() || isOwner();}         // 月次確定
 function canEditOthersTasks(){return isAdmin();}                     // 他人タスク編集
 function canEditOthersSchedule(){return isAdmin();}                  // 他人予定作成（staff は将来禁止対象）
-function canEditKintai(){return isAdmin();}                          // 勤怠修正（他人）
+// packet 488 hotfix: canEditKintai は packet 304 の既存実装（function canEditKintai(u){...}）が
+// 上にあり、ここで引数なし版を再定義すると JS 仕様上「後勝ち」で 店長 / 事務 / サポート role が
+// 勤怠修正不可になる。packet 484 は権限 helper を追加するだけで既存挙動を壊さない方針なので、
+// 本 hotfix では canEditKintai の再定義を撤去し、原版（u 引数あり）を維持する。
+// packet 485 の export エリア可視判定は無引数で呼んでおり、原版は !u で false を返すため
+// 公開時には currentUser を明示で渡す（packet 488 の patchKintaiExportAreaP485 側で対処）。
+// function canEditKintai(){return isAdmin();}                       // ← packet 488 で撤去
 function canDeleteAccount(){return isAdmin();}                       // アカウント削除
 function canIssueAccount(){return isAdmin();}                        // アカウント発行
 function canViewManagerPanel(){return isManager() || isAdmin();}     // 店長指示パネル閲覧
@@ -3872,7 +3970,8 @@ function exportKintaiCsv(range){
     try{
       const el=document.getElementById('kintai-export-area');
       if(!el)return;
-      const visible=typeof canEditKintai==='function' && canEditKintai();
+      // packet 488 hotfix: canEditKintai は原版 (u 引数あり) を呼ぶため currentUser を明示で渡す
+      const visible=typeof canEditKintai==='function' && (typeof currentUser!=='undefined' && currentUser) && canEditKintai(currentUser);
       el.style.display=visible?'block':'none';
     }catch(e){}
   }
@@ -5766,7 +5865,10 @@ showMainApp=function(){
 };
 // ログイン画面スキップ（復活させる時はこの行を削除）
 
-(async()=>{try{const{data:{session}}=await sb.auth.getSession();if(session?.user){const{data:prof}=await sb.from('profiles').select('*').eq('id',session.user.id).maybeSingle();if(prof){currentUser={uid:prof.id,name:prof.name||'admin',role:prof.role||'admin',perm:prof.perm||'admin',c:prof.c||'#0a3d7c',inc:prof.inc||0,cut:prof.cut||0,personal:prof.personal!==false};showMainApp();}}}catch(e){}})();
+// packet 488 hotfix: auto-login の catch 内で何も復旧していないと、
+// showMainApp 中の例外で main-app が中途半端に表示されたまま固まる。
+// catch 時に必ず login screen を visible に戻す。
+(async()=>{try{const{data:{session}}=await sb.auth.getSession();if(session?.user){const{data:prof}=await sb.from('profiles').select('*').eq('id',session.user.id).maybeSingle();if(prof){currentUser={uid:prof.id,name:prof.name||'admin',role:prof.role||'admin',perm:prof.perm||'admin',c:prof.c||'#0a3d7c',inc:prof.inc||0,cut:prof.cut||0,personal:prof.personal!==false};try{showMainApp();}catch(_p488_smaErr){try{console.error('[packet 488 auto-login showMainApp]',_p488_smaErr&&_p488_smaErr.message);}catch(_){}currentUser=null;try{if(typeof window._p488_ensureLoginVisible==='function')window._p488_ensureLoginVisible();}catch(_){}}}}}catch(e){try{console.error('[packet 488 auto-login outer]',e&&e.message);}catch(_){}try{if(typeof window._p488_ensureLoginVisible==='function')window._p488_ensureLoginVisible();}catch(_){}}})();
 
 // ==== AIチーム会議 静的MVP（packet 200 / v0.9.10）DB / 外部API / localStorage / fetch 一切なし ====
 function detectSensitiveMeetingInput(text){
