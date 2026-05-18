@@ -5728,6 +5728,9 @@ function renderSalesTemplates(uid){
 }
 
 // ━━━ 架電ワンタップカウンター（ホームに追加） ━━━
+// packet 492 hotfix: ＋/− 両ボタンに分離。− は Math.max(0,...) で 0 未満防止。
+//   既存の単一ボタン onclick="quickCount('${k}')" を撤去し、
+//   表示数値の左右に -/+ を配置する。クリックすると即時 renderQuickCounter で再描画。
 function renderQuickCounter(){
   const uid=currentUser?.uid;if(!uid)return;
   const mi=members.findIndex(m=>m.uid===uid);
@@ -5739,11 +5742,15 @@ function renderQuickCounter(){
   el.innerHTML=`<div style="font-size:10px;font-weight:800;color:rgba(255,255,255,.5);letter-spacing:.5px;margin-bottom:8px">⚡ ワンタップ入力</div>
   <div style="display:flex;gap:8px;flex-wrap:wrap">
     ${keys.map(k=>{const act=cProg[k]||0;const tgt=cGoals[k]||0;const pct=tgt>0?Math.min(Math.round(act/tgt*100),100):0;const c=pct>=100?'#0d9e6e':pct>=60?'#60a5fa':'#f59e0b';
-    return`<button onclick="quickCount('${k}')" style="display:flex;flex-direction:column;align-items:center;padding:8px 14px;border-radius:12px;border:1.5px solid rgba(255,255,255,.15);background:rgba(255,255,255,.07);cursor:pointer;transition:all .15s;min-width:58px" onmouseover="this.style.background='rgba(255,255,255,.15)'" onmouseout="this.style.background='rgba(255,255,255,.07)'">
-      <span style="font-size:16px;font-weight:800;color:${c}">${act}</span>
-      <span style="font-size:9px;color:rgba(255,255,255,.5);margin-top:1px">${k}</span>
+    return`<div style="display:flex;flex-direction:column;align-items:center;padding:6px 8px;border-radius:12px;border:1.5px solid rgba(255,255,255,.15);background:rgba(255,255,255,.07);min-width:78px">
+      <span style="font-size:9px;color:rgba(255,255,255,.5);margin-bottom:2px">${k}</span>
+      <div style="display:flex;align-items:center;gap:6px">
+        <button onclick="quickCountMinus('${k}')" aria-label="${k} を 1 件減らす" style="width:26px;height:26px;border-radius:50%;border:1.5px solid rgba(255,255,255,.25);background:rgba(255,255,255,.05);color:#fff;font-size:14px;font-weight:800;cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center">−</button>
+        <span style="font-size:16px;font-weight:800;color:${c};min-width:24px;text-align:center">${act}</span>
+        <button onclick="quickCount('${k}')" aria-label="${k} を 1 件増やす" style="width:26px;height:26px;border-radius:50%;border:1.5px solid rgba(255,255,255,.25);background:rgba(255,255,255,.05);color:#fff;font-size:14px;font-weight:800;cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center">＋</button>
+      </div>
       <div style="height:3px;background:rgba(255,255,255,.1);border-radius:2px;width:100%;margin-top:4px"><div style="height:3px;border-radius:2px;background:${c};width:${pct}%"></div></div>
-    </button>`;}).join('')}
+    </div>`;}).join('')}
   </div>`;
 }
 
@@ -5753,6 +5760,17 @@ function quickCount(key){
   personalCountProgress[uid][key]=(personalCountProgress[uid][key]||0)+1;
   const act=personalCountProgress[uid][key];
   showToast(`${key} +1 → 合計${act}件`);
+  renderQuickCounter();
+}
+// packet 492 hotfix: 減算（0 未満にしない）
+function quickCountMinus(key){
+  const uid=currentUser?.uid;if(!uid)return;
+  if(!personalCountProgress[uid])personalCountProgress[uid]={};
+  const cur=personalCountProgress[uid][key]||0;
+  if(cur<=0){showToast(`${key} は既に 0 件です`);return;}
+  const next=Math.max(0,cur-1);
+  personalCountProgress[uid][key]=next;
+  showToast(`${key} -1 → 合計${next}件`);
   renderQuickCounter();
 }
 
@@ -10178,6 +10196,15 @@ function openEventFormFromCalendar(dateStr,timeStr){
       inputArea.appendChild(el('div',{class:'ai-consul-input-ai',id:'ai-consul-input-ai'}));
       const ta = el('textarea',{class:'ai-consul-textarea',id:'ai-consul-input',placeholder:''});
       inputArea.appendChild(ta);
+      // packet 492 hotfix: 「相談する」ボタン + 回答表示エリアを追加（静的 MVP、外部 API 接続なし）
+      const execRow = el('div',{class:'ai-consul-actions',style:'margin-bottom:6px'});
+      const execBtn = el('button',{class:'ai-consul-action-btn primary',type:'button',id:'ai-consul-exec',style:'background:#0a3d7c;color:#fff;border:0;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;flex:1;min-height:40px'},'💬 相談する（AI から助言を受け取る）');
+      execBtn.addEventListener('click',function(){executeConsultation();});
+      execRow.appendChild(execBtn);
+      inputArea.appendChild(execRow);
+      const result = el('div',{class:'ai-consul-result',id:'ai-consul-result',style:'display:none;background:#eff6ff;border:1.5px solid #1e5fa8;border-radius:8px;padding:11px 13px;margin-top:6px;margin-bottom:6px;font-size:12px;line-height:1.7;color:var(--t1);white-space:pre-wrap;word-break:break-word'});
+      inputArea.appendChild(result);
+
       const actions = el('div',{class:'ai-consul-actions'});
       const toTask = el('button',{class:'ai-consul-action-btn primary',type:'button'},'タスクに転記');
       toTask.addEventListener('click',function(){transferToTask();});
@@ -10211,6 +10238,8 @@ function openEventFormFromCalendar(dateStr,timeStr){
       const m=document.getElementById('ai-consul-modal');
       if(m)m.classList.remove('open');
       const ta=document.getElementById('ai-consul-input'); if(ta)ta.value='';
+      // packet 492 hotfix: 結果エリアもクリア
+      const r=document.getElementById('ai-consul-result'); if(r){r.textContent='';r.style.display='none';}
     }
     function selectCategory(key){
       const c = CATEGORIES.find(function(x){return x.key===key;});
@@ -10223,6 +10252,8 @@ function openEventFormFromCalendar(dateStr,timeStr){
       const al=document.getElementById('ai-consul-input-ai'); if(al)al.textContent='おすすめ担当ＡＩ：'+c.ai;
       const ta=document.getElementById('ai-consul-input'); if(ta){ta.setAttribute('placeholder',c.placeholder);ta.value='';try{ta.focus({preventScroll:true});}catch(e){}}
       const ia=document.getElementById('ai-consul-input-area'); if(ia)ia.classList.add('open');
+      // packet 492 hotfix: カテゴリ切替時は結果をクリア
+      const r=document.getElementById('ai-consul-result'); if(r){r.textContent='';r.style.display='none';}
     }
     function getText(){
       const ta=document.getElementById('ai-consul-input');
@@ -10300,6 +10331,12 @@ function openEventFormFromCalendar(dateStr,timeStr){
           consulCategory: consulLabel
         };
         window._memoNotes.unshift(m);
+        // packet 492 hotfix: メモ転記直後に renderList / renderTbStrip を呼んで即時反映。
+        // 既存 packet 414 IIFE スコープ内の renderList を window._p414_renderList として公開済（packet 492）。
+        try{if(typeof window._p414_renderList==='function')window._p414_renderList();}catch(_p492e){}
+        try{if(typeof window._p414_renderTbStrip==='function')window._p414_renderTbStrip();}catch(_p492e){}
+        // 司令塔ストリップの件数バッジ更新も試行（packet 412）
+        try{if(typeof window.refreshMobileCmdStrip==='function')window.refreshMobileCmdStrip();}catch(_p492e){}
         closeModal();
         showShortToast('メモ帳に追加しました');
         // メモ帳を開く導線（4 秒間表示、タップで遷移）
@@ -10320,6 +10357,97 @@ function openEventFormFromCalendar(dateStr,timeStr){
           setTimeout(function(){try{t.remove();}catch(e){}},4900);
         }catch(e){}
       }catch(e){closeModal();}
+    }
+
+    // packet 492 hotfix: AI 相談「相談する」ボタンの実体
+    // 静的 MVP、外部 API 接続なし、localStorage 保存なし、in-memory のみ。
+    // カテゴリ別の助言テンプレに入力内容を組み合わせて表示する。
+    function _p492_buildAnswer(cat, txt){
+      const c = cat || {label:'相談', ai:'AI チーム', key:''};
+      const lines = [];
+      lines.push('▼ カテゴリ：'+(c.label||'相談'));
+      lines.push('▼ おすすめ担当 AI：'+(c.ai||'AI チーム'));
+      lines.push('▼ ご相談内容：');
+      lines.push(txt);
+      lines.push('');
+      lines.push('─── AI からの助言 ───');
+      const key = c.key||'';
+      if(key==='today'){
+        lines.push('① 今日の最優先：未着手で締切が今日のタスク、または「対応要メモ」を上から順に。');
+        lines.push('② 反響系：受信から経過時間が長いものほど優先（5 分以内ルール / 30 分以内 SMS）。');
+        lines.push('③ 区切り：午前は架電中心、午後は訪問・査定、夕方は日報・追客文面に。');
+        lines.push('④ 進捗の見える化：ホームのワンタップカウンターで架電 / 追客 / アポ / 契約 を即時記録。');
+        lines.push('⑤ 困ったらメモに転記して、後で店長相談 / AI チーム相談に回す。');
+      }else if(key==='follow'){
+        lines.push('① まず「相手の状況」を 1 行で要約：状況（情報収集中 / 比較検討中 / 即決圏内）/ 媒体（電話 / SMS / メール / LINE）。');
+        lines.push('② 文面の骨格：①感謝 ②前回内容の確認 ③新しい価値の提示 ④次のアクション提案。');
+        lines.push('③ 件名・冒頭は「相手が得る情報」を明示（×営業っぽい / ○情報提供）。');
+        lines.push('④ 終わりは小さな合意「○日にもう一度ご連絡してよろしいですか？」で次回約束。');
+        lines.push('⑤ 送付後はカレンダーに次回連絡日を予定登録、対応要メモを残す。');
+      }else if(key==='appraisal'){
+        lines.push('① 物件情報の整理：所在地 / 種別 / 面積 / 築年数 / 接道 / 用途地域 / 権利関係。');
+        lines.push('② 相場の取り方：周辺成約・売出・公示地価、3 つの軸で帯を作る。');
+        lines.push('③ 売主動機の確認：相続 / 住み替え / 投資処分 — 動機により提案が変わる。');
+        lines.push('④ 査定書の構成：表紙 → 物件情報 → 査定根拠 → 価格レンジ → 販売戦略 → 期間目安。');
+        lines.push('⑤ 訪問時は買主目線の指摘も 1〜2 個用意し、売主との信頼を作る。');
+      }else if(key==='reply'){
+        lines.push('① 相手の文面から「期待」と「不安」を分ける：何を確認したいのか / 何を心配しているのか。');
+        lines.push('② 返信の骨格：①感謝 ②要約（理解した内容の確認）③回答 ④次のアクション。');
+        lines.push('③ 専門用語は最小限、相手が読める言葉で。');
+        lines.push('④ 質問が複数ある場合は番号付きで返信、最後に「他にご不明点は？」で締める。');
+        lines.push('⑤ 重要なものは電話に切り替え提案、文面だけで誤解を残さない。');
+      }else if(key==='task'){
+        lines.push('① 5W1H で分解：誰が / いつまでに / 何を / どこで / なぜ / どうやって。');
+        lines.push('② カテゴリ判別：架電 / 追客 / 査定 / 訪問 / 事務 / その他。');
+        lines.push('③ 優先度：締切 + 影響度で 高 / 中 / 低 を選択。');
+        lines.push('④ 担当者：自分以外なら依頼メモも一緒に。');
+        lines.push('⑤ 「タスクに転記」または「予定として開く」ボタンで即登録できます。');
+      }else if(key==='manager'){
+        lines.push('① 相談前に整理：①事実（何があった）②自分の判断 ③困っている点 ④希望する結論。');
+        lines.push('② 数字を 1〜2 個入れる：「先週の架電は 50 件、アポは 1 件」など。');
+        lines.push('③ 「Yes / No」で答えられる質問にする：「この対応で問題ないですか？」。');
+        lines.push('④ 提案も用意：A 案 / B 案 / C 案、自分のおすすめと理由。');
+        lines.push('⑤ 相談後は議事メモを「メモに転記」しておくと振り返りができる。');
+      }else if(key==='howto'){
+        lines.push('① 画面・タブ名を特定：ホーム / カレンダー / タスク / 勤怠 / KPI / 月次レポート / AI 名鑑 等。');
+        lines.push('② 何をしたいか言語化：登録 / 確認 / 変更 / 削除 / 出力 / 共有。');
+        lines.push('③ 試した操作 + 起きた結果を 1 行で残す。');
+        lines.push('④ システム外なら社内ルール側の問題の可能性、運用ルールも合わせて確認。');
+        lines.push('⑤ どうしても分からなければ「メモに転記」して店長 / 開発に共有。');
+      }else if(key==='team'){
+        lines.push('① ご相談内容を AI チームで分担します（豊臣秀吉：営業 / 徳川家康：戦略 / 織田信長：実行 / ソルティ：整理）。');
+        lines.push('② まず事実関係を整理。次に判断基準を整理。最後にアクションを 3 つに絞る。');
+        lines.push('③ 重要な相談ほど「数字」「期限」「責任者」を明確に。');
+        lines.push('④ 1 案ではなく必ず A / B / C の 3 案で比較。');
+        lines.push('⑤ 結論はメモ / タスク / 予定のいずれかに必ず転記して、忘れない仕組みに。');
+      }else{
+        lines.push('・まず状況を 3 行で整理してみましょう（事実 / 判断 / 希望）。');
+        lines.push('・次に取りうる選択肢を 3 つ書き出します（A / B / C）。');
+        lines.push('・それぞれのメリット / リスクを 1 行ずつ。');
+        lines.push('・最も小さい次の一手を 1 つ決めます。');
+        lines.push('・必要なら「メモに転記」「タスクに転記」で実行に移してください。');
+      }
+      lines.push('');
+      lines.push('※ この助言は静的テンプレートで生成されています。外部 AI / クラウドへの送信は行っていません。');
+      return lines.join('\n');
+    }
+    function executeConsultation(){
+      try{
+        const txt = getText();
+        if(!txt){showShortToast('相談内容を入力してください');return;}
+        if(!currentCat){showShortToast('カテゴリを選択してください');return;}
+        const result = document.getElementById('ai-consul-result');
+        if(!result)return;
+        const ans = _p492_buildAnswer(currentCat, txt);
+        result.textContent = ans;
+        result.style.display = 'block';
+        // 入力欄の下に出力されるよう、結果エリアを表示後にスクロール
+        try{result.scrollIntoView({behavior:'smooth',block:'nearest'});}catch(e){}
+        showShortToast('AI 助言を表示しました');
+      }catch(e){
+        try{console.warn('[packet 492 executeConsultation]', e && e.message);}catch(_){}
+        showShortToast('助言生成に失敗しました');
+      }
     }
 
     function init(){
@@ -11201,6 +11329,12 @@ function openEventFormFromCalendar(dateStr,timeStr){
       }
       renderList();
       renderTbStrip();
+
+      // packet 492 hotfix: AI 相談「メモに転記」（packet 409 transferToMemo）から
+      // 直接 renderList / renderTbStrip を呼べるよう window に公開。
+      // これがないと AI 相談から push しても画面が更新されない。
+      try{window._p414_renderList = renderList;}catch(e){}
+      try{window._p414_renderTbStrip = renderTbStrip;}catch(e){}
 
       // タスクボード描画時にメモストリップも更新
       try{
