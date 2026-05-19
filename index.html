@@ -1755,6 +1755,95 @@ textarea.ai-team-input{resize:vertical;min-height:60px}
       <div id="ai-team-result"></div>
     </div>
   </div>
+  <!-- packet 500: じゃがい学習エンジン + 記憶庫 MVP（in-memory、localStorage 本文保存禁止） -->
+  <div class="page" id="page-memory">
+    <div style="padding:14px 14px 80px;max-width:920px;margin:0 auto">
+      <h2 style="font-size:18px;color:#0a3d7c;margin:0 0 4px;font-weight:800">🧠 じゃがい記憶庫</h2>
+      <div style="font-size:11px;color:#666;margin-bottom:8px;line-height:1.6">会社の成功・失敗・議論・判断・packet 履歴・再発防止ルールを蓄積し、次の判断に活かす学習層（packet 500 静的 MVP）。</div>
+      <div style="font-size:10px;color:#7c3aed;background:#f5f3ff;border:1.5px solid #c4b5fd;border-radius:6px;padding:7px 9px;margin-bottom:10px;line-height:1.6">⚠ この記憶庫は、誰かを責めるためではなく、<b>会社の学習・再発防止・成長</b>のために使います。<br>顧客個人情報・パスワード・API キーは登録しないでください。リロードで消える in-memory MVP（次 packet で Supabase 化予定）。</div>
+
+      <!-- 学習サマリー -->
+      <div class="ai-team-card" id="p500-summary-card" style="background:#eff6ff;border:1.5px solid #93c5fd">
+        <div style="font-size:13px;font-weight:800;color:#0a3d7c;margin-bottom:6px">📊 学習サマリー</div>
+        <div id="p500-summary-counts" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:6px;font-size:11px;line-height:1.5"></div>
+        <div style="font-size:10px;font-weight:700;color:#1e40af;margin-top:10px;margin-bottom:4px">AI 別の注目ポイント</div>
+        <div id="p500-summary-by-ai" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:6px;font-size:10px;line-height:1.55"></div>
+      </div>
+
+      <!-- 登録フォーム -->
+      <div class="ai-team-card">
+        <div style="font-size:13px;font-weight:800;color:#0a3d7c;margin-bottom:6px">📝 記憶を登録</div>
+        <div style="display:grid;grid-template-columns:1fr;gap:6px">
+          <label class="ai-team-lbl">タイトル <input id="p500-f-title" class="ai-team-input" placeholder="例：packet 488 で boot fatal を解消した話"></label>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+            <label class="ai-team-lbl">memory type <select id="p500-f-type" class="ai-team-input"></select></label>
+            <label class="ai-team-lbl">カテゴリ <select id="p500-f-cat" class="ai-team-input"></select></label>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+            <label class="ai-team-lbl">関連 packet <input id="p500-f-packet" class="ai-team-input" placeholder="例：488 / 490 / 494"></label>
+            <label class="ai-team-lbl">関連社員 / 担当者 <input id="p500-f-target" class="ai-team-input" placeholder="例：芳村 / 杤岡 / 全社員"></label>
+          </div>
+          <label class="ai-team-lbl">内容 <textarea id="p500-f-content" class="ai-team-input" rows="3" placeholder="何が起きたか、何をしたか（事実）"></textarea></label>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+            <label class="ai-team-lbl">原因 <textarea id="p500-f-cause" class="ai-team-input" rows="2" placeholder="なぜそうなったか"></textarea></label>
+            <label class="ai-team-lbl">学び <textarea id="p500-f-lesson" class="ai-team-input" rows="2" placeholder="今回から得た学び"></textarea></label>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+            <label class="ai-team-lbl">次アクション <textarea id="p500-f-next" class="ai-team-input" rows="2" placeholder="次にやること"></textarea></label>
+            <label class="ai-team-lbl">ボス判断 <textarea id="p500-f-boss" class="ai-team-input" rows="2" placeholder="ボスが判断した内容"></textarea></label>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px">
+            <label class="ai-team-lbl">リスクレベル <select id="p500-f-risk" class="ai-team-input"><option value="GREEN">🟢 GREEN</option><option value="YELLOW">🟡 YELLOW</option><option value="RED">🔴 RED</option></select></label>
+            <label class="ai-team-lbl">重要度 <select id="p500-f-importance" class="ai-team-input"><option value="low">低</option><option value="mid" selected>中</option><option value="high">高</option></select></label>
+            <label class="ai-team-lbl">再発可能性 <select id="p500-f-recurrence" class="ai-team-input"><option value="low">低</option><option value="mid" selected>中</option><option value="high">高</option></select></label>
+          </div>
+          <label class="ai-team-lbl">タグ（カンマ区切り）<input id="p500-f-tags" class="ai-team-input" placeholder="例：boot, fatal, login, supabase"></label>
+          <div style="display:flex;gap:12px;font-size:11px;color:#444;margin-top:4px;flex-wrap:wrap">
+            <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="p500-f-unresolved"> 未解決</label>
+            <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="p500-f-managerFollowup"> 店長/ボス確認必要</label>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
+            <button id="p500-f-save" type="button" class="ai-team-btn" style="flex:2;min-width:160px;background:#0a3d7c;color:#fff;font-weight:700;border:0;padding:9px 14px;border-radius:8px;cursor:pointer;font-size:13px;min-height:40px">📚 記憶庫に登録</button>
+            <button id="p500-f-clear" type="button" style="flex:1;min-width:90px;padding:9px 14px;border-radius:8px;border:1.5px solid var(--bo);background:#fff;color:var(--t2);font-size:12px;font-weight:700;cursor:pointer;min-height:40px">クリア</button>
+          </div>
+          <div id="p500-f-result" style="display:none;padding:7px 10px;border-radius:6px;font-size:11px;font-weight:600;line-height:1.6;margin-top:4px"></div>
+        </div>
+      </div>
+
+      <!-- 検索 / フィルター -->
+      <div class="ai-team-card">
+        <div style="font-size:13px;font-weight:800;color:#0a3d7c;margin-bottom:6px">🔍 検索 / フィルター / ソート</div>
+        <div style="display:grid;grid-template-columns:1fr;gap:6px">
+          <label class="ai-team-lbl">キーワード <input id="p500-q" class="ai-team-input" placeholder="タイトル・内容・タグから検索"></label>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+            <label class="ai-team-lbl">memory type <select id="p500-q-type" class="ai-team-input"><option value="">（すべて）</option></select></label>
+            <label class="ai-team-lbl">カテゴリ <select id="p500-q-cat" class="ai-team-input"><option value="">（すべて）</option></select></label>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
+            <label class="ai-team-lbl">リスク <select id="p500-q-risk" class="ai-team-input"><option value="">（すべて）</option><option value="GREEN">🟢 GREEN</option><option value="YELLOW">🟡 YELLOW</option><option value="RED">🔴 RED</option></select></label>
+            <label class="ai-team-lbl">関連 packet <input id="p500-q-packet" class="ai-team-input" placeholder="例：488"></label>
+            <label class="ai-team-lbl">関連担当者 <input id="p500-q-target" class="ai-team-input" placeholder="例：芳村"></label>
+          </div>
+          <label class="ai-team-lbl">タグ <input id="p500-q-tags" class="ai-team-input" placeholder="例：login"></label>
+          <div style="display:flex;gap:12px;font-size:11px;color:#444;flex-wrap:wrap">
+            <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="p500-q-unresolved"> 未解決のみ</label>
+            <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="p500-q-managerFollowup"> ボス確認必要のみ</label>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+            <label class="ai-team-lbl">ソート <select id="p500-q-sort" class="ai-team-input"><option value="newest">新しい順</option><option value="importance">重要度順</option><option value="risk">リスク順</option><option value="recurrence">再発可能性順</option></select></label>
+            <label class="ai-team-lbl">&nbsp; <button id="p500-q-clear" type="button" style="width:100%;padding:7px 10px;border-radius:6px;border:1.5px solid var(--bo);background:#fff;color:var(--t2);font-size:11px;font-weight:700;cursor:pointer;min-height:36px">🧹 フィルター解除</button></label>
+          </div>
+        </div>
+      </div>
+
+      <!-- 一覧 -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin:14px 0 6px">
+        <div style="font-size:13px;font-weight:800;color:#0a3d7c">📚 記憶一覧 <span id="p500-list-count" style="font-size:11px;font-weight:600;color:#666;margin-left:6px">(0 件)</span></div>
+      </div>
+      <div id="p500-list" style="display:flex;flex-direction:column;gap:8px"></div>
+      <div style="margin-top:18px;font-size:10px;color:#999;text-align:center;line-height:1.6">※ 本 MVP の記憶は in-memory（リロードで消える）。<br>Supabase テーブル化は次 packet で SQL/RLS 設計後に実施。</div>
+    </div>
+  </div>
   <!-- packet 494: ボス 1on1 モーダル（共通、6 種類の対話で内容差替え） -->
   <div id="p494-1on1-modal" style="position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.55);display:none;align-items:flex-start;justify-content:center;padding:20px 12px;overflow-y:auto">
     <div style="background:#fff;border-radius:12px;max-width:560px;width:100%;max-height:calc(100vh - 40px);overflow-y:auto;border-top:6px solid #0a3d7c;display:flex;flex-direction:column">
@@ -2563,8 +2652,8 @@ function showMainApp(){
   // カレンダーとタスクは同一 cal ページに統合済のため、ラベル違いで 2 エントリ並列配置（両方とも switchPage('cal')）。
   // 顧客タブは絶対に復活させない（packet 322 防御維持）。
   const tabs=isHighPerm
-    ?[['dash','🏠 ホーム'],['accounts','👑 管理'],['memo','📒 メモ'],['cal','📅 カレンダー'],['cal','📋 タスク'],['routine','📋 ルーティン'],['shift','📋 シフト'],['kintai','🕐 勤怠'],['goal','🎯 KPI'],['report','📊 月次レポート'],['aiteam','🧠 AI会議'],['ai-members','🤖 AI名鑑'],['ai-org','🏢 AI組織図'],['member-workload','👥 メンバー稼働'],['knowledge-portal','📚 豆知識'],['manager-undone','🚨 未完了つぶし']]
-    :[['dash','🏠 ホーム'],['memo','📒 メモ'],['cal','📅 カレンダー'],['cal','📋 タスク'],['routine','📋 ルーティン'],['shift','📋 シフト'],['kintai','🕐 勤怠'],['goal','🎯 KPI'],['aiteam','🧠 AI会議'],['ai-members','🤖 AI名鑑'],['ai-org','🏢 AI組織図'],['member-workload','👥 メンバー稼働'],['knowledge-portal','📚 豆知識']];
+    ?[['dash','🏠 ホーム'],['accounts','👑 管理'],['memo','📒 メモ'],['cal','📅 カレンダー'],['cal','📋 タスク'],['routine','📋 ルーティン'],['shift','📋 シフト'],['kintai','🕐 勤怠'],['goal','🎯 KPI'],['report','📊 月次レポート'],['aiteam','🧠 AI会議'],['memory','🧠 記憶庫'],['ai-members','🤖 AI名鑑'],['ai-org','🏢 AI組織図'],['member-workload','👥 メンバー稼働'],['knowledge-portal','📚 豆知識'],['manager-undone','🚨 未完了つぶし']]
+    :[['dash','🏠 ホーム'],['memo','📒 メモ'],['cal','📅 カレンダー'],['cal','📋 タスク'],['routine','📋 ルーティン'],['shift','📋 シフト'],['kintai','🕐 勤怠'],['goal','🎯 KPI'],['aiteam','🧠 AI会議'],['memory','🧠 記憶庫'],['ai-members','🤖 AI名鑑'],['ai-org','🏢 AI組織図'],['member-workload','👥 メンバー稼働'],['knowledge-portal','📚 豆知識']];
   tabs.forEach(([pg,lbl],idx)=>{
     const b=document.createElement('button');
     b.className='ntab'+(idx===0?' on':'');b.dataset.pg=pg;b.textContent=lbl;
@@ -2683,7 +2772,7 @@ bindEvForm();
   try{if(typeof window._p490_flushPostLogin==='function')window._p490_flushPostLogin();}catch(_p490_flushErr){try{console.warn('[packet 490 showMainApp flush]',_p490_flushErr&&_p490_flushErr.message);}catch(_){}}
 }
 
-function switchPage(pg){if(pg==='crm'){pg='dash';/* packet 322: 顧客タブ強制無効化、dash に強制リダイレクト */}document.querySelectorAll('.ntab').forEach(b=>b.classList.toggle('on',b.dataset.pg===pg));document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));const pgEl=document.getElementById(`page-${pg}`);if(pgEl)pgEl.classList.add('on');if(pg==='dash')renderDash();if(pg==='accounts'){renderAccList();/* packet 490: accounts ページ表示時 packet 480/481 UI を bind */try{if(typeof window._p490_flushPostLogin==='function')window._p490_flushPostLogin();}catch(_){}}if(pg==='kintai'){ktViewUid=currentUser.perm==='admin'?null:currentUser.uid;renderKintaiPage();/* packet 490: kintai ページ表示時 packet 485 export UI を bind */try{if(typeof window._p485_initOnKintai==='function')window._p485_initOnKintai();}catch(_){}}if(pg==='cal')render();if(pg==='shift')renderShift();if(pg==='goal'){initGoalData();renderGoalPage();}if(pg==='report')renderReportPage();if(pg==='aiteam')renderAITeamPage();if(pg==='member-workload')renderMemberWorkloadPage();if(pg==='ai-members')renderAIMembersPage();if(pg==='ai-org')renderAIOrgChartPage();if(pg==='realestate-knowledge')renderRealEstateKnowledgePage();if(pg==='routine')renderRoutinePage();if(pg==='sales-psy')renderSalesPsychologyPage();if(pg==='knowledge-portal')renderKnowledgePortalPage();if(pg==='role-knowledge')renderRoleKnowledgePage();if(pg==='knowledge-candidate-box'){try{renderKnowledgeCandidateBox();}catch(e){const r=document.getElementById('kc-cards');if(r)r.innerHTML='<div style="color:#b91c1c;padding:14px;background:#fef2f2;border-radius:6px;">AI 事典追加候補箱の読み込みに失敗しました。Console を確認してください。<br><code style="font-size:11px;">'+String(e&&e.message||e)+'</code></div>';}}}
+function switchPage(pg){if(pg==='crm'){pg='dash';/* packet 322: 顧客タブ強制無効化、dash に強制リダイレクト */}document.querySelectorAll('.ntab').forEach(b=>b.classList.toggle('on',b.dataset.pg===pg));document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));const pgEl=document.getElementById(`page-${pg}`);if(pgEl)pgEl.classList.add('on');if(pg==='dash')renderDash();if(pg==='accounts'){renderAccList();/* packet 490: accounts ページ表示時 packet 480/481 UI を bind */try{if(typeof window._p490_flushPostLogin==='function')window._p490_flushPostLogin();}catch(_){}}if(pg==='kintai'){ktViewUid=currentUser.perm==='admin'?null:currentUser.uid;renderKintaiPage();/* packet 490: kintai ページ表示時 packet 485 export UI を bind */try{if(typeof window._p485_initOnKintai==='function')window._p485_initOnKintai();}catch(_){}}if(pg==='cal')render();if(pg==='shift')renderShift();if(pg==='goal'){initGoalData();renderGoalPage();}if(pg==='report')renderReportPage();if(pg==='aiteam')renderAITeamPage();if(pg==='memory'){try{renderMemoryPage();}catch(_p500_e){try{console.warn('[packet 500 switchPage]',_p500_e&&_p500_e.message);}catch(_){}}}if(pg==='member-workload')renderMemberWorkloadPage();if(pg==='ai-members')renderAIMembersPage();if(pg==='ai-org')renderAIOrgChartPage();if(pg==='realestate-knowledge')renderRealEstateKnowledgePage();if(pg==='routine')renderRoutinePage();if(pg==='sales-psy')renderSalesPsychologyPage();if(pg==='knowledge-portal')renderKnowledgePortalPage();if(pg==='role-knowledge')renderRoleKnowledgePage();if(pg==='knowledge-candidate-box'){try{renderKnowledgeCandidateBox();}catch(e){const r=document.getElementById('kc-cards');if(r)r.innerHTML='<div style="color:#b91c1c;padding:14px;background:#fef2f2;border-radius:6px;">AI 事典追加候補箱の読み込みに失敗しました。Console を確認してください。<br><code style="font-size:11px;">'+String(e&&e.message||e)+'</code></div>';}}}
 function mkModal(id,barColor,title){const ex=document.getElementById(id);if(ex)ex.remove();const bg=document.createElement('div');bg.className='mbg';bg.id=id;bg.innerHTML=`<div class="modal"><div class="mbar" style="background:${barColor}"></div><button class="mclose" id="${id}-c">✕</button><div class="mttl">${title}</div><div class="macts"></div></div>`;document.body.appendChild(bg);document.getElementById(`${id}-c`).onclick=()=>bg.remove();bg.onclick=e=>{if(e.target===bg)bg.remove();};return bg;}
 function mttlAfter(bg,html){bg.querySelector('.mttl').insertAdjacentHTML('afterend',html);}
 function macts(bg,html){bg.querySelector('.macts').innerHTML=html;}
@@ -13272,6 +13361,508 @@ try{
 }catch(e){}
 
 // ==== ここまで packet 497 ====
+
+// ═══════════════════════════════════════════════════════════════════════
+// packet 500: じゃがい学習エンジン + 記憶庫 MVP（v0.9.250）
+// 設計方針：
+//   - 5 層設計：記録層 / 構造化層 / 記憶層 / 回収層 / 成長層
+//   - 中心は「記憶層」：in-memory 配列 window._p500_memoryStore
+//   - localStorage 本文保存禁止（リロードで消える、次 packet で Supabase 化）
+//   - 15 種 memory type / 13 カテゴリ / 3 リスクレベル / 3 重要度 / 3 再発可能性
+//   - packet 497 報告 payload と連携（自動保存なし、明示「記憶庫に登録」のみ）
+//   - packet 490 軽量化を維持：MutationObserver 新規追加なし、多段 setTimeout なし、
+//     すべてユーザー操作起点
+// ═══════════════════════════════════════════════════════════════════════
+const _P500_MEMORY_TYPES = [
+  {id:'success_pattern',         label:'成功パターン',       icon:'✨', color:'#0d9e6e'},
+  {id:'failure_lesson',          label:'失敗からの学び',     icon:'📉', color:'#dc2626'},
+  {id:'discussion_log',          label:'議論ログ',           icon:'💬', color:'#1e40af'},
+  {id:'conflict_log',            label:'衝突/すれ違い',      icon:'⚡', color:'#b45309'},
+  {id:'boss_decision',           label:'ボス判断',           icon:'👑', color:'#7c3aed'},
+  {id:'packet_history',          label:'packet 履歴',         icon:'📦', color:'#0369a1'},
+  {id:'bug_cause',               label:'不具合原因',         icon:'🐛', color:'#dc2626'},
+  {id:'recurrence_prevention',   label:'再発防止ルール',     icon:'🛡', color:'#0d7d4d'},
+  {id:'sales_pattern',           label:'営業成功パターン',   icon:'📈', color:'#b45309'},
+  {id:'kpi_alert',               label:'KPI 警報',            icon:'🚨', color:'#dc2626'},
+  {id:'staff_growth',            label:'社員成長ログ',       icon:'🌱', color:'#0d9e6e'},
+  {id:'operation_rule',          label:'業務フロー / 社内ルール', icon:'📋', color:'#0369a1'},
+  {id:'risk_warning',            label:'リスク警告',         icon:'⚠️', color:'#dc2626'},
+  {id:'claude_instruction',      label:'Claude Code 指示',    icon:'🤖', color:'#0a3d7c'},
+  {id:'chatgpt_review',          label:'ChatGPT 判断メモ',    icon:'🧠', color:'#7c3aed'}
+];
+const _P500_CATEGORIES = [
+  'packet履歴', 'ボス判断', '成功ログ', '失敗ログ', '議論ログ',
+  '衝突/すれ違いログ', '日報学習ログ', '不具合原因', '再発防止',
+  '社内ルール', '業務フロー', 'Claude Code指示', 'ChatGPT判断メモ'
+];
+const _P500_RISK_META = {
+  'GREEN':  {label:'🟢 GREEN',  color:'#0d9e6e', order:0},
+  'YELLOW': {label:'🟡 YELLOW', color:'#e6b800', order:1},
+  'RED':    {label:'🔴 RED',    color:'#dc2626', order:2}
+};
+const _P500_IMPORTANCE_ORDER = {low:0, mid:1, high:2};
+const _P500_RECURRENCE_ORDER = {low:0, mid:1, high:2};
+
+// in-memory ストア（リロードで消える、localStorage 本文保存禁止）
+window._p500_memoryStore = window._p500_memoryStore || [];
+let _p500_nextId = 1;
+let _p500_pendingCandidate = null;  // packet 497 連携用 pre-fill バッファ
+
+function _p500_esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];});}
+function _p500_authorName(){
+  try{if(window.currentUser)return currentUser.name||currentUser.displayName||(currentUser.perm==='admin'?'管理者':'担当者');}catch(e){}
+  return '担当者';
+}
+function _p500_addMemory(obj){
+  try{
+    const m = {
+      id: 'mem-' + (_p500_nextId++) + '-' + Date.now(),
+      memoryType: obj.memoryType || 'discussion_log',
+      category: obj.category || _P500_CATEGORIES[0],
+      title: (obj.title||'').trim(),
+      content: (obj.content||'').trim(),
+      cause: (obj.cause||'').trim(),
+      lesson: (obj.lesson||'').trim(),
+      nextAction: (obj.nextAction||'').trim(),
+      bossDecision: (obj.bossDecision||'').trim(),
+      relatedPacket: (obj.relatedPacket||'').trim(),
+      relatedTarget: (obj.relatedTarget||'').trim(),
+      riskLevel: obj.riskLevel || 'GREEN',
+      importance: obj.importance || 'mid',
+      recurrenceRisk: obj.recurrenceRisk || 'mid',
+      unresolved: !!obj.unresolved,
+      needsManagerFollowup: !!obj.needsManagerFollowup,
+      tags: (obj.tags||'').split(',').map(function(t){return t.trim();}).filter(Boolean),
+      createdBy: obj.createdBy || _p500_authorName(),
+      createdAt: new Date().toISOString(),
+      sourceType: obj.sourceType || 'manual'  // 'manual' / 'ai-meeting' / 'ai-consultation' / 'boss-1on1'
+    };
+    if(!m.title){return {ok:false, error:'タイトルは必須です'};}
+    window._p500_memoryStore.unshift(m);
+    return {ok:true, memory:m};
+  }catch(e){return {ok:false, error:(e&&e.message)||'unknown'};}
+}
+function _p500_clearForm(){
+  try{
+    ['p500-f-title','p500-f-content','p500-f-cause','p500-f-lesson','p500-f-next','p500-f-boss','p500-f-packet','p500-f-target','p500-f-tags'].forEach(function(id){
+      const el=document.getElementById(id); if(el)el.value='';
+    });
+    const t=document.getElementById('p500-f-type'); if(t)t.value=_P500_MEMORY_TYPES[0].id;
+    const c=document.getElementById('p500-f-cat'); if(c)c.value=_P500_CATEGORIES[0];
+    const r=document.getElementById('p500-f-risk'); if(r)r.value='GREEN';
+    const im=document.getElementById('p500-f-importance'); if(im)im.value='mid';
+    const rc=document.getElementById('p500-f-recurrence'); if(rc)rc.value='mid';
+    const un=document.getElementById('p500-f-unresolved'); if(un)un.checked=false;
+    const mf=document.getElementById('p500-f-managerFollowup'); if(mf)mf.checked=false;
+    const result=document.getElementById('p500-f-result'); if(result){result.style.display='none';result.textContent='';}
+  }catch(e){}
+}
+function _p500_populateSelects(){
+  try{
+    const typeSel=document.getElementById('p500-f-type');
+    const qTypeSel=document.getElementById('p500-q-type');
+    if(typeSel && !typeSel.dataset.p500Populated){
+      typeSel.dataset.p500Populated='1';
+      typeSel.innerHTML = _P500_MEMORY_TYPES.map(function(t){return '<option value="'+t.id+'">'+t.icon+' '+t.label+'</option>';}).join('');
+    }
+    if(qTypeSel && !qTypeSel.dataset.p500Populated){
+      qTypeSel.dataset.p500Populated='1';
+      qTypeSel.innerHTML = '<option value="">（すべて）</option>' + _P500_MEMORY_TYPES.map(function(t){return '<option value="'+t.id+'">'+t.icon+' '+t.label+'</option>';}).join('');
+    }
+    const catSel=document.getElementById('p500-f-cat');
+    const qCatSel=document.getElementById('p500-q-cat');
+    if(catSel && !catSel.dataset.p500Populated){
+      catSel.dataset.p500Populated='1';
+      catSel.innerHTML = _P500_CATEGORIES.map(function(c){return '<option value="'+_p500_esc(c)+'">'+_p500_esc(c)+'</option>';}).join('');
+    }
+    if(qCatSel && !qCatSel.dataset.p500Populated){
+      qCatSel.dataset.p500Populated='1';
+      qCatSel.innerHTML = '<option value="">（すべて）</option>' + _P500_CATEGORIES.map(function(c){return '<option value="'+_p500_esc(c)+'">'+_p500_esc(c)+'</option>';}).join('');
+    }
+  }catch(e){try{console.warn('[packet 500 populateSelects]',e&&e.message);}catch(_){}}
+}
+function _p500_prefillFromCandidate(){
+  try{
+    if(!_p500_pendingCandidate)return;
+    const c=_p500_pendingCandidate;
+    const set=function(id,v){const el=document.getElementById(id); if(el && v!=null)el.value=v;};
+    set('p500-f-title', c.title);
+    set('p500-f-content', c.content);
+    set('p500-f-cause', c.cause);
+    set('p500-f-lesson', c.lesson);
+    set('p500-f-next', c.nextAction);
+    set('p500-f-boss', c.bossDecision);
+    set('p500-f-packet', c.relatedPacket);
+    set('p500-f-target', c.relatedTarget);
+    set('p500-f-tags', c.tags);
+    if(c.memoryType){const t=document.getElementById('p500-f-type'); if(t)t.value=c.memoryType;}
+    if(c.category){const cc=document.getElementById('p500-f-cat'); if(cc)cc.value=c.category;}
+    if(c.riskLevel){const r=document.getElementById('p500-f-risk'); if(r)r.value=c.riskLevel;}
+    const result=document.getElementById('p500-f-result');
+    if(result){result.style.display='block';result.style.background='#dbeafe';result.style.color='#1e3a8a';result.textContent='💡 packet 497 報告 payload から登録候補を流入しました。内容を確認して「📚 記憶庫に登録」してください。';}
+    _p500_pendingCandidate = null;
+  }catch(e){}
+}
+function _p500_readForm(){
+  function v(id){const el=document.getElementById(id); return el ? el.value : '';}
+  function chk(id){const el=document.getElementById(id); return !!(el && el.checked);}
+  return {
+    memoryType: v('p500-f-type'),
+    category: v('p500-f-cat'),
+    title: v('p500-f-title'),
+    content: v('p500-f-content'),
+    cause: v('p500-f-cause'),
+    lesson: v('p500-f-lesson'),
+    nextAction: v('p500-f-next'),
+    bossDecision: v('p500-f-boss'),
+    relatedPacket: v('p500-f-packet'),
+    relatedTarget: v('p500-f-target'),
+    riskLevel: v('p500-f-risk'),
+    importance: v('p500-f-importance'),
+    recurrenceRisk: v('p500-f-recurrence'),
+    tags: v('p500-f-tags'),
+    unresolved: chk('p500-f-unresolved'),
+    needsManagerFollowup: chk('p500-f-managerFollowup'),
+    sourceType: 'manual'
+  };
+}
+function _p500_filterMemories(){
+  function v(id){const el=document.getElementById(id); return el ? (el.value||'').trim() : '';}
+  function chk(id){const el=document.getElementById(id); return !!(el && el.checked);}
+  const q=v('p500-q').toLowerCase();
+  const fType=v('p500-q-type');
+  const fCat=v('p500-q-cat');
+  const fRisk=v('p500-q-risk');
+  const fPacket=v('p500-q-packet').toLowerCase();
+  const fTarget=v('p500-q-target').toLowerCase();
+  const fTags=v('p500-q-tags').toLowerCase();
+  const fUnresolved=chk('p500-q-unresolved');
+  const fMgr=chk('p500-q-managerFollowup');
+  const sort=v('p500-q-sort')||'newest';
+  let arr=(window._p500_memoryStore||[]).slice().filter(function(m){
+    if(!m)return false;
+    if(fType && m.memoryType!==fType)return false;
+    if(fCat && m.category!==fCat)return false;
+    if(fRisk && m.riskLevel!==fRisk)return false;
+    if(fUnresolved && !m.unresolved)return false;
+    if(fMgr && !m.needsManagerFollowup)return false;
+    if(fPacket){if((m.relatedPacket||'').toLowerCase().indexOf(fPacket)<0)return false;}
+    if(fTarget){if((m.relatedTarget||'').toLowerCase().indexOf(fTarget)<0)return false;}
+    if(fTags){if(!(m.tags||[]).some(function(t){return t.toLowerCase().indexOf(fTags)>=0;}))return false;}
+    if(q){
+      const hay=[m.title,m.content,m.cause,m.lesson,m.nextAction,m.bossDecision,m.relatedPacket,m.relatedTarget,(m.tags||[]).join(','),m.memoryType,m.category].join(' ').toLowerCase();
+      if(hay.indexOf(q)<0)return false;
+    }
+    return true;
+  });
+  arr.sort(function(a,b){
+    if(sort==='importance')return (_P500_IMPORTANCE_ORDER[b.importance]||0) - (_P500_IMPORTANCE_ORDER[a.importance]||0);
+    if(sort==='risk')return (_P500_RISK_META[b.riskLevel]||{order:0}).order - (_P500_RISK_META[a.riskLevel]||{order:0}).order;
+    if(sort==='recurrence')return (_P500_RECURRENCE_ORDER[b.recurrenceRisk]||0) - (_P500_RECURRENCE_ORDER[a.recurrenceRisk]||0);
+    return (b.createdAt||'').localeCompare(a.createdAt||'');
+  });
+  return arr;
+}
+function _p500_renderList(){
+  try{
+    const list=document.getElementById('p500-list');
+    const cnt=document.getElementById('p500-list-count');
+    if(!list)return;
+    const items=_p500_filterMemories();
+    if(cnt)cnt.textContent='('+items.length+' 件 / 全'+(window._p500_memoryStore||[]).length+'件)';
+    if(items.length===0){
+      list.innerHTML='<div style="background:#f8fafc;border:1.5px dashed var(--bo);border-radius:8px;padding:20px;text-align:center;font-size:11px;color:var(--t3);line-height:1.6">該当する記憶がありません。<br>上のフォームから記憶を登録するか、AI 会議 / AI 相談 / ボス 1on1 から「🧠 記憶庫に登録」してください。</div>';
+      return;
+    }
+    const e=_p500_esc;
+    let h='';
+    items.forEach(function(m){
+      const type=_P500_MEMORY_TYPES.find(function(x){return x.id===m.memoryType;})||{label:m.memoryType,icon:'🧠',color:'#666'};
+      const risk=_P500_RISK_META[m.riskLevel]||{label:m.riskLevel,color:'#666'};
+      const dateStr=(m.createdAt||'').replace('T',' ').slice(0,16);
+      h+='<div class="p500-card" data-id="'+e(m.id)+'" style="background:#fff;border:1.5px solid '+e(risk.color)+';border-left-width:6px;border-radius:8px;padding:11px 13px">';
+      h+='<div style="display:flex;align-items:flex-start;gap:6px;flex-wrap:wrap;margin-bottom:4px">';
+      h+='<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:'+e(type.color)+'22;color:'+e(type.color)+';font-weight:700">'+e(type.icon)+' '+e(type.label)+'</span>';
+      h+='<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:'+e(risk.color)+'22;color:'+e(risk.color)+';font-weight:700">'+e(risk.label)+'</span>';
+      h+='<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:var(--s2);color:var(--t2);font-weight:600">📁 '+e(m.category)+'</span>';
+      if(m.relatedPacket)h+='<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:#dbeafe;color:#1e3a8a;font-weight:600">📦 packet '+e(m.relatedPacket)+'</span>';
+      if(m.unresolved)h+='<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:#fee2e2;color:#991b1b;font-weight:700">⏳ 未解決</span>';
+      if(m.needsManagerFollowup)h+='<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:#fef3c7;color:#78350f;font-weight:700">👀 ボス確認</span>';
+      h+='<span style="margin-left:auto;font-size:9px;color:var(--t3)">'+e(dateStr)+' / '+e(m.createdBy)+'</span>';
+      h+='</div>';
+      h+='<div style="font-size:13px;font-weight:800;color:#0a3d7c;margin-bottom:4px">'+e(m.title)+'</div>';
+      if(m.content)h+='<div style="font-size:11px;color:var(--t1);line-height:1.6;margin-bottom:3px"><b>内容：</b>'+e(m.content)+'</div>';
+      if(m.cause)h+='<div style="font-size:11px;color:var(--t2);line-height:1.6;margin-bottom:3px"><b>原因：</b>'+e(m.cause)+'</div>';
+      if(m.lesson)h+='<div style="font-size:11px;color:#0d7d4d;line-height:1.6;margin-bottom:3px;background:#f0fdf4;padding:4px 7px;border-radius:4px"><b>学び：</b>'+e(m.lesson)+'</div>';
+      if(m.nextAction)h+='<div style="font-size:11px;color:#1e3a8a;line-height:1.6;margin-bottom:3px;background:#eff6ff;padding:4px 7px;border-radius:4px"><b>次アクション：</b>'+e(m.nextAction)+'</div>';
+      if(m.bossDecision)h+='<div style="font-size:11px;color:#7c2d12;line-height:1.6;margin-bottom:3px;background:#fef3c7;padding:4px 7px;border-radius:4px"><b>👑 ボス判断：</b>'+e(m.bossDecision)+'</div>';
+      const tags=(m.tags||[]);
+      if(tags.length){h+='<div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:3px">'+tags.map(function(t){return '<span style="font-size:9px;padding:1px 6px;border-radius:8px;background:var(--s2);color:var(--t3)">#'+e(t)+'</span>';}).join('')+'</div>';}
+      h+='<div style="display:flex;gap:4px;margin-top:7px;flex-wrap:wrap">';
+      h+='<button type="button" data-p500-act="resolve" data-id="'+e(m.id)+'" style="font-size:10px;padding:4px 9px;border-radius:5px;border:1.5px solid #0d9e6e;background:#fff;color:#0d9e6e;cursor:pointer;font-weight:700">'+(m.unresolved?'✅ 解決済にする':'⏳ 未解決に戻す')+'</button>';
+      h+='<button type="button" data-p500-act="rule" data-id="'+e(m.id)+'" style="font-size:10px;padding:4px 9px;border-radius:5px;border:1.5px solid #0369a1;background:#fff;color:#0369a1;cursor:pointer;font-weight:700">🛡 再発防止ルール化</button>';
+      h+='<button type="button" data-p500-act="agenda" data-id="'+e(m.id)+'" style="font-size:10px;padding:4px 9px;border-radius:5px;border:1.5px solid #7c3aed;background:#fff;color:#7c3aed;cursor:pointer;font-weight:700">💬 AI 会議の議題にする</button>';
+      h+='<button type="button" data-p500-act="claude" data-id="'+e(m.id)+'" style="font-size:10px;padding:4px 9px;border-radius:5px;border:1.5px solid #0a3d7c;background:#fff;color:#0a3d7c;cursor:pointer;font-weight:700">🤖 Claude Code 指示文へ</button>';
+      h+='</div>';
+      h+='</div>';
+    });
+    list.innerHTML=h;
+    // ボタン bind（dataset 重複防止で 1 回のみ）
+    list.querySelectorAll('button[data-p500-act]').forEach(function(b){
+      if(b.dataset.p500Bound==='1')return;
+      b.dataset.p500Bound='1';
+      b.addEventListener('click',function(){
+        try{
+          const act=b.getAttribute('data-p500-act');
+          const id=b.getAttribute('data-id');
+          const m=(window._p500_memoryStore||[]).find(function(x){return x.id===id;});
+          if(!m)return;
+          if(act==='resolve'){m.unresolved=!m.unresolved; _p500_renderList(); _p500_renderSummary(); try{if(typeof showToast==='function')showToast(m.unresolved?'⏳ 未解決に戻しました':'✅ 解決済にしました');}catch(_){}}
+          else if(act==='rule'){
+            _p500_pendingCandidate = {
+              memoryType:'recurrence_prevention', category:'再発防止',
+              title:'【再発防止ルール】'+(m.title||''),
+              content:'元記憶：'+(m.title||'')+'\n\n'+(m.content||''),
+              cause:m.cause, lesson:m.lesson, nextAction:m.nextAction,
+              riskLevel:m.riskLevel, relatedPacket:m.relatedPacket, relatedTarget:m.relatedTarget,
+              tags:(m.tags||[]).concat(['再発防止']).join(',')
+            };
+            _p500_prefillFromCandidate();
+            try{document.getElementById('p500-f-title').scrollIntoView({behavior:'smooth',block:'start'});}catch(_){}
+          }
+          else if(act==='agenda'){
+            try{
+              const ta=document.getElementById('ai-team-topic');
+              if(ta){ta.value='【記憶庫から】'+(m.title||'');}
+              const ex=document.getElementById('ai-team-expected');
+              if(ex){ex.value=((m.lesson||m.nextAction||'')+'\n（記憶庫 ID: '+m.id+'）');}
+              if(typeof switchPage==='function')switchPage('aiteam');
+              try{if(typeof showToast==='function')showToast('💬 AI 会議の議題に転記しました');}catch(_){}
+            }catch(_){}
+          }
+          else if(act==='claude'){
+            const lines=[];
+            lines.push('# Claude Code 指示文（packet 500 記憶庫から生成）');
+            lines.push('');
+            lines.push('## 関連 packet：'+(m.relatedPacket||'（未指定）'));
+            lines.push('## memory type：'+m.memoryType+' / category：'+m.category);
+            lines.push('## risk：'+m.riskLevel+' / importance：'+m.importance+' / recurrence：'+m.recurrenceRisk);
+            lines.push('');
+            lines.push('## 背景・内容');
+            lines.push(m.content||'（なし）');
+            lines.push('');
+            lines.push('## 原因');
+            lines.push(m.cause||'（不明）');
+            lines.push('');
+            lines.push('## 学び');
+            lines.push(m.lesson||'（未記入）');
+            lines.push('');
+            lines.push('## 次アクション（Claude Code への指示）');
+            lines.push(m.nextAction||'（未指定）');
+            lines.push('');
+            lines.push('## ボス判断');
+            lines.push(m.bossDecision||'（未指定）');
+            lines.push('');
+            lines.push('## 注意事項');
+            lines.push('- Supabase テーブル / SQL / RLS / Auth 変更は禁止');
+            lines.push('- 顧客情報 / パスワード localStorage 保存は禁止');
+            lines.push('- packet 490 軽量化を維持（MutationObserver 新規追加なし、多段 setTimeout なし）');
+            lines.push('- 既存 packet '+(m.relatedPacket||'')+' を壊さない');
+            const text=lines.join('\n');
+            // クリップボードへコピー
+            try{
+              if(navigator.clipboard && navigator.clipboard.writeText){
+                navigator.clipboard.writeText(text).then(function(){
+                  try{if(typeof showToast==='function')showToast('🤖 Claude Code 指示文をクリップボードへコピーしました');}catch(_){}
+                }).catch(function(){
+                  alert(text);
+                });
+              }else{
+                alert(text);
+              }
+            }catch(_){ alert(text); }
+          }
+        }catch(e){try{console.warn('[packet 500 card action]',e&&e.message);}catch(_){}}
+      });
+    });
+  }catch(e){try{console.warn('[packet 500 renderList]',e&&e.message);}catch(_){}}
+}
+function _p500_renderSummary(){
+  try{
+    const arr=(window._p500_memoryStore||[]);
+    const now=new Date();
+    function ageDays(iso){try{return (now - new Date(iso))/86400000;}catch(_){return 999;}}
+    const thisWeek=arr.filter(function(m){return ageDays(m.createdAt)<=7;});
+    const cntSuccess=thisWeek.filter(function(m){return m.memoryType==='success_pattern';}).length;
+    const cntFailure=thisWeek.filter(function(m){return m.memoryType==='failure_lesson';}).length;
+    const cntUnresolved=arr.filter(function(m){return m.unresolved;}).length;
+    const cntRed=arr.filter(function(m){return m.riskLevel==='RED';}).length;
+    const cntHighRecur=arr.filter(function(m){return m.recurrenceRisk==='high';}).length;
+    const cntManager=arr.filter(function(m){return m.needsManagerFollowup;}).length;
+    const counts=[
+      {lbl:'今週の成功パターン', n:cntSuccess, color:'#0d9e6e'},
+      {lbl:'今週の失敗からの学び', n:cntFailure, color:'#dc2626'},
+      {lbl:'未解決の議論', n:cntUnresolved, color:'#b45309'},
+      {lbl:'RED リスク', n:cntRed, color:'#dc2626'},
+      {lbl:'再発注意（高）', n:cntHighRecur, color:'#dc2626'},
+      {lbl:'ボス確認必要', n:cntManager, color:'#7c3aed'}
+    ];
+    const ce=document.getElementById('p500-summary-counts');
+    if(ce){
+      ce.innerHTML=counts.map(function(c){
+        return '<div style="background:#fff;border:1px solid #cbd5e1;border-radius:6px;padding:6px 8px;display:flex;flex-direction:column;align-items:center"><span style="font-size:10px;color:#666">'+_p500_esc(c.lbl)+'</span><span style="font-size:18px;font-weight:800;color:'+_p500_esc(c.color)+'">'+c.n+'</span></div>';
+      }).join('');
+    }
+    // AI 別の注目
+    const findFirst=function(typeId){return arr.find(function(m){return m.memoryType===typeId;});};
+    const top3=arr.filter(function(m){return m.importance==='high';}).slice(0,3);
+    const reds=arr.filter(function(m){return m.riskLevel==='RED' || m.riskLevel==='YELLOW';}).slice(0,2);
+    const salesPattern=arr.find(function(m){return m.memoryType==='sales_pattern';});
+    const opRule=arr.find(function(m){return m.memoryType==='operation_rule';});
+    const aiCards=[
+      {ai:'⚔️ 信長：今やる TOP3', body:(top3.length?top3.map(function(m){return '・'+_p500_esc(m.title);}).join('<br>'):'<span style="color:#888">重要度=高 の記憶を登録してください</span>')},
+      {ai:'🧂 ソルティ：3 行要約', body:'記憶 '+arr.length+' 件 / 今週 '+thisWeek.length+' 件 / 未解決 '+cntUnresolved+' 件'},
+      {ai:'🏯 家康：RED / YELLOW 注意', body:(reds.length?reds.map(function(m){return '・['+m.riskLevel+'] '+_p500_esc(m.title);}).join('<br>'):'<span style="color:#888">該当なし</span>')},
+      {ai:'🍶 秀吉：営業成功パターン', body:(salesPattern?'・'+_p500_esc(salesPattern.title):'<span style="color:#888">sales_pattern の登録なし</span>')},
+      {ai:'💡 エジソン：仕組み化候補', body:(opRule?'・'+_p500_esc(opRule.title):'<span style="color:#888">operation_rule の登録なし</span>')},
+      {ai:'🍎 ジョブズ：UI 改善候補', body:'<span style="color:#888">日報学習ログ / UI 議題から取り込み予定</span>'}
+    ];
+    const ae=document.getElementById('p500-summary-by-ai');
+    if(ae){
+      ae.innerHTML=aiCards.map(function(c){
+        return '<div style="background:#fff;border:1px solid #cbd5e1;border-radius:6px;padding:6px 9px"><div style="font-weight:800;color:#1e3a8a;margin-bottom:2px">'+_p500_esc(c.ai)+'</div><div style="font-size:10px;color:var(--t2)">'+c.body+'</div></div>';
+      }).join('');
+    }
+  }catch(e){try{console.warn('[packet 500 renderSummary]',e&&e.message);}catch(_){}}
+}
+function renderMemoryPage(){
+  try{
+    _p500_populateSelects();
+    _p500_renderSummary();
+    _p500_renderList();
+    _p500_prefillFromCandidate();
+    // 登録ボタン bind（1 回のみ）
+    const save=document.getElementById('p500-f-save');
+    if(save && save.dataset.p500Bound!=='1'){
+      save.dataset.p500Bound='1';
+      save.addEventListener('click',function(){
+        const result=document.getElementById('p500-f-result');
+        try{
+          const r=_p500_addMemory(_p500_readForm());
+          if(!r.ok){
+            if(result){result.style.display='block';result.style.background='#fee2e2';result.style.color='#991b1b';result.textContent='❌ '+r.error;}
+            return;
+          }
+          if(result){result.style.display='block';result.style.background='#d1fae5';result.style.color='#065f46';result.textContent='✅ 記憶庫に登録しました（'+r.memory.id+'）';}
+          _p500_clearForm();
+          _p500_renderSummary();
+          _p500_renderList();
+          try{if(typeof showToast==='function')showToast('📚 記憶庫に登録しました');}catch(_){}
+        }catch(e){
+          if(result){result.style.display='block';result.style.background='#fee2e2';result.style.color='#991b1b';result.textContent='❌ '+(e&&e.message||'unknown');}
+        }
+      });
+    }
+    const clear=document.getElementById('p500-f-clear');
+    if(clear && clear.dataset.p500Bound!=='1'){
+      clear.dataset.p500Bound='1';
+      clear.addEventListener('click', _p500_clearForm);
+    }
+    // 検索/フィルター bind（input/change で即時反映）
+    const filterIds=['p500-q','p500-q-type','p500-q-cat','p500-q-risk','p500-q-packet','p500-q-target','p500-q-tags','p500-q-unresolved','p500-q-managerFollowup','p500-q-sort'];
+    filterIds.forEach(function(id){
+      const el=document.getElementById(id); if(!el || el.dataset.p500Bound==='1')return;
+      el.dataset.p500Bound='1';
+      el.addEventListener('input', _p500_renderList);
+      el.addEventListener('change', _p500_renderList);
+    });
+    const qClear=document.getElementById('p500-q-clear');
+    if(qClear && qClear.dataset.p500Bound!=='1'){
+      qClear.dataset.p500Bound='1';
+      qClear.addEventListener('click', function(){
+        ['p500-q','p500-q-packet','p500-q-target','p500-q-tags'].forEach(function(id){const el=document.getElementById(id); if(el)el.value='';});
+        ['p500-q-type','p500-q-cat','p500-q-risk'].forEach(function(id){const el=document.getElementById(id); if(el)el.value='';});
+        ['p500-q-unresolved','p500-q-managerFollowup'].forEach(function(id){const el=document.getElementById(id); if(el)el.checked=false;});
+        const s=document.getElementById('p500-q-sort'); if(s)s.value='newest';
+        _p500_renderList();
+      });
+    }
+  }catch(e){try{console.warn('[packet 500 renderMemoryPage]',e&&e.message);}catch(_){}}
+}
+
+// packet 497 連携：報告 payload を記憶庫候補に変換 + 記憶庫ページへ遷移
+function _p500_buildCandidateFromPayload(payload){
+  if(!payload)return null;
+  try{
+    let memType='discussion_log';
+    let category='議論ログ';
+    if(payload.source==='ai-meeting'){memType='discussion_log'; category='議論ログ';}
+    else if(payload.source==='ai-consultation'){memType='claude_instruction'; category='Claude Code指示';}
+    else if(payload.source==='boss-1on1'){memType='boss_decision'; category='ボス判断';}
+    const tags=[];
+    if(payload.source)tags.push(payload.source);
+    if(payload.type)tags.push(payload.type);
+    if(payload.devilAdvocate)tags.push('DA:'+payload.devilAdvocate);
+    const candidate={
+      memoryType: memType,
+      category: category,
+      title: (payload.title||'').slice(0,80),
+      content: payload.body || '',
+      cause: '',
+      lesson: payload.saltySummary || payload.aiSummary || '',
+      nextAction: payload.claudeInstruction || '',
+      bossDecision: '',
+      relatedPacket: payload.relatedPacket || '',
+      relatedTarget: (payload.requestedBy && payload.requestedBy.name) || '',
+      riskLevel: payload.riskLevel || 'GREEN',
+      importance: payload.bossDecisionNeeded ? 'high' : 'mid',
+      recurrenceRisk: 'mid',
+      tags: tags.join(','),
+      unresolved: !!payload.bossDecisionNeeded,
+      needsManagerFollowup: !!payload.bossDecisionNeeded,
+      sourceType: payload.source || 'manual'
+    };
+    return candidate;
+  }catch(e){return null;}
+}
+// packet 497 報告モーダルに「🧠 記憶庫に登録」ボタンを追加
+(function _p500_hookP497Modal(){
+  try{
+    // モーダルの底に追加ボタンを差し込み（DOMContentLoaded 後 1 回 + open 時に重複防止）
+    function ensureBtn(){
+      const modal=document.getElementById('p497-report-modal');
+      if(!modal)return;
+      // 既存「📤 送信」ボタンの後に追加
+      const sendBtn=document.getElementById('p497-report-send');
+      if(!sendBtn || !sendBtn.parentNode)return;
+      let memBtn=document.getElementById('p500-report-tomemory-btn');
+      if(!memBtn){
+        memBtn=document.createElement('button');
+        memBtn.id='p500-report-tomemory-btn';
+        memBtn.type='button';
+        memBtn.style.cssText='flex:1;min-width:120px;padding:9px 14px;border-radius:8px;border:0;background:#7c3aed;color:#fff;font-size:13px;font-weight:700;cursor:pointer;min-height:40px';
+        memBtn.textContent='🧠 記憶庫に登録';
+        // 「📋 コピー」の前に挿入
+        const copyBtn=document.getElementById('p497-report-copy');
+        if(copyBtn && copyBtn.parentNode){copyBtn.parentNode.insertBefore(memBtn, copyBtn);}
+        else{sendBtn.parentNode.appendChild(memBtn);}
+        memBtn.addEventListener('click',function(){
+          try{
+            const cand=_p500_buildCandidateFromPayload(_p497_currentPayload);
+            if(!cand){alert('payload が未生成です');return;}
+            _p500_pendingCandidate=cand;
+            _p497_closeReportModal();
+            if(typeof switchPage==='function')switchPage('memory');
+          }catch(e){try{console.warn('[packet 500 toMemory click]',e&&e.message);}catch(_){}}
+        });
+      }
+    }
+    if(document.readyState==='loading')document.addEventListener('DOMContentLoaded', ensureBtn);
+    else ensureBtn();
+  }catch(e){try{console.warn('[packet 500 hookP497Modal]',e&&e.message);}catch(_){}}
+})();
+
+// ==== ここまで packet 500 じゃがい学習エンジン + 記憶庫 MVP ====
 </script>
 </body>
 </html>
