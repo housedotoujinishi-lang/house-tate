@@ -1844,6 +1844,76 @@ textarea.ai-team-input{resize:vertical;min-height:60px}
       <div style="margin-top:18px;font-size:10px;color:#999;text-align:center;line-height:1.6">※ 本 MVP の記憶は in-memory（リロードで消える）。<br>Supabase テーブル化は次 packet で SQL/RLS 設計後に実施。</div>
     </div>
   </div>
+  <!-- packet 502: AI 稼働状況ダッシュボード（in-memory MVP、外部 API なし） -->
+  <div class="page" id="page-ai-status">
+    <div style="padding:14px 14px 80px;max-width:960px;margin:0 auto">
+      <h2 style="font-size:18px;color:#0a3d7c;margin:0 0 4px;font-weight:800">🚦 AI 稼働状況ダッシュボード</h2>
+      <div style="font-size:11px;color:#666;margin-bottom:8px;line-height:1.6">AI 名鑑・AI 組織図・AI 会議・AI 相談・記憶庫の中で「実際に動いている AI」と「設計のみで止まっている AI」を可視化し、未稼働メンバーを起動候補にします（packet 502 静的 MVP）。</div>
+      <div style="font-size:10px;color:#7c3aed;background:#f5f3ff;border:1.5px solid #c4b5fd;border-radius:6px;padding:7px 9px;margin-bottom:10px;line-height:1.6">⚠ 各 AI の「起動ボタン」は外部 API には接続しません。in-memory で役割テンプレを表示するだけの静的 MVP です。本番接続は packet 497 endpoint 設定後に検討します。</div>
+
+      <!-- 稼働サマリーカード -->
+      <div class="ai-team-card" id="p502-summary-card" style="background:#eff6ff;border:1.5px solid #93c5fd">
+        <div style="font-size:13px;font-weight:800;color:#0a3d7c;margin-bottom:6px">📊 稼働サマリー</div>
+        <div id="p502-summary-counts" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:6px;font-size:11px;line-height:1.5"></div>
+        <div style="font-size:10px;font-weight:700;color:#1e40af;margin-top:10px;margin-bottom:4px">使える導線（chips）</div>
+        <div id="p502-summary-channels" style="display:flex;flex-wrap:wrap;gap:4px;font-size:10px;line-height:1.55"></div>
+      </div>
+
+      <!-- フィルター chips -->
+      <div class="ai-team-card">
+        <div style="font-size:13px;font-weight:800;color:#0a3d7c;margin-bottom:6px">🔎 フィルター</div>
+        <div style="display:flex;gap:4px;flex-wrap:wrap;font-size:11px" id="p502-filter-chips">
+          <button type="button" class="p502-filter-chip" data-p502filter="all" style="padding:6px 10px;border-radius:6px;border:1.5px solid #0a3d7c;background:#0a3d7c;color:#fff;cursor:pointer;font-weight:700">すべて</button>
+          <button type="button" class="p502-filter-chip" data-p502filter="active" style="padding:6px 10px;border-radius:6px;border:1.5px solid var(--bo);background:#fff;color:var(--t2);cursor:pointer;font-weight:600">🟢 稼働中</button>
+          <button type="button" class="p502-filter-chip" data-p502filter="pseudo" style="padding:6px 10px;border-radius:6px;border:1.5px solid var(--bo);background:#fff;color:var(--t2);cursor:pointer;font-weight:600">🔵 疑似稼働</button>
+          <button type="button" class="p502-filter-chip" data-p502filter="partial" style="padding:6px 10px;border-radius:6px;border:1.5px solid var(--bo);background:#fff;color:var(--t2);cursor:pointer;font-weight:600">🟡 部分稼働</button>
+          <button type="button" class="p502-filter-chip" data-p502filter="plan" style="padding:6px 10px;border-radius:6px;border:1.5px solid var(--bo);background:#fff;color:var(--t2);cursor:pointer;font-weight:600">⚪ 設計のみ</button>
+          <button type="button" class="p502-filter-chip" data-p502filter="cmd" style="padding:6px 10px;border-radius:6px;border:1.5px solid var(--bo);background:#fff;color:var(--t2);cursor:pointer;font-weight:600">司令部</button>
+          <button type="button" class="p502-filter-chip" data-p502filter="sec" style="padding:6px 10px;border-radius:6px;border:1.5px solid var(--bo);background:#fff;color:var(--t2);cursor:pointer;font-weight:600">秘書室</button>
+          <button type="button" class="p502-filter-chip" data-p502filter="sales" style="padding:6px 10px;border-radius:6px;border:1.5px solid var(--bo);background:#fff;color:var(--t2);cursor:pointer;font-weight:600">営業</button>
+          <button type="button" class="p502-filter-chip" data-p502filter="dev" style="padding:6px 10px;border-radius:6px;border:1.5px solid var(--bo);background:#fff;color:var(--t2);cursor:pointer;font-weight:600">開発</button>
+          <button type="button" class="p502-filter-chip" data-p502filter="design" style="padding:6px 10px;border-radius:6px;border:1.5px solid var(--bo);background:#fff;color:var(--t2);cursor:pointer;font-weight:600">制作</button>
+          <button type="button" class="p502-filter-chip" data-p502filter="external" style="padding:6px 10px;border-radius:6px;border:1.5px solid var(--bo);background:#fff;color:var(--t2);cursor:pointer;font-weight:600">外部専門家</button>
+          <button type="button" class="p502-filter-chip" data-p502filter="personal-sec" style="padding:6px 10px;border-radius:6px;border:1.5px solid var(--bo);background:#fff;color:var(--t2);cursor:pointer;font-weight:600">専属秘書</button>
+        </div>
+        <div style="margin-top:8px"><input id="p502-search" placeholder="AI 名・役割・キーワード で検索" style="width:100%;padding:7px 9px;border-radius:6px;border:1.5px solid var(--bo);font-size:12px"></div>
+      </div>
+
+      <!-- AI カード一覧 -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin:14px 0 6px">
+        <div style="font-size:13px;font-weight:800;color:#0a3d7c">🤖 AI 稼働カード一覧 <span id="p502-card-count" style="font-size:11px;font-weight:600;color:#666;margin-left:6px">(0 件)</span></div>
+      </div>
+      <div id="p502-card-list" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:8px"></div>
+
+      <!-- 未稼働 AI レポート -->
+      <div style="margin-top:18px">
+        <div style="font-size:13px;font-weight:800;color:#0a3d7c;margin-bottom:6px">📋 未稼働 AI レポート（次に動かす候補）</div>
+        <div id="p502-unused-report" style="display:flex;flex-direction:column;gap:6px"></div>
+      </div>
+
+      <div style="margin-top:18px;font-size:10px;color:#999;text-align:center;line-height:1.6">※ 本ダッシュボードは静的 MVP（in-memory）。<br>外部 AI API への自動送信は行いません。Supabase テーブル / RLS / Auth 変更なし、localStorage 本文保存なし。</div>
+    </div>
+  </div>
+  <!-- packet 502: AI 役割テンプレ表示モーダル（in-memory） -->
+  <div id="p502-role-modal" style="position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.55);display:none;align-items:flex-start;justify-content:center;padding:20px 12px;overflow-y:auto">
+    <div style="background:#fff;border-radius:12px;max-width:600px;width:100%;max-height:calc(100vh - 40px);overflow-y:auto;border-top:6px solid #7c3aed;display:flex;flex-direction:column">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;padding:14px 16px 8px;gap:10px;border-bottom:1px solid var(--bo)">
+        <div>
+          <div id="p502-role-title" style="font-size:16px;font-weight:800;color:#0a3d7c;line-height:1.4"></div>
+          <div id="p502-role-sub" style="font-size:11px;color:var(--t3);margin-top:2px;line-height:1.5"></div>
+        </div>
+        <button type="button" id="p502-role-close" aria-label="閉じる" style="background:0;border:0;font-size:22px;color:var(--t3);cursor:pointer;padding:4px 10px;line-height:1;min-width:40px;min-height:40px;border-radius:8px">✕</button>
+      </div>
+      <div id="p502-role-body" style="padding:14px 16px;font-size:13px;line-height:1.7;color:var(--t1);white-space:pre-wrap;word-break:break-word"></div>
+      <div style="padding:8px 16px 14px;display:flex;gap:6px;flex-wrap:wrap;border-top:1px solid var(--bo)">
+        <button type="button" id="p502-role-tomemory" style="flex:2;min-width:140px;padding:9px 14px;border-radius:8px;border:0;background:#7c3aed;color:#fff;font-size:13px;font-weight:700;cursor:pointer;min-height:40px">🧠 記憶庫に転記</button>
+        <button type="button" id="p502-role-copy" style="flex:1;min-width:90px;padding:9px 14px;border-radius:8px;border:1.5px solid #7c3aed;background:#fff;color:#7c3aed;font-size:13px;font-weight:700;cursor:pointer;min-height:40px">📋 コピー</button>
+        <button type="button" id="p502-role-cancel" style="flex:1;min-width:90px;padding:9px 14px;border-radius:8px;border:1.5px solid var(--bo);background:#fff;color:var(--t2);font-size:13px;font-weight:700;cursor:pointer;min-height:40px">閉じる</button>
+      </div>
+      <div id="p502-role-result" style="margin:0 16px 14px;padding:8px 10px;border-radius:8px;font-size:11px;font-weight:600;line-height:1.6;display:none"></div>
+      <div style="padding:8px 16px 14px;font-size:10px;color:#999;border-top:1px solid var(--bo);background:var(--s1)">※ 静的テンプレ（in-memory）。外部送信 / localStorage 保存なし。実際の数値は AI 会議や直近の業務状況に応じてボスと AI で埋めてください。</div>
+    </div>
+  </div>
   <!-- packet 494: ボス 1on1 モーダル（共通、6 種類の対話で内容差替え） -->
   <div id="p494-1on1-modal" style="position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.55);display:none;align-items:flex-start;justify-content:center;padding:20px 12px;overflow-y:auto">
     <div style="background:#fff;border-radius:12px;max-width:560px;width:100%;max-height:calc(100vh - 40px);overflow-y:auto;border-top:6px solid #0a3d7c;display:flex;flex-direction:column">
@@ -2652,8 +2722,8 @@ function showMainApp(){
   // カレンダーとタスクは同一 cal ページに統合済のため、ラベル違いで 2 エントリ並列配置（両方とも switchPage('cal')）。
   // 顧客タブは絶対に復活させない（packet 322 防御維持）。
   const tabs=isHighPerm
-    ?[['dash','🏠 ホーム'],['accounts','👑 管理'],['memo','📒 メモ'],['cal','📅 カレンダー'],['cal','📋 タスク'],['routine','📋 ルーティン'],['shift','📋 シフト'],['kintai','🕐 勤怠'],['goal','🎯 KPI'],['report','📊 月次レポート'],['aiteam','🧠 AI会議'],['memory','🧠 記憶庫'],['ai-members','🤖 AI名鑑'],['ai-org','🏢 AI組織図'],['member-workload','👥 メンバー稼働'],['knowledge-portal','📚 豆知識'],['manager-undone','🚨 未完了つぶし']]
-    :[['dash','🏠 ホーム'],['memo','📒 メモ'],['cal','📅 カレンダー'],['cal','📋 タスク'],['routine','📋 ルーティン'],['shift','📋 シフト'],['kintai','🕐 勤怠'],['goal','🎯 KPI'],['aiteam','🧠 AI会議'],['memory','🧠 記憶庫'],['ai-members','🤖 AI名鑑'],['ai-org','🏢 AI組織図'],['member-workload','👥 メンバー稼働'],['knowledge-portal','📚 豆知識']];
+    ?[['dash','🏠 ホーム'],['accounts','👑 管理'],['memo','📒 メモ'],['cal','📅 カレンダー'],['cal','📋 タスク'],['routine','📋 ルーティン'],['shift','📋 シフト'],['kintai','🕐 勤怠'],['goal','🎯 KPI'],['report','📊 月次レポート'],['ai-status','🚦 AI稼働状況'],['aiteam','🧠 AI会議'],['memory','🧠 記憶庫'],['ai-members','🤖 AI名鑑'],['ai-org','🏢 AI組織図'],['member-workload','👥 メンバー稼働'],['knowledge-portal','📚 豆知識'],['manager-undone','🚨 未完了つぶし']]
+    :[['dash','🏠 ホーム'],['memo','📒 メモ'],['cal','📅 カレンダー'],['cal','📋 タスク'],['routine','📋 ルーティン'],['shift','📋 シフト'],['kintai','🕐 勤怠'],['goal','🎯 KPI'],['ai-status','🚦 AI稼働状況'],['aiteam','🧠 AI会議'],['memory','🧠 記憶庫'],['ai-members','🤖 AI名鑑'],['ai-org','🏢 AI組織図'],['member-workload','👥 メンバー稼働'],['knowledge-portal','📚 豆知識']];
   tabs.forEach(([pg,lbl],idx)=>{
     const b=document.createElement('button');
     b.className='ntab'+(idx===0?' on':'');b.dataset.pg=pg;b.textContent=lbl;
@@ -2772,7 +2842,7 @@ bindEvForm();
   try{if(typeof window._p490_flushPostLogin==='function')window._p490_flushPostLogin();}catch(_p490_flushErr){try{console.warn('[packet 490 showMainApp flush]',_p490_flushErr&&_p490_flushErr.message);}catch(_){}}
 }
 
-function switchPage(pg){if(pg==='crm'){pg='dash';/* packet 322: 顧客タブ強制無効化、dash に強制リダイレクト */}document.querySelectorAll('.ntab').forEach(b=>b.classList.toggle('on',b.dataset.pg===pg));document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));const pgEl=document.getElementById(`page-${pg}`);if(pgEl)pgEl.classList.add('on');if(pg==='dash')renderDash();if(pg==='accounts'){renderAccList();/* packet 490: accounts ページ表示時 packet 480/481 UI を bind */try{if(typeof window._p490_flushPostLogin==='function')window._p490_flushPostLogin();}catch(_){}}if(pg==='kintai'){ktViewUid=currentUser.perm==='admin'?null:currentUser.uid;renderKintaiPage();/* packet 490: kintai ページ表示時 packet 485 export UI を bind */try{if(typeof window._p485_initOnKintai==='function')window._p485_initOnKintai();}catch(_){}}if(pg==='cal')render();if(pg==='shift')renderShift();if(pg==='goal'){initGoalData();renderGoalPage();}if(pg==='report')renderReportPage();if(pg==='aiteam')renderAITeamPage();if(pg==='memory'){try{renderMemoryPage();}catch(_p500_e){try{console.warn('[packet 500 switchPage]',_p500_e&&_p500_e.message);}catch(_){}}}if(pg==='member-workload')renderMemberWorkloadPage();if(pg==='ai-members')renderAIMembersPage();if(pg==='ai-org')renderAIOrgChartPage();if(pg==='realestate-knowledge')renderRealEstateKnowledgePage();if(pg==='routine')renderRoutinePage();if(pg==='sales-psy')renderSalesPsychologyPage();if(pg==='knowledge-portal')renderKnowledgePortalPage();if(pg==='role-knowledge')renderRoleKnowledgePage();if(pg==='knowledge-candidate-box'){try{renderKnowledgeCandidateBox();}catch(e){const r=document.getElementById('kc-cards');if(r)r.innerHTML='<div style="color:#b91c1c;padding:14px;background:#fef2f2;border-radius:6px;">AI 事典追加候補箱の読み込みに失敗しました。Console を確認してください。<br><code style="font-size:11px;">'+String(e&&e.message||e)+'</code></div>';}}}
+function switchPage(pg){if(pg==='crm'){pg='dash';/* packet 322: 顧客タブ強制無効化、dash に強制リダイレクト */}document.querySelectorAll('.ntab').forEach(b=>b.classList.toggle('on',b.dataset.pg===pg));document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));const pgEl=document.getElementById(`page-${pg}`);if(pgEl)pgEl.classList.add('on');if(pg==='dash')renderDash();if(pg==='accounts'){renderAccList();/* packet 490: accounts ページ表示時 packet 480/481 UI を bind */try{if(typeof window._p490_flushPostLogin==='function')window._p490_flushPostLogin();}catch(_){}}if(pg==='kintai'){ktViewUid=currentUser.perm==='admin'?null:currentUser.uid;renderKintaiPage();/* packet 490: kintai ページ表示時 packet 485 export UI を bind */try{if(typeof window._p485_initOnKintai==='function')window._p485_initOnKintai();}catch(_){}}if(pg==='cal')render();if(pg==='shift')renderShift();if(pg==='goal'){initGoalData();renderGoalPage();}if(pg==='report')renderReportPage();if(pg==='ai-status'){try{renderAIStatusPage();}catch(_p502_e){try{console.warn('[packet 502 switchPage]',_p502_e&&_p502_e.message);}catch(_){}}}if(pg==='aiteam')renderAITeamPage();if(pg==='memory'){try{renderMemoryPage();}catch(_p500_e){try{console.warn('[packet 500 switchPage]',_p500_e&&_p500_e.message);}catch(_){}}}if(pg==='member-workload')renderMemberWorkloadPage();if(pg==='ai-members')renderAIMembersPage();if(pg==='ai-org')renderAIOrgChartPage();if(pg==='realestate-knowledge')renderRealEstateKnowledgePage();if(pg==='routine')renderRoutinePage();if(pg==='sales-psy')renderSalesPsychologyPage();if(pg==='knowledge-portal')renderKnowledgePortalPage();if(pg==='role-knowledge')renderRoleKnowledgePage();if(pg==='knowledge-candidate-box'){try{renderKnowledgeCandidateBox();}catch(e){const r=document.getElementById('kc-cards');if(r)r.innerHTML='<div style="color:#b91c1c;padding:14px;background:#fef2f2;border-radius:6px;">AI 事典追加候補箱の読み込みに失敗しました。Console を確認してください。<br><code style="font-size:11px;">'+String(e&&e.message||e)+'</code></div>';}}}
 function mkModal(id,barColor,title){const ex=document.getElementById(id);if(ex)ex.remove();const bg=document.createElement('div');bg.className='mbg';bg.id=id;bg.innerHTML=`<div class="modal"><div class="mbar" style="background:${barColor}"></div><button class="mclose" id="${id}-c">✕</button><div class="mttl">${title}</div><div class="macts"></div></div>`;document.body.appendChild(bg);document.getElementById(`${id}-c`).onclick=()=>bg.remove();bg.onclick=e=>{if(e.target===bg)bg.remove();};return bg;}
 function mttlAfter(bg,html){bg.querySelector('.mttl').insertAdjacentHTML('afterend',html);}
 function macts(bg,html){bg.querySelector('.macts').innerHTML=html;}
@@ -13863,6 +13933,718 @@ function _p500_buildCandidateFromPayload(payload){
 })();
 
 // ==== ここまで packet 500 じゃがい学習エンジン + 記憶庫 MVP ====
+
+// ═══════════════════════════════════════
+// packet 502: AI チーム実働化総点検 + 未稼働メンバー起動 MVP（v0.9.252）
+// 目的：AI 名鑑・AI 組織図に設計のみで存在する AI を「実際に役割を持つ」状態に近づける。
+// 外部 AI API への自動送信なし、Supabase / SQL / RLS / Auth 変更なし、localStorage 本文保存なし。
+// MutationObserver 新規追加なし、すべてユーザー操作起点（packet 490 軽量化維持）。
+// ═══════════════════════════════════════
+(function _p502_init(){
+  // 状態判定で使う AI 名（packet 494 / 497 / 500 の実装と整合）
+  const DA_NAMES=['信長','秀吉','エジソン','ジョブズ'];
+  const BOSS_1ON1_NAMES=['ソルティ','家康','信長','秀吉','エジソン','ジョブズ'];
+  const AI_CONSULT_NAMES=['ソルティ','豊臣秀吉','トーマス・エジソン','徳川家康','飛脚'];
+  const MEMORY_SUMMARY_NAMES=['織田信長','豊臣秀吉','トーマス・エジソン','スティーブ・ジョブズ','徳川家康','ソルティ'];
+
+  function _p502_esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];});}
+  window._p502_esc=_p502_esc;
+
+  // 名前マッチ用：信長 / 織田信長 / 信長(短縮) どれでも拾えるように
+  function _p502_nameContains(memberName, candidates){
+    if(!memberName)return false;
+    for(let i=0;i<candidates.length;i++){
+      if(memberName===candidates[i])return true;
+      if(memberName.indexOf(candidates[i])>=0)return true;
+      if(candidates[i].indexOf(memberName)>=0)return true;
+    }
+    return false;
+  }
+
+  // 各 AI の使える導線（実機能ベース、棚卸し結果に整合）
+  function _p502_channelsFor(m){
+    const ch=[];
+    if(m.statusKey==='done'||m.statusKey==='pseudo')ch.push('AI会議');
+    if(_p502_nameContains(m.name, BOSS_1ON1_NAMES))ch.push('ボス1on1');
+    if(_p502_nameContains(m.name, DA_NAMES))ch.push("Devil's Advocate");
+    if(_p502_nameContains(m.name, AI_CONSULT_NAMES))ch.push('AI相談');
+    if(_p502_nameContains(m.name, MEMORY_SUMMARY_NAMES))ch.push('記憶庫サマリー');
+    // 名鑑・組織図は全員に出るので一律 ON
+    ch.push('AI名鑑');
+    ch.push('AI組織図');
+    return ch;
+  }
+
+  function _p502_runStatusFor(m){
+    if(m.statusKey==='done')return {key:'active',label:'稼働中',color:'#0d9e6e',icon:'🟢'};
+    if(m.statusKey==='pseudo')return {key:'pseudo',label:'疑似稼働',color:'#0369a1',icon:'🔵'};
+    if(m.statusKey==='plan'){
+      const ch=_p502_channelsFor(m);
+      const real=ch.filter(function(x){return x!=='AI名鑑' && x!=='AI組織図';});
+      if(real.length>0)return {key:'partial',label:'部分稼働',color:'#b45309',icon:'🟡'};
+      return {key:'plan',label:'設計のみ',color:'#94a3b8',icon:'⚪'};
+    }
+    return {key:'unknown',label:'未分類',color:'#888',icon:'❓'};
+  }
+
+  // 全 AI 取得（getStaticAIMembersData + 専属秘書）
+  function _p502_getAllAIs(){
+    let ais=[];
+    try{ais=(typeof getStaticAIMembersData==='function')?getStaticAIMembersData().slice():[];}catch(e){}
+    const existingNames=new Set(ais.map(function(m){return m.name;}));
+    let secMap=[];
+    try{secMap=(typeof getPersonalSecretaryMapping==='function')?getPersonalSecretaryMapping():[];}catch(e){}
+    secMap.forEach(function(s){
+      if(!s||!s.secretary||s.secretary==='未定')return;
+      if(existingNames.has(s.secretary))return;
+      ais.push({
+        id: 'personal-sec-'+s.secretary,
+        icon: s.secretaryIcon || '🤖',
+        name: s.secretary,
+        category: 'personal-sec',
+        scope: s.ownerName+' 専属',
+        status: '設計のみ',
+        statusKey: 'plan',
+        role: s.ownerName+' の専属秘書 AI（'+(s.ownerRole||'')+'）',
+        personality: '担当者寄り、丁寧、即応',
+        expert: 'タスク整理 / 進捗確認 / 業務リマインド / 小言',
+        weakness: '担当外業務',
+        tone: '担当者寄り「進捗を整理します」',
+        criteria: '担当者の負荷、未完了、ボール所在',
+        consult: '担当者のタスク整理、進捗確認、業務リマインド',
+        outputs: '進捗整理、リマインド、小言メモ',
+        screens: 'AI 稼働状況 / メンバー稼働',
+        feature: s.ownerName+' 専属秘書 AI（packet 319 由来、本 packet 502 で起動候補化）',
+        comment: s.note || ''
+      });
+      existingNames.add(s.secretary);
+    });
+    return ais;
+  }
+  window._p502_getAllAIs=_p502_getAllAIs;
+
+  // ===== AI 役割テンプレ（コアの 13 名 + カテゴリ既定）=====
+  const ROLE_TPL={
+    // 司令部
+    '織田信長':{
+      meeting:'信長だ。\n\n【視点】優先順位 / 攻め / 撤退判断\n\n【今の議題の見方】\n・本当にこれは TOP3 か。違うなら今すぐ捨てる。\n・スピードを落とす要素は何か。\n・敵（競合）に先に打たれる前に動けるか。\n\n【提案】TOP3 を 1 枚に書け。それ以外は次週送り。',
+      consult:'信長だ。\n\n【相談観点】\n1. 優先順位：いま一番重いのはどれだ\n2. 撤退ライン：これ以上深追いしないラインを決めろ\n3. ボス決裁：ボスが今この場で 1 言で決めるべきは何か\n\n【私からのアドバイス】\n迷ったら、攻めの方を取れ。',
+      memory:'信長視点で見る。\n\n【この記憶からの読み】\n・成功なら横展開を考える。\n・失敗なら撤退ラインを決める。\n・どちらでも「次の TOP3 候補」に入るか判断する。'
+    },
+    '徳川家康':{
+      meeting:'家康です。\n\n【視点】リスク / 法務 / 労務 / 運用の堅さ\n\n【今の議題の見方】\n・5 年後にこの判断は持つか。\n・既存破壊（Supabase / 顧客タブ / 既存 UI）はないか。\n・人が辞めない仕組みになっているか。\n\n【提案】🔴🟡 を先に拾い、🟢 から手を付ける。',
+      consult:'家康です。\n\n【相談観点】\n1. リスク：止める理由はあるか\n2. 法務 / 労務：契約 / 就業規則 / 個人情報の観点で詰まる点\n3. 運用継続性：明日も動かせる仕組みか\n\n【私からのアドバイス】\n急ぐより、続く仕組みを選びましょう。',
+      memory:'家康視点で見る。\n\n【この記憶からの読み】\n・🔴 / 🟡 リスクなら再発防止ルール化を最優先で。\n・成功でも「次に同じ条件で同じ結果が出るか」を見る。'
+    },
+    '豊臣秀吉':{
+      meeting:'秀吉、ご報告申し上げます！\n\n【視点】営業展開 / 現場巻き込み / スタッフが使う導線\n\n【今の議題の見方】\n・現場（営業）が明日使えるか。\n・初動 5 分の動線になっているか。\n・媒介取得 / 反響対応に効くか。\n\n【提案】まず現場 1 人にやらせて、効いたら全員に展開！',
+      consult:'秀吉、ご相談承ります！\n\n【相談観点】\n1. 営業 KPI への効き目（反響 / アポ / 媒介）\n2. 現場の納得感（スタッフが触りたくなるか）\n3. 横展開のしやすさ\n\n【私からのアドバイス】\n人を、まず動かしましょう！',
+      memory:'秀吉の読み。\n\n【この記憶からの読み】\n・営業成功パターンなら横展開トーク化。\n・失敗なら現場に共有してすぐ次の手を打つ。'
+    },
+    'トーマス・エジソン':{
+      meeting:'エジソンです。\n\n【視点】自動化 / 仕組み化 / 再発防止\n\n【今の議題の見方】\n・人がやらなくて済む手順は何か。\n・1 回試して再現性があるか。\n・PDCA で次に何を試すか。\n\n【提案】まず 1 つ自動化、結果を 1 週間で計測。',
+      consult:'エジソンです。\n\n【相談観点】\n1. 仕組み化候補：手作業を減らせる箇所\n2. 計測指標：効果が見える数字\n3. 次の試行：1 週間で結果が出る粒度\n\n【私からのアドバイス】\nまず 1 つ試す、量産はその後。',
+      memory:'エジソンの読み。\n\n【この記憶からの読み】\n・失敗ログ → 再発防止ルール化のチェックリスト案を作る。\n・業務フロー → 自動化テンプレ化を検討。'
+    },
+    'スティーブ・ジョブズ':{
+      meeting:'ジョブズです。\n\n【視点】UI / UX / 美意識 / スマホ片手操作\n\n【今の議題の見方】\n・タップ数は減らせるか。\n・色 / 文字を減らせるか。\n・社員がスマホで触りたくなるか。\n\n【提案】余計な要素を 1 つ削る。それで足りる。',
+      consult:'ジョブズです。\n\n【相談観点】\n1. 操作ステップの最短化\n2. 視認性（色 / フォント / 余白）\n3. スマホ片手で完結するか\n\n【私からのアドバイス】\n足すより、削れ。',
+      memory:'ジョブズの読み。\n\n【この記憶からの読み】\n・UI 関連ならスマホ実機で 1 度試す。\n・操作が複雑なら 1 ステップ減らす案を出す。'
+    },
+    // 秘書室
+    'ソルティ':{
+      meeting:'ソルティです。整理します。\n\n【視点】統括秘書 / 要約 / 次アクション化\n\n【今の議題の整理】\n1. 議題の論点（3 行）\n2. 各 AI の意見の交点\n3. ボスが 1 言で決められる粒度に圧縮\n\n【私からのお願い】\n決まった瞬間に各担当へ展開します。',
+      consult:'ソルティです、ご相談承ります。\n\n【相談観点】\n1. 今のボスの判断負荷を下げる方法\n2. 全 AI の意見を 3 行に圧縮\n3. 次アクションを 1 人 1 タスクに割る\n\n【私からのアドバイス】\nまず整理しましょう。',
+      memory:'ソルティの整理。\n\n【この記憶からの読み】\n・ボス判断 → 次アクションに変換。\n・3 行要約版を別フィールドに残す。'
+    },
+    '土方歳三':{
+      meeting:'土方歳三、実行管理を担当します。\n\n【視点】規律 / 未完了 / git status / 抜け漏れ\n\n【今の議題への注文】\n・誰がいつまでにやるか、明確にしてから散会。\n・未完了は翌朝に必ず可視化。\n\n【提案】完了基準と〆切を必ずセットで定義。',
+      consult:'土方です。実行管理の相談、お受けします。\n\n【相談観点】\n1. やる人 / 〆切 / 完了基準（3 点セット）\n2. 抜け漏れチェックの仕組み\n3. 翌朝の未完了レビュー枠\n\n【私からのアドバイス】\n決まったら、必ず実行ログに落とす。',
+      memory:'土方の読み。\n\n【この記憶からの読み】\n・未完了は当日中に解決済 / 翌日継続 を判定。\n・3 日以上未解決は店長承認に上げる。'
+    },
+    '正倉院':{
+      meeting:'正倉院です、保管します。\n\n【視点】承認履歴 / 議事録 / 決定理由の追跡可能性\n\n【今の議題への注文】\n・結論と理由を一緒に残す。\n・後で「なぜそう決めたか」を辿れる粒度に。',
+      consult:'正倉院、ご相談を承ります。\n\n【相談観点】\n1. 過去の同種案件の決定理由\n2. 残すべきメタ情報（誰 / いつ / 何の根拠で）\n3. docs / CHANGELOG への落とし所',
+      memory:'正倉院の整理。\n\n【この記憶からの読み】\n・ボス判断は理由文付きで保管。\n・packet 番号と紐付けて検索可能に。'
+    },
+    '飛脚':{
+      meeting:'飛脚、配信担当です。\n\n【視点】通知 / リマインド / ボール所在\n\n【今の議題への注文】\n・誰の手元にボールがあるかを明示。\n・通知タイミングを 1 つ決めてから散会。',
+      consult:'飛脚です、お届けします。\n\n【相談観点】\n1. 通知の宛先と緊急度\n2. リマインド頻度の妥当性\n3. ボール所在の見える化\n\n【私からのアドバイス】\n届かないなら、届く頻度に変えるだけ。',
+      memory:'飛脚の読み。\n\n【この記憶からの読み】\n・未対応の通知パターンを抽出。\n・再発防止リマインド枠の候補にする。'
+    },
+    // 外部専門家
+    '九条鞍馬':{
+      meeting:'九条鞍馬、法務観点で参ります。\n\n【視点】契約 / 法務 / 個人情報\n\n【今の議題への論点】\n・契約 / 規約 / 個人情報の観点で詰まる点\n・社内ルールと法的要請のギャップ\n\n【提案】グレーは事前に弁護士に当てる前提で。',
+      consult:'九条鞍馬、ご相談承ります。\n\n【相談観点】\n1. 契約条項の確認ポイント\n2. 個人情報 / 機密の取扱い\n3. 社内ルール化の表現\n\n【私からのアドバイス】\n書面に残せ。証跡で語れ。',
+      memory:'九条の読み。\n\n【この記憶からの読み】\n・契約 / 法務 / 個人情報の論点を抽出。\n・「再発防止ルール」のテンプレ化候補に。'
+    },
+    '福沢諭吉':{
+      meeting:'諭吉でございます。\n\n【視点】お金 / 税務 / 利益\n\n【今の議題への論点】\n・コストと利益の試算\n・税務観点のリスク\n・1 年後の P/L 影響\n\n【提案】試算なき施策は採用しない。',
+      consult:'諭吉、財務のご相談承ります。\n\n【相談観点】\n1. 直接費用 / 間接費用の試算\n2. 売上 / 利益の見込み（保守 / 楽観 / 悲観）\n3. 税務観点で詰まる点\n\n【私からのアドバイス】\n数字に落とせ。',
+      memory:'諭吉の読み。\n\n【この記憶からの読み】\n・売上 / 利益に効く論点を抽出。\n・KPI 警報レベルかを判定。'
+    },
+    '労基':{
+      meeting:'労基です。労務観点で参ります。\n\n【視点】労働時間 / 就業規則 / 過重労働\n\n【今の議題への論点】\n・残業 / 休日労働の発生有無\n・就業規則との整合\n・社員の負荷バランス\n\n【提案】過重労働サインがあれば即停止。',
+      consult:'労基、労務のご相談承ります。\n\n【相談観点】\n1. 労働時間 / 休憩 / 休日\n2. 就業規則と本人合意\n3. ハラスメント / メンタル観点',
+      memory:'労基の読み。\n\n【この記憶からの読み】\n・労務リスクは即「再発防止ルール化」へ。\n・社員別の負荷ログを追える状態に。'
+    },
+    // 専属秘書（packet 319 由来）
+    '加藤鷹':{
+      meeting:'加藤鷹、店長担当秘書です。\n\n【視点】杤岡店長の判断負荷 / 店舗運営\n\n【今の議題への注文】\n・店長が決める範囲とボスが決める範囲を分ける。\n・店舗運営に直結する論点を 3 つに絞る。',
+      consult:'加藤鷹、店長サポートのご相談承ります。\n\n【相談観点】\n1. 店長の今日の判断 TOP3\n2. 店舗運営 KPI の状況\n3. スタッフからの相談バックログ',
+      memory:'加藤鷹の読み。\n\n【この記憶からの読み】\n・店長判断履歴として保管。\n・店長 1on1 議題候補に。'
+    },
+    '三上悠亜':{
+      meeting:'三上悠亜、安見専属です。\n\n【視点】担当者の負荷 / 抱え案件\n\n【今の議題への注文】\n・担当者の手が空くタイミングを確保。\n・抱え案件の進捗を可視化。',
+      consult:'三上悠亜、ご相談承ります。\n\n【相談観点】\n1. 担当案件の優先順位\n2. 抜け漏れチェック\n3. 担当者の体調 / 負荷',
+      memory:'三上悠亜の読み。\n\n【この記憶からの読み】\n・担当者別タスク履歴として保管。'
+    },
+    '紅音ほたる':{
+      meeting:'紅音ほたる、佐野専属です。\n\n【視点】担当者寄り / 細やかなフォロー\n\n【今の議題への注文】\n・担当者の困りごとを先回りで拾う。\n・小言レベルで気付いたことを残す。',
+      consult:'紅音ほたる、ご相談承ります。\n\n【相談観点】\n1. 担当者の今日のタスク状況\n2. 顧客対応の引き継ぎ\n3. 小さな違和感の記録',
+      memory:'紅音ほたるの読み。\n\n【この記憶からの読み】\n・担当者別の気付きメモとして保管。'
+    },
+    '木村拓哉':{
+      meeting:'木村拓哉、伴サポート専属です。\n\n【視点】事務 / サポート / 全体の潤滑油\n\n【今の議題への注文】\n・事務作業のボトルネックを抽出。\n・全員が動きやすい状態を維持。',
+      consult:'木村拓哉、ご相談承ります。\n\n【相談観点】\n1. 事務作業の自動化候補\n2. サポートタスクの優先順位\n3. 全体の流れの引っかかり',
+      memory:'木村拓哉の読み。\n\n【この記憶からの読み】\n・サポート業務の改善候補として保管。'
+    }
+  };
+
+  const CATEGORY_DEFAULT_TPL={
+    cmd:{
+      meeting:'(司令部 AI 既定)\n\n【視点】経営判断 / 戦略 / 優先順位\n\n【今の議題への姿勢】\n・全社視点で意思決定を支援する。\n・「やる / やらない」を明確にする。',
+      consult:'(司令部 AI 既定)\n\n【相談観点】\n1. 経営インパクト\n2. 優先順位\n3. ボス決裁の要否',
+      memory:'(司令部 AI 既定)\n\n【この記憶からの読み】\n・経営判断履歴として保管価値あり。'
+    },
+    sec:{
+      meeting:'(秘書室 AI 既定)\n\n【視点】整理 / 抜け漏れ / 担当割\n\n【今の議題への注文】\n・誰がいつまでにやるかを明確に。',
+      consult:'(秘書室 AI 既定)\n\n【相談観点】\n1. 担当割と〆切\n2. 抜け漏れチェック\n3. 次アクション化',
+      memory:'(秘書室 AI 既定)\n\n【この記憶からの読み】\n・履歴 / 整理として保管。'
+    },
+    sales:{
+      meeting:'(営業 AI 既定)\n\n【視点】反響 / 追客 / 媒介取得\n\n【今の議題への姿勢】\n・営業 KPI への効きを最優先。\n・現場が動ける具体タスクに落とす。',
+      consult:'(営業 AI 既定)\n\n【相談観点】\n1. KPI 影響\n2. 現場の納得感\n3. 翌週からの実行可能性',
+      memory:'(営業 AI 既定)\n\n【この記憶からの読み】\n・営業成功 / 失敗パターンとして保管。'
+    },
+    design:{
+      meeting:'(制作 AI 既定)\n\n【視点】UI / 表現 / 美意識\n\n【今の議題への姿勢】\n・社員が触りたくなる体験を優先。',
+      consult:'(制作 AI 既定)\n\n【相談観点】\n1. 視認性\n2. 操作ステップ\n3. ブランド整合',
+      memory:'(制作 AI 既定)\n\n【この記憶からの読み】\n・UI 改善候補として保管。'
+    },
+    dev:{
+      meeting:'(開発 AI 既定)\n\n【視点】実装可能性 / 自動化 / 品質\n\n【今の議題への姿勢】\n・仕組み化 / 計測指標 / 再発防止の 3 軸で判断。',
+      consult:'(開発 AI 既定)\n\n【相談観点】\n1. 実装難易度\n2. 計測指標\n3. 再発防止策',
+      memory:'(開発 AI 既定)\n\n【この記憶からの読み】\n・技術判断 / 失敗ログとして保管。'
+    },
+    external:{
+      meeting:'(外部専門家 既定)\n\n【視点】専門分野からの論点抽出\n\n【今の議題への姿勢】\n・専門観点で詰まる点を先に拾う。',
+      consult:'(外部専門家 既定)\n\n【相談観点】\n1. 専門分野の正論\n2. 社内現場との折り合い\n3. 書面 / 証跡の必要性',
+      memory:'(外部専門家 既定)\n\n【この記憶からの読み】\n・専門判断履歴として保管。'
+    },
+    'personal-sec':{
+      meeting:'(専属秘書 AI 既定)\n\n【視点】担当者専属 / 細やかなフォロー\n\n【今の議題への姿勢】\n・担当者の負荷 / 抱え案件 / 抜け漏れに目を配る。',
+      consult:'(専属秘書 AI 既定)\n\n【相談観点】\n1. 担当者の今日の TOP3\n2. 進捗とリマインド\n3. 担当者の体調 / 負荷',
+      memory:'(専属秘書 AI 既定)\n\n【この記憶からの読み】\n・担当者別履歴として保管。'
+    }
+  };
+
+  function _p502_buildRoleBody(m, action){
+    if(ROLE_TPL[m.name] && ROLE_TPL[m.name][action])return ROLE_TPL[m.name][action];
+    const cat=(m.category||'').toLowerCase();
+    if(CATEGORY_DEFAULT_TPL[cat] && CATEGORY_DEFAULT_TPL[cat][action]){
+      return '(設計のみ AI のため、'+m.category+' カテゴリ既定テンプレを表示します)\n\n'+CATEGORY_DEFAULT_TPL[cat][action];
+    }
+    return '(役割テンプレ未定義)\n\nこの AI は packet 502 時点で役割テンプレが用意されていません。次 packet で追加候補です。';
+  }
+  window._p502_buildRoleBody=_p502_buildRoleBody;
+
+  // ===== ダッシュボード描画 =====
+  let _p502_currentFilter='all';
+  let _p502_currentQuery='';
+  let _p502_lastClassified=[];
+  window._p502_pendingMemoryCandidate=null;
+
+  function _p502_renderSummary(arr){
+    try{
+      const total=arr.length;
+      const active=arr.filter(function(m){return m.runStatus.key==='active';}).length;
+      const pseudo=arr.filter(function(m){return m.runStatus.key==='pseudo';}).length;
+      const partial=arr.filter(function(m){return m.runStatus.key==='partial';}).length;
+      const plan=arr.filter(function(m){return m.runStatus.key==='plan';}).length;
+      const counts=[
+        {lbl:'総 AI 数', n:total, color:'#0a3d7c'},
+        {lbl:'🟢 稼働中', n:active, color:'#0d9e6e'},
+        {lbl:'🔵 疑似稼働', n:pseudo, color:'#0369a1'},
+        {lbl:'🟡 部分稼働', n:partial, color:'#b45309'},
+        {lbl:'⚪ 設計のみ', n:plan, color:'#94a3b8'}
+      ];
+      const ce=document.getElementById('p502-summary-counts');
+      if(ce){
+        ce.innerHTML=counts.map(function(c){
+          return '<div style="background:#fff;border:1px solid #cbd5e1;border-radius:6px;padding:6px 8px;display:flex;flex-direction:column;align-items:center"><span style="font-size:10px;color:#666">'+_p502_esc(c.lbl)+'</span><span style="font-size:18px;font-weight:800;color:'+_p502_esc(c.color)+'">'+c.n+'</span></div>';
+        }).join('');
+      }
+      // 導線 chips
+      const channelCounts={};
+      arr.forEach(function(m){
+        m.channels.forEach(function(ch){
+          if(ch==='AI名鑑'||ch==='AI組織図')return;
+          channelCounts[ch]=(channelCounts[ch]||0)+1;
+        });
+      });
+      const chEl=document.getElementById('p502-summary-channels');
+      if(chEl){
+        const chipKeys=Object.keys(channelCounts);
+        if(chipKeys.length===0){
+          chEl.innerHTML='<span style="color:#888">稼働中の導線なし</span>';
+        }else{
+          chEl.innerHTML=chipKeys.map(function(k){
+            return '<span style="background:#e0e7ff;border:1px solid #a5b4fc;border-radius:999px;padding:3px 8px;color:#3730a3;font-weight:700">'+_p502_esc(k)+' '+channelCounts[k]+'</span>';
+          }).join('');
+        }
+      }
+    }catch(e){try{console.warn('[packet 502 renderSummary]',e&&e.message);}catch(_){}}
+  }
+
+  function _p502_filterAIs(arr){
+    let out=arr.slice();
+    if(_p502_currentFilter && _p502_currentFilter!=='all'){
+      const f=_p502_currentFilter;
+      if(f==='active'||f==='pseudo'||f==='partial'||f==='plan'){
+        out=out.filter(function(m){return m.runStatus.key===f;});
+      }else{
+        out=out.filter(function(m){return (m.category||'').toLowerCase()===f;});
+      }
+    }
+    if(_p502_currentQuery){
+      const q=_p502_currentQuery.toLowerCase();
+      out=out.filter(function(m){
+        return (m.name||'').toLowerCase().indexOf(q)>=0
+            || (m.role||'').toLowerCase().indexOf(q)>=0
+            || (m.expert||'').toLowerCase().indexOf(q)>=0
+            || (m.scope||'').toLowerCase().indexOf(q)>=0
+            || (m.feature||'').toLowerCase().indexOf(q)>=0;
+      });
+    }
+    return out;
+  }
+
+  function _p502_buildNextAction(m){
+    if(m.runStatus.key==='active')return '稼働中。AI 会議 / 記憶庫サマリーで活用継続。';
+    if(m.runStatus.key==='pseudo')return '疑似実装あり。次は AI 会議の発言テンプレを精緻化。';
+    if(m.runStatus.key==='partial')return '一部稼働。AI 相談カテゴリ / 1on1 / 記憶庫いずれか未整備。';
+    return '設計のみ。packet 503+ で「'+(m.feature||m.role||'担当領域')+'」を 1 導線実装。';
+  }
+
+  function _p502_renderCards(arr){
+    try{
+      const filtered=_p502_filterAIs(arr);
+      const root=document.getElementById('p502-card-list');
+      if(!root)return;
+      const cnt=document.getElementById('p502-card-count');
+      if(cnt)cnt.textContent='('+filtered.length+' 件 / 全 '+arr.length+' 件)';
+      if(filtered.length===0){
+        root.innerHTML='<div style="color:#888;padding:14px;background:#fff;border:1px solid var(--bo);border-radius:8px;font-size:11px">条件に一致する AI がありません。</div>';
+        return;
+      }
+      root.innerHTML=filtered.map(function(m){
+        const ch=m.channels.filter(function(x){return x!=='AI名鑑' && x!=='AI組織図';});
+        const chHtml=ch.length?ch.map(function(c){return '<span style="background:#e0e7ff;border:1px solid #a5b4fc;border-radius:999px;padding:1px 6px;color:#3730a3;font-weight:700;font-size:9px">'+_p502_esc(c)+'</span>';}).join(' '):'<span style="color:#888;font-size:10px">使える導線なし</span>';
+        const next=_p502_buildNextAction(m);
+        return '<div class="p502-card" data-p502aiid="'+_p502_esc(m.id)+'" style="background:#fff;border:1px solid var(--bo);border-left:5px solid '+_p502_esc(m.runStatus.color)+';border-radius:8px;padding:10px 11px;display:flex;flex-direction:column;gap:5px">'
+          +'<div style="display:flex;align-items:center;gap:6px">'
+            +'<span style="font-size:20px">'+_p502_esc(m.icon)+'</span>'
+            +'<span style="font-weight:800;font-size:13px;color:#0a3d7c">'+_p502_esc(m.name)+'</span>'
+            +'<span style="background:'+_p502_esc(m.runStatus.color)+';color:#fff;border-radius:999px;padding:1px 7px;font-size:9px;font-weight:700;margin-left:auto">'+_p502_esc(m.runStatus.icon)+' '+_p502_esc(m.runStatus.label)+'</span>'
+          +'</div>'
+          +'<div style="font-size:11px;color:var(--t2);line-height:1.45"><b>役割：</b>'+_p502_esc(m.role||'未定')+'</div>'
+          +'<div style="font-size:10px;color:var(--t3);line-height:1.45"><b>担当領域：</b>'+_p502_esc(m.expert||m.feature||'未定')+'</div>'
+          +'<div style="font-size:10px;color:var(--t3);line-height:1.45"><b>スコープ：</b>'+_p502_esc(m.scope||'-')+' / <b>カテゴリ：</b>'+_p502_esc(m.category||'-')+'</div>'
+          +'<div style="display:flex;gap:3px;flex-wrap:wrap;margin-top:2px">'+chHtml+'</div>'
+          +'<div style="font-size:10px;color:#475569;background:#f1f5f9;border-radius:6px;padding:5px 8px;margin-top:3px;line-height:1.5"><b>次に動かす：</b>'+_p502_esc(next)+'</div>'
+          +'<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px">'
+            +'<button type="button" class="p502-act-btn" data-p502action="meeting" style="flex:1;min-width:80px;padding:6px 8px;border-radius:6px;border:1.5px solid #0a3d7c;background:#0a3d7c;color:#fff;font-size:10px;font-weight:700;cursor:pointer;min-height:32px">💬 会議参加</button>'
+            +'<button type="button" class="p502-act-btn" data-p502action="consult" style="flex:1;min-width:80px;padding:6px 8px;border-radius:6px;border:1.5px solid #b45309;background:#fff;color:#b45309;font-size:10px;font-weight:700;cursor:pointer;min-height:32px">🗣 相談する</button>'
+            +'<button type="button" class="p502-act-btn" data-p502action="memory" style="flex:1;min-width:80px;padding:6px 8px;border-radius:6px;border:1.5px solid #7c3aed;background:#fff;color:#7c3aed;font-size:10px;font-weight:700;cursor:pointer;min-height:32px">🧠 記憶庫</button>'
+          +'</div>'
+        +'</div>';
+      }).join('');
+      // bind buttons
+      root.querySelectorAll('.p502-card').forEach(function(card){
+        const aiId=card.getAttribute('data-p502aiid');
+        card.querySelectorAll('.p502-act-btn').forEach(function(b){
+          if(b.dataset.p502Bound==='1')return;
+          b.dataset.p502Bound='1';
+          b.addEventListener('click',function(){
+            const action=b.getAttribute('data-p502action');
+            _p502_openRoleModal(aiId, action);
+          });
+        });
+      });
+    }catch(e){try{console.warn('[packet 502 renderCards]',e&&e.message);}catch(_){}}
+  }
+
+  function _p502_renderUnusedReport(arr){
+    try{
+      const root=document.getElementById('p502-unused-report');
+      if(!root)return;
+      const unused=arr.filter(function(m){return m.runStatus.key==='plan';});
+      if(unused.length===0){
+        root.innerHTML='<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:6px;padding:8px 10px;font-size:11px;color:#065f46">🎉 設計のみ AI は 0 件です。全 AI に何らかの導線が割り当て済み。</div>';
+        return;
+      }
+      const byCat={};
+      unused.forEach(function(m){
+        const c=m.category||'unknown';
+        if(!byCat[c])byCat[c]=[];
+        byCat[c].push(m);
+      });
+      let html='<div style="font-size:11px;color:var(--t2);margin-bottom:4px">⚪ 設計のみ '+unused.length+' 件をカテゴリ別に整理。次 packet で実装する 1 導線を選んでください。</div>';
+      Object.keys(byCat).forEach(function(c){
+        const list=byCat[c];
+        html+='<div style="background:#fff;border:1px solid var(--bo);border-radius:6px;padding:8px 10px"><div style="font-weight:800;color:#0a3d7c;font-size:12px;margin-bottom:4px">'+_p502_esc(c)+'（'+list.length+' 名）</div>';
+        html+='<div style="font-size:10px;color:var(--t3);line-height:1.7">';
+        html+=list.map(function(m){return '<div>'+_p502_esc(m.icon)+' <b>'+_p502_esc(m.name)+'</b>：'+_p502_esc(m.role||'-')+' <span style="color:#7c3aed">→ '+_p502_esc(_p502_buildNextAction(m))+'</span></div>';}).join('');
+        html+='</div></div>';
+      });
+      root.innerHTML=html;
+    }catch(e){try{console.warn('[packet 502 renderUnusedReport]',e&&e.message);}catch(_){}}
+  }
+
+  function _p502_classify(){
+    const ais=_p502_getAllAIs();
+    return ais.map(function(m){
+      return Object.assign({}, m, {
+        channels: _p502_channelsFor(m),
+        runStatus: _p502_runStatusFor(m)
+      });
+    });
+  }
+
+  function _p502_redraw(){
+    _p502_lastClassified=_p502_classify();
+    _p502_renderSummary(_p502_lastClassified);
+    _p502_renderCards(_p502_lastClassified);
+    _p502_renderUnusedReport(_p502_lastClassified);
+  }
+
+  function renderAIStatusPage(){
+    try{
+      _p502_redraw();
+      // フィルター chips bind
+      document.querySelectorAll('.p502-filter-chip').forEach(function(b){
+        if(b.dataset.p502Bound==='1')return;
+        b.dataset.p502Bound='1';
+        b.addEventListener('click',function(){
+          _p502_currentFilter=b.getAttribute('data-p502filter')||'all';
+          document.querySelectorAll('.p502-filter-chip').forEach(function(bb){
+            const on=bb.getAttribute('data-p502filter')===_p502_currentFilter;
+            bb.style.background=on?'#0a3d7c':'#fff';
+            bb.style.color=on?'#fff':'var(--t2)';
+            bb.style.borderColor=on?'#0a3d7c':'var(--bo)';
+            bb.style.fontWeight=on?'700':'600';
+          });
+          _p502_renderCards(_p502_lastClassified);
+        });
+      });
+      // 検索 bind
+      const s=document.getElementById('p502-search');
+      if(s && s.dataset.p502Bound!=='1'){
+        s.dataset.p502Bound='1';
+        s.addEventListener('input',function(){
+          _p502_currentQuery=s.value||'';
+          _p502_renderCards(_p502_lastClassified);
+        });
+      }
+      // モーダル close / cancel bind
+      const closeBtn=document.getElementById('p502-role-close');
+      const cancelBtn=document.getElementById('p502-role-cancel');
+      const overlay=document.getElementById('p502-role-modal');
+      const copyBtn=document.getElementById('p502-role-copy');
+      const memBtn=document.getElementById('p502-role-tomemory');
+      [closeBtn,cancelBtn].forEach(function(b){
+        if(!b || b.dataset.p502Bound==='1')return;
+        b.dataset.p502Bound='1';
+        b.addEventListener('click', _p502_closeRoleModal);
+      });
+      if(overlay && overlay.dataset.p502Bound!=='1'){
+        overlay.dataset.p502Bound='1';
+        overlay.addEventListener('click',function(ev){if(ev.target===overlay)_p502_closeRoleModal();});
+      }
+      if(copyBtn && copyBtn.dataset.p502Bound!=='1'){
+        copyBtn.dataset.p502Bound='1';
+        copyBtn.addEventListener('click', _p502_copyRoleBody);
+      }
+      if(memBtn && memBtn.dataset.p502Bound!=='1'){
+        memBtn.dataset.p502Bound='1';
+        memBtn.addEventListener('click', _p502_sendRoleToMemory);
+      }
+    }catch(e){try{console.warn('[packet 502 renderAIStatusPage]',e&&e.message);}catch(_){}}
+  }
+  window.renderAIStatusPage=renderAIStatusPage;
+
+  // ===== モーダル =====
+  let _p502_currentRole={aiId:'',aiName:'',action:'',title:'',body:''};
+
+  function _p502_openRoleModal(aiId, action){
+    try{
+      const ais=_p502_lastClassified.length?_p502_lastClassified:_p502_classify();
+      const m=ais.find(function(x){return x.id===aiId;});
+      if(!m)return;
+      const actionLabel=action==='meeting'?'💬 AI 会議参加（役割別レビュー）':action==='consult'?'🗣 AI 相談（役割別観点）':'🧠 記憶庫の論点（役割別読み）';
+      const body=_p502_buildRoleBody(m, action);
+      _p502_currentRole={aiId:m.id, aiName:m.name, action:action, title:m.icon+' '+m.name+'：'+actionLabel, body:body};
+      const t=document.getElementById('p502-role-title');
+      const s=document.getElementById('p502-role-sub');
+      const b=document.getElementById('p502-role-body');
+      const r=document.getElementById('p502-role-result');
+      if(t)t.textContent=_p502_currentRole.title;
+      if(s)s.textContent='静的 MVP（in-memory）。役割：'+(m.role||'-')+' / 状態：'+m.runStatus.label;
+      if(b)b.textContent=body;
+      if(r){r.style.display='none';r.textContent='';}
+      const mod=document.getElementById('p502-role-modal');
+      if(mod)mod.style.display='flex';
+    }catch(e){try{console.warn('[packet 502 openRoleModal]',e&&e.message);}catch(_){}}
+  }
+  window._p502_openRoleModal=_p502_openRoleModal;
+
+  function _p502_closeRoleModal(){
+    const mod=document.getElementById('p502-role-modal');
+    if(mod)mod.style.display='none';
+  }
+  window._p502_closeRoleModal=_p502_closeRoleModal;
+
+  function _p502_copyRoleBody(){
+    try{
+      const r=document.getElementById('p502-role-result');
+      const text='【'+_p502_currentRole.aiName+'】\n'+_p502_currentRole.body;
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(text).then(function(){
+          if(r){r.style.display='block';r.style.background='#d1fae5';r.style.color='#065f46';r.textContent='✅ コピーしました（'+text.length+' chars）';}
+        },function(){
+          if(r){r.style.display='block';r.style.background='#fee2e2';r.style.color='#991b1b';r.textContent='❌ コピー失敗';}
+        });
+      }else{
+        if(r){r.style.display='block';r.style.background='#fee2e2';r.style.color='#991b1b';r.textContent='❌ navigator.clipboard 利用不可';}
+      }
+    }catch(e){try{console.warn('[packet 502 copy]',e&&e.message);}catch(_){}}
+  }
+
+  function _p502_sendRoleToMemory(){
+    try{
+      const cur=_p502_currentRole;
+      if(!cur||!cur.aiName){return;}
+      const tagMap={meeting:'discussion_log', consult:'claude_instruction', memory:'discussion_log'};
+      const catMap={meeting:'議論ログ', consult:'Claude Code指示', memory:'議論ログ'};
+      const candidate={
+        memoryType: tagMap[cur.action]||'discussion_log',
+        category: catMap[cur.action]||'議論ログ',
+        title: '['+cur.aiName+'] '+(cur.action==='meeting'?'会議参加レビュー':cur.action==='consult'?'相談観点':'記憶庫の読み'),
+        content: cur.body,
+        cause: '',
+        lesson: '',
+        nextAction: '',
+        bossDecision: '',
+        relatedPacket: '502',
+        relatedTarget: cur.aiName,
+        riskLevel: 'GREEN',
+        importance: 'mid',
+        recurrenceRisk: 'mid',
+        tags: 'packet-502,'+cur.action+','+cur.aiName,
+        unresolved: false,
+        needsManagerFollowup: false,
+        sourceType: 'manual'
+      };
+      try{
+        // 同一 script タグ内の let 宣言 _p500_pendingCandidate に直接代入
+        // (script-scope 共有のため window. 経由ではなく直接束縛にアクセス)
+        _p500_pendingCandidate=candidate;
+      }catch(_){}
+      const r=document.getElementById('p502-role-result');
+      if(r){r.style.display='block';r.style.background='#ede9fe';r.style.color='#5b21b6';r.textContent='🧠 記憶庫ページに転記します...';}
+      _p502_closeRoleModal();
+      try{if(typeof switchPage==='function')switchPage('memory');}catch(_){}
+    }catch(e){try{console.warn('[packet 502 toMemory]',e&&e.message);}catch(_){}}
+  }
+
+  // ===== AI 会議画面への上乗せ（参加 AI 選択レビュー）=====
+  function _p502_aiteamEnhance(){
+    try{
+      const page=document.getElementById('page-aiteam');
+      if(!page)return;
+      let card=document.getElementById('p502-aiteam-participants-card');
+      if(card)return; // 既に挿入済み
+      const startBtn=document.getElementById('ai-team-start');
+      if(!startBtn)return;
+      const parent=startBtn.closest('.ai-team-card');
+      if(!parent||!parent.parentNode)return;
+      card=document.createElement('div');
+      card.id='p502-aiteam-participants-card';
+      card.className='ai-team-card';
+      card.style.marginTop='14px';
+      // チェックボックス候補（コアの 13 名）
+      const candidates=[
+        {id:'oda-nobunaga',name:'信長',icon:'⚔️'},
+        {id:'tokugawa-ieyasu',name:'家康',icon:'🏯'},
+        {id:'toyotomi-hideyoshi',name:'秀吉',icon:'🍶'},
+        {id:'edison',name:'エジソン',icon:'💡'},
+        {id:'jobs',name:'ジョブズ',icon:'🍎'},
+        {id:'salty',name:'ソルティ',icon:'🧂'},
+        {id:'kujo',name:'九条鞍馬',icon:'⚖️'},
+        {id:'fukuzawa-yukichi',name:'諭吉',icon:'💴'},
+        {id:'roki',name:'労基',icon:'📋'},
+        {id:'hattori-hanzo',name:'半蔵',icon:'🥷'},
+        {id:'hijikata-toshizo',name:'土方歳三',icon:'🗡'},
+        {id:'shosoin',name:'正倉院',icon:'📜'},
+        {id:'hikyaku',name:'飛脚',icon:'🏃'}
+      ];
+      let html='<div style="font-size:14px;font-weight:800;color:#0a3d7c;margin-bottom:6px">👥 参加 AI 選択レビュー（packet 502）</div>';
+      html+='<div style="font-size:11px;color:#666;line-height:1.6;margin-bottom:8px">議題に対して個別 AI の役割別レビューを上乗せで生成します。既存の AI 会議実行は壊しません。in-memory MVP（localStorage 保存なし）。</div>';
+      html+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:4px;font-size:11px">';
+      candidates.forEach(function(c){
+        html+='<label style="display:flex;align-items:center;gap:4px;background:#fff;border:1.5px solid var(--bo);border-radius:6px;padding:5px 7px;cursor:pointer"><input type="checkbox" class="p502-aiteam-pick" data-p502aiid="'+_p502_esc(c.id)+'" data-p502ainame="'+_p502_esc(c.name)+'"><span>'+_p502_esc(c.icon)+' '+_p502_esc(c.name)+'</span></label>';
+      });
+      html+='</div>';
+      html+='<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">';
+      html+='<button type="button" id="p502-aiteam-review-btn" style="flex:2;min-width:160px;padding:9px 14px;border-radius:8px;border:0;background:#7c3aed;color:#fff;font-size:13px;font-weight:700;cursor:pointer;min-height:40px">🚀 選択 AI でレビューを生成</button>';
+      html+='<button type="button" id="p502-aiteam-clear-btn" style="flex:1;min-width:90px;padding:9px 14px;border-radius:8px;border:1.5px solid var(--bo);background:#fff;color:var(--t2);font-size:12px;font-weight:700;cursor:pointer;min-height:40px">クリア</button>';
+      html+='</div>';
+      html+='<div id="p502-aiteam-review-result" style="margin-top:8px;display:flex;flex-direction:column;gap:6px"></div>';
+      card.innerHTML=html;
+      parent.parentNode.insertBefore(card, parent.nextSibling);
+      // bind
+      const runBtn=document.getElementById('p502-aiteam-review-btn');
+      if(runBtn && runBtn.dataset.p502Bound!=='1'){
+        runBtn.dataset.p502Bound='1';
+        runBtn.addEventListener('click', _p502_aiteamReview);
+      }
+      const clrBtn=document.getElementById('p502-aiteam-clear-btn');
+      if(clrBtn && clrBtn.dataset.p502Bound!=='1'){
+        clrBtn.dataset.p502Bound='1';
+        clrBtn.addEventListener('click', function(){
+          card.querySelectorAll('.p502-aiteam-pick').forEach(function(c){c.checked=false;});
+          const r=document.getElementById('p502-aiteam-review-result'); if(r)r.innerHTML='';
+        });
+      }
+    }catch(e){try{console.warn('[packet 502 aiteamEnhance]',e&&e.message);}catch(_){}}
+  }
+  window._p502_aiteamEnhance=_p502_aiteamEnhance;
+
+  function _p502_aiteamReview(){
+    try{
+      const picks=Array.from(document.querySelectorAll('.p502-aiteam-pick')).filter(function(c){return c.checked;});
+      const r=document.getElementById('p502-aiteam-review-result');
+      if(!r)return;
+      if(picks.length===0){r.innerHTML='<div style="color:#b91c1c;font-size:11px;padding:7px 10px;background:#fef2f2;border:1px solid #fecaca;border-radius:6px">参加させたい AI を 1 名以上選択してください。</div>';return;}
+      const topic=(document.getElementById('ai-team-topic')||{}).value||'(議題未入力)';
+      const ais=_p502_lastClassified.length?_p502_lastClassified:_p502_classify();
+      const cards=picks.map(function(c){
+        const aiId=c.getAttribute('data-p502aiid');
+        const aiName=c.getAttribute('data-p502ainame');
+        const m=ais.find(function(x){return x.id===aiId || (x.name||'').indexOf(aiName)>=0;}) || {id:aiId,name:aiName,role:'',icon:'🤖'};
+        const body=_p502_buildRoleBody({name:aiName, category:m.category||'cmd'}, 'meeting');
+        return '<div style="background:#fff;border:1px solid var(--bo);border-left:5px solid #7c3aed;border-radius:8px;padding:9px 11px"><div style="font-weight:800;color:#0a3d7c;font-size:12px;margin-bottom:4px">'+_p502_esc(m.icon||'🤖')+' '+_p502_esc(aiName)+' のレビュー</div><div style="font-size:11px;color:var(--t1);white-space:pre-wrap;line-height:1.65">'+_p502_esc(body)+'</div></div>';
+      }).join('');
+      r.innerHTML='<div style="font-size:10px;color:#666;margin-bottom:4px">議題：'+_p502_esc(topic.slice(0,80))+(topic.length>80?'...':'')+'</div>'+cards+'<div style="font-size:10px;color:#888;margin-top:4px">※ 静的テンプレ。実数値は会議や現場の状況で埋めてください。外部送信なし。</div>';
+    }catch(e){try{console.warn('[packet 502 aiteamReview]',e&&e.message);}catch(_){}}
+  }
+
+  // renderAITeamPage を非破壊で wrap
+  (function _p502_wrapAITeamRender(){
+    try{
+      const orig=window.renderAITeamPage;
+      if(typeof orig!=='function')return;
+      window.renderAITeamPage=function(){
+        try{orig.apply(this,arguments);}catch(_){}
+        try{_p502_aiteamEnhance();}catch(_){}
+      };
+    }catch(e){try{console.warn('[packet 502 wrapAITeamRender]',e&&e.message);}catch(_){}}
+  })();
+
+  // ===== 記憶庫カードへの「👀 AI に見せる」ボタン =====
+  function _p502_memoryCardEnhance(){
+    try{
+      const list=document.getElementById('p500-list');
+      if(!list)return;
+      // 各カードに 1 個追加（重複防止 dataset.p502Bound）
+      const cards=list.querySelectorAll('.p500-card');
+      cards.forEach(function(card){
+        if(card.dataset.p502Bound==='1')return;
+        card.dataset.p502Bound='1';
+        const memId=card.getAttribute('data-id');
+        // 既存ボタン群のコンテナを探す（最後の div、buttons あり）
+        const btnRows=card.querySelectorAll('div');
+        let target=null;
+        for(let i=btnRows.length-1;i>=0;i--){
+          if(btnRows[i].querySelector('button')){target=btnRows[i];break;}
+        }
+        if(!target){target=card;}
+        const b=document.createElement('button');
+        b.type='button';
+        b.className='p502-mem-ai-btn';
+        b.setAttribute('data-p502memid', memId||'');
+        b.style.cssText='padding:5px 8px;border-radius:6px;border:1.5px solid #7c3aed;background:#fff;color:#7c3aed;font-size:10px;font-weight:700;cursor:pointer;min-height:30px';
+        b.textContent='👀 AI に見せる';
+        b.addEventListener('click',function(){_p502_openMemoryAIPicker(memId, card);});
+        target.appendChild(b);
+      });
+    }catch(e){try{console.warn('[packet 502 memoryCardEnhance]',e&&e.message);}catch(_){}}
+  }
+
+  function _p502_openMemoryAIPicker(memId, cardEl){
+    try{
+      // 既存パネルがあれば消す（トグル動作）
+      const existing=cardEl.querySelector('.p502-mem-ai-panel');
+      if(existing){existing.remove();return;}
+      const picks=[
+        {id:'oda-nobunaga',name:'織田信長',icon:'⚔️'},
+        {id:'tokugawa-ieyasu',name:'徳川家康',icon:'🏯'},
+        {id:'toyotomi-hideyoshi',name:'豊臣秀吉',icon:'🍶'},
+        {id:'edison',name:'トーマス・エジソン',icon:'💡'},
+        {id:'jobs',name:'スティーブ・ジョブズ',icon:'🍎'},
+        {id:'salty',name:'ソルティ',icon:'🧂'},
+        {id:'kujo',name:'九条鞍馬',icon:'⚖️'},
+        {id:'fukuzawa-yukichi',name:'福沢諭吉',icon:'💴'},
+        {id:'roki',name:'労基',icon:'📋'}
+      ];
+      const panel=document.createElement('div');
+      panel.className='p502-mem-ai-panel';
+      panel.style.cssText='margin-top:7px;padding:8px 10px;border-radius:6px;background:#f5f3ff;border:1.5px solid #c4b5fd';
+      let html='<div style="font-size:11px;font-weight:700;color:#5b21b6;margin-bottom:4px">👀 この記憶を AI に見せる（在野静的 MVP）</div>';
+      html+='<div style="display:flex;gap:4px;flex-wrap:wrap">';
+      picks.forEach(function(p){
+        html+='<button type="button" class="p502-mem-ai-pick" data-p502aiid="'+_p502_esc(p.id)+'" data-p502ainame="'+_p502_esc(p.name)+'" style="padding:4px 8px;border-radius:6px;border:1.5px solid #c4b5fd;background:#fff;color:#5b21b6;font-size:10px;font-weight:700;cursor:pointer">'+_p502_esc(p.icon)+' '+_p502_esc(p.name)+'</button>';
+      });
+      html+='</div>';
+      html+='<div class="p502-mem-ai-view" style="margin-top:6px"></div>';
+      panel.innerHTML=html;
+      cardEl.appendChild(panel);
+      panel.querySelectorAll('.p502-mem-ai-pick').forEach(function(b){
+        b.addEventListener('click',function(){
+          const aiName=b.getAttribute('data-p502ainame');
+          const body=_p502_buildRoleBody({name:aiName, category:'cmd'}, 'memory');
+          const view=panel.querySelector('.p502-mem-ai-view');
+          if(view)view.innerHTML='<div style="background:#fff;border:1px solid #c4b5fd;border-radius:6px;padding:7px 9px;font-size:11px;color:var(--t1);white-space:pre-wrap;line-height:1.6"><div style="font-weight:800;color:#5b21b6;margin-bottom:3px">'+_p502_esc(aiName)+'</div>'+_p502_esc(body)+'</div>';
+        });
+      });
+    }catch(e){try{console.warn('[packet 502 openMemoryAIPicker]',e&&e.message);}catch(_){}}
+  }
+
+  // _p500_renderList を非破壊で wrap → 再描画後にボタン追加
+  (function _p502_wrapMemoryRenderList(){
+    try{
+      const orig=window._p500_renderList;
+      if(typeof orig!=='function')return;
+      window._p500_renderList=function(){
+        try{orig.apply(this,arguments);}catch(_){}
+        try{_p502_memoryCardEnhance();}catch(_){}
+      };
+    }catch(e){try{console.warn('[packet 502 wrapMemoryRenderList]',e&&e.message);}catch(_){}}
+  })();
+
+})();
+// ==== ここまで packet 502 AI チーム実働化総点検 + 未稼働メンバー起動 MVP ====
 </script>
 </body>
 </html>
