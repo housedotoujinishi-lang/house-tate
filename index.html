@@ -1866,6 +1866,45 @@ textarea.ai-team-input{resize:vertical;min-height:60px}
       </div>
       <div id="p500-list" style="display:flex;flex-direction:column;gap:8px"></div>
       <div style="margin-top:18px;font-size:10px;color:#999;text-align:center;line-height:1.6">※ 本 MVP の記憶は in-memory（リロードで消える）。<br>Supabase テーブル化は次 packet で SQL/RLS 設計後に実施。</div>
+
+      <!-- packet 508: DB 保存準備診断カード（read-only / 書き込みなし / SQL 実行なし） -->
+      <div class="ai-team-card" id="p508-diag-card" style="margin-top:18px;background:#fffbeb;border:1.5px solid #fcd34d">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;margin-bottom:6px">
+          <div style="font-size:14px;font-weight:800;color:#92400e">🧪 DB 保存準備診断（packet 508）</div>
+          <span style="font-size:10px;background:#fef3c7;color:#78350f;border:1px solid #fcd34d;border-radius:6px;padding:2px 7px;font-weight:700">read-only / 書き込みなし</span>
+        </div>
+        <div style="font-size:11px;color:var(--t2);line-height:1.6;margin-bottom:8px">記憶庫を将来 Supabase 永続化するための<b>設計と接続診断</b>です。本 packet では DB 変更 / SQL 実行 / RLS 変更 / Auth 変更 / insert / update / delete / upsert を <b>一切しません</b>。設計を示し、SQL 案はクリップボードコピーまで。</div>
+
+        <!-- 現状ステータス -->
+        <div style="background:#fff;border:1px solid var(--bo);border-radius:6px;padding:8px 10px;margin-bottom:8px;font-size:11px;line-height:1.7">
+          <div style="font-weight:800;color:#0a3d7c;margin-bottom:4px">📊 現状ステータス</div>
+          <div>・現在の保存方式：<b>in-memory</b>（<code style="font-size:10px">window._p500_memoryStore</code>）</div>
+          <div>・リロード後：<b>消える</b>（仕様、packet 500 / 507 維持）</div>
+          <div>・Supabase 保存：<b style="color:#b91c1c">未接続 / 設計中</b></div>
+          <div>・必要テーブル：<code style="font-size:10px">jagai_memory</code>（<b style="color:#b91c1c">未作成</b>）</div>
+          <div>・書き込み実装：<b style="color:#b91c1c">未実装</b></div>
+          <div>・SQL 実行：<b style="color:#b91c1c">未実行</b></div>
+          <div>・RLS 設定：<b style="color:#b91c1c">未変更</b></div>
+          <div>・Auth 変更：<b style="color:#b91c1c">未変更</b></div>
+          <div>・次の段階：ボス承認後に SQL / RLS 設計を packet 509+ で実行候補</div>
+        </div>
+
+        <!-- 診断ボタン 4 種 -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:6px;margin-bottom:8px">
+          <button type="button" id="p508-diag-connection-btn" style="padding:9px 12px;border-radius:6px;border:1.5px solid #92400e;background:#fff;color:#92400e;font-size:11px;font-weight:700;cursor:pointer;min-height:38px">🔌 Supabase 接続状態を確認</button>
+          <button type="button" id="p508-diag-table-btn" style="padding:9px 12px;border-radius:6px;border:1.5px solid #92400e;background:#fff;color:#92400e;font-size:11px;font-weight:700;cursor:pointer;min-height:38px">📋 jagai_memory テーブル存在診断</button>
+          <button type="button" id="p508-diag-copy-design-btn" style="padding:9px 12px;border-radius:6px;border:1.5px solid #92400e;background:#fff;color:#92400e;font-size:11px;font-weight:700;cursor:pointer;min-height:38px">📋 保存設計をコピー</button>
+          <button type="button" id="p508-diag-show-sql-btn" style="padding:9px 12px;border-radius:6px;border:1.5px solid #92400e;background:#fff;color:#92400e;font-size:11px;font-weight:700;cursor:pointer;min-height:38px">📝 次 packet 用 SQL 案を表示</button>
+        </div>
+
+        <!-- 結果表示エリア -->
+        <div id="p508-diag-result" style="display:none;padding:8px 10px;border-radius:6px;font-size:11px;line-height:1.65;background:#fff;border:1px solid var(--bo);max-height:60vh;overflow-y:auto;white-space:pre-wrap;word-break:break-word;font-family:'Menlo','Consolas',monospace"></div>
+
+        <!-- 安全注意フッター -->
+        <div style="margin-top:8px;font-size:10px;color:#78350f;background:#fef3c7;border:1px solid #fcd34d;border-radius:6px;padding:7px 9px;line-height:1.65">
+          ⚠ <b>本 packet 508 では実 DB を一切触りません</b>。<br>・CREATE / ALTER / DROP TABLE / INSERT / UPDATE / DELETE / UPSERT / RLS / Auth：<b>すべて未実行</b><br>・SQL 案は<b>表示・コピーのみ</b>、実行ボタンは作りません<br>・接続診断とテーブル存在確認は既存 <code style="font-size:10px">sbGet</code>（GET-only）を流用<br>・本番 DB を壊す操作は含まれていません
+        </div>
+      </div>
     </div>
   </div>
   <!-- packet 502: AI 稼働状況ダッシュボード（in-memory MVP、外部 API なし） -->
@@ -15628,6 +15667,317 @@ function _p500_buildCandidateFromPayload(payload){
 
 })();
 // ==== ここまで packet 507 記憶庫 pre-fill → 登録導線明確化 + 登録直後一覧反映 hotfix ====
+
+// ═══════════════════════════════════════
+// packet 508: jagai_memory Supabase 保存設計 + 診断 UI（v0.9.258）
+// 目的：記憶庫の将来 DB 永続化のための設計表示と read-only 接続診断。
+// 厳守：DB 書き込み禁止（insert / update / delete / upsert）、
+//       SQL 実行禁止（create / alter / drop / RLS / Auth）、
+//       新規 fetch / XMLHttpRequest なし（既存 sbGet GET-only のみ流用可）。
+// 既存記憶庫機能（packet 500 / 507 の登録・一覧・転記・ハイライト）は壊さない。
+// ═══════════════════════════════════════
+(function _p508_init(){
+  function E(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];});}
+
+  // ===== 設計案テキスト（表示・コピーのみ、実行しない）=====
+  const TABLE_DESIGN_TEXT = ''
+    +'【packet 508 設計案：jagai_memory テーブル】\n'
+    +'※ packet 509 以降でボス承認後に SQL 実行候補。本 packet では実行しません。\n'
+    +'\n'
+    +'■ テーブル：public.jagai_memory\n'
+    +'\n'
+    +'カラム案（28 個）：\n'
+    +'  id                    uuid    primary key  default gen_random_uuid()\n'
+    +'  memory_type           text    not null     -- packet 500 の 15 type id\n'
+    +'  category              text                 -- packet 500 の 13 category\n'
+    +'  title                 text    not null\n'
+    +'  summary               text                 -- 短い要約（オプション）\n'
+    +'  detail                text                 -- 本文（packet 500 の content）\n'
+    +'  source_type           text                 -- manual / ai-meeting / ai-consultation / boss-1on1 / packet-502 / packet-504\n'
+    +'  source_page           text                 -- 起点画面の識別子\n'
+    +'  source_packet         text                 -- 関連 packet 番号\n'
+    +'  related_ai            text                 -- 関連 AI 名（packet 502 / 504）\n'
+    +'  related_staff         text                 -- 関連社員（packet 500 の relatedTarget）\n'
+    +'  related_task_id       text                 -- packet 483 todos 連携用（将来）\n'
+    +'  related_report_id     text                 -- packet 481 daily_reports 連携用（将来）\n'
+    +'  risk_level            text                 -- GREEN / YELLOW / RED\n'
+    +'  importance_level      text                 -- low / mid / high\n'
+    +'  status                text                 -- active / archived / draft\n'
+    +'  tags                  text[]               -- packet 500 の tags (string[])\n'
+    +'  lessons               text                 -- packet 500 の lesson\n'
+    +'  recurrence_prevention text                 -- packet 500 の cause + recurrence_risk\n'
+    +'  next_action           text                 -- packet 500 の nextAction\n'
+    +'  requires_boss_check   boolean default false -- packet 500 の needsManagerFollowup\n'
+    +'  is_resolved           boolean default false -- packet 500 の unresolved の反転（論理削除も兼ねる候補）\n'
+    +'  created_by_uid        text                 -- auth.uid() に対応\n'
+    +'  created_by_name       text                 -- packet 500 の createdBy\n'
+    +'  created_at            timestamptz default now()\n'
+    +'  updated_at            timestamptz default now()\n'
+    +'\n'
+    +'インデックス案：\n'
+    +'  idx_jagai_memory_created_at   on (created_at desc)\n'
+    +'  idx_jagai_memory_memory_type  on (memory_type)\n'
+    +'  idx_jagai_memory_category     on (category)\n'
+    +'  idx_jagai_memory_risk_level   on (risk_level)\n'
+    +'  idx_jagai_memory_created_by   on (created_by_uid)\n'
+    +'\n'
+    +'■ RLS 方針案（packet 509+ で承認後に実行）\n'
+    +'  Phase 1：authenticated のみ SELECT / INSERT / UPDATE 可、DELETE 禁止\n'
+    +'  Phase 2：自分が作った記憶のみ閲覧（created_by_uid 一致）、管理者は全件\n'
+    +'  Phase 3：共有フラグ追加で組織内共有を細分化\n'
+    +'  Phase 4：顧客情報 / PII を含む記憶は別管理またはマスキング層\n'
+    +'\n'
+    +'■ packet 505 ロードマップとの整合\n'
+    +'  jagai_memory は AI 本格稼働の土台。次の AI を順次接続予定：\n'
+    +'  ・AI 会議 / AI 相談 / 日報 / 成功ログ / 失敗ログ / 議論ログ / 衝突ログ\n'
+    +'  ・各 AI（信長 / 家康 / 秀吉 / エジソン / ジョブズ / ソルティ / 他 26 体）の学習層\n'
+    +'\n'
+    +'■ 安全注意\n'
+    +'  ・本 packet 508 では実 DB を一切触らない\n'
+    +'  ・SQL は表示・コピーのみ。実行はボス承認 + 監督承認の二段階後\n'
+    +'  ・接続診断は既存 sbGet（GET-only）で実施、書き込みなし\n';
+
+  const SQL_PLAN_TEXT = ''
+    +'-- packet 508 SQL 案（packet 509 以降でボス承認後に実行）\n'
+    +'-- ⚠ このSQLはまだ実行しないこと。本 packet では表示・コピーのみ。\n'
+    +'-- ⚠ Supabase ダッシュボードまたは migration 経由で実行する想定。\n'
+    +'-- ⚠ サービスロールキーは絶対にフロントに置かない。\n'
+    +'\n'
+    +'-- 1. uuid 生成拡張（存在しない場合のみ）\n'
+    +'create extension if not exists pgcrypto;\n'
+    +'\n'
+    +'-- 2. テーブル作成（存在しない場合のみ）\n'
+    +'create table if not exists public.jagai_memory (\n'
+    +'  id                    uuid primary key default gen_random_uuid(),\n'
+    +'  memory_type           text not null,\n'
+    +'  category              text,\n'
+    +'  title                 text not null,\n'
+    +'  summary               text,\n'
+    +'  detail                text,\n'
+    +'  source_type           text,\n'
+    +'  source_page           text,\n'
+    +'  source_packet         text,\n'
+    +'  related_ai            text,\n'
+    +'  related_staff         text,\n'
+    +'  related_task_id       text,\n'
+    +'  related_report_id     text,\n'
+    +'  risk_level            text,\n'
+    +'  importance_level      text,\n'
+    +'  status                text default \'active\',\n'
+    +'  tags                  text[],\n'
+    +'  lessons               text,\n'
+    +'  recurrence_prevention text,\n'
+    +'  next_action           text,\n'
+    +'  requires_boss_check   boolean default false,\n'
+    +'  is_resolved           boolean default false,\n'
+    +'  created_by_uid        text,\n'
+    +'  created_by_name       text,\n'
+    +'  created_at            timestamptz default now(),\n'
+    +'  updated_at            timestamptz default now()\n'
+    +');\n'
+    +'\n'
+    +'-- 3. インデックス\n'
+    +'create index if not exists idx_jagai_memory_created_at on public.jagai_memory(created_at desc);\n'
+    +'create index if not exists idx_jagai_memory_memory_type on public.jagai_memory(memory_type);\n'
+    +'create index if not exists idx_jagai_memory_category on public.jagai_memory(category);\n'
+    +'create index if not exists idx_jagai_memory_risk_level on public.jagai_memory(risk_level);\n'
+    +'create index if not exists idx_jagai_memory_created_by on public.jagai_memory(created_by_uid);\n'
+    +'\n'
+    +'-- 4. RLS 有効化（policy は別途）\n'
+    +'alter table public.jagai_memory enable row level security;\n'
+    +'\n'
+    +'-- 5. RLS policy 案（コメント）\n'
+    +'--    Phase 1（最初に実行する候補）：authenticated SELECT/INSERT/UPDATE 可、DELETE 不可\n'
+    +'--    create policy "jagai_memory_select_authenticated" on public.jagai_memory\n'
+    +'--      for select to authenticated using (true);\n'
+    +'--    create policy "jagai_memory_insert_authenticated" on public.jagai_memory\n'
+    +'--      for insert to authenticated with check (true);\n'
+    +'--    create policy "jagai_memory_update_authenticated" on public.jagai_memory\n'
+    +'--      for update to authenticated using (true);\n'
+    +'--\n'
+    +'--    Phase 2（後で）：自分の記憶のみに絞る\n'
+    +'--      using (created_by_uid = (auth.jwt() ->> \'sub\'))\n'
+    +'--\n'
+    +'--    Phase 3（後で）：管理者は全件閲覧（admin role check）\n'
+    +'--    Phase 4（後で）：共有フラグ / PII マスキング\n'
+    +'\n'
+    +'-- ⚠ ここまですべて未実行。実行可否はボス承認 + 監督承認後。\n';
+
+  // ===== UI ヘルパー =====
+  function _p508_setResult(html){
+    try{
+      const r=document.getElementById('p508-diag-result');
+      if(!r)return;
+      r.style.display='block';
+      r.innerHTML=html;
+      try{r.scrollIntoView({behavior:'smooth',block:'nearest'});}catch(_){}
+    }catch(_){}
+  }
+
+  // ===== 接続診断（既存 sbGet GET-only を流用、書き込みなし）=====
+  async function _p508_runConnectionDiag(){
+    try{
+      _p508_setResult('<span style="color:#666">⏳ Supabase 接続を確認中（read-only）...</span>');
+      const checks=[];
+      // 1. window.supabase の存在確認
+      checks.push('window.supabase クライアント：'+(window.supabase ? '✅ 読み込み済み' : '❌ 未ロード（CDN 失敗の可能性）'));
+      // 2. sb 変数の存在
+      checks.push('sb（createClient 後インスタンス）：'+(typeof sb!=='undefined' && sb ? '✅ 初期化済み' : '⚠ 未確認（global 変数アクセス不可）'));
+      // 3. sbGet 関数の存在
+      checks.push('sbGet ヘルパー：'+(typeof sbGet==='function' ? '✅ 利用可能（read-only GET）' : '❌ 未定義'));
+      // 4. read-only テスト：accounts テーブルに limit=1 で GET
+      let connOK=false;
+      let connDetail='';
+      try{
+        if(typeof sbGet==='function'){
+          const r=await sbGet('accounts','limit=1');
+          connOK=true;
+          connDetail='✅ accounts テーブルに limit=1 で GET 成功（'+(Array.isArray(r)?r.length:0)+' 行取得、書き込みなし）';
+        }else{
+          connDetail='❌ sbGet 未定義のため接続テストをスキップ';
+        }
+      }catch(e){
+        connDetail='⚠ accounts へ GET 失敗：'+E(String(e&&e.message||e)).slice(0,200)+'（RLS で空 / 認証不足 / ネットワーク失敗のいずれか。書き込みは試していません）';
+      }
+      checks.push('接続テスト（read-only GET）：'+connDetail);
+      _p508_setResult(''
+        +'🔌 Supabase 接続状態（packet 508 / read-only）\n'
+        +'\n'
+        +checks.map(function(c){return '  '+c;}).join('\n')
+        +'\n\n'
+        +'⚠ insert / update / delete / upsert は一切実行していません。\n'
+        +'⚠ 新規 fetch も発生していません（既存 sbGet 経由のみ）。\n'
+        +(connOK?'\n💡 接続自体は確立されています。次は jagai_memory テーブル存在診断を実行してください。':'')
+      );
+    }catch(e){
+      _p508_setResult('❌ 接続診断中の予期しないエラー：'+E(String(e&&e.message||e)));
+    }
+  }
+
+  // ===== jagai_memory テーブル存在診断（read-only GET）=====
+  async function _p508_runTableDiag(){
+    try{
+      _p508_setResult('<span style="color:#666">⏳ jagai_memory テーブル存在を診断中（read-only）...</span>');
+      if(typeof sbGet!=='function'){
+        _p508_setResult('❌ sbGet 関数が利用できません。接続診断を先に実行してください。');
+        return;
+      }
+      let exists=null;
+      let detail='';
+      try{
+        const r=await sbGet('jagai_memory','limit=0');
+        exists=true;
+        detail='✅ jagai_memory テーブルに limit=0 GET 成功（行数：'+(Array.isArray(r)?r.length:0)+'、書き込みなし）';
+      }catch(e){
+        const msg=String(e&&e.message||e);
+        // PostgREST は存在しないテーブルへは 404 や "relation does not exist" を返す
+        if(/does not exist|404|PGRST205|PGRST106|relation/i.test(msg)){
+          exists=false;
+          detail='⚠ テーブル未作成と判定：'+E(msg.slice(0,200));
+        }else{
+          exists=null;
+          detail='❓ 判定不能（RLS / 認証 / ネットワークの可能性）：'+E(msg.slice(0,200));
+        }
+      }
+      const status = exists===true ? '🟢 存在' : exists===false ? '🔴 未作成（packet 509+ で create 候補）' : '🟡 判定不能';
+      _p508_setResult(''
+        +'📋 jagai_memory テーブル存在診断（packet 508 / read-only）\n'
+        +'\n'
+        +'  ステータス：'+status+'\n'
+        +'  詳細：'+detail+'\n'
+        +'\n'
+        +'⚠ 本診断は GET（limit=0）のみ。INSERT / UPDATE / DELETE / UPSERT / CREATE TABLE は実行していません。\n'
+        +(exists===false?'\n💡 次の段階：「📋 保存設計をコピー」または「📝 次 packet 用 SQL 案を表示」で設計を確認 → packet 509+ でボス承認後に SQL 実行。':'')
+      );
+    }catch(e){
+      _p508_setResult('❌ テーブル診断中の予期しないエラー：'+E(String(e&&e.message||e)));
+    }
+  }
+
+  // ===== 設計をコピー =====
+  function _p508_copyDesign(){
+    try{
+      const text=TABLE_DESIGN_TEXT;
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(text).then(function(){
+          _p508_setResult(''
+            +'📋 保存設計をクリップボードにコピーしました（'+text.length+' chars）\n\n'
+            +'プレビュー（先頭）：\n'
+            +E(text.slice(0,800))+(text.length>800?'\n...':'')
+          );
+        },function(err){
+          _p508_setResult('❌ コピー失敗：'+E(String(err&&err.message||err))+'\n\n表示のみ：\n'+E(text));
+        });
+      }else{
+        _p508_setResult('❌ navigator.clipboard 利用不可。表示のみ：\n\n'+E(text));
+      }
+    }catch(e){
+      _p508_setResult('❌ コピー中の予期しないエラー：'+E(String(e&&e.message||e)));
+    }
+  }
+
+  // ===== SQL 案を表示（実行ボタンなし）=====
+  function _p508_showSqlPlan(){
+    try{
+      _p508_setResult(''
+        +'<div style="background:#fef2f2;border:1.5px solid #fecaca;border-radius:6px;padding:7px 9px;margin-bottom:8px;font-family:sans-serif;color:#991b1b;font-weight:700">⚠ このSQLはまだ実行しないこと。本 packet 508 では表示・コピーのみ。実行ボタンは作りません。packet 509 以降でボス承認 + 監督承認後に Supabase ダッシュボード経由で実行する想定です。</div>'
+        +'<div style="margin-bottom:6px;display:flex;gap:6px;flex-wrap:wrap">'
+          +'<button type="button" id="p508-sql-copy-btn" style="padding:6px 10px;border-radius:5px;border:1.5px solid #92400e;background:#fff;color:#92400e;font-size:10px;font-weight:700;cursor:pointer">📋 SQL をコピー</button>'
+        +'</div>'
+        +'<pre style="background:#fafafa;border:1px solid var(--bo);border-radius:6px;padding:8px 10px;margin:0;font-family:Menlo,Consolas,monospace;font-size:10.5px;line-height:1.6;white-space:pre-wrap;word-break:break-word">'+E(SQL_PLAN_TEXT)+'</pre>'
+      );
+      // Bind copy button for the SQL plan
+      const cb=document.getElementById('p508-sql-copy-btn');
+      if(cb && cb.dataset.p508Bound!=='1'){
+        cb.dataset.p508Bound='1';
+        cb.addEventListener('click',function(){
+          try{
+            if(navigator.clipboard && navigator.clipboard.writeText){
+              navigator.clipboard.writeText(SQL_PLAN_TEXT).then(function(){
+                cb.textContent='✅ コピー済み';
+                setTimeout(function(){try{cb.textContent='📋 SQL をコピー';}catch(_){}}, 1800);
+              });
+            }
+          }catch(_){}
+        });
+      }
+    }catch(e){
+      _p508_setResult('❌ SQL 表示中の予期しないエラー：'+E(String(e&&e.message||e)));
+    }
+  }
+
+  // ===== bind buttons（renderMemoryPage 時 + DOMContentLoaded 後）=====
+  function _p508_bindButtons(){
+    try{
+      const m={
+        'p508-diag-connection-btn': _p508_runConnectionDiag,
+        'p508-diag-table-btn': _p508_runTableDiag,
+        'p508-diag-copy-design-btn': _p508_copyDesign,
+        'p508-diag-show-sql-btn': _p508_showSqlPlan
+      };
+      Object.keys(m).forEach(function(id){
+        const b=document.getElementById(id);
+        if(!b || b.dataset.p508Bound==='1')return;
+        b.dataset.p508Bound='1';
+        b.addEventListener('click', m[id]);
+      });
+    }catch(e){try{console.warn('[packet 508 bindButtons]',e&&e.message);}catch(_){}}
+  }
+
+  // renderMemoryPage を非破壊 wrap → 表示時に bind
+  (function _p508_wrapRender(){
+    try{
+      const orig=window.renderMemoryPage;
+      if(typeof orig!=='function')return;
+      window.renderMemoryPage=function(){
+        try{orig.apply(this,arguments);}catch(_){}
+        try{_p508_bindButtons();}catch(_){}
+      };
+    }catch(e){try{console.warn('[packet 508 wrapRender]',e&&e.message);}catch(_){}}
+  })();
+
+})();
+// ==== ここまで packet 508 jagai_memory Supabase 保存設計 + 診断 UI ====
 </script>
 </body>
 </html>
