@@ -1762,6 +1762,30 @@ textarea.ai-team-input{resize:vertical;min-height:60px}
       <div style="font-size:11px;color:#666;margin-bottom:8px;line-height:1.6">会社の成功・失敗・議論・判断・packet 履歴・再発防止ルールを蓄積し、次の判断に活かす学習層（packet 500 静的 MVP）。</div>
       <div style="font-size:10px;color:#7c3aed;background:#f5f3ff;border:1.5px solid #c4b5fd;border-radius:6px;padding:7px 9px;margin-bottom:10px;line-height:1.6">⚠ この記憶庫は、誰かを責めるためではなく、<b>会社の学習・再発防止・成長</b>のために使います。<br>顧客個人情報・パスワード・API キーは登録しないでください。リロードで消える in-memory MVP（次 packet で Supabase 化予定）。</div>
 
+      <!-- packet 507: pre-fill 案内バナー（他画面から「記憶庫に転記」されたときに表示） -->
+      <div id="p507-prefill-banner" style="display:none;background:#dcfce7;border:2px solid #16a34a;border-radius:8px;padding:10px 13px;margin-bottom:10px">
+        <div style="display:flex;align-items:flex-start;gap:8px;flex-wrap:wrap">
+          <div style="flex:1;min-width:220px">
+            <div style="font-weight:800;color:#15803d;font-size:13px;margin-bottom:2px">📋 下書きが転記されました</div>
+            <div style="font-size:11px;color:var(--t2);line-height:1.6">他画面（packet 504 専用導線 / packet 497 報告 / packet 502 役割テンプレ 等）からフォームに内容が入りました。<br><b>内容を確認して、右の「📚 この内容で記憶庫に登録」ボタンを押してください</b>。押すと一覧に追加されます。</div>
+            <div style="font-size:10px;color:#0f766e;background:#f0fdfa;border-radius:4px;padding:3px 6px;margin-top:5px;line-height:1.55"><b>用語整理</b>：<b>記憶庫に転記</b>＝フォームへ流入のみ ／ <b>記憶庫に登録</b>＝一覧へ追加（in-memory、リロードで消える仕様）</div>
+            <div id="p507-prefill-meta" style="font-size:10px;color:var(--t3);margin-top:4px"></div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0">
+            <button type="button" id="p507-prefill-register-btn" style="padding:9px 14px;border-radius:6px;border:0;background:#16a34a;color:#fff;font-size:13px;font-weight:700;cursor:pointer;min-height:38px;white-space:nowrap">📚 この内容で記憶庫に登録</button>
+            <button type="button" id="p507-prefill-dismiss-btn" style="padding:5px 10px;border-radius:6px;border:1.5px solid #16a34a;background:#fff;color:#15803d;font-size:11px;font-weight:700;cursor:pointer">✕ 閉じる</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- packet 507: 登録完了バナー（登録直後に表示、6 秒後自動非表示）-->
+      <div id="p507-registered-banner" style="display:none;background:#d1fae5;border:2px solid #065f46;border-radius:8px;padding:10px 13px;margin-bottom:10px">
+        <div style="display:flex;align-items:flex-start;gap:8px">
+          <div style="flex:1;min-width:200px;font-size:12px;color:#065f46;font-weight:700;line-height:1.6" id="p507-registered-text"></div>
+          <button type="button" id="p507-registered-close-btn" style="padding:4px 9px;border-radius:6px;border:1.5px solid #065f46;background:#fff;color:#065f46;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0">✕</button>
+        </div>
+      </div>
+
       <!-- 学習サマリー -->
       <div class="ai-team-card" id="p500-summary-card" style="background:#eff6ff;border:1.5px solid #93c5fd">
         <div style="font-size:13px;font-weight:800;color:#0a3d7c;margin-bottom:6px">📊 学習サマリー</div>
@@ -15405,6 +15429,205 @@ function _p500_buildCandidateFromPayload(payload){
 
 })();
 // ==== ここまで packet 504 設計のみ AI 1 導線実働化 MVP ====
+
+// ═══════════════════════════════════════
+// packet 507: 記憶庫 pre-fill → 登録導線明確化 + 登録直後一覧反映 hotfix（v0.9.257）
+// 不具合：
+//   - 「🧠 記憶庫に転記」と「📚 記憶庫に登録」の UI 区別が弱く、転記後に登録忘れる
+//   - 登録成功メッセージが _p500_clearForm 内で即座に消える
+//   - 既存フィルターが残ったままだと新規カードが除外されて表示されない
+//   - 新規カードへのスクロール / ハイライトなし
+// 修正：
+//   - pre-fill 案内バナー + 登録完了バナーを追加（page-memory 上部）
+//   - _p500_addMemory を非破壊 wrap → 成功時に lastAddedId 記録 + filter 解除予約 + 完了バナー表示
+//   - _p500_renderList を非破壊 wrap → filter 解除実行 + lastAddedId カードへスクロール + 緑 outline ハイライト
+//   - renderMemoryPage を非破壊 wrap → _p500_pendingCandidate のメタを退避 → pre-fill バナー表示
+// 外部 API なし、Supabase / SQL / RLS / Auth 変更なし、localStorage 本文保存なし。
+// MutationObserver 新規追加なし、ユーザー操作起点のみ。
+// ═══════════════════════════════════════
+(function _p507_init(){
+  let _p507_lastPrefillInfo=null;
+  let _p507_lastAddedId=null;
+  let _p507_pendingFilterClear=false;
+
+  function E(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];});}
+
+  function _p507_showPrefillBanner(info){
+    try{
+      const banner=document.getElementById('p507-prefill-banner');
+      if(!banner)return;
+      banner.style.display='block';
+      const meta=document.getElementById('p507-prefill-meta');
+      if(meta){
+        const bits=[];
+        if(info){
+          if(info.relatedPacket)bits.push('関連 packet：'+E(info.relatedPacket));
+          if(info.relatedTarget)bits.push('関連：'+E(info.relatedTarget));
+          if(info.sourceType)bits.push('出典：'+E(info.sourceType));
+          if(info.title)bits.push('タイトル：'+E(info.title).slice(0,60));
+        }
+        meta.innerHTML=bits.length?bits.join(' ／ '):'';
+      }
+      try{banner.scrollIntoView({behavior:'smooth',block:'start'});}catch(_){}
+    }catch(e){try{console.warn('[packet 507 showPrefillBanner]',e&&e.message);}catch(_){}}
+  }
+
+  function _p507_hidePrefillBanner(){
+    try{
+      const banner=document.getElementById('p507-prefill-banner');
+      if(banner)banner.style.display='none';
+      _p507_lastPrefillInfo=null;
+    }catch(_){}
+  }
+
+  function _p507_showRegisteredBanner(title, id){
+    try{
+      const banner=document.getElementById('p507-registered-banner');
+      if(!banner)return;
+      banner.style.display='block';
+      const text=document.getElementById('p507-registered-text');
+      if(text)text.textContent='✅ 記憶庫に登録しました：「'+(title||'(無題)')+'」（id '+id+'）／ 下の一覧の先頭に追加されています。フィルターは自動解除されました（リロードで消える仕様）。';
+      // auto hide after 6s
+      if(banner._p507_tid)clearTimeout(banner._p507_tid);
+      banner._p507_tid=setTimeout(function(){try{banner.style.display='none';}catch(_){}}, 6000);
+    }catch(e){try{console.warn('[packet 507 showRegisteredBanner]',e&&e.message);}catch(_){}}
+  }
+
+  function _p507_clickRegister(){
+    try{
+      // フィルター解除予約（_p500_renderList wrap 内で実行）
+      _p507_pendingFilterClear=true;
+      // 既存 save ボタンをプログラム的に click（packet 500 の click handler チェーンを走らせる）
+      const saveBtn=document.getElementById('p500-f-save');
+      if(saveBtn)saveBtn.click();
+    }catch(e){try{console.warn('[packet 507 clickRegister]',e&&e.message);}catch(_){}}
+  }
+  window._p507_clickRegister=_p507_clickRegister;
+
+  function _p507_bindBannerButtons(){
+    try{
+      const regBtn=document.getElementById('p507-prefill-register-btn');
+      if(regBtn && regBtn.dataset.p507Bound!=='1'){
+        regBtn.dataset.p507Bound='1';
+        regBtn.addEventListener('click', _p507_clickRegister);
+      }
+      const dismissBtn=document.getElementById('p507-prefill-dismiss-btn');
+      if(dismissBtn && dismissBtn.dataset.p507Bound!=='1'){
+        dismissBtn.dataset.p507Bound='1';
+        dismissBtn.addEventListener('click', _p507_hidePrefillBanner);
+      }
+      const regCloseBtn=document.getElementById('p507-registered-close-btn');
+      if(regCloseBtn && regCloseBtn.dataset.p507Bound!=='1'){
+        regCloseBtn.dataset.p507Bound='1';
+        regCloseBtn.addEventListener('click', function(){
+          try{
+            const b=document.getElementById('p507-registered-banner');
+            if(b){b.style.display='none'; if(b._p507_tid)clearTimeout(b._p507_tid);}
+          }catch(_){}
+        });
+      }
+    }catch(e){try{console.warn('[packet 507 bindBannerButtons]',e&&e.message);}catch(_){}}
+  }
+
+  // renderMemoryPage を非破壊 wrap：_p500_pendingCandidate のメタを退避 → pre-fill バナー表示
+  (function _p507_wrapRenderMemoryPage(){
+    try{
+      const orig=window.renderMemoryPage;
+      if(typeof orig!=='function')return;
+      window.renderMemoryPage=function(){
+        let info=null;
+        try{
+          if(typeof _p500_pendingCandidate!=='undefined' && _p500_pendingCandidate){
+            const c=_p500_pendingCandidate;
+            info={
+              title: c.title,
+              sourceType: c.sourceType,
+              relatedPacket: c.relatedPacket,
+              relatedTarget: c.relatedTarget
+            };
+          }
+        }catch(_){}
+        try{orig.apply(this, arguments);}catch(_){}
+        try{_p507_bindBannerButtons();}catch(_){}
+        if(info){
+          _p507_lastPrefillInfo=info;
+          _p507_showPrefillBanner(info);
+        }
+      };
+    }catch(e){try{console.warn('[packet 507 wrapRenderMemoryPage]',e&&e.message);}catch(_){}}
+  })();
+
+  // _p500_addMemory を非破壊 wrap：成功時に lastAddedId 記録 + filter 解除予約 + 完了バナー表示
+  (function _p507_wrapAddMemory(){
+    try{
+      const orig=window._p500_addMemory;
+      if(typeof orig!=='function')return;
+      window._p500_addMemory=function(obj){
+        const r=orig.apply(this, arguments);
+        try{
+          if(r && r.ok && r.memory && r.memory.id){
+            _p507_lastAddedId=r.memory.id;
+            // 常にフィルター解除（新規カードが必ず見える状態にする）
+            _p507_pendingFilterClear=true;
+            // 登録完了バナー表示（_p500_clearForm に消されない独立要素）
+            _p507_showRegisteredBanner(r.memory.title, r.memory.id);
+            // pre-fill バナー非表示
+            _p507_hidePrefillBanner();
+          }
+        }catch(_){}
+        return r;
+      };
+    }catch(e){try{console.warn('[packet 507 wrapAddMemory]',e&&e.message);}catch(_){}}
+  })();
+
+  // _p500_renderList を非破壊 wrap：filter 解除 + lastAddedId カードへスクロール + ハイライト
+  (function _p507_wrapRenderList(){
+    try{
+      const orig=window._p500_renderList;
+      if(typeof orig!=='function')return;
+      window._p500_renderList=function(){
+        // BEFORE render：filter 解除が予約されていれば実行
+        if(_p507_pendingFilterClear){
+          _p507_pendingFilterClear=false;
+          try{
+            ['p500-q','p500-q-packet','p500-q-target','p500-q-tags'].forEach(function(id){const el=document.getElementById(id); if(el)el.value='';});
+            ['p500-q-type','p500-q-cat','p500-q-risk'].forEach(function(id){const el=document.getElementById(id); if(el)el.value='';});
+            ['p500-q-unresolved','p500-q-managerFollowup'].forEach(function(id){const el=document.getElementById(id); if(el)el.checked=false;});
+            const s=document.getElementById('p500-q-sort'); if(s)s.value='newest';
+          }catch(_){}
+        }
+        try{orig.apply(this, arguments);}catch(_){}
+        // AFTER render：lastAddedId カードへスクロール + 緑ハイライト
+        if(_p507_lastAddedId){
+          const id=_p507_lastAddedId;
+          _p507_lastAddedId=null;
+          try{
+            const safeId=String(id).replace(/(["'\\])/g,'\\$1');
+            const card=document.querySelector('.p500-card[data-id="'+safeId+'"]');
+            if(card){
+              const prevOutline=card.style.outline;
+              const prevShadow=card.style.boxShadow;
+              const prevTrans=card.style.transition;
+              card.style.outline='3px solid #16a34a';
+              card.style.boxShadow='0 0 18px rgba(22,163,74,0.45)';
+              card.style.transition='outline 0.3s, box-shadow 0.3s';
+              try{card.scrollIntoView({behavior:'smooth',block:'center'});}catch(_){}
+              setTimeout(function(){
+                try{
+                  card.style.outline=prevOutline||'';
+                  card.style.boxShadow=prevShadow||'';
+                  card.style.transition=prevTrans||'';
+                }catch(_){}
+              }, 3500);
+            }
+          }catch(_){}
+        }
+      };
+    }catch(e){try{console.warn('[packet 507 wrapRenderList]',e&&e.message);}catch(_){}}
+  })();
+
+})();
+// ==== ここまで packet 507 記憶庫 pre-fill → 登録導線明確化 + 登録直後一覧反映 hotfix ====
 </script>
 </body>
 </html>
