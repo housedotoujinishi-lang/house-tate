@@ -1899,6 +1899,20 @@ textarea.ai-team-input{resize:vertical;min-height:60px}
           <div style="font-size:10px;color:#0c4a6e;background:#e0f2fe;border:1px solid #bae6fd;border-radius:4px;padding:4px 7px;margin-top:5px;line-height:1.55">※ DB 保存は記憶登録時に自動で行われます。専用テストボタンはありません。INSERT のみ、UPDATE / DELETE は未実装。失敗しても in-memory 登録は成功扱い。</div>
         </div>
 
+        <!-- packet 511: DB 復元ステータス -->
+        <div id="p511-restore-status-block" style="background:#ecfdf5;border:1px solid #6ee7b7;border-radius:6px;padding:8px 10px;margin-bottom:8px;font-size:11px;line-height:1.7">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;margin-bottom:4px">
+            <div style="font-weight:800;color:#065f46">🔁 DB 復元ステータス（packet 511）</div>
+            <button type="button" id="p511-reload-btn" style="padding:5px 10px;border-radius:5px;border:1.5px solid #065f46;background:#fff;color:#065f46;font-size:11px;font-weight:700;cursor:pointer;min-height:32px">🔄 DB から再読込</button>
+          </div>
+          <div>・DB 復元：<b id="p511-status-label" style="color:#94a3b8">未実行</b></div>
+          <div>・復元件数：<b id="p511-count-label" style="color:#94a3b8">0</b></div>
+          <div>・最終復元時刻：<span id="p511-time-label" style="color:#666">-</span></div>
+          <div>・最終エラー概要：<span id="p511-error-label" style="color:#666">-</span></div>
+          <div id="p511-merge-msg" style="display:none;font-size:11px;color:#065f46;background:#d1fae5;border:1px solid #6ee7b7;border-radius:4px;padding:5px 8px;margin-top:5px;line-height:1.55"></div>
+          <div style="font-size:10px;color:#065f46;background:#d1fae5;border:1px solid #a7f3d0;border-radius:4px;padding:4px 7px;margin-top:5px;line-height:1.55">※ 起動時 / 記憶庫初回表示時に jagai_memory から最新 100 件を読込（GET のみ）。SELECT 専用。UPDATE / DELETE / UPSERT は未実装。失敗しても画面は壊れません。id 重複は自動 dedupe。</div>
+        </div>
+
         <!-- 診断ボタン 4 種 -->
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:6px;margin-bottom:8px">
           <button type="button" id="p508-diag-connection-btn" style="padding:9px 12px;border-radius:6px;border:1.5px solid #92400e;background:#fff;color:#92400e;font-size:11px;font-weight:700;cursor:pointer;min-height:38px">🔌 Supabase 接続状態を確認</button>
@@ -16539,6 +16553,253 @@ function _p500_buildCandidateFromPayload(payload){
 
 })();
 // ==== ここまで packet 510 jagai_memory DB 並行保存 実装 ====
+
+// ═══════════════════════════════════════
+// packet 511: jagai_memory 起動時 DB 復元 実装（v0.9.261）
+// 目的：記憶庫初回表示時に jagai_memory から GET し、_p500_memoryStore に復元。
+// 既存の in-memory 登録（packet 500）/ packet 510 DB 並行 INSERT は維持。
+// 厳守：
+//   - SELECT (GET) のみ実装、UPDATE / DELETE / UPSERT は実装しない
+//   - SQL 実行なし、create / alter / drop table なし
+//   - RLS / Auth 変更なし
+//   - 失敗しても画面を壊さない（throw しない）
+//   - console に記憶本文を出さない（HTTP status + 件数のみ）
+//   - id 重複は dedupe、title + createdAt 5 秒以内も補助 dedupe
+// ═══════════════════════════════════════
+(function _p511_init(){
+  function E(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];});}
+
+  // 状態管理（in-memory のみ、localStorage 保存しない）
+  window._p511_state = window._p511_state || {
+    loadStatus: '未実行',       // '未実行' | '読込中' | '成功' | '失敗' | '未接続'
+    loadedCount: 0,             // 最後に読み込んだ件数
+    mergedCount: 0,             // 最後に merge で追加した件数（dedupe 後）
+    lastTime: '',               // 'YYYY-MM-DD HH:MM:SS'
+    lastErrorBrief: '',         // HTTP status + 短縮（本文なし）
+    loading: false,             // 多重実行防止
+    initialLoaded: false        // 初回ロード済みか
+  };
+
+  function _p511_nowShort(){
+    try{
+      const d=new Date();
+      const pad=function(n){return n<10?'0'+n:String(n);};
+      return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+' '+pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds());
+    }catch(e){return '';}
+  }
+
+  // ===== DB row → in-memory memory object マッピング =====
+  function _p511_mapRowToMemory(row){
+    if(!row || typeof row!=='object') return null;
+    let tags = row.tags;
+    if(!Array.isArray(tags)){
+      if(typeof tags==='string'){
+        tags = tags.split(',').map(function(t){return t.trim();}).filter(Boolean);
+      }else{
+        tags = [];
+      }
+    }
+    return {
+      id: String(row.id || ''),
+      memoryType: row.memory_type || 'discussion_log',
+      category: row.category || '',
+      title: String(row.title || ''),
+      summary: String(row.summary || ''),
+      content: String(row.detail || ''),
+      cause: String(row.recurrence_prevention || ''),
+      lesson: String(row.lessons || ''),
+      nextAction: String(row.next_action || ''),
+      bossDecision: '',
+      relatedPacket: String(row.source_packet || ''),
+      relatedTarget: String(row.related_staff || row.related_ai || ''),
+      relatedAi: String(row.related_ai || ''),
+      relatedStaff: String(row.related_staff || ''),
+      relatedTaskId: String(row.related_task_id || ''),
+      relatedReportId: String(row.related_report_id || ''),
+      riskLevel: String(row.risk_level || 'normal'),
+      importance: String(row.importance_level || 'normal'),
+      recurrenceRisk: 'mid',
+      status: String(row.status || 'open'),
+      tags: tags,
+      unresolved: !row.is_resolved,
+      needsManagerFollowup: !!row.requires_boss_check,
+      createdBy: String(row.created_by_name || ''),
+      createdAt: row.created_at || new Date().toISOString(),
+      sourceType: String(row.source_type || 'manual'),
+      sourcePage: String(row.source_page || ''),
+      _fromDB: true  // DB 由来マーカー
+    };
+  }
+  window._p511_mapRowToMemory = _p511_mapRowToMemory;
+
+  // ===== merge：id 重複 + (title + createdAt±5sec) 補助 dedupe =====
+  function _p511_mergeDBMemories(rows){
+    if(!Array.isArray(rows) || rows.length===0) return 0;
+    if(!window._p500_memoryStore) window._p500_memoryStore = [];
+    const store = window._p500_memoryStore;
+    const existingIds = new Set(store.map(function(m){return m && m.id;}).filter(Boolean));
+    const sigs = store.map(function(m){
+      return {
+        title: (m && m.title) || '',
+        ts: (m && m.createdAt) ? new Date(m.createdAt).getTime() : 0
+      };
+    });
+    let added = 0;
+    rows.forEach(function(row){
+      const mem = _p511_mapRowToMemory(row);
+      if(!mem || !mem.title) return;
+      // Primary dedup: id
+      if(mem.id && existingIds.has(mem.id)) return;
+      // Secondary dedup: title + createdAt within 5 sec
+      const memTs = mem.createdAt ? new Date(mem.createdAt).getTime() : 0;
+      const dupSig = sigs.some(function(s){
+        return s.title === mem.title && memTs > 0 && s.ts > 0 && Math.abs(s.ts - memTs) < 5000;
+      });
+      if(dupSig) return;
+      store.push(mem);
+      if(mem.id) existingIds.add(mem.id);
+      sigs.push({title: mem.title, ts: memTs});
+      added++;
+    });
+    // Sort by createdAt desc
+    store.sort(function(a, b){
+      const at = (a && a.createdAt) ? new Date(a.createdAt).getTime() : 0;
+      const bt = (b && b.createdAt) ? new Date(b.createdAt).getTime() : 0;
+      return bt - at;
+    });
+    return added;
+  }
+  window._p511_mergeDBMemories = _p511_mergeDBMemories;
+
+  // ===== 診断 UI 更新 =====
+  function _p511_updateDiagDisplay(){
+    try{
+      const s = window._p511_state;
+      const setText = function(id, txt, color){
+        const el = document.getElementById(id);
+        if(!el) return;
+        el.textContent = txt;
+        if(color) el.style.color = color;
+      };
+      let statusColor = '#94a3b8';
+      if(s.loadStatus === '成功') statusColor = '#0d9e6e';
+      else if(s.loadStatus === '失敗') statusColor = '#dc2626';
+      else if(s.loadStatus === '未接続') statusColor = '#b91c1c';
+      else if(s.loadStatus === '読込中') statusColor = '#1e40af';
+      setText('p511-status-label', s.loadStatus, statusColor);
+      setText('p511-count-label', String(s.loadedCount || 0), s.loadedCount > 0 ? '#065f46' : '#94a3b8');
+      setText('p511-time-label', s.lastTime || '-');
+      setText('p511-error-label', s.lastErrorBrief || '-', s.lastErrorBrief ? '#991b1b' : '#666');
+      // merge banner
+      const mergeMsg = document.getElementById('p511-merge-msg');
+      if(mergeMsg){
+        if(s.loadStatus === '成功' && s.mergedCount > 0){
+          mergeMsg.style.display = 'block';
+          mergeMsg.textContent = '🆕 今回の復元で ' + s.mergedCount + ' 件追加されました（既存合計：' + ((window._p500_memoryStore||[]).length) + ' 件）';
+        }else if(s.loadStatus === '成功' && s.mergedCount === 0 && s.loadedCount > 0){
+          mergeMsg.style.display = 'block';
+          mergeMsg.style.color = '#0c4a6e';
+          mergeMsg.style.background = '#e0f2fe';
+          mergeMsg.style.borderColor = '#bae6fd';
+          mergeMsg.textContent = '✅ DB に ' + s.loadedCount + ' 件あります（すべて既に画面にあるため新規追加 0 件）';
+        }else{
+          mergeMsg.style.display = 'none';
+        }
+      }
+    }catch(e){try{console.warn('[packet 511 updateDiagDisplay]', e&&e.message);}catch(_){}}
+  }
+  window._p511_updateDiagDisplay = _p511_updateDiagDisplay;
+
+  // ===== DB 読込（SELECT only）=====
+  async function _p511_loadMemoriesFromDB(){
+    if(window._p511_state.loading) return;
+    window._p511_state.loading = true;
+    window._p511_state.loadStatus = '読込中';
+    _p511_updateDiagDisplay();
+    try{
+      if(typeof sbGet !== 'function'){
+        throw new Error('sbGet helper not available');
+      }
+      const rows = await sbGet('jagai_memory', 'order=created_at.desc&limit=100');
+      const rowsArr = Array.isArray(rows) ? rows : [];
+      const added = _p511_mergeDBMemories(rowsArr);
+      window._p511_state.loadStatus = '成功';
+      window._p511_state.loadedCount = rowsArr.length;
+      window._p511_state.mergedCount = added;
+      window._p511_state.lastTime = _p511_nowShort();
+      window._p511_state.lastErrorBrief = '';
+      window._p511_state.initialLoaded = true;
+      try{console.warn('[packet 511 loadFromDB] HTTP 200 OK loaded:', rowsArr.length, 'merged:', added);}catch(_){}
+      // re-render（filter は user 設定を尊重、解除しない）
+      try{ if(typeof _p500_renderList === 'function') _p500_renderList(); }catch(_){}
+      try{ if(typeof _p500_renderSummary === 'function') _p500_renderSummary(); }catch(_){}
+    }catch(e){
+      const msg = String(e && e.message || '').slice(0, 200);
+      let loadStatus = '失敗';
+      if(/Failed to fetch|NetworkError|relation|does not exist|PGRST205|PGRST106|404/i.test(msg)){
+        loadStatus = '未接続';
+      }
+      window._p511_state.loadStatus = loadStatus;
+      window._p511_state.lastErrorBrief = msg.slice(0, 140);
+      window._p511_state.lastTime = _p511_nowShort();
+      try{console.warn('[packet 511 loadFromDB] failed status:', loadStatus);}catch(_){}
+    }finally{
+      window._p511_state.loading = false;
+      _p511_updateDiagDisplay();
+    }
+  }
+  window._p511_loadMemoriesFromDB = _p511_loadMemoriesFromDB;
+
+  // ===== 手動再読込 =====
+  function _p511_manualReload(){
+    if(window._p511_state.loading) return;
+    const btn = document.getElementById('p511-reload-btn');
+    const origText = btn ? btn.textContent : '';
+    if(btn){
+      btn.disabled = true;
+      btn.textContent = '⏳ 読込中...';
+    }
+    _p511_loadMemoriesFromDB().then(function(){}, function(){}).then(function(){
+      if(btn){
+        btn.disabled = false;
+        btn.textContent = origText || '🔄 DB から再読込';
+      }
+    });
+  }
+  window._p511_manualReload = _p511_manualReload;
+
+  // ===== bind button =====
+  function _p511_bindButton(){
+    try{
+      const btn = document.getElementById('p511-reload-btn');
+      if(!btn || btn.dataset.p511Bound === '1') return;
+      btn.dataset.p511Bound = '1';
+      btn.addEventListener('click', _p511_manualReload);
+    }catch(e){try{console.warn('[packet 511 bindButton]', e&&e.message);}catch(_){}}
+  }
+
+  // ===== renderMemoryPage 非破壊 wrap =====
+  // packet 510 wrap の上にさらに wrap。orig は packet 510 wrap 版。
+  (function _p511_wrapRender(){
+    try{
+      const orig = window.renderMemoryPage;
+      if(typeof orig !== 'function') return;
+      window.renderMemoryPage = function(){
+        try{ orig.apply(this, arguments); }catch(_){}
+        try{ _p511_bindButton(); }catch(_){}
+        try{ _p511_updateDiagDisplay(); }catch(_){}
+        // 初回表示時に 1 度だけ DB 復元を kick off
+        if(!window._p511_state.initialLoaded && !window._p511_state.loading){
+          setTimeout(function(){
+            _p511_loadMemoriesFromDB().then(function(){}, function(){});
+          }, 150);
+        }
+      };
+    }catch(e){try{console.warn('[packet 511 wrapRender]', e&&e.message);}catch(_){}}
+  })();
+
+})();
+// ==== ここまで packet 511 jagai_memory 起動時 DB 復元 実装 ====
 </script>
 </body>
 </html>
