@@ -1905,6 +1905,41 @@ textarea.ai-team-input{resize:vertical;min-height:60px}
           ⚠ <b>本 packet 508 では実 DB を一切触りません</b>。<br>・CREATE / ALTER / DROP TABLE / INSERT / UPDATE / DELETE / UPSERT / RLS / Auth：<b>すべて未実行</b><br>・SQL 案は<b>表示・コピーのみ</b>、実行ボタンは作りません<br>・接続診断とテーブル存在確認は既存 <code style="font-size:10px">sbGet</code>（GET-only）を流用<br>・本番 DB を壊す操作は含まれていません
         </div>
       </div>
+
+      <!-- packet 509: SQL 手動実行ガイド -->
+      <div class="ai-team-card" id="p509-guide-card" style="margin-top:14px;background:#eff6ff;border:1.5px solid #3b82f6">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;margin-bottom:6px">
+          <div style="font-size:14px;font-weight:800;color:#1e3a8a">🧾 packet 509：SQL 手動実行ガイド</div>
+          <span style="font-size:10px;background:#dbeafe;color:#1e3a8a;border:1px solid #93c5fd;border-radius:6px;padding:2px 7px;font-weight:700">表示・コピーのみ / 実行ボタンなし</span>
+        </div>
+        <div style="font-size:11px;color:var(--t2);line-height:1.65;margin-bottom:8px">packet 508 で設計した <code>jagai_memory</code> テーブルを、<b>ボスが Supabase ダッシュボードの SQL Editor で手動実行</b>するためのガイドです。<br>Claude Code は SQL を <b>実行しません</b>。コードからも <code>create table</code> / <code>alter table</code> / RLS 実行を行いません。</div>
+
+        <!-- 現在の段階 -->
+        <div style="background:#fff;border:1px solid var(--bo);border-radius:6px;padding:8px 10px;margin-bottom:8px;font-size:11px;line-height:1.7">
+          <div style="font-weight:800;color:#0a3d7c;margin-bottom:4px">📍 現在の段階</div>
+          <div>・<b style="color:#b91c1c">SQL 実行前</b>（packet 509 はガイド整備のみ）</div>
+          <div>・Claude Code は SQL を実行しない</div>
+          <div>・Supabase ダッシュボードでボスが手動実行する</div>
+          <div>・実行後は <b>「📋 jagai_memory テーブル存在診断」</b>（packet 508 ボタン）を押して確認</div>
+          <div>・DB 保存の実装（sbUpsert 接続）は <b>packet 510 以降</b></div>
+        </div>
+
+        <!-- 4 ボタン（表示・コピーのみ、実行なし）-->
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:6px;margin-bottom:8px">
+          <button type="button" id="p509-show-sql-btn" style="padding:9px 12px;border-radius:6px;border:1.5px solid #1e40af;background:#fff;color:#1e40af;font-size:11px;font-weight:700;cursor:pointer;min-height:38px">📜 最終 SQL を表示</button>
+          <button type="button" id="p509-copy-sql-btn" style="padding:9px 12px;border-radius:6px;border:0;background:#1e40af;color:#fff;font-size:11px;font-weight:700;cursor:pointer;min-height:38px">📋 最終 SQL をコピー</button>
+          <button type="button" id="p509-pre-check-btn" style="padding:9px 12px;border-radius:6px;border:1.5px solid #1e40af;background:#fff;color:#1e40af;font-size:11px;font-weight:700;cursor:pointer;min-height:38px">✅ 実行前チェックリストを表示</button>
+          <button type="button" id="p509-post-check-btn" style="padding:9px 12px;border-radius:6px;border:1.5px solid #1e40af;background:#fff;color:#1e40af;font-size:11px;font-weight:700;cursor:pointer;min-height:38px">🔁 実行後チェックリストを表示</button>
+        </div>
+
+        <!-- 結果表示エリア -->
+        <div id="p509-result" style="display:none;padding:8px 10px;border-radius:6px;font-size:11px;line-height:1.65;background:#fff;border:1px solid var(--bo);max-height:60vh;overflow-y:auto;white-space:pre-wrap;word-break:break-word"></div>
+
+        <!-- 安全注意フッター -->
+        <div style="margin-top:8px;font-size:10px;color:#1e3a8a;background:#dbeafe;border:1px solid #93c5fd;border-radius:6px;padding:7px 9px;line-height:1.65">
+          ⚠ <b>本 packet 509 にも実行ボタンはありません</b>。<br>・SQL は<b>表示・コピーのみ</b>、Run ボタンや実行トリガーは作りません<br>・実行は<b>ボスが Supabase ダッシュボード SQL Editor で行う</b>（外部操作）<br>・実行後は packet 508 の「📋 jagai_memory テーブル存在診断」で 🟢 存在 を確認<br>・DB 書き込み実装は packet 510 以降でボス + 監督承認後
+        </div>
+      </div>
     </div>
   </div>
   <!-- packet 502: AI 稼働状況ダッシュボード（in-memory MVP、外部 API なし） -->
@@ -15978,6 +16013,292 @@ function _p500_buildCandidateFromPayload(payload){
 
 })();
 // ==== ここまで packet 508 jagai_memory Supabase 保存設計 + 診断 UI ====
+
+// ═══════════════════════════════════════
+// packet 509: jagai_memory SQL 最終レビュー + Supabase 手動実行ガイド（v0.9.259）
+// 目的：packet 508 で設計した jagai_memory を、ボスが Supabase ダッシュボードで
+// 手動実行するための最終 SQL・実行前チェック・実行後チェックを UI として提供。
+// 厳守：
+//   - Claude Code は SQL を実行しない
+//   - create table / alter table / drop table / RLS / Auth の実行コード 0 件
+//   - insert / update / delete / upsert の実装 0 件
+//   - 新規 fetch / XMLHttpRequest 0 件
+//   - SQL 文字列は表示・コピーのみ（実行ボタンを作らない）
+//   - packet 508 診断 UI / packet 507 登録フロー はすべて非破壊維持
+// ═══════════════════════════════════════
+(function _p509_init(){
+  function E(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];});}
+
+  // ===== 最終 SQL（表示・コピーのみ）=====
+  const FINAL_SQL_TEXT = ''
+    +'-- packet 509 最終 SQL（jagai_memory テーブル作成）\n'
+    +'-- 実行先：Supabase ダッシュボード → SQL Editor（手動実行）\n'
+    +'-- ⚠ Claude Code は実行しない。コードからも CREATE / ALTER / DROP / RLS / Auth を実行しない。\n'
+    +'-- ⚠ サービスロールキーは絶対にフロントに置かない。\n'
+    +'-- ⚠ 実行前にこの SQL 全文を目視確認すること。\n'
+    +'\n'
+    +'-- 1. UUID 拡張（存在しない場合のみ作成）\n'
+    +'create extension if not exists pgcrypto;\n'
+    +'\n'
+    +'-- 2. テーブル作成（存在しない場合のみ、create table if not exists 厳守）\n'
+    +'create table if not exists public.jagai_memory (\n'
+    +'  id                    uuid    primary key default gen_random_uuid(),\n'
+    +'  memory_type           text    not null,\n'
+    +'  category              text,\n'
+    +'  title                 text    not null,\n'
+    +'  summary               text,\n'
+    +'  detail                text,\n'
+    +'  source_type           text,\n'
+    +'  source_page           text,\n'
+    +'  source_packet         text,\n'
+    +'  related_ai            text,\n'
+    +'  related_staff         text,\n'
+    +'  related_task_id       text,\n'
+    +'  related_report_id     text,\n'
+    +'  risk_level            text    default \'normal\',\n'
+    +'  importance_level      text    default \'normal\',\n'
+    +'  status                text    default \'open\',\n'
+    +'  tags                  text[]  default \'{}\',\n'
+    +'  lessons               text,\n'
+    +'  recurrence_prevention text,\n'
+    +'  next_action           text,\n'
+    +'  requires_boss_check   boolean default false,\n'
+    +'  is_resolved           boolean default false,\n'
+    +'  created_by_uid        text,\n'
+    +'  created_by_name       text,\n'
+    +'  created_at            timestamptz default now(),\n'
+    +'  updated_at            timestamptz default now()\n'
+    +');\n'
+    +'\n'
+    +'-- 3. インデックス（存在しない場合のみ作成）\n'
+    +'create index if not exists idx_jagai_memory_created_at\n'
+    +'  on public.jagai_memory(created_at desc);\n'
+    +'create index if not exists idx_jagai_memory_memory_type\n'
+    +'  on public.jagai_memory(memory_type);\n'
+    +'create index if not exists idx_jagai_memory_category\n'
+    +'  on public.jagai_memory(category);\n'
+    +'create index if not exists idx_jagai_memory_related_ai\n'
+    +'  on public.jagai_memory(related_ai);\n'
+    +'create index if not exists idx_jagai_memory_status\n'
+    +'  on public.jagai_memory(status);\n'
+    +'create index if not exists idx_jagai_memory_requires_boss_check\n'
+    +'  on public.jagai_memory(requires_boss_check)\n'
+    +'  where requires_boss_check = true;\n'
+    +'create index if not exists idx_jagai_memory_tags_gin\n'
+    +'  on public.jagai_memory using gin(tags);\n'
+    +'\n'
+    +'-- 4. updated_at 自動更新 trigger（任意、Phase 1 では skip 可）\n'
+    +'-- ⚠ ボス判断で Phase 1 に含めるか決める。skip しても動作上問題なし。\n'
+    +'-- create or replace function public.set_updated_at()\n'
+    +'-- returns trigger language plpgsql as $$\n'
+    +'-- begin\n'
+    +'--   new.updated_at = now();\n'
+    +'--   return new;\n'
+    +'-- end;\n'
+    +'-- $$;\n'
+    +'-- \n'
+    +'-- drop trigger if exists trg_jagai_memory_updated_at on public.jagai_memory;\n'
+    +'-- create trigger trg_jagai_memory_updated_at\n'
+    +'--   before update on public.jagai_memory\n'
+    +'--   for each row execute function public.set_updated_at();\n'
+    +'\n'
+    +'-- 5. RLS Phase 1（任意、最小限の許可、DELETE 禁止）\n'
+    +'-- ⚠ RLS 有効化はボス判断。Phase 1 は無効のままでも動作確認可能。\n'
+    +'-- ⚠ 有効化する場合は以下を実行（policy も同時に作る）：\n'
+    +'-- \n'
+    +'-- alter table public.jagai_memory enable row level security;\n'
+    +'-- \n'
+    +'-- create policy "jagai_memory_select_authenticated"\n'
+    +'--   on public.jagai_memory\n'
+    +'--   for select to authenticated using (true);\n'
+    +'-- \n'
+    +'-- create policy "jagai_memory_insert_authenticated"\n'
+    +'--   on public.jagai_memory\n'
+    +'--   for insert to authenticated with check (true);\n'
+    +'-- \n'
+    +'-- create policy "jagai_memory_update_authenticated"\n'
+    +'--   on public.jagai_memory\n'
+    +'--   for update to authenticated using (true) with check (true);\n'
+    +'-- \n'
+    +'-- ⚠ DELETE policy は作らない（論理削除のみ：status = \'archived\' / is_resolved = true）\n'
+    +'\n'
+    +'-- 6. Phase 2 RLS（packet 511+ で追加実行候補、本 packet 509 には含めない）\n'
+    +'-- ⚠ admin / owner は全件閲覧、一般社員は自分作成分・共有分のみ、PII マスキング\n'
+    +'-- ⚠ 詳細は docs/JAGAI_MEMORY_SQL_MANUAL_EXECUTION_PACKET_509.md §5 参照\n'
+    +'\n'
+    +'-- 実行後の確認手順：\n'
+    +'-- ① 公開 URL をハードリロード（Ctrl+Shift+R）\n'
+    +'-- ② 記憶庫を開く → 「🧪 DB 保存準備診断」カード\n'
+    +'-- ③ 「🔌 Supabase 接続状態を確認」→ ✅ 成功を確認\n'
+    +'-- ④ 「📋 jagai_memory テーブル存在診断」→ 🟢 存在 と表示されればOK\n'
+    +'\n'
+    +'-- ⚠ まだ記憶の保存は DB にされない（in-memory のまま）\n'
+    +'-- ⚠ DB 書き込みの接続実装は packet 510 以降でボス + 監督承認後\n';
+
+  // ===== 実行前チェックリスト =====
+  const PRE_EXEC_CHECKLIST_TEXT = ''
+    +'✅ 実行前チェックリスト（packet 509）\n'
+    +'\n'
+    +'━━━ Supabase プロジェクト確認 ━━━\n'
+    +'□ Supabase ダッシュボードにログイン中のアカウントを確認\n'
+    +'□ プロジェクト URL を確認（本番 / テスト どちらか）\n'
+    +'□ 本番プロジェクトの場合：実行前にバックアップ取得を検討\n'
+    +'\n'
+    +'━━━ SQL 全文確認 ━━━\n'
+    +'□ 「📋 最終 SQL をコピー」ボタンで SQL 全文をクリップボードに取得\n'
+    +'□ Supabase 左メニュー「SQL Editor」を開く\n'
+    +'□ New query で空エディタを作り、SQL 全文を貼り付け\n'
+    +'□ <create table if not exists> になっているか目視\n'
+    +'□ <drop> / <delete> / <truncate> が含まれていないか目視\n'
+    +'□ コメントアウト（--）以外の DROP / DELETE / TRUNCATE 文がないか再確認\n'
+    +'\n'
+    +'━━━ RLS 判断 ━━━\n'
+    +'□ Phase 1 RLS を今回有効化するか判断（無効のままでも Phase 1 動作確認可）\n'
+    +'□ 有効化する場合：alter table ... enable row level security 行 + 3 policy 行を有効化\n'
+    +'□ 無効化のままにする場合：上記をコメントアウトのまま残す\n'
+    +'□ どちらの場合も DELETE policy は作らない\n'
+    +'\n'
+    +'━━━ 実行確認 ━━━\n'
+    +'□ Run / 実行ボタンを押す前に SQL 全体を再確認\n'
+    +'□ 行数 / カラム数 / インデックス数を目視カウント（28 カラム / 7 インデックス）\n'
+    +'□ pgcrypto 拡張が既存環境にあるかを念のため確認（無くても create extension if not exists で安全）\n'
+    +'\n'
+    +'━━━ 実行 ━━━\n'
+    +'□ Run を押下\n'
+    +'□ Success / エラーメッセージを確認\n'
+    +'□ エラーが出た場合は SQL 全文を保存し、ロールバック確認\n'
+    +'□ 成功した場合は実行後チェックリストに進む\n';
+
+  // ===== 実行後チェックリスト =====
+  const POST_EXEC_CHECKLIST_TEXT = ''
+    +'🔁 実行後チェックリスト（packet 509）\n'
+    +'\n'
+    +'━━━ ダッシュボード側の確認 ━━━\n'
+    +'□ Supabase Table Editor で jagai_memory テーブルが表示されている\n'
+    +'□ カラム数 26 + メタ（id / created_at / updated_at 含めて 28）の表示確認\n'
+    +'□ インデックス 7 個が作成済み（idx_jagai_memory_created_at, memory_type, category, related_ai, status, requires_boss_check, tags_gin）\n'
+    +'□ RLS 有効化した場合：Authentication → Policies で 3 policy（select / insert / update）の表示確認\n'
+    +'□ DELETE policy が無いことを確認（論理削除のみの方針）\n'
+    +'\n'
+    +'━━━ 公開 URL 側の確認 ━━━\n'
+    +'□ 公開 URL：https://housedotoujinishi-lang.github.io/house-tate/\n'
+    +'□ GitHub Pages 反映待ち 1〜3 分\n'
+    +'□ ハードリロード（Ctrl+Shift+R）\n'
+    +'□ ログイン → 記憶庫を開く\n'
+    +'□ 「🧪 DB 保存準備診断」カードを下部までスクロール\n'
+    +'\n'
+    +'━━━ 診断ボタンで確認 ━━━\n'
+    +'□ 「🔌 Supabase 接続状態を確認」を押す → ✅ 成功\n'
+    +'□ 「📋 jagai_memory テーブル存在診断」を押す → 🟢 存在 と表示\n'
+    +'□ 🔴 未作成 / 🟡 判定不能 の場合は SQL 実行結果を再確認\n'
+    +'\n'
+    +'━━━ まだやらないこと（packet 509 終了時点）━━━\n'
+    +'□ DB 書き込み実装はまだ無し（packet 510 以降）\n'
+    +'□ 記憶庫の記憶はまだ in-memory のみ（リロードで消える仕様維持）\n'
+    +'□ sbUpsert / sbDelete / .insert / .update / .delete / .upsert はまだ未呼出\n'
+    +'\n'
+    +'━━━ 次の packet 510 候補 ━━━\n'
+    +'□ ボス + 監督承認後に packet 510 で sbUpsert / sbGet を _p500_memoryStore と並行接続\n'
+    +'□ packet 511 で DB 主切り替え + 起動時 sbGet 復元\n';
+
+  // ===== UI ヘルパー =====
+  function _p509_setResult(html){
+    try{
+      const r=document.getElementById('p509-result');
+      if(!r)return;
+      r.style.display='block';
+      r.innerHTML=html;
+      try{r.scrollIntoView({behavior:'smooth',block:'nearest'});}catch(_){}
+    }catch(_){}
+  }
+
+  function _p509_showFinalSql(){
+    try{
+      _p509_setResult(''
+        +'<div style="background:#fef2f2;border:1.5px solid #fecaca;border-radius:6px;padding:7px 9px;margin-bottom:8px;color:#991b1b;font-weight:700;font-family:sans-serif">⚠ このSQLは Claude Code 側では実行しません。Supabase ダッシュボード SQL Editor でボスが手動実行する想定です。実行ボタンは本 UI に存在しません。</div>'
+        +'<pre style="background:#fafafa;border:1px solid var(--bo);border-radius:6px;padding:9px 11px;margin:0;font-family:Menlo,Consolas,monospace;font-size:10.5px;line-height:1.6;white-space:pre-wrap;word-break:break-word">'+E(FINAL_SQL_TEXT)+'</pre>'
+      );
+    }catch(e){
+      _p509_setResult('❌ SQL 表示エラー：'+E(String(e&&e.message||e)));
+    }
+  }
+
+  function _p509_copyFinalSql(){
+    try{
+      const text=FINAL_SQL_TEXT;
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(text).then(function(){
+          _p509_setResult(''
+            +'<div style="font-family:sans-serif">'
+            +'<div style="background:#d1fae5;border:1px solid #6ee7b7;border-radius:6px;padding:7px 9px;color:#065f46;font-weight:700;margin-bottom:6px">✅ 最終 SQL をクリップボードにコピーしました（'+text.length+' chars）</div>'
+            +'<div style="font-size:11px;color:var(--t2);line-height:1.6">次の手順：<br>① Supabase ダッシュボード → 左メニュー「SQL Editor」<br>② 「New query」で空エディタを作る<br>③ クリップボードから貼り付け<br>④ 実行前チェックリスト（このカードの「✅ 実行前チェックリストを表示」）を確認<br>⑤ Run ボタンで実行（Claude Code は実行しない）</div>'
+            +'</div>'
+          );
+        },function(err){
+          _p509_setResult('❌ コピー失敗：'+E(String(err&&err.message||err))+'\n\n表示のみ：\n'+E(text));
+        });
+      }else{
+        _p509_setResult('❌ navigator.clipboard 利用不可。表示のみ：\n\n'+E(text));
+      }
+    }catch(e){
+      _p509_setResult('❌ コピーエラー：'+E(String(e&&e.message||e)));
+    }
+  }
+
+  function _p509_showPreCheck(){
+    try{
+      _p509_setResult(''
+        +'<div style="background:#dbeafe;border:1.5px solid #93c5fd;border-radius:6px;padding:7px 9px;margin-bottom:8px;color:#1e3a8a;font-family:sans-serif;font-weight:700">📝 これは Supabase ダッシュボードで SQL を実行する前に確認するリストです。Claude Code は SQL を実行しません。</div>'
+        +'<pre style="background:#fafafa;border:1px solid var(--bo);border-radius:6px;padding:9px 11px;margin:0;font-family:Menlo,Consolas,monospace;font-size:11px;line-height:1.7;white-space:pre-wrap;word-break:break-word">'+E(PRE_EXEC_CHECKLIST_TEXT)+'</pre>'
+      );
+    }catch(e){
+      _p509_setResult('❌ 表示エラー：'+E(String(e&&e.message||e)));
+    }
+  }
+
+  function _p509_showPostCheck(){
+    try{
+      _p509_setResult(''
+        +'<div style="background:#d1fae5;border:1.5px solid #6ee7b7;border-radius:6px;padding:7px 9px;margin-bottom:8px;color:#065f46;font-family:sans-serif;font-weight:700">🔁 これは Supabase で SQL を実行した後に確認するリストです。実行は Claude Code ではなくボスが Supabase ダッシュボードで行います。</div>'
+        +'<pre style="background:#fafafa;border:1px solid var(--bo);border-radius:6px;padding:9px 11px;margin:0;font-family:Menlo,Consolas,monospace;font-size:11px;line-height:1.7;white-space:pre-wrap;word-break:break-word">'+E(POST_EXEC_CHECKLIST_TEXT)+'</pre>'
+      );
+    }catch(e){
+      _p509_setResult('❌ 表示エラー：'+E(String(e&&e.message||e)));
+    }
+  }
+
+  // ===== bind buttons =====
+  function _p509_bindButtons(){
+    try{
+      const m={
+        'p509-show-sql-btn': _p509_showFinalSql,
+        'p509-copy-sql-btn': _p509_copyFinalSql,
+        'p509-pre-check-btn': _p509_showPreCheck,
+        'p509-post-check-btn': _p509_showPostCheck
+      };
+      Object.keys(m).forEach(function(id){
+        const b=document.getElementById(id);
+        if(!b || b.dataset.p509Bound==='1')return;
+        b.dataset.p509Bound='1';
+        b.addEventListener('click', m[id]);
+      });
+    }catch(e){try{console.warn('[packet 509 bindButtons]',e&&e.message);}catch(_){}}
+  }
+
+  // renderMemoryPage を非破壊 wrap → 表示時に bind
+  (function _p509_wrapRender(){
+    try{
+      const orig=window.renderMemoryPage;
+      if(typeof orig!=='function')return;
+      window.renderMemoryPage=function(){
+        try{orig.apply(this,arguments);}catch(_){}
+        try{_p509_bindButtons();}catch(_){}
+      };
+    }catch(e){try{console.warn('[packet 509 wrapRender]',e&&e.message);}catch(_){}}
+  })();
+
+})();
+// ==== ここまで packet 509 jagai_memory SQL 最終レビュー + Supabase 手動実行ガイド ====
 </script>
 </body>
 </html>
