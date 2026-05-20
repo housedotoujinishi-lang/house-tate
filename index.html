@@ -1866,8 +1866,9 @@ textarea.ai-team-input{resize:vertical;min-height:60px}
           <button type="button" class="p502-filter-chip" data-p502filter="all" style="padding:6px 10px;border-radius:6px;border:1.5px solid #0a3d7c;background:#0a3d7c;color:#fff;cursor:pointer;font-weight:700">すべて</button>
           <button type="button" class="p502-filter-chip" data-p502filter="active" style="padding:6px 10px;border-radius:6px;border:1.5px solid var(--bo);background:#fff;color:var(--t2);cursor:pointer;font-weight:600">🟢 稼働中</button>
           <button type="button" class="p502-filter-chip" data-p502filter="pseudo" style="padding:6px 10px;border-radius:6px;border:1.5px solid var(--bo);background:#fff;color:var(--t2);cursor:pointer;font-weight:600">🔵 疑似稼働</button>
-          <button type="button" class="p502-filter-chip" data-p502filter="partial" style="padding:6px 10px;border-radius:6px;border:1.5px solid var(--bo);background:#fff;color:var(--t2);cursor:pointer;font-weight:600">🟡 部分稼働</button>
-          <button type="button" class="p502-filter-chip" data-p502filter="plan" style="padding:6px 10px;border-radius:6px;border:1.5px solid var(--bo);background:#fff;color:var(--t2);cursor:pointer;font-weight:600">⚪ 設計のみ</button>
+          <button type="button" class="p502-filter-chip" data-p502filter="mvp-active" style="padding:6px 10px;border-radius:6px;border:1.5px solid var(--bo);background:#fff;color:var(--t2);cursor:pointer;font-weight:600">🟢 MVP起動済み</button>
+          <button type="button" class="p502-filter-chip" data-p502filter="channel-only" style="padding:6px 10px;border-radius:6px;border:1.5px solid var(--bo);background:#fff;color:var(--t2);cursor:pointer;font-weight:600">🟡 導線あり</button>
+          <button type="button" class="p502-filter-chip" data-p502filter="waiting" style="padding:6px 10px;border-radius:6px;border:1.5px solid var(--bo);background:#fff;color:var(--t2);cursor:pointer;font-weight:600">⚪ 本格稼働待ち</button>
           <button type="button" class="p502-filter-chip" data-p502filter="cmd" style="padding:6px 10px;border-radius:6px;border:1.5px solid var(--bo);background:#fff;color:var(--t2);cursor:pointer;font-weight:600">司令部</button>
           <button type="button" class="p502-filter-chip" data-p502filter="sec" style="padding:6px 10px;border-radius:6px;border:1.5px solid var(--bo);background:#fff;color:var(--t2);cursor:pointer;font-weight:600">秘書室</button>
           <button type="button" class="p502-filter-chip" data-p502filter="sales" style="padding:6px 10px;border-radius:6px;border:1.5px solid var(--bo);background:#fff;color:var(--t2);cursor:pointer;font-weight:600">営業</button>
@@ -1887,11 +1888,41 @@ textarea.ai-team-input{resize:vertical;min-height:60px}
 
       <!-- 未稼働 AI レポート -->
       <div style="margin-top:18px">
-        <div style="font-size:13px;font-weight:800;color:#0a3d7c;margin-bottom:6px">📋 未稼働 AI レポート（次に動かす候補）</div>
+        <div style="font-size:13px;font-weight:800;color:#0a3d7c;margin-bottom:6px">📋 本格稼働待ち AI レポート（次に動かす候補）</div>
         <div id="p502-unused-report" style="display:flex;flex-direction:column;gap:6px"></div>
       </div>
 
+      <!-- packet 504: 設計のみ AI を実働化セクション -->
+      <div style="margin-top:22px">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:6px">
+          <div style="font-size:14px;font-weight:800;color:#16a34a">🚀 設計のみ AI を実働化（packet 504）<span id="p504-count" style="font-size:11px;font-weight:600;color:#666;margin-left:6px"></span></div>
+        </div>
+        <div style="font-size:11px;color:var(--t2);line-height:1.6;margin-bottom:8px">「設計のみ」だった AI を <b>MVP 起動済み</b> に格上げするための専用導線テンプレを提供します。各 AI に最低 1 つの実務テンプレ・チェックリスト・ChatGPT 相談文・Claude Code 指示文を持たせています（in-memory、外部送信なし）。</div>
+        <div id="p504-category-list" style="display:flex;flex-direction:column;gap:10px"></div>
+      </div>
+
       <div style="margin-top:18px;font-size:10px;color:#999;text-align:center;line-height:1.6">※ 本ダッシュボードは静的 MVP（in-memory）。<br>外部 AI API への自動送信は行いません。Supabase テーブル / RLS / Auth 変更なし、localStorage 本文保存なし。</div>
+    </div>
+  </div>
+  <!-- packet 504: 設計のみ AI 専用導線モーダル（in-memory） -->
+  <div id="p504-activation-modal" style="position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.55);display:none;align-items:flex-start;justify-content:center;padding:20px 12px;overflow-y:auto">
+    <div style="background:#fff;border-radius:12px;max-width:720px;width:100%;max-height:calc(100vh - 40px);overflow-y:auto;border-top:6px solid #16a34a;display:flex;flex-direction:column">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;padding:14px 16px 8px;gap:10px;border-bottom:1px solid var(--bo)">
+        <div>
+          <div id="p504-act-title" style="font-size:17px;font-weight:800;color:#15803d;line-height:1.4"></div>
+          <div id="p504-act-sub" style="font-size:11px;color:var(--t3);margin-top:2px;line-height:1.5"></div>
+        </div>
+        <button type="button" id="p504-act-close" aria-label="閉じる" style="background:0;border:0;font-size:22px;color:var(--t3);cursor:pointer;padding:4px 10px;line-height:1;min-width:40px;min-height:40px;border-radius:8px">✕</button>
+      </div>
+      <div id="p504-act-body" style="padding:12px 16px;font-size:12.5px;line-height:1.65;color:var(--t1)"></div>
+      <div style="padding:8px 16px 14px;display:flex;gap:6px;flex-wrap:wrap;border-top:1px solid var(--bo)">
+        <button type="button" id="p504-act-toaiteam" style="flex:2;min-width:160px;padding:9px 14px;border-radius:8px;border:0;background:#0a3d7c;color:#fff;font-size:13px;font-weight:700;cursor:pointer;min-height:40px">💭 AI 会議の議題にする</button>
+        <button type="button" id="p504-act-tomemory" style="flex:2;min-width:140px;padding:9px 14px;border-radius:8px;border:0;background:#7c3aed;color:#fff;font-size:13px;font-weight:700;cursor:pointer;min-height:40px">🧠 記憶庫に転記</button>
+        <button type="button" id="p504-act-copy-all" style="flex:1;min-width:110px;padding:9px 14px;border-radius:8px;border:1.5px solid #16a34a;background:#fff;color:#15803d;font-size:13px;font-weight:700;cursor:pointer;min-height:40px">📋 全文コピー</button>
+        <button type="button" id="p504-act-cancel" style="flex:1;min-width:90px;padding:9px 14px;border-radius:8px;border:1.5px solid var(--bo);background:#fff;color:var(--t2);font-size:13px;font-weight:700;cursor:pointer;min-height:40px">閉じる</button>
+      </div>
+      <div id="p504-act-result" style="margin:0 16px 14px;padding:8px 10px;border-radius:8px;font-size:11px;font-weight:600;line-height:1.6;display:none"></div>
+      <div style="padding:8px 16px 14px;font-size:10px;color:#999;border-top:1px solid var(--bo);background:var(--s1)">※ 静的テンプレ（in-memory）。外部送信なし / localStorage 本文保存なし。本格稼働には DB 保存 / 自動連携 / 担当者 1on1 化 のいずれかが必要（次 packet 候補）。</div>
     </div>
   </div>
   <!-- packet 502: AI 役割テンプレ表示モーダル（in-memory） -->
@@ -13979,10 +14010,13 @@ function _p500_buildCandidateFromPayload(payload){
     if(m.statusKey==='done')return {key:'active',label:'稼働中',color:'#0d9e6e',icon:'🟢'};
     if(m.statusKey==='pseudo')return {key:'pseudo',label:'疑似稼働',color:'#0369a1',icon:'🔵'};
     if(m.statusKey==='plan'){
+      // packet 504 拡張：activation profile があれば MVP 起動済みに格上げ
+      const hasP504=!!(window._P504_ACTIVATION_PROFILES && (window._P504_ACTIVATION_PROFILES[m.name] || window._P504_ACTIVATION_PROFILES[m.id]));
+      if(hasP504)return {key:'mvp-active',label:'MVP起動済み',color:'#16a34a',icon:'🟢'};
       const ch=_p502_channelsFor(m);
       const real=ch.filter(function(x){return x!=='AI名鑑' && x!=='AI組織図';});
-      if(real.length>0)return {key:'partial',label:'部分稼働',color:'#b45309',icon:'🟡'};
-      return {key:'plan',label:'設計のみ',color:'#94a3b8',icon:'⚪'};
+      if(real.length>0)return {key:'channel-only',label:'導線あり',color:'#b45309',icon:'🟡'};
+      return {key:'waiting',label:'本格稼働待ち',color:'#94a3b8',icon:'⚪'};
     }
     return {key:'unknown',label:'未分類',color:'#888',icon:'❓'};
   }
@@ -14211,7 +14245,8 @@ function _p500_buildCandidateFromPayload(payload){
     let out=arr.slice();
     if(_p502_currentFilter && _p502_currentFilter!=='all'){
       const f=_p502_currentFilter;
-      if(f==='active'||f==='pseudo'||f==='partial'||f==='plan'){
+      const statusKeys=['active','pseudo','mvp-active','channel-only','waiting','partial','plan'];
+      if(statusKeys.indexOf(f)>=0){
         out=out.filter(function(m){return m.runStatus.key===f;});
       }else{
         out=out.filter(function(m){return (m.category||'').toLowerCase()===f;});
@@ -14231,10 +14266,23 @@ function _p500_buildCandidateFromPayload(payload){
   }
 
   function _p502_buildNextAction(m){
-    if(m.runStatus.key==='active')return '稼働中。AI 会議 / 記憶庫サマリーで活用継続。';
-    if(m.runStatus.key==='pseudo')return '疑似実装あり。次は AI 会議の発言テンプレを精緻化。';
-    if(m.runStatus.key==='partial')return '一部稼働。AI 相談カテゴリ / 1on1 / 記憶庫いずれか未整備。';
-    return '設計のみ。packet 503+ で「'+(m.feature||m.role||'担当領域')+'」を 1 導線実装。';
+    const k=m.runStatus&&m.runStatus.key;
+    if(k==='active')return '稼働中。AI 会議 / 記憶庫サマリーで活用継続。';
+    if(k==='pseudo')return '疑似実装あり。次は AI 会議の発言テンプレを精緻化。';
+    if(k==='mvp-active'){
+      // packet 504 の profile から本格稼働条件を引く
+      try{
+        const p=window._P504_ACTIVATION_PROFILES && (window._P504_ACTIVATION_PROFILES[m.name] || window._P504_ACTIVATION_PROFILES[m.id]);
+        if(p && p.fullActivationCondition)return '専用導線あり（MVP）。本格稼働条件：'+p.fullActivationCondition;
+      }catch(_){}
+      return '専用導線あり（packet 504）。次は DB 保存 / 自動連携 / 担当者 1on1 化のいずれか。';
+    }
+    if(k==='channel-only')return '導線あり（AI 会議 / 1on1 / AI 相談 / 記憶庫サマリーのいずれか）。専用導線テンプレ未整備。';
+    if(k==='waiting')return '本格稼働待ち。packet 504+ で「'+(m.feature||m.role||'担当領域')+'」を 1 導線実装する候補。';
+    // backwards compat
+    if(k==='partial')return '一部稼働。AI 相談カテゴリ / 1on1 / 記憶庫いずれか未整備。';
+    if(k==='plan')return '設計のみ。packet 504+ で 1 導線実装する候補。';
+    return '未分類。category を確認してください。';
   }
 
   function _p502_renderCards(arr){
@@ -14252,18 +14300,24 @@ function _p500_buildCandidateFromPayload(payload){
         const ch=m.channels.filter(function(x){return x!=='AI名鑑' && x!=='AI組織図';});
         const chHtml=ch.length?ch.map(function(c){return '<span style="background:#e0e7ff;border:1px solid #a5b4fc;border-radius:999px;padding:1px 6px;color:#3730a3;font-weight:700;font-size:9px">'+_p502_esc(c)+'</span>';}).join(' '):'<span style="color:#888;font-size:10px">使える導線なし</span>';
         const next=_p502_buildNextAction(m);
+        // packet 504：activation profile があれば「🚀 専用導線」ボタンを追加
+        const hasP504=!!(window._P504_ACTIVATION_PROFILES && (window._P504_ACTIVATION_PROFILES[m.name] || window._P504_ACTIVATION_PROFILES[m.id]));
+        const p504Btn=hasP504?'<button type="button" class="p502-act-btn" data-p502action="p504" style="flex:1;min-width:100px;padding:6px 8px;border-radius:6px;border:1.5px solid #16a34a;background:#16a34a;color:#fff;font-size:10px;font-weight:700;cursor:pointer;min-height:32px">🚀 専用導線</button>':'';
+        const screensHtml=m.screens?'<div style="font-size:10px;color:var(--t3);line-height:1.45"><b>使える画面：</b>'+_p502_esc(m.screens)+'</div>':'';
         return '<div class="p502-card" data-p502aiid="'+_p502_esc(m.id)+'" style="background:#fff;border:1px solid var(--bo);border-left:5px solid '+_p502_esc(m.runStatus.color)+';border-radius:8px;padding:10px 11px;display:flex;flex-direction:column;gap:5px">'
           +'<div style="display:flex;align-items:center;gap:6px">'
             +'<span style="font-size:20px">'+_p502_esc(m.icon)+'</span>'
             +'<span style="font-weight:800;font-size:13px;color:#0a3d7c">'+_p502_esc(m.name)+'</span>'
             +'<span style="background:'+_p502_esc(m.runStatus.color)+';color:#fff;border-radius:999px;padding:1px 7px;font-size:9px;font-weight:700;margin-left:auto">'+_p502_esc(m.runStatus.icon)+' '+_p502_esc(m.runStatus.label)+'</span>'
           +'</div>'
-          +'<div style="font-size:11px;color:var(--t2);line-height:1.45"><b>役割：</b>'+_p502_esc(m.role||'未定')+'</div>'
+          +'<div style="font-size:11px;color:var(--t2);line-height:1.45"><b>担当業務：</b>'+_p502_esc(m.role||'未定')+'</div>'
           +'<div style="font-size:10px;color:var(--t3);line-height:1.45"><b>担当領域：</b>'+_p502_esc(m.expert||m.feature||'未定')+'</div>'
+          +screensHtml
           +'<div style="font-size:10px;color:var(--t3);line-height:1.45"><b>スコープ：</b>'+_p502_esc(m.scope||'-')+' / <b>カテゴリ：</b>'+_p502_esc(m.category||'-')+'</div>'
-          +'<div style="display:flex;gap:3px;flex-wrap:wrap;margin-top:2px">'+chHtml+'</div>'
-          +'<div style="font-size:10px;color:#475569;background:#f1f5f9;border-radius:6px;padding:5px 8px;margin-top:3px;line-height:1.5"><b>次に動かす：</b>'+_p502_esc(next)+'</div>'
+          +'<div style="display:flex;gap:3px;flex-wrap:wrap;margin-top:2px"><b style="font-size:10px;color:var(--t3)">実装済み導線：</b>'+chHtml+'</div>'
+          +'<div style="font-size:10px;color:#475569;background:#f1f5f9;border-radius:6px;padding:5px 8px;margin-top:3px;line-height:1.5"><b>次の本格稼働条件：</b>'+_p502_esc(next)+'</div>'
           +'<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px">'
+            +p504Btn
             +'<button type="button" class="p502-act-btn" data-p502action="meeting" style="flex:1;min-width:80px;padding:6px 8px;border-radius:6px;border:1.5px solid #0a3d7c;background:#0a3d7c;color:#fff;font-size:10px;font-weight:700;cursor:pointer;min-height:32px">💬 会議参加</button>'
             +'<button type="button" class="p502-act-btn" data-p502action="consult" style="flex:1;min-width:80px;padding:6px 8px;border-radius:6px;border:1.5px solid #b45309;background:#fff;color:#b45309;font-size:10px;font-weight:700;cursor:pointer;min-height:32px">🗣 相談する</button>'
             +'<button type="button" class="p502-act-btn" data-p502action="memory" style="flex:1;min-width:80px;padding:6px 8px;border-radius:6px;border:1.5px solid #7c3aed;background:#fff;color:#7c3aed;font-size:10px;font-weight:700;cursor:pointer;min-height:32px">🧠 記憶庫</button>'
@@ -14278,7 +14332,11 @@ function _p500_buildCandidateFromPayload(payload){
           b.dataset.p502Bound='1';
           b.addEventListener('click',function(){
             const action=b.getAttribute('data-p502action');
-            _p502_openRoleModal(aiId, action);
+            if(action==='p504'){
+              try{if(typeof window._p504_openActivationModal==='function')window._p504_openActivationModal(aiId);}catch(_){}
+            }else{
+              _p502_openRoleModal(aiId, action);
+            }
           });
         });
       });
@@ -14289,9 +14347,9 @@ function _p500_buildCandidateFromPayload(payload){
     try{
       const root=document.getElementById('p502-unused-report');
       if(!root)return;
-      const unused=arr.filter(function(m){return m.runStatus.key==='plan';});
+      const unused=arr.filter(function(m){return m.runStatus.key==='waiting';});
       if(unused.length===0){
-        root.innerHTML='<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:6px;padding:8px 10px;font-size:11px;color:#065f46">🎉 設計のみ AI は 0 件です。全 AI に何らかの導線が割り当て済み。</div>';
+        root.innerHTML='<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:6px;padding:8px 10px;font-size:11px;color:#065f46">🎉 本格稼働待ちの AI は 0 件です。全 AI に何らかの導線が割り当て済み。</div>';
         return;
       }
       const byCat={};
@@ -14300,7 +14358,7 @@ function _p500_buildCandidateFromPayload(payload){
         if(!byCat[c])byCat[c]=[];
         byCat[c].push(m);
       });
-      let html='<div style="font-size:11px;color:var(--t2);margin-bottom:4px">⚪ 設計のみ '+unused.length+' 件をカテゴリ別に整理。次 packet で実装する 1 導線を選んでください。</div>';
+      let html='<div style="font-size:11px;color:var(--t2);margin-bottom:4px">⚪ 本格稼働待ち '+unused.length+' 件をカテゴリ別に整理。次 packet で実装する 1 導線を選んでください。</div>';
       Object.keys(byCat).forEach(function(c){
         const list=byCat[c];
         html+='<div style="background:#fff;border:1px solid var(--bo);border-radius:6px;padding:8px 10px"><div style="font-weight:800;color:#0a3d7c;font-size:12px;margin-bottom:4px">'+_p502_esc(c)+'（'+list.length+' 名）</div>';
@@ -14645,6 +14703,708 @@ function _p500_buildCandidateFromPayload(payload){
 
 })();
 // ==== ここまで packet 502 AI チーム実働化総点検 + 未稼働メンバー起動 MVP ====
+
+// ═══════════════════════════════════════
+// packet 504: 設計のみ AI 1 導線実働化 MVP（v0.9.254）
+// 目的：設計のみ AI を「ただの名簿」から「MVP 起動済み（専用導線テンプレあり）」に格上げ。
+// 26 AI それぞれに ミッション / 場面 / 入力 / 出力 / チェックリスト / ChatGPT 相談文 /
+// Claude Code 指示文 / AI 会議議題 / 記憶庫 pre-fill を持たせる。
+// 外部 API なし、Supabase / SQL / RLS / Auth 変更なし、localStorage 本文保存なし。
+// MutationObserver 新規追加なし、すべてユーザー操作起点。
+// ═══════════════════════════════════════
+(function _p504_init(){
+  function E(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];});}
+
+  // ===== 26 AI activation profile（Japanese name キー）=====
+  const PROF={
+    // 司令部
+    '稲盛和夫':{
+      category:'cmd',
+      mission:'理念・判断基準レビュー',
+      scenes:'経営判断 / 採用基準 / 評価制度 / 社員教育方針 を哲学観点で点検したいとき',
+      inputs:'判断したい議題 / 候補となる選択肢 / 関わる人 / 期待される効果',
+      outputs:'動機善 4 観点メモ / 理念整合性チェック / 判断後コメント',
+      checklist:['動機善なりや（誰の役に立つ判断か）','私心なかりしか（個人都合で曲がっていないか）','人として正しいか（社会通念と一致するか）','長期で見て妥当か（5-10 年後の自分に説明できるか）'],
+      chatgptPrompt:'稲盛和夫の経営哲学（動機善・私心なし・人として正しい・長期視点）で、以下の議題を点検してください。\n議題：（ここに記入）\n選択肢：（ここに記入）\n人と効果：（ここに記入）\n\nアウトプット：4 観点ごとに〇／△／× + 判断後コメント 1 行。',
+      claudeInstruction:'稲盛和夫レビュー観点で、以下の判断についてコメントを生成してください。\n- 動機善 / 私心 / 人として正しい / 長期視点 の 4 軸でスコアリング\n- 弱い軸への補強案を 1 つ提示\n- 既存実装に手を入れない、テキスト生成のみ',
+      aiMeetingTopic:'【稲盛和夫レビュー】議題「（記入）」を経営哲学観点で点検 / 動機善・私心・人として正しい・長期視点',
+      memoryPrefillTitle:'稲盛和夫レビュー：（議題）',
+      memoryType:'boss_decision',memoryCategory:'ボス判断',
+      fullActivationCondition:'採用基準 / 評価制度の文書化、月次経営会議への自動投稿'
+    },
+    '豊田章男':{
+      category:'cmd',
+      mission:'現場カイゼン提案',
+      scenes:'現場のムダ取り、標準化、多店舗展開時の運営モデルを点検したいとき',
+      inputs:'現場の課題 / 現状フロー / 関わる人数 / 1 日あたり工数',
+      outputs:'ムダの 7 種分類 / カイゼン案 3 つ / 標準化候補 / 横展開可否',
+      checklist:['ムダの 7 種（造りすぎ / 在庫 / 動作 / 運搬 / 加工 / 待ち / 不良）で分類','現場で 1 週間試せるか','標準化（手順書化）できるか','他店舗 / 他担当へ横展開できるか'],
+      chatgptPrompt:'豊田章男（カイゼン・現場主義）の観点で、以下の現場課題を点検してください。\n課題：（記入）\n現状フロー：（記入）\n人数 / 工数：（記入）\n\nアウトプット：ムダ分類 → カイゼン案 3 つ → 横展開可否 1 行。',
+      claudeInstruction:'カイゼン観点で現場フローのムダを抽出し、1 週間で試せる改善案を 3 つ生成してください。標準化候補と横展開可否を付記。',
+      aiMeetingTopic:'【豊田章男カイゼン】現場「（記入）」のムダ取り / 標準化 / 横展開検討',
+      memoryPrefillTitle:'豊田章男カイゼン：（現場名）',
+      memoryType:'operation_rule',memoryCategory:'業務フロー',
+      fullActivationCondition:'店舗別 KPI 連携、現場日報からの自動ムダ検出'
+    },
+    // 秘書室
+    '土方歳三':{
+      category:'sec',
+      mission:'未完了・抜け漏れ取り締まり',
+      scenes:'店長補佐として未完了タスク / 期限切れ / 抜け漏れ を洗い出したいとき',
+      inputs:'対象期間 / 対象担当者 / タスク種別 / 完了基準',
+      outputs:'未完了一覧 / 期限超過 / 担当者別督促文面 / 翌朝レビュー枠',
+      checklist:['完了基準が明確か（〆切 + 担当 + 完了条件 3 点セット）','3 日以上未対応はないか','担当者間でボールの所在が明確か','翌朝の未完了レビュー枠を確保したか'],
+      chatgptPrompt:'土方歳三（実行管理 / 規律）の観点で、以下の未完了タスク群を点検してください。\n対象期間：（記入）\nタスク一覧：（記入）\n\nアウトプット：未完了 / 期限超過 / 督促対象に分類 + 担当者別督促文 1 文 + 翌朝レビュー時刻提案。',
+      claudeInstruction:'未完了タスクを 3 グループ（軽微 / 要督促 / 要店長承認）に分類し、各グループの督促文面を 1 つずつ生成してください。',
+      aiMeetingTopic:'【土方歳三】未完了・抜け漏れ取り締まり / 期限切れ案件レビュー',
+      memoryPrefillTitle:'土方歳三：未完了レビュー（日付）',
+      memoryType:'recurrence_prevention',memoryCategory:'再発防止',
+      fullActivationCondition:'タスクテーブルとの DB 連携、毎朝自動レポート'
+    },
+    '正倉院':{
+      category:'sec',
+      mission:'承認履歴・議事録整理',
+      scenes:'過去の決定理由 / 承認記録 / 議事録 / docs を体系的に保管したいとき',
+      inputs:'対象案件 / 決定日時 / 承認者 / 決定理由 / 関連 packet',
+      outputs:'構造化された記録 / メタ情報 / 検索可能なタグ / docs テンプレ',
+      checklist:['誰が / いつ / 何を / なぜ の 4W が揃っているか','後で「なぜそう決めたか」を辿れるか','packet 番号 / 関連 docs と紐付いているか','適切なタグでカテゴリ化されているか'],
+      chatgptPrompt:'正倉院（記録 / 保管）の観点で、以下の決定事項を構造化してください。\n案件：（記入）\n決定者：（記入）\n決定日時：（記入）\n決定理由：（記入）\n\nアウトプット：4W + メタ情報 + 検索タグ 3-5 個 + 関連 packet。',
+      claudeInstruction:'決定事項を Markdown docs の形式で構造化し、検索しやすいタグを付けて出力してください。',
+      aiMeetingTopic:'【正倉院】承認履歴 / 議事録の保管方針確認',
+      memoryPrefillTitle:'正倉院：承認記録（案件名）',
+      memoryType:'packet_history',memoryCategory:'packet履歴',
+      fullActivationCondition:'docs テーブルとの DB 連携、承認時の自動保管'
+    },
+    // 営業
+    '坂本龍馬':{
+      category:'sales',
+      mission:'反響初動 5 分プラン',
+      scenes:'反響（問い合わせ）が入ったとき、5 分以内に動き出すための初動プラン',
+      inputs:'反響源（HP / ポータル / 紹介 等）/ お客様属性 / 物件情報 / 受信時刻',
+      outputs:'初回架電トーク 3 行 / SMS 文面 / LINE 文面 / 次アクション順序',
+      checklist:['5 分以内に動けるか','顧客情報を伏せた一般化トークか','不在時の SMS / LINE が用意できているか','24 時間以内の次アクションが決まっているか'],
+      chatgptPrompt:'坂本龍馬（初動・機動力）の観点で、以下の反響への 5 分初動プランを作ってください。\n反響源：（記入）\n属性：（記入）\n物件 / 希望条件：（記入）\n受信時刻：（記入）\n\nアウトプット：架電トーク 3 行 / 不在時 SMS / LINE / 24h 内次アクション。',
+      claudeInstruction:'反響初動の架電トーク 3 行 + 不在時 SMS + LINE 文面を生成してください。顧客個人情報は一般化（A 様 / 物件 X）で。',
+      aiMeetingTopic:'【坂本龍馬】反響「（属性）」への初動 5 分プラン検討',
+      memoryPrefillTitle:'坂本龍馬：反響初動プラン（属性）',
+      memoryType:'sales_pattern',memoryCategory:'成功ログ',
+      fullActivationCondition:'反響受信時の自動トーク提示、初動所要時間の自動計測'
+    },
+    '小早川':{
+      category:'sales',
+      mission:'店長介入判断',
+      scenes:'担当者の案件が停滞している / 危険信号があるとき、店長が介入すべきかを判断',
+      inputs:'案件状況 / 停滞期間 / 担当者の状態 / 競合状況',
+      outputs:'介入要否 ✕/△/◯ / 介入タイミング / 介入の仕方（援護 vs 引き継ぎ）',
+      checklist:['停滞 3 日以上か','担当者から SOS / 兆候はあるか','競合が動いているか','担当者の自尊心を傷つけない介入方法か'],
+      chatgptPrompt:'小早川（戦況判断 / 援護）の観点で、以下の案件への店長介入要否を判断してください。\n案件：（記入）\n停滞期間：（記入）\n担当者の状態：（記入）\n競合：（記入）\n\nアウトプット：✕/△/◯ + 介入タイミング + 介入方法（援護 / 引継 / 同席）。',
+      claudeInstruction:'停滞案件への介入要否を判定し、介入する場合の段取り（援護 / 引継 / 同席）を 3 行で生成してください。',
+      aiMeetingTopic:'【小早川】停滞案件「（案件名）」への店長介入判断',
+      memoryPrefillTitle:'小早川：介入判断（案件名）',
+      memoryType:'boss_decision',memoryCategory:'ボス判断',
+      fullActivationCondition:'案件停滞の自動検知、店長への通知連携'
+    },
+    '真田幸村':{
+      category:'sales',
+      mission:'媒介取得攻めプラン',
+      scenes:'専任媒介取得 / 専属専任取得 / 訪問査定誘導 を攻めるとき',
+      inputs:'対象物件 / 売主属性 / 売却理由 / 競合（他社）状況 / 現状の心情',
+      outputs:'専任化トーク 3 段 / 切り返し / 訪問査定誘導文 / 次回フォロー',
+      checklist:['売主の本音（なぜ売るか）を聞けているか','他社訪問予定があるか','専任 / 専属専任の利点を 3 つ言えるか','次回接点（査定書持参 等）が決まっているか'],
+      chatgptPrompt:'真田幸村（媒介取得 / 信頼構築）の観点で、以下の物件への専任化プランを作ってください。\n物件：（記入）\n売主属性：（記入）\n売却理由：（記入）\n他社状況：（記入）\n\nアウトプット：専任化トーク 3 段 + 切り返し 2 つ + 次回接点。',
+      claudeInstruction:'媒介取得トークを 3 段階（接触 / 信頼構築 / クロージング）で生成してください。他社競合への切り返しも 2 つ付記。',
+      aiMeetingTopic:'【真田幸村】物件「（物件名）」の媒介取得攻めプラン検討',
+      memoryPrefillTitle:'真田幸村：媒介取得プラン（物件名）',
+      memoryType:'sales_pattern',memoryCategory:'成功ログ',
+      fullActivationCondition:'査定書テンプレとの連携、専任獲得率の自動計測'
+    },
+    '諸葛孔明':{
+      category:'sales',
+      mission:'営業作戦会議',
+      scenes:'今週 / 今月の営業戦略立案、担当者別作戦、優先順位決定',
+      inputs:'対象期間 / 既存 KPI / 担当者人数 / 抱え案件数 / 競合状況',
+      outputs:'戦略案 3 通り / 担当者別作戦 / 翌日 / 翌週の優先行動 TOP3',
+      checklist:['最弱区間（KPI 一番弱い）はどこか','どの担当に何件配ると最大化されるか','翌日 / 翌週の TOP3 が明確か','撤退 / 後回し案件があるか'],
+      chatgptPrompt:'諸葛孔明（戦略 / 知略）の観点で、以下の営業状況への作戦を立案してください。\n対象期間：（記入）\nKPI 状況：（記入）\n担当者：（記入）\n競合：（記入）\n\nアウトプット：戦略 3 通り + 担当別作戦 + 翌週 TOP3。',
+      claudeInstruction:'営業 KPI を分析し、最弱区間を特定。担当者別の作戦と翌週 TOP3 行動を生成してください。',
+      aiMeetingTopic:'【諸葛孔明】（期間）の営業作戦会議 / 戦略立案 / TOP3 決定',
+      memoryPrefillTitle:'諸葛孔明：作戦会議（期間）',
+      memoryType:'discussion_log',memoryCategory:'議論ログ',
+      fullActivationCondition:'KPI テーブルとの DB 連携、毎週自動作戦会議生成'
+    },
+    '渋沢栄一':{
+      category:'sales',
+      mission:'取引先関係強化',
+      scenes:'業者 / 士業 / 紹介先 / 提携先 との関係を見直したいとき',
+      inputs:'取引先一覧 / 直近の接触 / 関係度 / 期待される協力',
+      outputs:'関係強化アクション / 訪問順序 / 紹介依頼文 / 御礼文',
+      checklist:['3 か月接触なしの取引先はないか','双方の利益（道徳経済合一）が見えているか','紹介依頼の根拠が明確か','御礼 / フォローの仕組みがあるか'],
+      chatgptPrompt:'渋沢栄一（道徳経済合一 / 関係構築）の観点で、以下の取引先への関係強化案を作ってください。\n取引先：（記入）\n直近接触：（記入）\n期待協力：（記入）\n\nアウトプット：訪問順序 + 紹介依頼文 + 御礼文。',
+      claudeInstruction:'取引先関係の整理表を作り、優先訪問順と紹介依頼文を生成してください。',
+      aiMeetingTopic:'【渋沢栄一】取引先「（名称）」との関係強化方針',
+      memoryPrefillTitle:'渋沢栄一：取引先関係（名称）',
+      memoryType:'operation_rule',memoryCategory:'業務フロー',
+      fullActivationCondition:'取引先テーブルとの DB 連携、自動接触リマインド'
+    },
+    '伊能忠敬':{
+      category:'sales',
+      mission:'エリア・査定分析',
+      scenes:'査定依頼 / 物件分析 / 相場確認 / エリア戦略 を作るとき',
+      inputs:'物件所在 / 構造 / 築年 / 面積 / 周辺成約事例 / 用途地域',
+      outputs:'相場レンジ / 強み / 弱み / 推奨売出価格 / 査定書ドラフト',
+      checklist:['周辺成約事例を 3 件以上参照したか','道路付け / 用途地域を確認したか','強み / 弱み両面で整理されているか','売出価格と最低受諾価格が分離されているか'],
+      chatgptPrompt:'伊能忠敬（実地調査 / 数値）の観点で、以下の物件を分析してください。\n所在：（記入）\n構造 / 築年 / 面積：（記入）\n周辺事例：（記入）\n用途地域：（記入）\n\nアウトプット：相場レンジ + 強み 3 / 弱み 3 + 推奨売出価格。',
+      claudeInstruction:'物件分析を「強み / 弱み / 相場レンジ / 推奨売出価格」の 4 ブロックで生成してください。',
+      aiMeetingTopic:'【伊能忠敬】物件「（物件名）」のエリア・査定分析',
+      memoryPrefillTitle:'伊能忠敬：エリア分析（物件名）',
+      memoryType:'operation_rule',memoryCategory:'業務フロー',
+      fullActivationCondition:'物件 / 成約事例テーブル連携、査定書自動生成'
+    },
+    'ピーター・ドラッカー':{
+      category:'sales',
+      mission:'KPI マネジメント診断',
+      scenes:'KPI 設計 / 成果指標 / 先行指標 / 担当者別目標 を見直すとき',
+      inputs:'現状 KPI / 目標値 / 達成率 / 担当者数 / 業務時間',
+      outputs:'成果指標と先行指標の整理 / 担当者別 KPI 改善案 / 廃止候補',
+      checklist:['成果指標と先行指標が分離されているか','測定可能 / 期限あり / 担当者割が明確か','「やらないこと」が決まっているか','KPI が増えすぎていないか（10 個以内）'],
+      chatgptPrompt:'ドラッカー（マネジメント / 成果）の観点で、以下の KPI 体系を診断してください。\n現状 KPI：（記入）\n目標 / 達成率：（記入）\n担当者：（記入）\n\nアウトプット：成果 / 先行 / 廃止候補に分類 + 担当別改善案。',
+      claudeInstruction:'KPI を「成果 / 先行 / 廃止候補」に分類し、各担当者の改善案を 1 行で生成してください。',
+      aiMeetingTopic:'【ドラッカー】（期間）の KPI マネジメント診断',
+      memoryPrefillTitle:'ドラッカー：KPI 診断（期間）',
+      memoryType:'kpi_alert',memoryCategory:'KPI警報',
+      fullActivationCondition:'KPI テーブルとの自動連携、月次自動診断'
+    },
+    '吉田松陰':{
+      category:'sales',
+      mission:'社員育成ロープレ',
+      scenes:'新人教育 / ロープレ / フィードバック / 教育テーマ設定',
+      inputs:'対象社員 / 弱点 / 強み / 直近の失敗事例 / 育成期間',
+      outputs:'ロープレ設問 3-5 / フィードバック観点 / 次の課題',
+      checklist:['本人の弱点と一致しているか','失敗事例から学ばせる設問か','成功体験を 1 つ確実に作れる設計か','次の課題が決まっているか'],
+      chatgptPrompt:'吉田松陰（教育 / 志）の観点で、以下の社員へのロープレを設計してください。\n対象：（記入）\n弱点 / 強み：（記入）\n失敗事例：（記入）\n育成期間：（記入）\n\nアウトプット：ロープレ設問 5 + フィードバック観点 + 次の課題。',
+      claudeInstruction:'社員育成ロープレの設問 5 つとフィードバック観点を生成してください。本人の弱点に直結する設問にしてください。',
+      aiMeetingTopic:'【吉田松陰】社員「（イニシャル）」の育成ロープレ設計',
+      memoryPrefillTitle:'吉田松陰：育成ロープレ（社員イニシャル）',
+      memoryType:'staff_growth',memoryCategory:'業務フロー',
+      fullActivationCondition:'社員別育成履歴 DB 連携、月次育成レビュー自動生成'
+    },
+    'ナイチンゲール':{
+      category:'sales',
+      mission:'顧客ケア追客',
+      scenes:'長期追客 / 不安解消 / 寄り添い文面 / クレーム後フォロー',
+      inputs:'顧客属性（一般化）/ 不安要素 / 接触履歴 / 検討期間',
+      outputs:'寄り添い LINE 文面 / 不安解消トーク / 長期追客スケジュール',
+      checklist:['押し売り感がないか','顧客の不安を言語化しているか','行動を強制していないか','長期で関係を維持できる頻度か'],
+      chatgptPrompt:'ナイチンゲール（ケア / 寄り添い）の観点で、以下の顧客への寄り添い文面を作ってください。\n属性（一般化）：（記入）\n不安：（記入）\n接触履歴：（記入）\n\nアウトプット：LINE 文面 + 不安解消トーク + 追客スケジュール。',
+      claudeInstruction:'長期追客の LINE / SMS / メール文面を生成してください。押し売り感を排除し、顧客の不安を言語化してください。',
+      aiMeetingTopic:'【ナイチンゲール】顧客「（属性）」への寄り添い追客プラン',
+      memoryPrefillTitle:'ナイチンゲール：寄り添い追客（属性）',
+      memoryType:'sales_pattern',memoryCategory:'成功ログ',
+      fullActivationCondition:'顧客テーブルとの DB 連携、自動追客リマインド'
+    },
+    // 制作（design）
+    'レオナルド・ダ・ヴィンチ':{
+      category:'design',
+      mission:'図解化・資料構成',
+      scenes:'営業資料 / 社内資料 / 説明図 / プレゼン構成を作るとき',
+      inputs:'伝えたいメッセージ / 対象（顧客 / 社員）/ 媒体（紙 / 画面 / 口頭）',
+      outputs:'構成案 3 通り / 図解アイデア / スライド順序 / 文字 vs 図のバランス',
+      checklist:['対象が一目で理解できるか','文字過多になっていないか','1 スライド 1 メッセージか','図と文字のバランスが取れているか'],
+      chatgptPrompt:'ダ・ヴィンチ（観察 / 構成）の観点で、以下の資料構成を立案してください。\nメッセージ：（記入）\n対象：（記入）\n媒体：（記入）\n\nアウトプット：構成案 3 通り + 図解アイデア + スライド順序。',
+      claudeInstruction:'資料の構成案を 3 通り生成。各案にスライド順序と図解アイデアを 3 つ付記してください。',
+      aiMeetingTopic:'【ダ・ヴィンチ】資料「（テーマ）」の構成案検討',
+      memoryPrefillTitle:'ダ・ヴィンチ：資料構成（テーマ）',
+      memoryType:'operation_rule',memoryCategory:'業務フロー',
+      fullActivationCondition:'資料テンプレ DB 連携、自動図解生成'
+    },
+    '糸井重里':{
+      category:'design',
+      mission:'コピー・DM 作成',
+      scenes:'チラシ見出し / SMS / LINE / DM / 広告コピーを作るとき',
+      inputs:'伝えたい内容 / 対象 / 媒体 / 文字数制限',
+      outputs:'コピー案 5-10 / 最終 1 案 + 理由 / 心が動く理由',
+      checklist:['対象に「これは自分のことだ」と思わせられるか','広告臭が強すぎないか','文字数制限を守っているか','心が動く理由を一言で言えるか'],
+      chatgptPrompt:'糸井重里（コピー / 言葉）の観点で、以下の内容のコピーを作ってください。\n内容：（記入）\n対象：（記入）\n媒体：（記入）\n文字数：（記入）\n\nアウトプット：コピー案 10 + 最終 1 案 + 心が動く理由。',
+      claudeInstruction:'指定の文字数で、対象に響くコピーを 10 案生成。最終 1 案を選び、心が動く理由を 1 行で。',
+      aiMeetingTopic:'【糸井重里】媒体「（媒体）」のコピー検討',
+      memoryPrefillTitle:'糸井重里：コピー案（媒体）',
+      memoryType:'sales_pattern',memoryCategory:'成功ログ',
+      fullActivationCondition:'広告効果との連携、コピー A/B 自動テスト'
+    },
+    'ジェフ・ベゾス':{
+      category:'design',
+      mission:'Web 導線レビュー',
+      scenes:'HP / LP / 問い合わせフォーム / 物件詳細ページの導線を点検するとき',
+      inputs:'対象 URL / 想定ユーザー / 達成したい行動 / 現状の離脱率',
+      outputs:'導線の問題点 / 顧客中心観点 / 改善案 3 / A/B テスト案',
+      checklist:['顧客中心（Customer Obsession）で見直されているか','3 クリック以内に目的に到達できるか','フォームの離脱要因がないか','モバイル前提か'],
+      chatgptPrompt:'ベゾス（顧客中心 / Web）の観点で、以下の Web 導線を点検してください。\n対象 URL：（記入）\n想定ユーザー：（記入）\n達成行動：（記入）\n離脱率：（記入）\n\nアウトプット：問題点 + 改善案 3 + A/B テスト案。',
+      claudeInstruction:'Web 導線の問題点を 3 つ挙げ、改善案 3 つと A/B テスト案を 1 つ生成してください。',
+      aiMeetingTopic:'【ベゾス】「（ページ名）」の導線レビュー / 顧客中心改善',
+      memoryPrefillTitle:'ベゾス：Web 導線レビュー（ページ名）',
+      memoryType:'operation_rule',memoryCategory:'業務フロー',
+      fullActivationCondition:'GA / 計測ツール連携、自動 A/B テスト'
+    },
+    '大岡越前':{
+      category:'design',
+      mission:'クレーム初動裁き',
+      scenes:'クレーム発生時の事実整理 / 謝罪 / 説明 / 対応順序 / 炎上防止',
+      inputs:'クレーム内容 / 発生時刻 / 関係者 / 顧客の感情度合 / 過失の有無',
+      outputs:'事実整理マトリクス / 謝罪文 / 説明文 / 対応順序 / エスカレ判断',
+      checklist:['事実 / 推測 / 感情を分離できているか','謝罪と説明の順序が正しいか','過失の有無を冷静に判定したか','エスカレ（弁護士 / 上長）の判定基準を満たすか'],
+      chatgptPrompt:'大岡越前（公正な裁き）の観点で、以下のクレームへの初動を組み立ててください。\nクレーム：（記入）\n発生時刻：（記入）\n関係者：（記入）\n過失：（記入）\n\nアウトプット：事実整理 + 謝罪文 + 説明文 + 対応順序 + エスカレ判断。',
+      claudeInstruction:'クレーム初動の謝罪文と説明文を生成。対応順序を 5 ステップで列挙し、エスカレ判断基準を 1 行で。',
+      aiMeetingTopic:'【大岡越前】クレーム「（要約）」への初動裁き',
+      memoryPrefillTitle:'大岡越前：クレーム初動（要約）',
+      memoryType:'risk_warning',memoryCategory:'再発防止',
+      fullActivationCondition:'クレーム履歴 DB 連携、自動エスカレ通知'
+    },
+    'ジョルジオ・アルマーニ':{
+      category:'design',
+      mission:'ブランド品質チェック',
+      scenes:'広告 / 物件写真 / 接客マニュアル / 制服 / 名刺 等のブランド統一感確認',
+      inputs:'対象物 / 用途 / ターゲット層 / 競合のブランド像',
+      outputs:'統一感スコア / 上質感の足りない点 / 修正提案 3',
+      checklist:['色 / フォント / トーン が統一されているか','上質感が伝わるか','安っぽい印象を与える要素はないか','競合と差別化できているか'],
+      chatgptPrompt:'アルマーニ（ブランド / 上質感）の観点で、以下のブランド要素を点検してください。\n対象：（記入）\n用途：（記入）\nターゲット：（記入）\n\nアウトプット：統一感スコア + 改善点 3 + 修正提案。',
+      claudeInstruction:'ブランド要素の統一感を 10 点満点で採点し、改善点 3 つを 1 行ずつ生成してください。',
+      aiMeetingTopic:'【アルマーニ】「（対象）」のブランド品質チェック',
+      memoryPrefillTitle:'アルマーニ：ブランドチェック（対象）',
+      memoryType:'operation_rule',memoryCategory:'業務フロー',
+      fullActivationCondition:'ブランドガイドライン DB 連携、自動チェック'
+    },
+    '葛飾北斎':{
+      category:'design',
+      mission:'写真構図チェック',
+      scenes:'物件写真 / ポータル掲載写真 / SNS 画像の構図 / 光 / 印象を点検',
+      inputs:'写真 URL or 説明 / 撮影機材 / 時間帯 / 用途（外観 / 内観 / 設備）',
+      outputs:'構図改善 3 / 光の方向 / 撮り直し優先度 / トリミング案',
+      checklist:['三分割構図か / 真ん中構図か明確か','光の方向（順光 / 逆光 / サイド）が適切か','広角の歪みが残っていないか','物件の魅力が一目で伝わるか'],
+      chatgptPrompt:'北斎（構図 / 光）の観点で、以下の物件写真の構図を点検してください。\n対象：（記入）\n用途：（記入）\n撮影条件：（記入）\n\nアウトプット：構図改善 3 + 光の方向 + 撮り直し優先度。',
+      claudeInstruction:'写真構図の改善案を 3 つ、撮り直し優先度を 1-5 で評価してください。',
+      aiMeetingTopic:'【北斎】物件「（物件名）」の写真構図チェック',
+      memoryPrefillTitle:'北斎：写真構図（物件名）',
+      memoryType:'operation_rule',memoryCategory:'業務フロー',
+      fullActivationCondition:'物件写真 DB 連携、自動構図解析'
+    },
+    // 開発（dev）
+    'ニコラ・テスラ':{
+      category:'dev',
+      mission:'自動化アイデア出し',
+      scenes:'手作業を AI / RPA / スクリプトで削減したいとき',
+      inputs:'対象業務 / 現状所要時間 / 頻度 / 担当者数 / 関連システム',
+      outputs:'自動化候補 3 / 所要削減見込み / 実装難易度 / 優先順位',
+      checklist:['手作業を分解できているか','自動化の対象に「判断」が含まれていないか（含む場合は AI）','投資対効果が合うか','失敗時のリカバリが設計されているか'],
+      chatgptPrompt:'テスラ（電化 / 自動化）の観点で、以下の業務の自動化候補を出してください。\n業務：（記入）\n所要時間 / 頻度：（記入）\n担当：（記入）\n\nアウトプット：自動化候補 3 + 削減見込み + 実装難易度。',
+      claudeInstruction:'業務の自動化候補を 3 案出し、各案の実装難易度 / 削減時間 / 優先順位を付記してください。',
+      aiMeetingTopic:'【テスラ】業務「（業務名）」の自動化候補検討',
+      memoryPrefillTitle:'テスラ：自動化候補（業務名）',
+      memoryType:'operation_rule',memoryCategory:'業務フロー',
+      fullActivationCondition:'業務時間ログ DB 連携、ROI 自動算出'
+    },
+    'アイザック・ニュートン':{
+      category:'dev',
+      mission:'数字・原理チェック',
+      scenes:'KPI 計算式 / 査定ロジック / 給与計算 / 統計数値の根拠確認',
+      inputs:'計算式 / 入力値 / 期待値 / 異常値の例',
+      outputs:'計算正誤 / 異常検知ルール / 単位 / 境界条件',
+      checklist:['式が数学的に正しいか','単位が揃っているか','境界条件（ゼロ / マイナス / 巨大値）を扱えるか','異常値のフラグ条件が明確か'],
+      chatgptPrompt:'ニュートン（数学 / 原理）の観点で、以下の計算式を検証してください。\n計算式：（記入）\n入力値：（記入）\n期待値：（記入）\n\nアウトプット：正誤 + 単位 + 境界条件 + 異常検知ルール。',
+      claudeInstruction:'計算式の正誤検証と異常検知ルール 3 つを生成してください。境界条件を必ず確認。',
+      aiMeetingTopic:'【ニュートン】「（指標名）」の計算式 / 原理チェック',
+      memoryPrefillTitle:'ニュートン：計算式チェック（指標名）',
+      memoryType:'bug_cause',memoryCategory:'不具合原因',
+      fullActivationCondition:'KPI 式 DB 連携、自動異常検知'
+    },
+    '松下幸之助':{
+      category:'dev',
+      mission:'経営判断の道理チェック',
+      scenes:'経営判断 / 投資判断 / 採用判断 / 撤退判断 を商売の道理で点検',
+      inputs:'判断したい内容 / 関わる人 / 投じるリソース / 期待リターン',
+      outputs:'道理整合性 / 人を活かす視点 / 長期視点 / 判断後の動き',
+      checklist:['人を活かす判断か','商売の道理に反していないか','短期と長期で矛盾しないか','判断後の動きが具体的か'],
+      chatgptPrompt:'松下幸之助（経営の道理）の観点で、以下の判断を点検してください。\n判断：（記入）\n人 / リソース：（記入）\n期待リターン：（記入）\n\nアウトプット：道理整合性 + 人を活かす視点 + 長期視点 + 判断後の動き。',
+      claudeInstruction:'経営判断を「人を活かす / 道理 / 長期」の 3 軸で点検し、判断後の動きを 3 ステップで生成。',
+      aiMeetingTopic:'【松下幸之助】判断「（要約）」の道理チェック',
+      memoryPrefillTitle:'松下幸之助：判断レビュー（要約）',
+      memoryType:'boss_decision',memoryCategory:'ボス判断',
+      fullActivationCondition:'判断履歴 DB 連携、月次経営レビュー'
+    },
+    // 専属秘書（personal-sec）
+    '加藤鷹':{
+      category:'personal-sec',
+      mission:'杤岡店長タスク詰め',
+      scenes:'杤岡店長の今日 / 今週のタスク確認 / 未完了 / 部下フォロー / 小言',
+      inputs:'対象期間 / 抱えタスク / 未完了 / 部下からの相談',
+      outputs:'今日の TOP3 / 未完了督促 / 部下フォロー提案 / 小言',
+      checklist:['店長判断とボス判断の境界が明確か','部下フォローが先送りされていないか','未完了 3 日以上はないか','店長自身の負荷が破綻していないか'],
+      chatgptPrompt:'加藤鷹（杤岡店長専属秘書）の観点で、店長の今日を整理してください。\n抱え：（記入）\n未完了：（記入）\n部下相談：（記入）\n\nアウトプット：TOP3 + 未完了督促 + 部下フォロー + 小言 1 言。',
+      claudeInstruction:'杤岡店長の今日のタスクを整理し、TOP3 / 未完了督促 / 部下フォロー / 小言を生成してください。',
+      aiMeetingTopic:'【加藤鷹】杤岡店長のタスク詰め（日付）',
+      memoryPrefillTitle:'加藤鷹：杤岡店長タスク（日付）',
+      memoryType:'staff_growth',memoryCategory:'業務フロー',
+      fullActivationCondition:'店長専用ダッシュボード、毎朝自動整理'
+    },
+    '三上悠亜':{
+      category:'personal-sec',
+      mission:'安見タスク詰め',
+      scenes:'安見の今日のタスク / 追客状況 / 手抜き防止 / 小言',
+      inputs:'対象期間 / 抱え案件 / 追客状況 / 反響対応漏れ',
+      outputs:'今日の TOP3 / 追客督促 / 手抜き指摘 / 小言',
+      checklist:['追客 3 日以上未対応はないか','反響対応漏れはないか','報告サボりはないか','本人の体調 / モチベーションは大丈夫か'],
+      chatgptPrompt:'三上悠亜（安見専属秘書）の観点で、安見の今日を整理してください。\n抱え案件：（記入）\n追客状況：（記入）\n対応漏れ：（記入）\n\nアウトプット：TOP3 + 督促 + 手抜き指摘 + 小言 1 言。',
+      claudeInstruction:'安見の今日のタスクを整理し、TOP3 / 督促 / 手抜き指摘 / 小言を生成してください。',
+      aiMeetingTopic:'【三上悠亜】安見のタスク詰め（日付）',
+      memoryPrefillTitle:'三上悠亜：安見タスク（日付）',
+      memoryType:'staff_growth',memoryCategory:'業務フロー',
+      fullActivationCondition:'担当者専用ダッシュボード、追客 DB 連携'
+    },
+    '紅音ほたる':{
+      category:'personal-sec',
+      mission:'佐野タスク詰め',
+      scenes:'佐野の今日のタスク / 反響対応 / 期限確認 / 小言',
+      inputs:'対象期間 / 抱え案件 / 反響対応 / 期限切れ案件',
+      outputs:'今日の TOP3 / 反響督促 / 期限切れ警告 / 小言',
+      checklist:['反響受信から 5 分以内に動けたか','期限切れ案件はないか','長期追客のリズムを守れているか','顧客対応の引き継ぎが整理されているか'],
+      chatgptPrompt:'紅音ほたる（佐野専属秘書）の観点で、佐野の今日を整理してください。\n抱え：（記入）\n反響：（記入）\n期限：（記入）\n\nアウトプット：TOP3 + 督促 + 期限警告 + 小言 1 言。',
+      claudeInstruction:'佐野の今日のタスクを整理し、TOP3 / 反響督促 / 期限警告 / 小言を生成してください。',
+      aiMeetingTopic:'【紅音ほたる】佐野のタスク詰め（日付）',
+      memoryPrefillTitle:'紅音ほたる：佐野タスク（日付）',
+      memoryType:'staff_growth',memoryCategory:'業務フロー',
+      fullActivationCondition:'担当者専用ダッシュボード、反響受信時の自動アラート'
+    },
+    '木村拓哉':{
+      category:'personal-sec',
+      mission:'伴事務タスク整理',
+      scenes:'伴の事務タスク / 書類確認 / 確認漏れ / サポート業務整理',
+      inputs:'対象期間 / 事務タスク / 書類確認待ち / 期限',
+      outputs:'今日の事務 TOP3 / 書類確認督促 / 確認漏れ警告 / サポート整理',
+      checklist:['書類の押印 / 提出期限を守れているか','確認漏れの仕組みがあるか','サポート業務が滞っていないか','本人の事務負荷バランス'],
+      chatgptPrompt:'木村拓哉（伴専属秘書）の観点で、伴の今日を整理してください。\n事務タスク：（記入）\n書類：（記入）\n期限：（記入）\n\nアウトプット：事務 TOP3 + 督促 + 確認漏れ警告 + サポート整理。',
+      claudeInstruction:'伴の事務タスクを整理し、TOP3 / 督促 / 確認漏れ警告 / サポート整理を生成してください。',
+      aiMeetingTopic:'【木村拓哉】伴の事務タスク整理（日付）',
+      memoryPrefillTitle:'木村拓哉：伴事務（日付）',
+      memoryType:'operation_rule',memoryCategory:'業務フロー',
+      fullActivationCondition:'事務タスク DB 連携、書類期限アラート'
+    }
+  };
+  window._P504_ACTIVATION_PROFILES=PROF;
+
+  // ===== AI 取得（packet 502 の _p502_getAllAIs と整合）=====
+  function p504_getAIByName(name){
+    try{
+      if(typeof window._p502_getAllAIs!=='function')return null;
+      const all=window._p502_getAllAIs();
+      return all.find(function(m){return m.name===name;}) || null;
+    }catch(e){return null;}
+  }
+
+  // ===== セクション描画 =====
+  const CATEGORY_LABEL={
+    cmd:'⚔ 司令部',
+    sec:'🧂 秘書室',
+    sales:'📈 営業',
+    design:'🎨 制作',
+    dev:'💻 開発',
+    'personal-sec':'💼 専属秘書'
+  };
+  function _p504_renderSection(){
+    try{
+      const root=document.getElementById('p504-category-list');
+      if(!root)return;
+      const cnt=document.getElementById('p504-count');
+      const names=Object.keys(PROF);
+      if(cnt)cnt.textContent='（'+names.length+' 名 / MVP 起動済み）';
+      const byCat={};
+      names.forEach(function(n){
+        const p=PROF[n];
+        const c=p.category||'other';
+        if(!byCat[c])byCat[c]=[];
+        byCat[c].push({name:n, profile:p});
+      });
+      const order=['cmd','sec','sales','design','dev','personal-sec'];
+      let html='';
+      order.forEach(function(c){
+        if(!byCat[c])return;
+        const list=byCat[c];
+        html+='<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:9px 11px">';
+        html+='<div style="font-weight:800;color:#15803d;font-size:13px;margin-bottom:6px">'+E(CATEGORY_LABEL[c]||c)+'（'+list.length+' 名）</div>';
+        html+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:6px">';
+        html+=list.map(function(item){
+          const m=p504_getAIByName(item.name);
+          const icon=(m&&m.icon)||'🤖';
+          return '<div style="background:#fff;border:1px solid #bbf7d0;border-radius:6px;padding:7px 9px;display:flex;flex-direction:column;gap:3px">'
+            +'<div style="display:flex;align-items:center;gap:6px"><span style="font-size:16px">'+E(icon)+'</span><b style="font-size:12px;color:#0a3d7c">'+E(item.name)+'</b></div>'
+            +'<div style="font-size:10.5px;color:var(--t2);line-height:1.45"><b>ミッション：</b>'+E(item.profile.mission)+'</div>'
+            +'<button type="button" class="p504-open-btn" data-p504name="'+E(item.name)+'" style="margin-top:3px;padding:5px 8px;border-radius:6px;border:1.5px solid #16a34a;background:#16a34a;color:#fff;font-size:10.5px;font-weight:700;cursor:pointer;min-height:30px">🚀 専用導線を開く</button>'
+          +'</div>';
+        }).join('');
+        html+='</div></div>';
+      });
+      root.innerHTML=html;
+      // bind
+      root.querySelectorAll('.p504-open-btn').forEach(function(b){
+        if(b.dataset.p504Bound==='1')return;
+        b.dataset.p504Bound='1';
+        b.addEventListener('click',function(){
+          const name=b.getAttribute('data-p504name');
+          _p504_openActivationModal(null, name);
+        });
+      });
+    }catch(e){try{console.warn('[packet 504 renderSection]',e&&e.message);}catch(_){}}
+  }
+  window._p504_renderSection=_p504_renderSection;
+
+  // ===== モーダル =====
+  let _p504_current={name:'', profile:null, member:null};
+
+  function _p504_resolve(aiId, aiName){
+    try{
+      let prof=null, name=aiName||'';
+      if(name && PROF[name])prof=PROF[name];
+      if(!prof && aiId){
+        // id から name を解決
+        const all=(typeof window._p502_getAllAIs==='function')?window._p502_getAllAIs():[];
+        const m=all.find(function(x){return x.id===aiId;});
+        if(m){name=m.name; if(PROF[name])prof=PROF[name];}
+      }
+      if(!prof)return null;
+      const m=p504_getAIByName(name);
+      return {name:name, profile:prof, member:m||{name:name}};
+    }catch(e){return null;}
+  }
+
+  function _p504_openActivationModal(aiId, aiName){
+    try{
+      const r=_p504_resolve(aiId, aiName);
+      if(!r){alert('packet 504 の activation profile が見つかりません: '+(aiName||aiId||''));return;}
+      _p504_current=r;
+      const m=r.member, p=r.profile;
+      const t=document.getElementById('p504-act-title');
+      const s=document.getElementById('p504-act-sub');
+      const b=document.getElementById('p504-act-body');
+      const res=document.getElementById('p504-act-result');
+      if(t)t.textContent=(m.icon||'🤖')+' '+r.name+'：'+p.mission;
+      if(s)s.innerHTML='状態：<b style="color:#16a34a">MVP起動済み</b> / 役割：'+E(m.role||'-')+' / 使える画面：'+E(m.screens||'-')+' / 担当業務：'+E(m.expert||m.feature||'-');
+      if(res){res.style.display='none';res.textContent='';}
+      // body 構造
+      const checklistHtml=(p.checklist||[]).map(function(c){return '<li>'+E(c)+'</li>';}).join('');
+      const html=''
+        +'<div style="display:flex;flex-direction:column;gap:10px">'
+          +'<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:6px;padding:8px 10px">'
+            +'<div style="font-weight:800;color:#15803d;font-size:12px;margin-bottom:3px">🎯 ミッション</div>'
+            +'<div style="font-size:12px;color:var(--t1);line-height:1.6">'+E(p.mission)+'</div>'
+          +'</div>'
+          +'<div style="background:#fff;border:1px solid var(--bo);border-radius:6px;padding:8px 10px">'
+            +'<div style="font-weight:800;color:#0a3d7c;font-size:12px;margin-bottom:3px">📍 使う場面</div>'
+            +'<div style="font-size:12px;color:var(--t1);line-height:1.6">'+E(p.scenes)+'</div>'
+          +'</div>'
+          +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'
+            +'<div style="background:#fff;border:1px solid var(--bo);border-radius:6px;padding:8px 10px">'
+              +'<div style="font-weight:800;color:#0a3d7c;font-size:12px;margin-bottom:3px">📥 入力すべき情報</div>'
+              +'<div style="font-size:11.5px;color:var(--t1);line-height:1.6">'+E(p.inputs)+'</div>'
+            +'</div>'
+            +'<div style="background:#fff;border:1px solid var(--bo);border-radius:6px;padding:8px 10px">'
+              +'<div style="font-weight:800;color:#0a3d7c;font-size:12px;margin-bottom:3px">📤 出力されるもの</div>'
+              +'<div style="font-size:11.5px;color:var(--t1);line-height:1.6">'+E(p.outputs)+'</div>'
+            +'</div>'
+          +'</div>'
+          +'<div style="background:#fff;border:1px solid var(--bo);border-radius:6px;padding:8px 10px">'
+            +'<div style="font-weight:800;color:#0a3d7c;font-size:12px;margin-bottom:3px">✅ チェックリスト</div>'
+            +'<ul style="font-size:11.5px;color:var(--t1);line-height:1.7;margin:0;padding-left:18px">'+checklistHtml+'</ul>'
+          +'</div>'
+          +'<div style="background:#eff6ff;border:1px solid #93c5fd;border-radius:6px;padding:8px 10px">'
+            +'<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:3px">'
+              +'<div style="font-weight:800;color:#1e40af;font-size:12px">💬 ChatGPT 相談文</div>'
+              +'<button type="button" class="p504-copy-section" data-p504section="chatgpt" style="padding:3px 8px;border-radius:5px;border:1px solid #1e40af;background:#fff;color:#1e40af;font-size:10px;font-weight:700;cursor:pointer">📋 コピー</button>'
+            +'</div>'
+            +'<pre style="font-size:11px;color:var(--t1);line-height:1.6;margin:0;white-space:pre-wrap;word-break:break-word;font-family:inherit">'+E(p.chatgptPrompt)+'</pre>'
+          +'</div>'
+          +'<div style="background:#f5f3ff;border:1px solid #c4b5fd;border-radius:6px;padding:8px 10px">'
+            +'<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:3px">'
+              +'<div style="font-weight:800;color:#5b21b6;font-size:12px">🤖 Claude Code 指示文</div>'
+              +'<button type="button" class="p504-copy-section" data-p504section="claude" style="padding:3px 8px;border-radius:5px;border:1px solid #5b21b6;background:#fff;color:#5b21b6;font-size:10px;font-weight:700;cursor:pointer">📋 コピー</button>'
+            +'</div>'
+            +'<pre style="font-size:11px;color:var(--t1);line-height:1.6;margin:0;white-space:pre-wrap;word-break:break-word;font-family:inherit">'+E(p.claudeInstruction)+'</pre>'
+          +'</div>'
+          +'<div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:6px;padding:8px 10px">'
+            +'<div style="font-weight:800;color:#92400e;font-size:12px;margin-bottom:3px">⏭ 本格稼働条件</div>'
+            +'<div style="font-size:11.5px;color:var(--t1);line-height:1.6">'+E(p.fullActivationCondition||'未定義')+'</div>'
+          +'</div>'
+        +'</div>';
+      if(b)b.innerHTML=html;
+      // section copy bind
+      const body=document.getElementById('p504-act-body');
+      if(body){
+        body.querySelectorAll('.p504-copy-section').forEach(function(btn){
+          if(btn.dataset.p504Bound==='1')return;
+          btn.dataset.p504Bound='1';
+          btn.addEventListener('click',function(){
+            const which=btn.getAttribute('data-p504section');
+            const text=which==='chatgpt'?p.chatgptPrompt:p.claudeInstruction;
+            _p504_copyText(text, btn);
+          });
+        });
+      }
+      const mod=document.getElementById('p504-activation-modal');
+      if(mod)mod.style.display='flex';
+    }catch(e){try{console.warn('[packet 504 openActivationModal]',e&&e.message);}catch(_){}}
+  }
+  window._p504_openActivationModal=_p504_openActivationModal;
+
+  function _p504_closeActivationModal(){
+    const mod=document.getElementById('p504-activation-modal');
+    if(mod)mod.style.display='none';
+  }
+  window._p504_closeActivationModal=_p504_closeActivationModal;
+
+  function _p504_copyText(text, btn){
+    try{
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(text).then(function(){
+          if(btn){const orig=btn.textContent;btn.textContent='✅ コピー済';setTimeout(function(){try{btn.textContent=orig;}catch(_){}},1400);}
+        });
+      }
+    }catch(e){try{console.warn('[packet 504 copyText]',e&&e.message);}catch(_){}}
+  }
+
+  function _p504_buildAllText(){
+    const c=_p504_current;
+    if(!c||!c.profile)return '';
+    const p=c.profile;
+    const cl=(p.checklist||[]).map(function(x){return '- '+x;}).join('\n');
+    return ''
+      +'【'+c.name+'：'+p.mission+'】\n\n'
+      +'📍 使う場面：'+p.scenes+'\n\n'
+      +'📥 入力すべき情報：'+p.inputs+'\n\n'
+      +'📤 出力されるもの：'+p.outputs+'\n\n'
+      +'✅ チェックリスト：\n'+cl+'\n\n'
+      +'💬 ChatGPT 相談文：\n'+p.chatgptPrompt+'\n\n'
+      +'🤖 Claude Code 指示文：\n'+p.claudeInstruction+'\n\n'
+      +'⏭ 本格稼働条件：'+(p.fullActivationCondition||'未定義');
+  }
+
+  function _p504_copyAll(){
+    try{
+      const text=_p504_buildAllText();
+      const r=document.getElementById('p504-act-result');
+      if(!text){if(r){r.style.display='block';r.style.background='#fee2e2';r.style.color='#991b1b';r.textContent='❌ コピー対象なし';}return;}
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(text).then(function(){
+          if(r){r.style.display='block';r.style.background='#d1fae5';r.style.color='#065f46';r.textContent='✅ 全文コピーしました（'+text.length+' chars）';}
+        },function(){
+          if(r){r.style.display='block';r.style.background='#fee2e2';r.style.color='#991b1b';r.textContent='❌ コピー失敗';}
+        });
+      }else{
+        if(r){r.style.display='block';r.style.background='#fee2e2';r.style.color='#991b1b';r.textContent='❌ navigator.clipboard 利用不可';}
+      }
+    }catch(e){try{console.warn('[packet 504 copyAll]',e&&e.message);}catch(_){}}
+  }
+
+  function _p504_sendToAITeam(){
+    try{
+      const c=_p504_current;
+      if(!c||!c.profile)return;
+      const topic=c.profile.aiMeetingTopic||(c.name+'：'+c.profile.mission);
+      // AI 会議ページの議題欄に転記
+      _p504_closeActivationModal();
+      try{if(typeof switchPage==='function')switchPage('aiteam');}catch(_){}
+      setTimeout(function(){
+        try{
+          const ta=document.getElementById('ai-team-topic');
+          if(ta){
+            ta.value=topic;
+            ta.focus();
+            try{ta.scrollIntoView({behavior:'smooth',block:'center'});}catch(_){}
+          }
+        }catch(_){}
+      },80);
+    }catch(e){try{console.warn('[packet 504 sendToAITeam]',e&&e.message);}catch(_){}}
+  }
+
+  function _p504_sendToMemory(){
+    try{
+      const c=_p504_current;
+      if(!c||!c.profile)return;
+      const p=c.profile;
+      const candidate={
+        memoryType: p.memoryType||'discussion_log',
+        category: p.memoryCategory||'議論ログ',
+        title: (p.memoryPrefillTitle || (c.name+'：'+p.mission)).slice(0,80),
+        content: _p504_buildAllText(),
+        cause: '',
+        lesson: '',
+        nextAction: p.fullActivationCondition||'',
+        bossDecision: '',
+        relatedPacket: '504',
+        relatedTarget: c.name,
+        riskLevel: 'GREEN',
+        importance: 'mid',
+        recurrenceRisk: 'mid',
+        tags: 'packet-504,'+c.profile.category+','+c.name,
+        unresolved: false,
+        needsManagerFollowup: false,
+        sourceType: 'manual'
+      };
+      try{
+        // packet 500 の script-scope _p500_pendingCandidate に積む
+        _p500_pendingCandidate=candidate;
+      }catch(_){}
+      const r=document.getElementById('p504-act-result');
+      if(r){r.style.display='block';r.style.background='#ede9fe';r.style.color='#5b21b6';r.textContent='🧠 記憶庫ページに転記します...';}
+      _p504_closeActivationModal();
+      try{if(typeof switchPage==='function')switchPage('memory');}catch(_){}
+    }catch(e){try{console.warn('[packet 504 sendToMemory]',e&&e.message);}catch(_){}}
+  }
+
+  // ===== bind global modal buttons =====
+  function _p504_bindGlobal(){
+    try{
+      const closeBtn=document.getElementById('p504-act-close');
+      const cancelBtn=document.getElementById('p504-act-cancel');
+      const overlay=document.getElementById('p504-activation-modal');
+      const copyAllBtn=document.getElementById('p504-act-copy-all');
+      const aiteamBtn=document.getElementById('p504-act-toaiteam');
+      const memBtn=document.getElementById('p504-act-tomemory');
+      [closeBtn, cancelBtn].forEach(function(b){
+        if(!b||b.dataset.p504Bound==='1')return;
+        b.dataset.p504Bound='1';
+        b.addEventListener('click', _p504_closeActivationModal);
+      });
+      if(overlay && overlay.dataset.p504Bound!=='1'){
+        overlay.dataset.p504Bound='1';
+        overlay.addEventListener('click',function(ev){if(ev.target===overlay)_p504_closeActivationModal();});
+      }
+      if(copyAllBtn && copyAllBtn.dataset.p504Bound!=='1'){
+        copyAllBtn.dataset.p504Bound='1';
+        copyAllBtn.addEventListener('click', _p504_copyAll);
+      }
+      if(aiteamBtn && aiteamBtn.dataset.p504Bound!=='1'){
+        aiteamBtn.dataset.p504Bound='1';
+        aiteamBtn.addEventListener('click', _p504_sendToAITeam);
+      }
+      if(memBtn && memBtn.dataset.p504Bound!=='1'){
+        memBtn.dataset.p504Bound='1';
+        memBtn.addEventListener('click', _p504_sendToMemory);
+      }
+    }catch(e){try{console.warn('[packet 504 bindGlobal]',e&&e.message);}catch(_){}}
+  }
+
+  // ===== renderAIStatusPage を非破壊で wrap =====
+  (function _p504_wrapRender(){
+    try{
+      const orig=window.renderAIStatusPage;
+      if(typeof orig!=='function')return;
+      window.renderAIStatusPage=function(){
+        try{orig.apply(this,arguments);}catch(_){}
+        try{_p504_renderSection();}catch(_){}
+        try{_p504_bindGlobal();}catch(_){}
+      };
+    }catch(e){try{console.warn('[packet 504 wrapRender]',e&&e.message);}catch(_){}}
+  })();
+
+})();
+// ==== ここまで packet 504 設計のみ AI 1 導線実働化 MVP ====
 </script>
 </body>
 </html>
