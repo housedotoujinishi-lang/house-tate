@@ -1889,6 +1889,16 @@ textarea.ai-team-input{resize:vertical;min-height:60px}
           <div>・次の段階：ボス承認後に SQL / RLS 設計を packet 509+ で実行候補</div>
         </div>
 
+        <!-- packet 510: DB 並行保存ステータス -->
+        <div id="p510-db-status-block" style="background:#f0f9ff;border:1px solid #93c5fd;border-radius:6px;padding:8px 10px;margin-bottom:8px;font-size:11px;line-height:1.7">
+          <div style="font-weight:800;color:#0a3d7c;margin-bottom:4px">🔄 DB 並行保存ステータス（packet 510）</div>
+          <div>・DB 並行保存：<b id="p510-status-label" style="color:#94a3b8">未試行</b></div>
+          <div>・最終 DB 保存結果：<b id="p510-result-label" style="color:#94a3b8">未実行</b></div>
+          <div>・最終 DB 保存時刻：<span id="p510-time-label" style="color:#666">-</span></div>
+          <div>・最終エラー概要：<span id="p510-error-label" style="color:#666">-</span></div>
+          <div style="font-size:10px;color:#0c4a6e;background:#e0f2fe;border:1px solid #bae6fd;border-radius:4px;padding:4px 7px;margin-top:5px;line-height:1.55">※ DB 保存は記憶登録時に自動で行われます。専用テストボタンはありません。INSERT のみ、UPDATE / DELETE は未実装。失敗しても in-memory 登録は成功扱い。</div>
+        </div>
+
         <!-- 診断ボタン 4 種 -->
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:6px;margin-bottom:8px">
           <button type="button" id="p508-diag-connection-btn" style="padding:9px 12px;border-radius:6px;border:1.5px solid #92400e;background:#fff;color:#92400e;font-size:11px;font-weight:700;cursor:pointer;min-height:38px">🔌 Supabase 接続状態を確認</button>
@@ -16299,6 +16309,236 @@ function _p500_buildCandidateFromPayload(payload){
 
 })();
 // ==== ここまで packet 509 jagai_memory SQL 最終レビュー + Supabase 手動実行ガイド ====
+
+// ═══════════════════════════════════════
+// packet 510: jagai_memory DB 並行保存 実装（v0.9.260）
+// 目的：記憶登録時に jagai_memory テーブルへも並行 INSERT する。
+// 既存の in-memory 保存は完全維持（packet 500 / 507 のフロー）。
+// 厳守：
+//   - INSERT のみ実装、UPDATE / DELETE は実装しない
+//   - SQL 実行なし、create / alter / drop table なし
+//   - RLS / Auth 変更なし
+//   - 失敗しても in-memory は成功扱い（throw しない）
+//   - console に記憶本文を出さない（HTTP status のみ）
+//   - 起動時の DB 読み込み復元は packet 511 以降
+// ═══════════════════════════════════════
+(function _p510_init(){
+  function E(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];});}
+
+  // ===== 状態管理（in-memory のみ、localStorage 保存しない）=====
+  window._p510_state = window._p510_state || {
+    saveStatus: '未試行',      // '未試行' | '有効' | '失敗中' | '未接続'
+    lastResult: '未実行',      // '未実行' | '成功' | '失敗'
+    lastTime: '',              // ISO string or '-'
+    lastErrorBrief: ''         // up to 200 chars, no body content
+  };
+
+  // ===== 短縮 ISO 時刻 =====
+  function _p510_nowShort(){
+    try{
+      const d=new Date();
+      const pad=function(n){return n<10?'0'+n:String(n);};
+      return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+' '+pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds());
+    }catch(e){return '';}
+  }
+
+  // ===== フィールドマッピング（in-memory memory object → jagai_memory row）=====
+  function _p510_mapMemoryToRow(m){
+    if(!m)return null;
+    let tags = m.tags;
+    if(tags == null) tags = [];
+    if(typeof tags === 'string'){
+      tags = tags.split(',').map(function(t){return t.trim();}).filter(Boolean);
+    }
+    if(!Array.isArray(tags)) tags = [];
+    // status 既定：unresolved なら 'open'、解決済なら 'resolved'
+    let status = 'open';
+    if(m.unresolved === false) status = 'resolved';
+    if(m.status) status = m.status;
+    // requires_boss_check / is_resolved 推定
+    const requires_boss_check = !!m.needsManagerFollowup || !!m.requiresBossCheck || !!m.bossCheck;
+    const is_resolved = (m.unresolved === false) || (m.is_resolved === true);
+    // created_by_uid
+    let created_by_uid = '';
+    try{
+      if(window.currentUser && currentUser.uid) created_by_uid = String(currentUser.uid);
+    }catch(_){}
+    return {
+      memory_type: String(m.memoryType || ''),
+      category: String(m.category || ''),
+      title: String(m.title || '').trim(),
+      summary: String(m.summary || ''),
+      detail: String(m.content || m.detail || ''),
+      source_type: String(m.sourceType || m.source_type || 'manual'),
+      source_page: String(m.sourcePage || m.source_page || 'page-memory'),
+      source_packet: String(m.relatedPacket || m.source_packet || ''),
+      related_ai: String(m.relatedAi || m.related_ai || ''),
+      related_staff: String(m.relatedStaff || m.related_staff || m.relatedTarget || ''),
+      related_task_id: String(m.relatedTaskId || m.related_task_id || ''),
+      related_report_id: String(m.relatedReportId || m.related_report_id || ''),
+      risk_level: String(m.riskLevel || m.risk_level || 'normal'),
+      importance_level: String(m.importance || m.importance_level || m.importanceLevel || 'normal'),
+      status: String(status),
+      tags: tags,
+      lessons: String(m.lesson || m.lessons || ''),
+      recurrence_prevention: String(m.cause || m.recurrence_prevention || m.recurrencePrevention || ''),
+      next_action: String(m.nextAction || m.next_action || ''),
+      requires_boss_check: requires_boss_check,
+      is_resolved: is_resolved,
+      created_by_uid: created_by_uid,
+      created_by_name: String(m.createdBy || m.created_by_name || '')
+    };
+  }
+
+  // ===== INSERT のみ（UPSERT ではない、merge-duplicates なし）=====
+  async function _p510_dbInsert(row){
+    if(typeof SB_URL === 'undefined' || typeof SB_KEY === 'undefined' || !SB_URL || !SB_KEY){
+      throw new Error('SB_URL/SB_KEY not configured');
+    }
+    const url = SB_URL + '/rest/v1/jagai_memory';
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: {
+        apikey: SB_KEY,
+        Authorization: 'Bearer ' + SB_KEY,
+        'Content-Type': 'application/json',
+        Prefer: 'return=representation'  // merge-duplicates なし = 純粋 INSERT
+      },
+      body: JSON.stringify(row)
+    });
+    if(!r.ok){
+      let errText = '';
+      try{ errText = await r.text(); }catch(_){}
+      // console には status のみ、body は出さない
+      try{console.warn('[packet 510 dbInsert] HTTP', r.status, r.statusText);}catch(_){}
+      const e = new Error('HTTP ' + r.status + ' ' + (r.statusText||'').slice(0,40) + (errText ? ' / '+errText.slice(0, 160) : ''));
+      e.status = r.status;
+      e.errText = errText;
+      throw e;
+    }
+    try{console.warn('[packet 510 dbInsert] HTTP', r.status, 'OK');}catch(_){}
+    try{ return await r.json(); }catch(_){ return null; }
+  }
+  window._p510_dbInsert = _p510_dbInsert;
+
+  // ===== UI 反映：バナーに DB 結果を追記 =====
+  function _p510_updateBannerForDB(result){
+    try{
+      const text = document.getElementById('p507-registered-text');
+      if(!text) return;
+      const banner = document.getElementById('p507-registered-banner');
+      // バナーが既に閉じられていれば何もしない
+      if(banner && banner.style.display === 'none') return;
+      const current = text.textContent || '';
+      if(current.indexOf('DB保存') >= 0) return;  // 既に追記済み
+      let append = '';
+      if(result === 'success') append = ' ／ ✅ DB保存も完了しました';
+      else if(result === 'failure') append = ' ／ ⚠ DB保存は失敗しました（画面登録は成功）';
+      else if(result === 'skipped') append = ' ／ DB保存は未接続です';
+      text.textContent = current + append;
+      // 失敗時は背景色を黄色寄りに変える
+      if(result === 'failure' && banner){
+        banner.style.background = '#fef3c7';
+        banner.style.borderColor = '#f59e0b';
+        // タイマーを 6 秒 → 10 秒に延長（既存タイマーがあれば再設定）
+        if(banner._p507_tid){ clearTimeout(banner._p507_tid); }
+        banner._p507_tid = setTimeout(function(){ try{banner.style.display='none';}catch(_){} }, 10000);
+      }
+    }catch(e){try{console.warn('[packet 510 updateBannerForDB]', e&&e.message);}catch(_){}}
+  }
+
+  // ===== UI 反映：診断カードの p510 status block =====
+  function _p510_updateDiagDisplay(){
+    try{
+      const s = window._p510_state;
+      const setText = function(id, txt, color){
+        const el = document.getElementById(id);
+        if(!el) return;
+        el.textContent = txt;
+        if(color) el.style.color = color;
+      };
+      // saveStatus 色分け
+      let statusColor = '#94a3b8';
+      if(s.saveStatus === '有効') statusColor = '#0d9e6e';
+      else if(s.saveStatus === '失敗中') statusColor = '#dc2626';
+      else if(s.saveStatus === '未接続') statusColor = '#b91c1c';
+      setText('p510-status-label', s.saveStatus, statusColor);
+      // lastResult 色分け
+      let resultColor = '#94a3b8';
+      if(s.lastResult === '成功') resultColor = '#0d9e6e';
+      else if(s.lastResult === '失敗') resultColor = '#dc2626';
+      setText('p510-result-label', s.lastResult, resultColor);
+      setText('p510-time-label', s.lastTime || '-');
+      setText('p510-error-label', s.lastErrorBrief || '-', s.lastErrorBrief ? '#991b1b' : '#666');
+    }catch(e){try{console.warn('[packet 510 updateDiagDisplay]', e&&e.message);}catch(_){}}
+  }
+  window._p510_updateDiagDisplay = _p510_updateDiagDisplay;
+
+  // ===== 並行保存メイン関数 =====
+  async function _p510_saveMemoryToDB(memory){
+    if(!memory || !memory.title) return; // title 空は保存しない（packet 500 仕様）
+    const row = _p510_mapMemoryToRow(memory);
+    if(!row || !row.title) return;
+    window._p510_state.lastTime = _p510_nowShort();
+    try{
+      await _p510_dbInsert(row);
+      window._p510_state.saveStatus = '有効';
+      window._p510_state.lastResult = '成功';
+      window._p510_state.lastErrorBrief = '';
+      _p510_updateBannerForDB('success');
+      _p510_updateDiagDisplay();
+    }catch(e){
+      const msg = String(e && e.message || '').slice(0, 200);
+      const status = (e && e.status) || 0;
+      // 失敗原因の分類
+      let saveStatus = '失敗中';
+      // ネットワーク失敗 or 404 / relation does not exist → 未接続
+      if(!status || /Failed to fetch|NetworkError|relation|does not exist|PGRST205|PGRST106|404/i.test(msg)){
+        saveStatus = '未接続';
+      }
+      window._p510_state.saveStatus = saveStatus;
+      window._p510_state.lastResult = '失敗';
+      window._p510_state.lastErrorBrief = (status ? 'HTTP '+status+' ' : '') + msg.slice(0, 140);
+      _p510_updateBannerForDB('failure');
+      _p510_updateDiagDisplay();
+    }
+  }
+  window._p510_saveMemoryToDB = _p510_saveMemoryToDB;
+
+  // ===== _p500_addMemory を非破壊 wrap =====
+  // 既存 wrap（packet 507）の上にさらに wrap。packet 507 が banner / lastAddedId を
+  // セットした後、packet 510 が async で DB INSERT を kick off する。
+  (function _p510_wrapAddMemory(){
+    try{
+      const orig = window._p500_addMemory;
+      if(typeof orig !== 'function') return;
+      window._p500_addMemory = function(obj){
+        const r = orig.apply(this, arguments);
+        try{
+          if(r && r.ok && r.memory && r.memory.title){
+            // fire-and-forget：UI を固めない。失敗しても return r を妨げない。
+            _p510_saveMemoryToDB(r.memory).catch(function(_){});
+          }
+        }catch(_){}
+        return r;
+      };
+    }catch(e){try{console.warn('[packet 510 wrapAddMemory]', e&&e.message);}catch(_){}}
+  })();
+
+  // renderMemoryPage を非破壊 wrap → 表示時に diag display を更新
+  (function _p510_wrapRender(){
+    try{
+      const orig = window.renderMemoryPage;
+      if(typeof orig !== 'function') return;
+      window.renderMemoryPage = function(){
+        try{ orig.apply(this, arguments); }catch(_){}
+        try{ _p510_updateDiagDisplay(); }catch(_){}
+      };
+    }catch(e){try{console.warn('[packet 510 wrapRender]', e&&e.message);}catch(_){}}
+  })();
+
+})();
+// ==== ここまで packet 510 jagai_memory DB 並行保存 実装 ====
 </script>
 </body>
 </html>
