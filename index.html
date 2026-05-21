@@ -1759,8 +1759,25 @@ textarea.ai-team-input{resize:vertical;min-height:60px}
   <div class="page" id="page-memory">
     <div style="padding:14px 14px 80px;max-width:920px;margin:0 auto">
       <h2 style="font-size:18px;color:#0a3d7c;margin:0 0 4px;font-weight:800">🧠 じゃがい記憶庫</h2>
-      <div style="font-size:11px;color:#666;margin-bottom:8px;line-height:1.6">会社の成功・失敗・議論・判断・packet 履歴・再発防止ルールを蓄積し、次の判断に活かす学習層（packet 500 静的 MVP）。</div>
-      <div style="font-size:10px;color:#7c3aed;background:#f5f3ff;border:1.5px solid #c4b5fd;border-radius:6px;padding:7px 9px;margin-bottom:10px;line-height:1.6">⚠ この記憶庫は、誰かを責めるためではなく、<b>会社の学習・再発防止・成長</b>のために使います。<br>顧客個人情報・パスワード・API キーは登録しないでください。リロードで消える in-memory MVP（次 packet で Supabase 化予定）。</div>
+      <div style="font-size:11px;color:#666;margin-bottom:8px;line-height:1.6">会社の成功・失敗・議論・判断・packet 履歴・再発防止ルールを蓄積し、次の判断に活かす学習層。<b>in-memory 登録 + DB 並行保存 + DB 復元対応済み</b>（packet 500/507/508/509/510/511）。RLS / Auth の状態によっては DB 保存が拒否されることがあります（packet 512 ガイド参照）。</div>
+      <div style="font-size:10px;color:#7c3aed;background:#f5f3ff;border:1.5px solid #c4b5fd;border-radius:6px;padding:7px 9px;margin-bottom:10px;line-height:1.6">⚠ この記憶庫は、誰かを責めるためではなく、<b>会社の学習・再発防止・成長</b>のために使います。<br>顧客個人情報・パスワード・API キーは登録しないでください。<b>画面登録は in-memory（リロードで消える）/ DB 保存が成功していればリロード後も復元</b>されます。</div>
+
+      <!-- packet 513: DB 状態まとめミニカード（ボス + 社員向け一覧） -->
+      <div id="p513-status-summary" style="background:linear-gradient(135deg,#eff6ff 0%,#ecfdf5 100%);border:1.5px solid #93c5fd;border-radius:8px;padding:10px 13px;margin-bottom:10px">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;margin-bottom:6px">
+          <div style="font-size:13px;font-weight:800;color:#0a3d7c">📊 DB 状態まとめ（packet 513）</div>
+          <span style="font-size:10px;background:#dbeafe;color:#1e3a8a;border:1px solid #93c5fd;border-radius:6px;padding:2px 7px;font-weight:700">read-only / 自動更新</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:6px;font-size:11px;line-height:1.55">
+          <div style="background:#fff;border:1px solid var(--bo);border-radius:6px;padding:6px 8px"><div style="font-size:10px;color:#666;font-weight:700">テーブル存在</div><div id="p513-sum-table" style="font-weight:800;color:#94a3b8">未確認</div></div>
+          <div style="background:#fff;border:1px solid var(--bo);border-radius:6px;padding:6px 8px"><div style="font-size:10px;color:#666;font-weight:700">DB 復元（GET）</div><div id="p513-sum-restore" style="font-weight:800;color:#94a3b8">未実行</div></div>
+          <div style="background:#fff;border:1px solid var(--bo);border-radius:6px;padding:6px 8px"><div style="font-size:10px;color:#666;font-weight:700">DB 保存（INSERT）</div><div id="p513-sum-save" style="font-weight:800;color:#94a3b8">未試行</div></div>
+          <div style="background:#fff;border:1px solid var(--bo);border-radius:6px;padding:6px 8px"><div style="font-size:10px;color:#666;font-weight:700">RLS / Auth 状態</div><div id="p513-sum-rls" style="font-weight:800;color:#94a3b8">不明</div></div>
+          <div style="background:#fff;border:1px solid var(--bo);border-radius:6px;padding:6px 8px"><div style="font-size:10px;color:#666;font-weight:700">最終 DB 保存時刻</div><div id="p513-sum-savetime" style="font-weight:600;color:#666;font-size:10px">-</div></div>
+          <div style="background:#fff;border:1px solid var(--bo);border-radius:6px;padding:6px 8px"><div style="font-size:10px;color:#666;font-weight:700">最終 DB 復元時刻</div><div id="p513-sum-loadtime" style="font-weight:600;color:#666;font-size:10px">-</div></div>
+        </div>
+        <div id="p513-next-action" style="font-size:11px;color:#0a3d7c;background:#fef3c7;border:1.5px solid #fcd34d;border-radius:6px;padding:7px 9px;margin-top:8px;line-height:1.6;display:none"></div>
+      </div>
 
       <!-- packet 507: pre-fill 案内バナー（他画面から「記憶庫に転記」されたときに表示） -->
       <div id="p507-prefill-banner" style="display:none;background:#dcfce7;border:2px solid #16a34a;border-radius:8px;padding:10px 13px;margin-bottom:10px">
@@ -17174,6 +17191,159 @@ function _p500_buildCandidateFromPayload(payload){
 
 })();
 // ==== ここまで packet 512 jagai_memory RLS/Auth 対応 設計 + policy 手動実行ガイド ====
+
+// ═══════════════════════════════════════
+// packet 513: jagai_memory DB 状態診断 UX 改善（v0.9.263）
+// 目的：packet 510 / 511 で増えた DB 関連状態を、ボス + 社員が一目で
+// 分かるように記憶庫ページ上部に「DB 状態まとめ」ミニカードとして表示。
+// 「次にやること」を自動推論して案内する。
+// 厳守：read-only / 書き込みなし / SQL/RLS/Auth 変更なし。
+// ═══════════════════════════════════════
+(function _p513_init(){
+  function E(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];});}
+
+  // テーブル存在は packet 508 診断ボタンで判定する仕様だが、
+  // packet 510/511 の状態から逆推論できる：
+  //   - 保存成功 or 復元成功 → 存在確定
+  //   - 失敗で 404/relation → 未作成
+  //   - その他 → 未確認
+  function _p513_inferTableExists(p510, p511){
+    if(p510 && p510.lastResult === '成功') return '存在';
+    if(p511 && p511.loadStatus === '成功') return '存在';
+    const errInsert = (p510 && p510.lastErrorBrief || '').toLowerCase();
+    const errLoad = (p511 && p511.lastErrorBrief || '').toLowerCase();
+    if(/404|relation|does not exist|pgrst205/.test(errInsert) || /404|relation|does not exist|pgrst205/.test(errLoad)){
+      return '未作成';
+    }
+    return '未確認';
+  }
+
+  function _p513_inferRlsState(p510, p511){
+    const errInsert = (p510 && p510.lastErrorBrief || '').toLowerCase();
+    const errLoad = (p511 && p511.lastErrorBrief || '').toLowerCase();
+    if((p510 && p510.saveStatus === '有効') || (p511 && p511.loadStatus === '成功')){
+      // 一部でも通っていれば概ね通過
+      if(p510 && p510.saveStatus === '失敗中'){
+        return { label: 'INSERT は拒否中（SELECT のみ通過）', color: '#dc2626' };
+      }
+      return { label: '通過', color: '#0d9e6e' };
+    }
+    if(/401|403|row[- ]level security|permission denied|rls/.test(errInsert) || /401|403|row[- ]level security|permission denied|rls/.test(errLoad)){
+      return { label: '対応待ち（RLS / Auth で拒否中）', color: '#dc2626' };
+    }
+    if(/404|relation|does not exist|pgrst205/.test(errInsert) || /404|relation|does not exist|pgrst205/.test(errLoad)){
+      return { label: 'テーブル未作成のため判定不能', color: '#b91c1c' };
+    }
+    return { label: '不明', color: '#94a3b8' };
+  }
+
+  // 「次にやること」自動推論
+  function _p513_deriveNextAction(tableState, rlsState, p510, p511){
+    if(tableState === '未作成'){
+      return { msg: '🔧 packet 509「📜 最終 SQL を表示」→ Supabase で jagai_memory テーブル作成 SQL を手動実行してください。', color: '#7c2d12' };
+    }
+    if(/RLS|拒否|対応待ち/.test(rlsState.label)){
+      return { msg: '🛡 packet 512「📋 policy SQL 案をコピー」→ Supabase で policy を手動実行してください。実行後も 401 が続く場合は packet 513+ で auth.signIn 連携を実装。', color: '#7c2d12' };
+    }
+    if(p510 && p510.saveStatus === '有効' && p511 && p511.loadStatus === '成功'){
+      return { msg: '✅ DB 保存・DB 復元ともに成功。packet 514（カード操作 DB 同期 設計）に進めます。', color: '#065f46' };
+    }
+    if(p511 && p511.loadStatus === '成功' && p510 && p510.saveStatus === '未試行'){
+      return { msg: '💡 DB 復元は成功。記憶を 1 件登録して DB 保存も成功するか観察してください。', color: '#1e3a8a' };
+    }
+    return { msg: '', color: '' };
+  }
+
+  function _p513_updateSummary(){
+    try{
+      const p510 = window._p510_state || null;
+      const p511 = window._p511_state || null;
+      const setText = function(id, txt, color){
+        const el = document.getElementById(id);
+        if(!el) return;
+        el.textContent = txt;
+        if(color) el.style.color = color;
+      };
+      // テーブル存在
+      const tableState = _p513_inferTableExists(p510, p511);
+      let tableColor = '#94a3b8';
+      if(tableState === '存在') tableColor = '#0d9e6e';
+      else if(tableState === '未作成') tableColor = '#dc2626';
+      setText('p513-sum-table', tableState, tableColor);
+      // DB 復元
+      const loadStatus = (p511 && p511.loadStatus) || '未実行';
+      let loadColor = '#94a3b8';
+      if(loadStatus === '成功') loadColor = '#0d9e6e';
+      else if(loadStatus === '失敗' || loadStatus === '未接続') loadColor = '#dc2626';
+      else if(loadStatus === '読込中') loadColor = '#1e40af';
+      const loadDisplay = loadStatus + (p511 && p511.loadedCount > 0 ? ' ('+p511.loadedCount+'件)' : '');
+      setText('p513-sum-restore', loadDisplay, loadColor);
+      // DB 保存
+      const saveStatus = (p510 && p510.saveStatus) || '未試行';
+      let saveColor = '#94a3b8';
+      if(saveStatus === '有効') saveColor = '#0d9e6e';
+      else if(saveStatus === '失敗中' || saveStatus === '未接続') saveColor = '#dc2626';
+      setText('p513-sum-save', saveStatus, saveColor);
+      // RLS 状態
+      const rlsState = _p513_inferRlsState(p510, p511);
+      setText('p513-sum-rls', rlsState.label, rlsState.color);
+      // 時刻
+      setText('p513-sum-savetime', (p510 && p510.lastTime) || '-');
+      setText('p513-sum-loadtime', (p511 && p511.lastTime) || '-');
+      // 次にやること
+      const nextEl = document.getElementById('p513-next-action');
+      if(nextEl){
+        const nx = _p513_deriveNextAction(tableState, rlsState, p510, p511);
+        if(nx.msg){
+          nextEl.style.display = 'block';
+          nextEl.textContent = '👉 次にやること：' + nx.msg;
+          if(nx.color){
+            nextEl.style.color = nx.color;
+          }
+        }else{
+          nextEl.style.display = 'none';
+        }
+      }
+    }catch(e){try{console.warn('[packet 513 updateSummary]', e&&e.message);}catch(_){}}
+  }
+  window._p513_updateSummary = _p513_updateSummary;
+
+  // renderMemoryPage 非破壊 wrap
+  (function _p513_wrapRender(){
+    try{
+      const orig=window.renderMemoryPage;
+      if(typeof orig!=='function')return;
+      window.renderMemoryPage=function(){
+        try{orig.apply(this,arguments);}catch(_){}
+        try{_p513_updateSummary();}catch(_){}
+      };
+    }catch(e){try{console.warn('[packet 513 wrapRender]', e&&e.message);}catch(_){}}
+  })();
+
+  // packet 510 / 511 の updateDiagDisplay を wrap → 状態変化時に packet 513 サマリーも更新
+  (function _p513_wrap510Update(){
+    try{
+      const orig = window._p510_updateDiagDisplay;
+      if(typeof orig !== 'function') return;
+      window._p510_updateDiagDisplay = function(){
+        try{orig.apply(this,arguments);}catch(_){}
+        try{_p513_updateSummary();}catch(_){}
+      };
+    }catch(_){}
+  })();
+  (function _p513_wrap511Update(){
+    try{
+      const orig = window._p511_updateDiagDisplay;
+      if(typeof orig !== 'function') return;
+      window._p511_updateDiagDisplay = function(){
+        try{orig.apply(this,arguments);}catch(_){}
+        try{_p513_updateSummary();}catch(_){}
+      };
+    }catch(_){}
+  })();
+
+})();
+// ==== ここまで packet 513 jagai_memory DB 状態診断 UX 改善 ====
 </script>
 </body>
 </html>
