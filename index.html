@@ -19553,6 +19553,160 @@ function _p500_buildCandidateFromPayload(payload){
 
 })();
 // ==== ここまで packet 529 記憶庫検索・フィルター強化ベース ====
+
+// ═══════════════════════════════════════
+// packet 530: 記憶庫 運用レビュー画面ベース（v0.9.280）
+// 目的：週次/月次レビュー集計表示。in-memory のみ。DB 書き込み 0。
+// ═══════════════════════════════════════
+(function _p530_init(){
+  function E(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];});}
+
+  function _p530_aggregate(){
+    try{
+      const store = (window._p500_memoryStore || []);
+      const a = {
+        total: store.length,
+        unresolved: 0,
+        bossCheck: 0,
+        highRisk: 0,
+        failureLog: 0,
+        successLog: 0,
+        recurrencePrevention: 0,
+        thisWeek: 0,
+        thisMonth: 0
+      };
+      const now = Date.now();
+      const weekAgo = now - 7*86400000;
+      const monthAgo = now - 30*86400000;
+      store.forEach(function(m){
+        if(!m) return;
+        if(m.unresolved) a.unresolved++;
+        if(m.needsManagerFollowup) a.bossCheck++;
+        const r = String(m.riskLevel||'').toLowerCase();
+        if(r === 'high' || r === 'red' || r === 'critical') a.highRisk++;
+        if(m.memoryType === 'failure_lesson' || (m.category||'').indexOf('失敗') >= 0) a.failureLog++;
+        if(m.memoryType === 'success_pattern' || (m.category||'').indexOf('成功') >= 0) a.successLog++;
+        if(m.memoryType === 'recurrence_prevention' || (m.category||'').indexOf('再発') >= 0) a.recurrencePrevention++;
+        const ts = m.createdAt ? new Date(m.createdAt).getTime() : 0;
+        if(ts > weekAgo) a.thisWeek++;
+        if(ts > monthAgo) a.thisMonth++;
+      });
+      return a;
+    }catch(e){return null;}
+  }
+
+  function _p530_pickTop5(){
+    try{
+      const store = (window._p500_memoryStore || []).slice();
+      // スコア：未解決(+3) / ボス確認(+3) / 高リスク(+2) / 重要度高(+2) / 新しさボーナス(+1)
+      const now = Date.now();
+      const weekAgo = now - 7*86400000;
+      const scored = store.map(function(m){
+        let s = 0;
+        if(m.unresolved) s += 3;
+        if(m.needsManagerFollowup) s += 3;
+        const r = String(m.riskLevel||'').toLowerCase();
+        if(r==='high'||r==='red'||r==='critical') s += 2;
+        const i = String(m.importance||m.importance_level||'').toLowerCase();
+        if(i==='high') s += 2;
+        const ts = m.createdAt ? new Date(m.createdAt).getTime() : 0;
+        if(ts > weekAgo) s += 1;
+        return {m: m, score: s};
+      }).filter(function(x){return x.score > 0;});
+      scored.sort(function(a,b){return b.score - a.score;});
+      return scored.slice(0, 5);
+    }catch(e){return [];}
+  }
+
+  function _p530_render(){
+    try{
+      const root = document.getElementById('p530-review-result');
+      if(!root) return;
+      const a = _p530_aggregate();
+      if(!a){
+        root.innerHTML = '<div style="font-size:11px;color:#94a3b8">集計失敗</div>';
+        return;
+      }
+      let html = ''
+        +'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:5px;font-size:11px;line-height:1.5">'
+          +'<div style="background:#fff;border:1px solid var(--bo);border-radius:6px;padding:6px 8px"><div style="font-size:10px;color:#666;font-weight:700">総記憶数</div><div style="font-size:16px;font-weight:800;color:#0a3d7c">'+a.total+'</div></div>'
+          +'<div style="background:#fff;border:1px solid var(--bo);border-radius:6px;padding:6px 8px"><div style="font-size:10px;color:#666;font-weight:700">📌 未解決</div><div style="font-size:16px;font-weight:800;color:'+(a.unresolved>0?'#dc2626':'#94a3b8')+'">'+a.unresolved+'</div></div>'
+          +'<div style="background:#fff;border:1px solid var(--bo);border-radius:6px;padding:6px 8px"><div style="font-size:10px;color:#666;font-weight:700">👀 ボス確認</div><div style="font-size:16px;font-weight:800;color:'+(a.bossCheck>0?'#b45309':'#94a3b8')+'">'+a.bossCheck+'</div></div>'
+          +'<div style="background:#fff;border:1px solid var(--bo);border-radius:6px;padding:6px 8px"><div style="font-size:10px;color:#666;font-weight:700">🔴 高リスク</div><div style="font-size:16px;font-weight:800;color:'+(a.highRisk>0?'#dc2626':'#94a3b8')+'">'+a.highRisk+'</div></div>'
+          +'<div style="background:#fff;border:1px solid var(--bo);border-radius:6px;padding:6px 8px"><div style="font-size:10px;color:#666;font-weight:700">📉 失敗ログ</div><div style="font-size:16px;font-weight:800;color:#0a3d7c">'+a.failureLog+'</div></div>'
+          +'<div style="background:#fff;border:1px solid var(--bo);border-radius:6px;padding:6px 8px"><div style="font-size:10px;color:#666;font-weight:700">✨ 成功ログ</div><div style="font-size:16px;font-weight:800;color:#0d9e6e">'+a.successLog+'</div></div>'
+          +'<div style="background:#fff;border:1px solid var(--bo);border-radius:6px;padding:6px 8px"><div style="font-size:10px;color:#666;font-weight:700">🛡 再発防止</div><div style="font-size:16px;font-weight:800;color:#0a3d7c">'+a.recurrencePrevention+'</div></div>'
+          +'<div style="background:#fff;border:1px solid var(--bo);border-radius:6px;padding:6px 8px"><div style="font-size:10px;color:#666;font-weight:700">📅 今週</div><div style="font-size:16px;font-weight:800;color:#1e40af">'+a.thisWeek+'</div></div>'
+          +'<div style="background:#fff;border:1px solid var(--bo);border-radius:6px;padding:6px 8px"><div style="font-size:10px;color:#666;font-weight:700">📅 今月</div><div style="font-size:16px;font-weight:800;color:#1e40af">'+a.thisMonth+'</div></div>'
+        +'</div>';
+      const top5 = _p530_pickTop5();
+      html += '<div style="margin-top:8px;font-size:12px;font-weight:800;color:#0a3d7c">⭐ 今週見るべき記憶 TOP5（自動スコア順）</div>';
+      if(top5.length === 0){
+        html += '<div style="font-size:11px;color:#94a3b8;padding:6px 9px;background:#fff;border:1px solid var(--bo);border-radius:6px;margin-top:4px">該当なし</div>';
+      }else{
+        html += top5.map(function(x){
+          const m = x.m;
+          const title = E(String(m.title||'(無題)').slice(0,80));
+          const cat = E(String(m.category||''));
+          const ai = E(String(m.relatedAi||m.relatedTarget||''));
+          return '<div style="background:#fff;border:1px solid var(--bo);border-radius:6px;padding:6px 9px;margin-top:4px;font-size:11px"><b style="color:#0a3d7c">'+title+'</b>　<span style="font-size:9.5px;color:var(--t3)">📁 '+cat+(ai?' ／ 👤 '+ai:'')+' ／ ⭐ score: '+x.score+'</span></div>';
+        }).join('');
+      }
+      html += '<div style="font-size:9.5px;color:#1e3a8a;background:#dbeafe;border:1px solid #93c5fd;border-radius:4px;padding:4px 7px;margin-top:6px;line-height:1.55">💡 read-only 集計。in-memory のみ参照。DB 書き込みなし、localStorage 保存なし。週次/月次レビュー時に活用。</div>';
+      root.innerHTML = html;
+    }catch(e){try{console.warn('[packet 530 render]', e&&e.message);}catch(_){}}
+  }
+
+  function _p530_injectCard(){
+    try{
+      const page = document.getElementById('page-memory');
+      if(!page) return;
+      if(document.getElementById('p530-review-card')) return;
+      const sumCard = document.getElementById('p500-summary-card');
+      if(!sumCard || !sumCard.parentNode) return;
+      const card = document.createElement('div');
+      card.id = 'p530-review-card';
+      card.className = 'ai-team-card';
+      card.style.cssText = 'background:#fef3c7;border:1.5px solid #f59e0b;margin-bottom:10px';
+      card.innerHTML = ''
+        +'<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;margin-bottom:6px">'
+          +'<div style="font-size:14px;font-weight:800;color:#92400e">📅 記憶レビュー（packet 530）</div>'
+          +'<span style="font-size:10px;background:#fef9c3;color:#713f12;border:1px solid #fcd34d;border-radius:6px;padding:2px 7px;font-weight:700">read-only / 集計のみ</span>'
+        +'</div>'
+        +'<div style="font-size:11px;color:var(--t2);line-height:1.55;margin-bottom:6px">ボス・店長・管理者が週次/月次で記憶庫を見直すための集計表示です。</div>'
+        +'<div id="p530-review-result"></div>';
+      sumCard.parentNode.insertBefore(card, sumCard.nextSibling);
+      _p530_render();
+    }catch(e){try{console.warn('[packet 530 injectCard]', e&&e.message);}catch(_){}}
+  }
+
+  // renderMemoryPage 後勝ち wrap
+  (function _p530_wrapRender(){
+    try{
+      const orig = window.renderMemoryPage;
+      if(typeof orig !== 'function') return;
+      window.renderMemoryPage = function(){
+        try{orig.apply(this, arguments);}catch(_){}
+        try{_p530_injectCard();}catch(_){}
+        try{_p530_render();}catch(_){}
+      };
+    }catch(_){}
+  })();
+
+  // _p511_updateDiagDisplay wrap で連動更新（DB復元後の集計反映）
+  (function _p530_wrap511(){
+    try{
+      const orig = window._p511_updateDiagDisplay;
+      if(typeof orig !== 'function') return;
+      window._p511_updateDiagDisplay = function(){
+        try{orig.apply(this, arguments);}catch(_){}
+        try{_p530_render();}catch(_){}
+      };
+    }catch(_){}
+  })();
+
+})();
+// ==== ここまで packet 530 記憶庫 運用レビュー画面ベース ====
 </script>
 </body>
 </html>
