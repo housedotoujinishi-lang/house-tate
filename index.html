@@ -19333,6 +19333,60 @@ function _p500_buildCandidateFromPayload(payload){
 
 })();
 // ==== ここまで packet 527 jagai_memory GET/DB復元 Auth token 付与 hotfix ====
+
+// ═══════════════════════════════════════
+// packet 528: 記憶庫カード操作 DB 同期 UI ベース（v0.9.278）
+// 目的：将来のカード操作 DB UPDATE 同期のための UI 土台。read-only 表示のみ。
+// 厳守：UPDATE 実装 0、DB 書き込み 0、既存カード操作変更 0。
+// ═══════════════════════════════════════
+(function _p528_init(){
+  function E(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];});}
+
+  function _p528_injectCard(){
+    try{
+      const page = document.getElementById('page-memory');
+      if(!page) return;
+      if(document.getElementById('p528-sync-base-card')) return;
+      // p513 サマリーカードの直下に挿入
+      const summary = document.getElementById('p513-status-summary');
+      if(!summary || !summary.parentNode) return;
+      const card = document.createElement('div');
+      card.id = 'p528-sync-base-card';
+      card.style.cssText = 'background:#f5f3ff;border:1.5px solid #c4b5fd;border-radius:8px;padding:9px 12px;margin-bottom:10px;font-size:11px;line-height:1.6';
+      card.innerHTML = ''
+        +'<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;margin-bottom:5px">'
+          +'<div style="font-size:13px;font-weight:800;color:#5b21b6">🔄 カード操作 DB 同期予定（packet 528 ベース）</div>'
+          +'<span style="font-size:10px;background:#ede9fe;color:#4c1d95;border:1px solid #c4b5fd;border-radius:6px;padding:2px 7px;font-weight:700">表示のみ / UPDATE 未実装</span>'
+        +'</div>'
+        +'<div style="font-size:11px;color:var(--t2);line-height:1.55;margin-bottom:6px">カード操作（解決済 / ボス確認 / 再発防止 / 重要度 / リスク）は<b>現状 in-memory のみ</b>。<b>DB 同期は次段階</b>（UPDATE policy + UPDATE 実装が必要）。本カードは将来 UPDATE 対象を可視化するための土台です。</div>'
+        +'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:5px;font-size:10.5px">'
+          +'<div style="background:#fff;border:1px solid var(--bo);border-radius:6px;padding:6px 8px"><b style="color:#0a3d7c">✅/⏳ 解決済みトグル</b><div style="font-size:10px;color:var(--t3);margin-top:2px">DB カラム：<code>is_resolved</code>（boolean）<br>同期：未実装 / 次段階</div></div>'
+          +'<div style="background:#fff;border:1px solid var(--bo);border-radius:6px;padding:6px 8px"><b style="color:#0a3d7c">👀 ボス確認フラグ</b><div style="font-size:10px;color:var(--t3);margin-top:2px">DB カラム：<code>requires_boss_check</code>（boolean）<br>同期：未実装 / 次段階</div></div>'
+          +'<div style="background:#fff;border:1px solid var(--bo);border-radius:6px;padding:6px 8px"><b style="color:#0a3d7c">🛡 再発防止ルール化</b><div style="font-size:10px;color:var(--t3);margin-top:2px">DB カラム：<code>recurrence_prevention</code>（text）<br>同期：既存 INSERT 経路で完結（packet 510）</div></div>'
+          +'<div style="background:#fff;border:1px solid var(--bo);border-radius:6px;padding:6px 8px"><b style="color:#0a3d7c">⚠ 重要度変更</b><div style="font-size:10px;color:var(--t3);margin-top:2px">DB カラム：<code>importance_level</code>（text）<br>同期：未実装 / 次段階</div></div>'
+          +'<div style="background:#fff;border:1px solid var(--bo);border-radius:6px;padding:6px 8px"><b style="color:#0a3d7c">🔴 リスク変更</b><div style="font-size:10px;color:var(--t3);margin-top:2px">DB カラム：<code>risk_level</code>（text）<br>同期：未実装 / 次段階</div></div>'
+          +'<div style="background:#fff;border:1px solid var(--bo);border-radius:6px;padding:6px 8px"><b style="color:#0a3d7c">📝 編集（タイトル/内容）</b><div style="font-size:10px;color:var(--t3);margin-top:2px">DB カラム：<code>title</code> / <code>detail</code>（text）<br>同期：未実装 / 次段階</div></div>'
+          +'<div style="background:#fff;border:1px solid var(--bo);border-radius:6px;padding:6px 8px"><b style="color:#0a3d7c">📦 アーカイブ</b><div style="font-size:10px;color:var(--t3);margin-top:2px">DB カラム：<code>status</code>（"archived"）<br>同期：未実装 / 次段階（論理削除のみ、物理 DELETE 禁止）</div></div>'
+        +'</div>'
+        +'<div style="font-size:10px;color:#5b21b6;background:#ede9fe;border:1px solid #c4b5fd;border-radius:4px;padding:5px 8px;margin-top:6px;line-height:1.55">💡 既存カード操作（packet 500 / 502 / 504 / 507）はそのまま動作します。本カードは将来の DB UPDATE 実装計画の可視化のみです。UPDATE 実装は packet 540+ でボス + 監督承認後に検討。</div>';
+      summary.parentNode.insertBefore(card, summary.nextSibling);
+    }catch(e){try{console.warn('[packet 528 injectCard]', e&&e.message);}catch(_){}}
+  }
+
+  // renderMemoryPage 後勝ち wrap
+  (function _p528_wrapRender(){
+    try{
+      const orig = window.renderMemoryPage;
+      if(typeof orig !== 'function') return;
+      window.renderMemoryPage = function(){
+        try{orig.apply(this, arguments);}catch(_){}
+        try{_p528_injectCard();}catch(_){}
+      };
+    }catch(_){}
+  })();
+
+})();
+// ==== ここまで packet 528 記憶庫カード操作 DB 同期 UI ベース ====
 </script>
 </body>
 </html>
