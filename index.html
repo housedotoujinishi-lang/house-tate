@@ -17846,6 +17846,230 @@ function _p500_buildCandidateFromPayload(payload){
 
 })();
 // ==== ここまで packet 517 DB 検索・ページング 設計 + UI 下準備 ====
+
+// ═══════════════════════════════════════
+// packet 518: AI 会議・AI 相談の記憶庫参照 MVP（v0.9.268）
+// 目的：_p500_memoryStore（packet 500 + 511 復元）から関連記憶を
+// 抽出してカード表示。AI 会議の議論材料にする。
+// 厳守：
+//   - 外部 AI API 送信 0
+//   - DB 書き込み 0
+//   - localStorage 保存 0
+//   - 記憶本文の console 出力 0
+// ═══════════════════════════════════════
+(function _p518_init(){
+  function E(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];});}
+
+  const TOP_N = 5;
+  let _p518_currentFilter = 'unresolved';
+  let _p518_aiNameFilter = '';
+
+  // ===== 記憶庫からカテゴリ別に抽出（in-memory のみ）=====
+  function _p518_pickByCategory(key){
+    const store = (window._p500_memoryStore || []).slice();
+    let arr = [];
+    if(key === 'unresolved'){
+      arr = store.filter(function(m){return m && m.unresolved === true;});
+    }else if(key === 'bossCheck'){
+      arr = store.filter(function(m){return m && (m.needsManagerFollowup === true);});
+    }else if(key === 'highRisk'){
+      arr = store.filter(function(m){
+        const r = String(m && m.riskLevel || '').toLowerCase();
+        return r === 'high' || r === 'red' || r === 'yellow' || r === 'critical' || r === 'warning';
+      });
+    }else if(key === 'discussion'){
+      arr = store.filter(function(m){
+        return m && (m.memoryType === 'discussion_log' || String(m.category || '').indexOf('議論') >= 0 || String(m.category || '').indexOf('衝突') >= 0);
+      });
+    }else if(key === 'failure'){
+      arr = store.filter(function(m){
+        return m && (m.memoryType === 'failure_lesson' || m.memoryType === 'bug_cause' || String(m.category || '').indexOf('失敗') >= 0 || String(m.category || '').indexOf('不具合') >= 0);
+      });
+    }else if(key === 'customer'){
+      arr = store.filter(function(m){
+        const cat = String(m && m.category || '');
+        return cat.indexOf('顧客') >= 0 || cat.indexOf('クレーム') >= 0 || cat.indexOf('衝突') >= 0;
+      });
+    }else if(key === 'task'){
+      arr = store.filter(function(m){
+        return m && (m.memoryType === 'operation_rule' || m.memoryType === 'claude_instruction' || String(m.category || '').indexOf('業務') >= 0 || String(m.category || '').indexOf('タスク') >= 0);
+      });
+    }else if(key === 'all'){
+      arr = store.slice();
+    }
+    return arr;
+  }
+
+  function _p518_pickByAI(aiName){
+    if(!aiName) return [];
+    const needle = String(aiName).toLowerCase();
+    const store = (window._p500_memoryStore || []).slice();
+    return store.filter(function(m){
+      if(!m) return false;
+      const target = (String(m.relatedAi || '') + ' ' + String(m.relatedTarget || '') + ' ' + (Array.isArray(m.tags) ? m.tags.join(' ') : '')).toLowerCase();
+      return target.indexOf(needle) >= 0;
+    });
+  }
+
+  // ===== カード描画 =====
+  function _p518_renderMemoryCard(m){
+    if(!m) return '';
+    const title = E(String(m.title || '(無題)').slice(0, 80));
+    const cat = E(String(m.category || ''));
+    const mt = E(String(m.memoryType || ''));
+    const risk = E(String(m.riskLevel || 'normal'));
+    const created = E(String(m.createdAt || '').slice(0, 19).replace('T', ' '));
+    const badge = (m.unresolved ? '<span style="background:#fecaca;color:#991b1b;border-radius:3px;padding:0 5px;font-size:9px;font-weight:700;margin-right:3px">未解決</span>' : '')
+      + (m.needsManagerFollowup ? '<span style="background:#fde68a;color:#7c2d12;border-radius:3px;padding:0 5px;font-size:9px;font-weight:700;margin-right:3px">要ボス確認</span>' : '');
+    return '<div style="background:#fff;border:1px solid var(--bo);border-radius:6px;padding:7px 9px;margin-bottom:5px"><div style="font-weight:700;color:#0a3d7c;font-size:11.5px;line-height:1.4;margin-bottom:2px">'+title+'</div><div style="font-size:9.5px;color:var(--t3)">'+badge+(cat?'📁 '+cat+' ':'')+(mt?'🧠 '+mt+' ':'')+(risk!=='normal'?'⚠ '+risk+' ':'')+'</div><div style="font-size:9px;color:var(--t4);margin-top:2px">'+created+'</div></div>';
+  }
+
+  function _p518_renderResults(){
+    try{
+      const root = document.getElementById('p518-result');
+      if(!root) return;
+      const store = window._p500_memoryStore || [];
+      if(store.length === 0){
+        root.innerHTML = '<div style="font-size:11px;color:#94a3b8;padding:8px 10px;background:#f8fafc;border-radius:6px">記憶庫が空です。記憶を登録するか、packet 511 で DB から復元してください。</div>';
+        return;
+      }
+      let memos = [];
+      let title = '';
+      if(_p518_aiNameFilter){
+        memos = _p518_pickByAI(_p518_aiNameFilter);
+        title = '🎯 関連 AI =「' + E(_p518_aiNameFilter) + '」（' + memos.length + ' 件）';
+      }else{
+        memos = _p518_pickByCategory(_p518_currentFilter);
+        const labelMap = {unresolved:'📌 未解決', bossCheck:'👀 要ボス確認', highRisk:'🔴 高リスク', discussion:'💬 議論ログ', failure:'📉 失敗ログ', customer:'🤝 顧客 / 衝突', task:'✅ タスク / 業務フロー', all:'📚 全件'};
+        title = (labelMap[_p518_currentFilter] || _p518_currentFilter) + '（全 ' + memos.length + ' 件中、上位 ' + Math.min(memos.length, TOP_N) + ' 件）';
+      }
+      const top = memos.slice(0, TOP_N);
+      let html = '<div style="font-size:11px;font-weight:700;color:#0a3d7c;margin-bottom:6px">'+title+'</div>';
+      if(top.length === 0){
+        html += '<div style="font-size:11px;color:#94a3b8;padding:6px 9px;background:#f8fafc;border-radius:6px">該当する記憶がありません。</div>';
+      }else{
+        html += top.map(_p518_renderMemoryCard).join('');
+      }
+      html += '<div style="font-size:9.5px;color:#94a3b8;margin-top:6px;line-height:1.55">※ in-memory（_p500_memoryStore）から表示。外部 AI 送信なし / DB 書込なし / localStorage 保存なし / 記憶本文の console 出力なし。</div>';
+      root.innerHTML = html;
+      // 件数を主ボタンに反映
+      try{
+        const btnEl = document.getElementById('p518-pick-btn');
+        if(btnEl){
+          btnEl.textContent = '🧠 記憶庫から論点を拾う（全 '+store.length+' 件）';
+        }
+      }catch(_){}
+    }catch(e){try{console.warn('[packet 518 renderResults]', e&&e.message);}catch(_){}}
+  }
+  window._p518_renderResults = _p518_renderResults;
+
+  // ===== AI 会議 page-aiteam にカード注入 =====
+  function _p518_aiteamEnhance(){
+    try{
+      const page = document.getElementById('page-aiteam');
+      if(!page) return;
+      const existing = document.getElementById('p518-meeting-card');
+      if(existing) return; // 既に挿入済み
+      const result = document.getElementById('ai-team-result');
+      if(!result || !result.parentNode) return;
+      const card = document.createElement('div');
+      card.id = 'p518-meeting-card';
+      card.className = 'ai-team-card';
+      card.style.marginTop = '14px';
+      card.style.background = '#f5f3ff';
+      card.style.borderColor = '#c4b5fd';
+      card.innerHTML = ''
+        +'<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;margin-bottom:6px">'
+          +'<div style="font-size:14px;font-weight:800;color:#5b21b6">🧠 packet 518：記憶庫から論点を拾う（in-memory MVP）</div>'
+          +'<span style="font-size:10px;background:#ede9fe;color:#4c1d95;border:1px solid #c4b5fd;border-radius:6px;padding:2px 7px;font-weight:700">外部AI送信なし / DB書込なし</span>'
+        +'</div>'
+        +'<div style="font-size:11px;color:var(--t2);line-height:1.6;margin-bottom:6px">AI 会議の議題に対し、<b>現在の記憶庫</b>から関連論点を拾います（packet 500 登録 + packet 511 DB 復元の合算）。外部 AI には送りません。</div>'
+        +'<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px;font-size:10.5px">'
+          +'<button type="button" class="p518-cat-btn" data-p518cat="unresolved" style="padding:5px 8px;border-radius:5px;border:1.5px solid #5b21b6;background:#5b21b6;color:#fff;font-size:10px;font-weight:700;cursor:pointer">📌 未解決</button>'
+          +'<button type="button" class="p518-cat-btn" data-p518cat="bossCheck" style="padding:5px 8px;border-radius:5px;border:1.5px solid #5b21b6;background:#fff;color:#5b21b6;font-size:10px;font-weight:700;cursor:pointer">👀 要ボス確認</button>'
+          +'<button type="button" class="p518-cat-btn" data-p518cat="highRisk" style="padding:5px 8px;border-radius:5px;border:1.5px solid #5b21b6;background:#fff;color:#5b21b6;font-size:10px;font-weight:700;cursor:pointer">🔴 高リスク</button>'
+          +'<button type="button" class="p518-cat-btn" data-p518cat="discussion" style="padding:5px 8px;border-radius:5px;border:1.5px solid #5b21b6;background:#fff;color:#5b21b6;font-size:10px;font-weight:700;cursor:pointer">💬 議論</button>'
+          +'<button type="button" class="p518-cat-btn" data-p518cat="failure" style="padding:5px 8px;border-radius:5px;border:1.5px solid #5b21b6;background:#fff;color:#5b21b6;font-size:10px;font-weight:700;cursor:pointer">📉 失敗</button>'
+          +'<button type="button" class="p518-cat-btn" data-p518cat="customer" style="padding:5px 8px;border-radius:5px;border:1.5px solid #5b21b6;background:#fff;color:#5b21b6;font-size:10px;font-weight:700;cursor:pointer">🤝 顧客</button>'
+          +'<button type="button" class="p518-cat-btn" data-p518cat="task" style="padding:5px 8px;border-radius:5px;border:1.5px solid #5b21b6;background:#fff;color:#5b21b6;font-size:10px;font-weight:700;cursor:pointer">✅ タスク</button>'
+          +'<button type="button" class="p518-cat-btn" data-p518cat="all" style="padding:5px 8px;border-radius:5px;border:1.5px solid #5b21b6;background:#fff;color:#5b21b6;font-size:10px;font-weight:700;cursor:pointer">📚 全件</button>'
+        +'</div>'
+        +'<div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;margin-bottom:8px">'
+          +'<input type="text" id="p518-ai-name" placeholder="関連 AI 名で絞る（例：家康、秀吉、エジソン）" style="flex:1;min-width:180px;padding:5px 8px;border-radius:5px;border:1.5px solid #c4b5fd;font-size:11px">'
+          +'<button type="button" id="p518-ai-clear" style="padding:5px 10px;border-radius:5px;border:1.5px solid #94a3b8;background:#fff;color:#475569;font-size:10px;font-weight:700;cursor:pointer">クリア</button>'
+        +'</div>'
+        +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">'
+          +'<button type="button" id="p518-pick-btn" style="flex:1;min-width:200px;padding:9px 12px;border-radius:6px;border:0;background:#5b21b6;color:#fff;font-size:12px;font-weight:700;cursor:pointer;min-height:40px">🧠 記憶庫から論点を拾う</button>'
+        +'</div>'
+        +'<div id="p518-result" style="padding:8px 10px;border-radius:6px;background:#fff;border:1px solid var(--bo);max-height:50vh;overflow-y:auto"></div>';
+      result.parentNode.insertBefore(card, result);
+      _p518_bindButtons();
+    }catch(e){try{console.warn('[packet 518 aiteamEnhance]', e&&e.message);}catch(_){}}
+  }
+
+  function _p518_bindButtons(){
+    try{
+      document.querySelectorAll('.p518-cat-btn').forEach(function(b){
+        if(b.dataset.p518Bound === '1') return;
+        b.dataset.p518Bound = '1';
+        b.addEventListener('click', function(){
+          _p518_currentFilter = b.getAttribute('data-p518cat');
+          _p518_aiNameFilter = '';
+          const ai = document.getElementById('p518-ai-name');
+          if(ai) ai.value = '';
+          document.querySelectorAll('.p518-cat-btn').forEach(function(bb){
+            const on = bb.getAttribute('data-p518cat') === _p518_currentFilter;
+            bb.style.background = on ? '#5b21b6' : '#fff';
+            bb.style.color = on ? '#fff' : '#5b21b6';
+          });
+          _p518_renderResults();
+        });
+      });
+      const pickBtn = document.getElementById('p518-pick-btn');
+      if(pickBtn && pickBtn.dataset.p518Bound !== '1'){
+        pickBtn.dataset.p518Bound = '1';
+        pickBtn.addEventListener('click', _p518_renderResults);
+      }
+      const aiInput = document.getElementById('p518-ai-name');
+      if(aiInput && aiInput.dataset.p518Bound !== '1'){
+        aiInput.dataset.p518Bound = '1';
+        aiInput.addEventListener('input', function(){
+          _p518_aiNameFilter = aiInput.value.trim();
+          _p518_renderResults();
+        });
+      }
+      const aiClear = document.getElementById('p518-ai-clear');
+      if(aiClear && aiClear.dataset.p518Bound !== '1'){
+        aiClear.dataset.p518Bound = '1';
+        aiClear.addEventListener('click', function(){
+          _p518_aiNameFilter = '';
+          if(aiInput) aiInput.value = '';
+          _p518_renderResults();
+        });
+      }
+      // 初期件数表示
+      try{
+        const store = window._p500_memoryStore || [];
+        const btnEl = document.getElementById('p518-pick-btn');
+        if(btnEl) btnEl.textContent = '🧠 記憶庫から論点を拾う（全 '+store.length+' 件）';
+      }catch(_){}
+    }catch(e){try{console.warn('[packet 518 bindButtons]', e&&e.message);}catch(_){}}
+  }
+
+  // renderAITeamPage 非破壊 wrap
+  (function _p518_wrapAITeam(){
+    try{
+      const orig = window.renderAITeamPage;
+      if(typeof orig !== 'function') return;
+      window.renderAITeamPage = function(){
+        try{orig.apply(this, arguments);}catch(_){}
+        try{_p518_aiteamEnhance();}catch(_){}
+      };
+    }catch(e){try{console.warn('[packet 518 wrapAITeam]', e&&e.message);}catch(_){}}
+  })();
+
+})();
+// ==== ここまで packet 518 AI 会議・AI 相談の記憶庫参照 MVP ====
 </script>
 </body>
 </html>
