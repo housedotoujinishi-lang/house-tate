@@ -18742,6 +18742,182 @@ function _p500_buildCandidateFromPayload(payload){
 
 })();
 // ==== ここまで packet 522 admin Supabase Auth 接続カード 表示条件 hotfix ====
+
+// ═══════════════════════════════════════
+// packet 523: currentUser 検出 + admin Auth 接続カード表示診断 hotfix（v0.9.273）
+// 根本原因：currentUser は `let currentUser = null;` (line 2827) の script-scope let。
+// `let` は window に紐付かないため、`window.currentUser` は常に undefined。
+// packet 516/521/522 が `window.currentUser && currentUser.X` でチェックしていたため、
+// 短絡評価で常に false → カード非表示 + currentUser 未ログイン表示の不具合。
+// 修正：bare `currentUser`（script-scope lexical lookup）経由で取得する helper を提供。
+// 厳守：
+//   - Auth 処理（signIn / signOut / getSession）は packet 521 のまま
+//   - localStorage 本文保存 0、パスワード console 出力 0、service_role 0
+//   - SQL / RLS / Auth 設定変更 0、DELETE / UPDATE / UPSERT 0
+//   - 既存 currentUser 変数の上書き 0（読み取りのみ）
+// ═══════════════════════════════════════
+(function _p523_init(){
+  function E(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];});}
+
+  // ===== 現在ユーザー検出（複数フォールバック）=====
+  function _p523_getCurrentInternalUser(){
+    let u = null;
+    // 1. bare currentUser（script-scope let、lexical lookup）
+    try{
+      if(typeof currentUser !== 'undefined' && currentUser){
+        u = currentUser;
+      }
+    }catch(_){}
+    // 2. window.currentUser（packet 488 等で明示 mirror される可能性）
+    if(!u){
+      try{ if(window.currentUser) u = window.currentUser; }catch(_){}
+    }
+    // 3. state.currentUser（将来の保存場所）
+    if(!u){
+      try{ if(window.state && state.currentUser) u = state.currentUser; }catch(_){}
+    }
+    return u;
+  }
+  window._p523_getCurrentInternalUser = _p523_getCurrentInternalUser;
+
+  // ===== admin 相当判定（packet 522 と同じ 8 条件、ただし helper 経由）=====
+  function _p523_isAdminLikeUser(){
+    try{
+      const u = _p523_getCurrentInternalUser();
+      if(!u) return false;
+      if(u.perm === 'admin' || u.perm === 'owner') return true;
+      const role = String(u.role || '');
+      if(role === 'admin' || role === 'owner' || role === '管理者') return true;
+      if(role.indexOf('管理者') >= 0) return true;
+      if(u.uid === 'admin') return true;
+      const name = String(u.name || '');
+      if(name.indexOf('芳村') >= 0) return true;
+      if(name.indexOf('管理者') >= 0) return true;
+      try{ if(typeof isAdmin === 'function' && isAdmin()) return true; }catch(_){}
+      return false;
+    }catch(e){return false;}
+  }
+  window._p523_isAdminLikeUser = _p523_isAdminLikeUser;
+
+  // ===== packet 521 admin Auth カードの可視性 最終上書き =====
+  function _p523_applyVisibility(){
+    try{
+      const card = document.getElementById('p521-auth-card');
+      if(!card) return;
+      const ok = _p523_isAdminLikeUser();
+      card.style.display = ok ? 'block' : 'none';
+      // packet 522 の案内 note も状態に合わせて表示制御
+      try{
+        const note = document.getElementById('p522-visibility-note');
+        if(note) note.style.display = ok ? 'none' : 'block';
+      }catch(_){}
+    }catch(_){}
+  }
+
+  // ===== packet 516 の currentUser 表示を補正 =====
+  function _p523_fixP516Display(){
+    try{
+      const userEl = document.getElementById('p516-status-user');
+      if(!userEl) return;
+      const u = _p523_getCurrentInternalUser();
+      if(u && u.uid){
+        const permLabel = u.perm === 'admin' ? '管理者(admin)' : u.perm === 'owner' ? 'owner' : (u.perm || 'staff');
+        userEl.textContent = '✅ ' + (u.name || u.uid) + '（' + permLabel + ' / role: ' + (u.role || '-') + '）';
+        userEl.style.color = '#0d9e6e';
+      }else{
+        userEl.textContent = '❌ 検出不可（再ログイン推奨）';
+        userEl.style.color = '#dc2626';
+      }
+    }catch(_){}
+  }
+
+  // ===== Auth 接続準備診断に「currentUser 検出診断」セクション挿入 =====
+  function _p523_injectDetectionSection(){
+    try{
+      const card = document.getElementById('p516-auth-card');
+      if(!card) return;
+      let section = document.getElementById('p523-detection-section');
+      if(!section){
+        section = document.createElement('div');
+        section.id = 'p523-detection-section';
+        section.style.cssText = 'background:#fff;border:1px solid var(--bo);border-radius:6px;padding:8px 10px;margin-bottom:8px;font-size:11px;line-height:1.7';
+        section.innerHTML = ''
+          +'<div style="font-weight:800;color:#0a3d7c;margin-bottom:4px">🔍 currentUser 検出診断（packet 523）</div>'
+          +'<div>・社内ログイン検出：<b id="p523-d-detected" style="color:#94a3b8">未確認</b></div>'
+          +'<div>・検出ユーザー名：<b id="p523-d-name" style="color:#94a3b8">-</b></div>'
+          +'<div>・role：<b id="p523-d-role" style="color:#94a3b8">-</b></div>'
+          +'<div>・perm：<b id="p523-d-perm" style="color:#94a3b8">-</b></div>'
+          +'<div>・取得経路：<b id="p523-d-source" style="color:#94a3b8">-</b></div>'
+          +'<div>・admin 判定（_p523_isAdminLikeUser）：<b id="p523-d-admin" style="color:#94a3b8">-</b></div>'
+          +'<div>・admin Auth 接続カード表示：<b id="p523-d-cardvisible" style="color:#94a3b8">-</b></div>';
+        // packet 516 の安全注意フッター（pink 系）の直前に挿入
+        const footer = card.querySelector('div[style*="background:#fce7f3"]');
+        if(footer && footer.parentNode){
+          footer.parentNode.insertBefore(section, footer);
+        }else{
+          card.appendChild(section);
+        }
+      }
+      _p523_renderDetectionInfo();
+    }catch(_){}
+  }
+
+  function _p523_renderDetectionInfo(){
+    try{
+      // 取得経路も判定
+      let source = '-';
+      let u = null;
+      try{
+        if(typeof currentUser !== 'undefined' && currentUser){ u = currentUser; source = 'bare currentUser (script-scope let)'; }
+      }catch(_){}
+      if(!u){
+        try{ if(window.currentUser){ u = window.currentUser; source = 'window.currentUser'; } }catch(_){}
+      }
+      if(!u){
+        try{ if(window.state && state.currentUser){ u = state.currentUser; source = 'state.currentUser'; } }catch(_){}
+      }
+      const set = function(id, txt, color){
+        const el = document.getElementById(id);
+        if(!el) return;
+        el.textContent = txt;
+        if(color) el.style.color = color;
+      };
+      if(u && u.uid){
+        set('p523-d-detected', '✅ 成功', '#0d9e6e');
+        set('p523-d-name', String(u.name || u.uid || '?'), '#0d9e6e');
+        set('p523-d-role', String(u.role || '-'), '#0a3d7c');
+        set('p523-d-perm', String(u.perm || '-'), '#0a3d7c');
+        set('p523-d-source', source, '#0a3d7c');
+      }else{
+        set('p523-d-detected', '❌ 失敗（再ログイン推奨）', '#dc2626');
+        set('p523-d-name', '-', '#94a3b8');
+        set('p523-d-role', '-', '#94a3b8');
+        set('p523-d-perm', '-', '#94a3b8');
+        set('p523-d-source', source, '#94a3b8');
+      }
+      const adminLike = _p523_isAdminLikeUser();
+      set('p523-d-admin', adminLike ? '✅ admin 相当' : '❌ admin 相当ではない', adminLike ? '#0d9e6e' : '#dc2626');
+      set('p523-d-cardvisible', adminLike ? '✅ 表示条件を満たす（カード表示中）' : '❌ 表示条件を満たさない（カード非表示）', adminLike ? '#0d9e6e' : '#94a3b8');
+    }catch(_){}
+  }
+
+  // renderMemoryPage 後勝ち wrap（packet 521 / 522 wrap の後）
+  (function _p523_wrapRender(){
+    try{
+      const orig = window.renderMemoryPage;
+      if(typeof orig !== 'function') return;
+      window.renderMemoryPage = function(){
+        try{orig.apply(this, arguments);}catch(_){}
+        try{_p523_injectDetectionSection();}catch(_){}
+        try{_p523_fixP516Display();}catch(_){}
+        try{_p523_applyVisibility();}catch(_){}
+        try{_p523_renderDetectionInfo();}catch(_){}
+      };
+    }catch(_){}
+  })();
+
+})();
+// ==== ここまで packet 523 currentUser 検出 + admin Auth 接続カード表示診断 hotfix ====
 </script>
 </body>
 </html>
