@@ -18658,6 +18658,90 @@ function _p500_buildCandidateFromPayload(payload){
 
 })();
 // ==== ここまで packet 521 admin Supabase Auth 接続 診断 MVP ====
+
+// ═══════════════════════════════════════
+// packet 522: admin Supabase Auth 接続カード 表示条件 hotfix（v0.9.272）
+// 不具合：packet 521 の _p521_applyVisibility が `currentUser.perm === 'admin'` のみで、
+// owner / role=管理者 / uid=admin / name=芳村 / name=管理者 などで非表示になる。
+// 修正：admin 相当の広い判定に置き換え（既存 isAdmin() helper も活用）。
+// 厳守：
+//   - Auth 処理（packet 521 の signIn / signOut / getSession）は変更なし
+//   - パスワード保存 0、service_role 不使用維持
+//   - SQL / RLS / Auth 設定変更 0
+//   - DELETE / UPDATE / UPSERT 0
+// ═══════════════════════════════════════
+(function _p522_init(){
+  // ===== admin 相当判定（広い、packet 484 isAdmin() と整合）=====
+  function _p522_isAdminLikeUser(){
+    try{
+      const u = window.currentUser;
+      if(!u) return false;
+      // 1. perm based（既存パターン）
+      if(u.perm === 'admin' || u.perm === 'owner') return true;
+      // 2. role based
+      const role = String(u.role || '');
+      if(role === 'admin' || role === 'owner' || role === '管理者') return true;
+      if(role.indexOf('管理者') >= 0) return true;
+      // 3. uid
+      if(u.uid === 'admin') return true;
+      // 4. name based
+      const name = String(u.name || '');
+      if(name.indexOf('芳村') >= 0) return true;
+      if(name.indexOf('管理者') >= 0) return true;
+      // 5. 既存 packet 484 helper（perm=admin/owner 判定）
+      try{ if(typeof isAdmin === 'function' && isAdmin()) return true; }catch(_){}
+      return false;
+    }catch(e){return false;}
+  }
+  window._p522_isAdminLikeUser = _p522_isAdminLikeUser;
+
+  // ===== packet 521 _p521_applyVisibility を非破壊で差し替え =====
+  function _p522_applyVisibility(){
+    try{
+      const card = document.getElementById('p521-auth-card');
+      if(!card) return;
+      const ok = _p522_isAdminLikeUser();
+      card.style.display = ok ? 'block' : 'none';
+      // 非表示時に packet 516 カードの推奨欄に追記
+      try{
+        const recoEl = document.getElementById('p516-status-recommend');
+        if(recoEl && !ok){
+          const noteId = 'p522-visibility-note';
+          let note = document.getElementById(noteId);
+          if(!note){
+            note = document.createElement('div');
+            note.id = noteId;
+            note.style.cssText = 'font-size:10.5px;color:#7c2d12;background:#fff7ed;border:1px solid #fed7aa;border-radius:4px;padding:5px 8px;margin-top:5px;line-height:1.55';
+            note.innerHTML = '🔑 packet 521「admin Supabase Auth 接続」カードは <b>admin / owner 権限のみ表示</b>されます。表示されない場合は admin / owner アカウントでログインしてください（packet 522 hotfix）。';
+            recoEl.parentNode && recoEl.parentNode.insertBefore(note, recoEl.nextSibling);
+          }
+          note.style.display = 'block';
+        }else if(recoEl && ok){
+          const note = document.getElementById('p522-visibility-note');
+          if(note) note.style.display = 'none';
+        }
+      }catch(_){}
+    }catch(e){try{console.warn('[packet 522 applyVisibility]', e&&e.message);}catch(_){}}
+  }
+  window._p522_applyVisibility = _p522_applyVisibility;
+
+  // packet 521 の _p521_applyVisibility を上書き（widened version）
+  // 既存関数の差し替え：packet 521 IIFE 内ではローカル関数として定義されているが、
+  // renderMemoryPage wrap から呼ばれる際は IIFE 内クロージャ参照。
+  // よって renderMemoryPage を packet 522 で再度 wrap し、_p522_applyVisibility を実行する。
+  (function _p522_wrapRender(){
+    try{
+      const orig = window.renderMemoryPage;
+      if(typeof orig !== 'function') return;
+      window.renderMemoryPage = function(){
+        try{orig.apply(this, arguments);}catch(_){}
+        try{_p522_applyVisibility();}catch(_){}
+      };
+    }catch(e){try{console.warn('[packet 522 wrapRender]', e&&e.message);}catch(_){}}
+  })();
+
+})();
+// ==== ここまで packet 522 admin Supabase Auth 接続カード 表示条件 hotfix ====
 </script>
 </body>
 </html>
