@@ -20215,6 +20215,128 @@ function _p500_buildCandidateFromPayload(payload){
 
 })();
 // ==== ここまで packet 533 AI 相談 記憶参照ベース ====
+
+// ═══════════════════════════════════════
+// packet 534: 社員向け 記憶庫投稿ガイド UI（v0.9.284）
+// 目的：「何を / どう書けば記憶庫に残すべきか」を社員が迷わないよう、
+// 投稿前のガイドを記憶庫ページ上部に常設表示。
+// 厳守：DB 書き込み 0、ロジック変更 0、表示専用。
+// ═══════════════════════════════════════
+(function _p534_init(){
+  function _p534_injectGuideCard(){
+    try{
+      const memPage = document.getElementById('page-memory');
+      if(!memPage) return;
+      if(document.getElementById('p534-guide-card')) return;
+
+      const card = document.createElement('div');
+      card.id = 'p534-guide-card';
+      card.className = 'card';
+      card.style.cssText = 'border-top:4px solid #ec4899;margin-bottom:10px;background:#fdf2f8';
+
+      const collapsed = (function(){
+        try{
+          // localStorage は保存禁止扱いだが、「閉じる」状態の UI 軽量保持に sessionStorage のみ使う
+          return sessionStorage.getItem('p534-guide-collapsed') === '1';
+        }catch(_){return false;}
+      })();
+
+      card.innerHTML = ''
+        +'<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">'
+          +'<div style="font-weight:800;color:#9d174d">📖 記憶庫 投稿ガイド（packet 534）</div>'
+          +'<button type="button" id="p534-toggle-btn" class="dr-btn" style="background:#ec4899;color:#fff;border:0;font-weight:700;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:11px">'+(collapsed?'▶ 開く':'▼ 閉じる')+'</button>'
+        +'</div>'
+        +'<div id="p534-guide-body" style="margin-top:8px;font-size:12px;line-height:1.65;'+(collapsed?'display:none':'')+'">'
+          +'<div style="background:#fff;border:1px solid #fbcfe8;border-radius:6px;padding:8px 10px;margin-bottom:8px">'
+            +'<div style="font-weight:700;color:#9d174d;margin-bottom:4px">🎯 どんなときに記憶庫に残す？</div>'
+            +'<ul style="margin:0;padding-left:18px;color:#475569">'
+              +'<li><b>成功した</b>パターン（再現したい）→ 「✨ 成功事例」</li>'
+              +'<li><b>失敗した</b>こと、ヒヤリ・反省 → 「📉 失敗・反省」</li>'
+              +'<li>その日に解決できなかった<b>困りごと</b> → 「⚠ 困りごと（未解決）」</li>'
+              +'<li>店長 / ボスに<b>判断を仰ぎたい</b>こと → 「👀 店長/ボス相談」</li>'
+              +'<li>明日からの<b>改善・新ルール</b> → 「🚀 明日の改善」</li>'
+            +'</ul>'
+          +'</div>'
+
+          +'<div style="background:#fff;border:1px solid #fbcfe8;border-radius:6px;padding:8px 10px;margin-bottom:8px">'
+            +'<div style="font-weight:700;color:#9d174d;margin-bottom:4px">✍ 良い書き方（テンプレ）</div>'
+            +'<div style="color:#475569;font-size:11px;line-height:1.6">'
+              +'<b>タイトル：</b>何が起きたか／何を学んだか（30文字以内）<br>'
+              +'<b>本文：</b>① いつ・どこで・誰が・何を　② どうなった　③ なぜそうなった（原因）<br>'
+              +'<b>教訓：</b>次に活かすには？（一言で）<br>'
+              +'<b>次の一手：</b>具体的に明日からやること<br>'
+              +'<b>タグ：</b>関連する顧客/物件/業者名（カンマ区切り）'
+            +'</div>'
+          +'</div>'
+
+          +'<div style="background:#fff;border:1px solid #fbcfe8;border-radius:6px;padding:8px 10px;margin-bottom:8px">'
+            +'<div style="font-weight:700;color:#9d174d;margin-bottom:4px">⚠ 注意（守ってほしいこと）</div>'
+            +'<ul style="margin:0;padding-left:18px;color:#475569">'
+              +'<li>個人情報（顧客のフルネーム・電話番号・住所等）は<b>記載しない</b>。ニックネームや物件 ID で代替</li>'
+              +'<li>感情的な悪口・特定個人への非難は書かない（事実 + 教訓 のみ）</li>'
+              +'<li>パスワード・トークン・API キーは絶対に書かない</li>'
+              +'<li>未確定の噂・伝聞は事実と区別して書く</li>'
+            +'</ul>'
+          +'</div>'
+
+          +'<div style="background:#fff;border:1px solid #fbcfe8;border-radius:6px;padding:8px 10px;margin-bottom:8px">'
+            +'<div style="font-weight:700;color:#9d174d;margin-bottom:4px">🔁 振り返りの流れ</div>'
+            +'<ol style="margin:0;padding-left:18px;color:#475569;line-height:1.65">'
+              +'<li>日報を書いたら、packet 531 の「📝 テンプレ別 記憶庫候補」で 5 種類から選ぶ</li>'
+              +'<li>記憶庫ページに移動 → pre-fill された内容を確認・微調整</li>'
+              +'<li>「📚 この内容で記憶庫に登録」で確定（packet 510/526 で DB 並行保存）</li>'
+              +'<li>週次 / 月次：packet 530「📅 記憶レビュー」で TOP5 を見直す</li>'
+              +'<li>未解決・ボス確認待ちは packet 528 / 529 で絞り込み</li>'
+            +'</ol>'
+          +'</div>'
+
+          +'<div style="background:#fef3c7;border:1px solid #fde68a;border-radius:6px;padding:7px 10px;color:#92400e;font-size:11px;line-height:1.55">'
+            +'💡 迷ったら「<b>未来の自分・同僚が読んで分かるか？</b>」を基準に。短くても OK。'
+          +'</div>'
+        +'</div>';
+
+      // 記憶庫ページ最上部に挿入（packet 500/507/528 等の既存カードの前）
+      const firstCard = memPage.querySelector('.card');
+      if(firstCard) memPage.insertBefore(card, firstCard);
+      else memPage.appendChild(card);
+
+      document.getElementById('p534-toggle-btn').addEventListener('click', function(){
+        const body = document.getElementById('p534-guide-body');
+        const btn = document.getElementById('p534-toggle-btn');
+        if(!body || !btn) return;
+        if(body.style.display === 'none'){
+          body.style.display = '';
+          btn.textContent = '▼ 閉じる';
+          try{sessionStorage.removeItem('p534-guide-collapsed');}catch(_){}
+        }else{
+          body.style.display = 'none';
+          btn.textContent = '▶ 開く';
+          try{sessionStorage.setItem('p534-guide-collapsed','1');}catch(_){}
+        }
+      });
+    }catch(e){try{console.warn('[packet 534 injectGuideCard]', e&&e.message);}catch(_){}}
+  }
+
+  (function _p534_wrapSwitchPage(){
+    try{
+      const orig = window.switchPage;
+      if(typeof orig !== 'function') return;
+      window.switchPage = function(pg){
+        try{ orig.apply(this, arguments); }catch(_){}
+        if(pg === 'memory'){
+          setTimeout(function(){ try{_p534_injectGuideCard();}catch(_){} }, 60);
+        }
+      };
+    }catch(_){}
+  })();
+
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){ setTimeout(_p534_injectGuideCard, 300); });
+  }else{
+    setTimeout(_p534_injectGuideCard, 300);
+  }
+})();
+// ==== ここまで packet 534 社員向け 記憶庫投稿ガイド UI ====
 </script>
 </body>
 </html>
