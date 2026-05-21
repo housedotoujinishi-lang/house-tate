@@ -19888,6 +19888,186 @@ function _p500_buildCandidateFromPayload(payload){
 
 })();
 // ==== ここまで packet 531 日報 → 記憶庫 実運用テンプレ強化 ====
+
+// ═══════════════════════════════════════
+// packet 532: AI 会議 記憶参照精度アップ MVP（v0.9.282）
+// 目的：AI 議論ページ送信時に、議題に関連度の高い in-memory 記憶を
+// クライアント側でスコア順に抽出 → AI 別「観点ヒント」を生成 → 表示。
+// 厳守：外部 API 呼び出し 0、DB 書き込み 0、AI への自動送信 0（参考表示のみ）。
+// ═══════════════════════════════════════
+(function _p532_init(){
+  function E(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];});}
+
+  const AI_PERSPECTIVES = {
+    'クロード':     {emoji:'🤖', focus:'安全性 / 倫理 / 既存制約', keywords:['失敗','再発','倫理','安全','顧客','クレーム','ボス']},
+    'クロード相棒': {emoji:'🤝', focus:'実装手順 / リスク並列確認', keywords:['実装','手順','リスク','並列','確認','テスト']},
+    'GPT':          {emoji:'💡', focus:'発想拡張 / 別案 / 横展開', keywords:['発想','別案','拡張','横展開','改善']},
+    'Gemini':       {emoji:'🌟', focus:'マーケ / 集客 / 反響', keywords:['集客','反響','マーケ','広告','SNS','問い合わせ']},
+    'Grok':         {emoji:'😎', focus:'本音 / 反対意見 / 業界裏', keywords:['本音','反対','裏','業界','競合']},
+    'メタAI':       {emoji:'🧠', focus:'長期戦略 / 経営判断', keywords:['経営','長期','戦略','方針','投資']},
+    'Manus':        {emoji:'⚙', focus:'作業自動化 / 手順書化', keywords:['自動化','手順','マニュアル','効率','作業']},
+    'Perplexity':   {emoji:'🔍', focus:'裏付け / 出典 / 統計', keywords:['出典','根拠','統計','データ','裏付け']},
+    'default':      {emoji:'🤖', focus:'多角的観点', keywords:[]}
+  };
+
+  function _p532_getStore(){
+    try{ return (window._p500_memoryStore || []).slice(); }catch(_){ return []; }
+  }
+
+  function _p532_score(topic, mem){
+    let s = 0;
+    try{
+      const t = String(topic||'').toLowerCase();
+      if(!t) return 0;
+      const tokens = t.split(/[\s　、。,，.！？!?]+/).filter(function(x){return x && x.length>=2;});
+      const haystack = [mem.title, mem.content, mem.cause, mem.lesson, mem.nextAction,
+        mem.bossDecision, mem.category, mem.tags, mem.relatedTarget].map(function(x){return String(x||'').toLowerCase();}).join(' ');
+      tokens.forEach(function(tok){
+        if(haystack.indexOf(tok) !== -1) s += 5;
+      });
+      if(mem.importance === 'high') s += 2;
+      if(mem.needsManagerFollowup) s += 2;
+      if(mem.riskLevel === 'high') s += 2;
+      if(mem.unresolved) s += 1;
+      try{
+        const ts = mem.createdAt ? new Date(mem.createdAt).getTime() : 0;
+        const days = (Date.now() - ts) / (1000*60*60*24);
+        if(days >= 0 && days <= 30) s += 1;
+      }catch(_){}
+    }catch(_){}
+    return s;
+  }
+
+  function _p532_topRelevant(topic, n){
+    const store = _p532_getStore();
+    const scored = store.map(function(m){ return {m:m, s:_p532_score(topic, m)}; })
+      .filter(function(x){ return x.s > 0; })
+      .sort(function(a,b){ return b.s - a.s; })
+      .slice(0, n || 5);
+    return scored;
+  }
+
+  function _p532_perspectiveForAI(aiName, topic, topMems){
+    try{
+      const def = AI_PERSPECTIVES[aiName] || AI_PERSPECTIVES['default'];
+      let focused = null;
+      for(let i=0;i<topMems.length;i++){
+        const mem = topMems[i].m;
+        const hay = [mem.title, mem.content, mem.category, mem.tags].map(function(x){return String(x||'').toLowerCase();}).join(' ');
+        for(let k=0;k<def.keywords.length;k++){
+          if(hay.indexOf(String(def.keywords[k]).toLowerCase()) !== -1){ focused = mem; break; }
+        }
+        if(focused) break;
+      }
+      if(!focused && topMems.length > 0) focused = topMems[0].m;
+      return {ai:aiName, emoji:def.emoji, focus:def.focus, focused:focused};
+    }catch(e){return {ai:aiName, emoji:'🤖', focus:'多角的観点', focused:null};}
+  }
+
+  function _p532_readTopic(){
+    try{
+      const candidates = ['ai-topic-input','ai-discussion-topic','discussion-topic','ai-meeting-topic','ai-topic'];
+      for(let i=0;i<candidates.length;i++){
+        const el = document.getElementById(candidates[i]);
+        if(el && String(el.value||'').trim()) return String(el.value||'').trim();
+      }
+      const ta = document.querySelectorAll('#page-ai-discussion textarea, #page-ai-discussion input[type="text"]');
+      for(let i=0;i<ta.length;i++){
+        if(ta[i].value && ta[i].value.trim().length >= 4) return String(ta[i].value).trim();
+      }
+    }catch(_){}
+    return '';
+  }
+
+  function _p532_injectHintCard(){
+    try{
+      const aiPage = document.getElementById('page-ai-discussion');
+      if(!aiPage) return;
+      if(document.getElementById('p532-hint-card')) return;
+      const card = document.createElement('div');
+      card.id = 'p532-hint-card';
+      card.className = 'card';
+      card.style.cssText = 'border-top:4px solid #0ea5e9;margin-bottom:10px';
+      card.innerHTML = ''
+        +'<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">'
+          +'<div style="font-weight:800;color:#075985">📚 議題に関連する記憶ヒント（packet 532）</div>'
+          +'<button type="button" id="p532-refresh-btn" class="dr-btn" style="background:#0ea5e9;color:#fff;border:0;font-weight:700;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:11px">🔄 議題から再抽出</button>'
+        +'</div>'
+        +'<div style="font-size:11px;color:var(--t3);margin-top:4px;line-height:1.55">議題テキストと in-memory 記憶を関連度スコアで照合。AI 別観点ヒントを参考表示。<b>AI への自動送信なし</b>。</div>'
+        +'<div id="p532-hint-result" style="margin-top:8px;font-size:12px;line-height:1.55">議題を入力してから「🔄 議題から再抽出」を押してください。</div>'
+        +'<div style="font-size:10px;color:#666;background:#f8fafc;border:1px solid var(--bo);border-radius:4px;padding:5px 8px;margin-top:8px;line-height:1.55">※ in-memory のみ参照（packet 500）。DB 書き込み 0 / 外部 API 0 / 観点はクライアント辞書（AI への自動プロンプト追加なし）。</div>';
+      const firstChild = aiPage.querySelector('.card, h2, h3');
+      if(firstChild) aiPage.insertBefore(card, firstChild);
+      else aiPage.appendChild(card);
+      document.getElementById('p532-refresh-btn').addEventListener('click', _p532_renderHints);
+    }catch(e){try{console.warn('[packet 532 injectHintCard]', e&&e.message);}catch(_){}}
+  }
+
+  function _p532_renderHints(){
+    try{
+      const out = document.getElementById('p532-hint-result');
+      if(!out) return;
+      const topic = _p532_readTopic();
+      if(!topic){
+        out.style.color = '#92400e';
+        out.innerHTML = '⚠ 議題テキストが見つかりません。AI 議論ページの議題欄に入力してから再抽出してください。';
+        return;
+      }
+      const top = _p532_topRelevant(topic, 5);
+      if(top.length === 0){
+        out.style.color = 'var(--t3)';
+        out.innerHTML = '関連する記憶は見つかりませんでした（in-memory: '+_p532_getStore().length+' 件 / 議題: '+E(topic.slice(0,60))+(topic.length>60?'...':'')+'）';
+        return;
+      }
+      const aiList = ['クロード','クロード相棒','GPT','Gemini','Grok','メタAI','Manus','Perplexity'];
+      let html = '<div style="background:#ecfeff;border:1px solid #67e8f9;border-radius:6px;padding:8px 10px;margin-bottom:8px;font-size:11px;color:#0e7490">📌 議題：「'+E(topic.slice(0,80))+(topic.length>80?'...':'')+'」 / 関連記憶 '+top.length+' 件抽出</div>';
+      html += '<div style="font-size:11px;font-weight:700;color:#0c4a6e;margin-bottom:4px">⭐ 関連度 TOP'+top.length+'</div>';
+      top.forEach(function(item, i){
+        const m = item.m;
+        html += '<div style="border:1px solid #bae6fd;background:#f0f9ff;border-radius:6px;padding:6px 8px;margin-bottom:4px;font-size:11px;line-height:1.5">'
+          +'<div style="font-weight:700;color:#0c4a6e">'+(i+1)+'. '+E(String(m.title||'(無題)').slice(0,60))+' <span style="background:#0ea5e9;color:#fff;padding:1px 6px;border-radius:8px;font-size:10px;margin-left:4px">score '+item.s+'</span></div>'
+          +'<div style="color:#475569;margin-top:2px">'+E(String(m.content||'').slice(0,100))+(String(m.content||'').length>100?'...':'')+'</div>'
+          +'<div style="color:#0e7490;font-size:10px;margin-top:2px">'+(m.category?'['+E(m.category)+'] ':'')+(m.unresolved?'<b>⚠ 未解決</b> ':'')+(m.needsManagerFollowup?'<b>👀 ボス確認</b>':'')+'</div>'
+          +'</div>';
+      });
+      html += '<div style="font-size:11px;font-weight:700;color:#0c4a6e;margin:8px 0 4px">🎭 AI 別観点ヒント（参考）</div>';
+      aiList.forEach(function(ai){
+        const persp = _p532_perspectiveForAI(ai, topic, top);
+        html += '<div style="border:1px dashed #cbd5e1;border-radius:6px;padding:5px 8px;margin-bottom:3px;font-size:11px;line-height:1.5">'
+          +'<span style="font-weight:700">'+persp.emoji+' '+E(persp.ai)+'</span>：'
+          +'<span style="color:#475569">'+E(persp.focus)+'</span>'
+          +(persp.focused ? ' → 参照候補：<b style="color:#0c4a6e">'+E(String(persp.focused.title||'').slice(0,40))+'</b>' : '')
+          +'</div>';
+      });
+      out.style.color = '';
+      out.innerHTML = html;
+    }catch(e){try{console.warn('[packet 532 renderHints]', e&&e.message);}catch(_){}}
+  }
+
+  (function _p532_wrapSwitchPage(){
+    try{
+      const orig = window.switchPage;
+      if(typeof orig !== 'function') return;
+      window.switchPage = function(pg){
+        try{ orig.apply(this, arguments); }catch(_){}
+        if(pg === 'ai-discussion'){
+          setTimeout(function(){ try{_p532_injectHintCard();}catch(_){} }, 80);
+        }
+      };
+    }catch(_){}
+  })();
+
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){ setTimeout(_p532_injectHintCard, 300); });
+  }else{
+    setTimeout(_p532_injectHintCard, 300);
+  }
+
+  window._p532_renderHints = _p532_renderHints;
+  window._p532_topRelevant = _p532_topRelevant;
+
+})();
+// ==== ここまで packet 532 AI 会議 記憶参照精度アップ MVP ====
 </script>
 </body>
 </html>
