@@ -1607,7 +1607,9 @@ textarea.ai-team-input{resize:vertical;min-height:60px}
         <button id="dr-gen" type="button" class="dr-btn dr-btn-primary">📝 日報を生成</button>
         <button id="dr-copy" type="button" class="dr-btn dr-btn-secondary">📋 コピー</button>
         <button id="dr-print" type="button" class="dr-btn dr-btn-tertiary">🖨 印刷用表示</button>
+        <button id="p519-to-memory-btn" type="button" class="dr-btn" style="background:#7c3aed;color:#fff;border:0;font-weight:700;padding:7px 14px;border-radius:6px;cursor:pointer">🧠 記憶庫候補にする（packet 519）</button>
       </div>
+      <div id="p519-result" style="display:none;font-size:11px;background:#f5f3ff;border:1px solid #c4b5fd;border-radius:6px;padding:7px 10px;margin-top:6px;color:#5b21b6;line-height:1.55"></div>
       <div class="dr-card">
         <div class="dr-card-h">📄 日報プレビュー</div>
         <textarea id="dr-preview" class="dr-ta dr-preview" rows="22" readonly placeholder="「日報を生成」を押すと、ここに本日の日報案が表示されます"></textarea>
@@ -18070,6 +18072,145 @@ function _p500_buildCandidateFromPayload(payload){
 
 })();
 // ==== ここまで packet 518 AI 会議・AI 相談の記憶庫参照 MVP ====
+
+// ═══════════════════════════════════════
+// packet 519: 日報 → 記憶庫 候補化 MVP（v0.9.269）
+// 目的：日報 4 フィールド（振り返り / 困りごと / ボス確認 / 明日やること）
+// から記憶庫 pre-fill 候補を作成。既存 packet 507 の登録導線を活用。
+// 厳守：
+//   - DB 直接保存しない（packet 507 / 510 の既存導線に任せる）
+//   - localStorage 本文保存 0
+//   - 外部 API 0
+//   - 記憶本文 console 出力 0
+// ═══════════════════════════════════════
+(function _p519_init(){
+  function E(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];});}
+
+  function _p519_setResult(html, color){
+    try{
+      const r=document.getElementById('p519-result');
+      if(!r)return;
+      r.style.display='block';
+      if(color) r.style.color=color;
+      r.innerHTML=html;
+    }catch(_){}
+  }
+
+  function _p519_buildCandidate(){
+    try{
+      const v = function(id){const el=document.getElementById(id); return el ? String(el.value || '').trim() : '';};
+      const reflect = v('dr-reflect');
+      const trouble = v('dr-trouble');
+      const askMgr  = v('dr-ask-manager');
+      const tomorrow = v('dr-tomorrow');
+      const dateStr = v('dr-date') || (new Date().toISOString().slice(0,10));
+      let author = '担当者';
+      try{
+        const el = document.getElementById('dr-author');
+        if(el && el.textContent && el.textContent.trim() && el.textContent.trim() !== '—') author = el.textContent.trim();
+        else if(window.currentUser && currentUser.name) author = currentUser.name;
+      }catch(_){}
+      // 全フィールド空ならエラー
+      if(!reflect && !trouble && !askMgr && !tomorrow){
+        return {ok:false, error:'4 フィールドすべて空です。手入力欄に何か記入してから押してください。'};
+      }
+      // メモリタイプ自動判定（優先順）
+      let memoryType = 'discussion_log';
+      let category = '議論ログ';
+      if(trouble && !reflect && !askMgr){
+        memoryType = 'failure_lesson';
+        category = '失敗ログ';
+      }else if(askMgr && !trouble && !reflect){
+        memoryType = 'boss_decision';
+        category = 'ボス判断';
+      }else if(reflect && !trouble && !askMgr){
+        memoryType = 'discussion_log';
+        category = '議論ログ';
+      }
+      const tags = ['daily-report', 'packet-519'];
+      if(author && author !== '担当者') tags.push(author);
+      const candidate = {
+        memoryType: memoryType,
+        category: category,
+        title: '日報 '+dateStr+' - '+author,
+        content: [
+          reflect ? '【振り返り】\n'+reflect : '',
+          trouble ? '【困っていること】\n'+trouble : '',
+          askMgr ? '【店長確認】\n'+askMgr : '',
+          tomorrow ? '【明日やること】\n'+tomorrow : ''
+        ].filter(Boolean).join('\n\n'),
+        cause: trouble,
+        lesson: reflect,
+        nextAction: tomorrow,
+        bossDecision: askMgr,
+        relatedPacket: '519',
+        relatedTarget: author,
+        riskLevel: 'normal',
+        importance: askMgr ? 'high' : 'mid',
+        recurrenceRisk: 'mid',
+        tags: tags.join(','),
+        unresolved: !!(trouble || askMgr),
+        needsManagerFollowup: !!askMgr,
+        sourceType: 'daily-report'
+      };
+      return {ok:true, candidate:candidate};
+    }catch(e){
+      return {ok:false, error:String(e&&e.message||'unknown').slice(0,200)};
+    }
+  }
+
+  function _p519_sendToMemory(){
+    try{
+      const r = _p519_buildCandidate();
+      if(!r.ok){
+        _p519_setResult('❌ '+E(r.error), '#991b1b');
+        return;
+      }
+      try{
+        // packet 500 / 507 の pre-fill バッファに積む
+        _p500_pendingCandidate = r.candidate;
+      }catch(_){}
+      _p519_setResult('🧠 記憶庫ページに pre-fill して移動します。記憶庫ページの「📚 この内容で記憶庫に登録」を押すと確定します。<br><span style="font-size:10px;color:#666">※ packet 519 では DB に直接保存しません。packet 507 の登録導線 + packet 510 並行 INSERT に委ねます。</span>', '#5b21b6');
+      try{if(typeof switchPage === 'function') switchPage('memory');}catch(_){}
+    }catch(e){
+      _p519_setResult('❌ '+E(String(e&&e.message||e).slice(0,200)), '#991b1b');
+    }
+  }
+  window._p519_sendToMemory = _p519_sendToMemory;
+
+  function _p519_bindButton(){
+    try{
+      const btn = document.getElementById('p519-to-memory-btn');
+      if(!btn || btn.dataset.p519Bound === '1') return;
+      btn.dataset.p519Bound = '1';
+      btn.addEventListener('click', _p519_sendToMemory);
+    }catch(e){try{console.warn('[packet 519 bindButton]', e&&e.message);}catch(_){}}
+  }
+
+  // switchPage を非破壊 wrap → daily-report 表示時に bind
+  (function _p519_wrapSwitchPage(){
+    try{
+      const orig = window.switchPage;
+      if(typeof orig !== 'function') return;
+      window.switchPage = function(pg){
+        try{ orig.apply(this, arguments); }catch(_){}
+        if(pg === 'daily-report'){
+          setTimeout(function(){ try{_p519_bindButton();}catch(_){} }, 60);
+        }
+      };
+    }catch(e){try{console.warn('[packet 519 wrapSwitchPage]', e&&e.message);}catch(_){}}
+  })();
+
+  // DOMContentLoaded 後にも 1 回 bind 試行
+  function _p519_initialBind(){ try{_p519_bindButton();}catch(_){} }
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', _p519_initialBind);
+  }else{
+    setTimeout(_p519_initialBind, 200);
+  }
+
+})();
+// ==== ここまで packet 519 日報 → 記憶庫 候補化 MVP ====
 </script>
 </body>
 </html>
