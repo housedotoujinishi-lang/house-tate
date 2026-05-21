@@ -20337,6 +20337,128 @@ function _p500_buildCandidateFromPayload(payload){
   }
 })();
 // ==== ここまで packet 534 社員向け 記憶庫投稿ガイド UI ====
+
+// ═══════════════════════════════════════
+// packet 535: じゃがい記憶庫 正本化ロードマップ（v0.9.285）
+// 目的：「in-memory + DB 並行保存」の現状から、将来的に Supabase DB を
+// 正本（single source of truth）にしていくロードマップを画面上でも可視化。
+// 厳守：DB 設定変更 0、SQL 実行 0、新規 fetch 0、表示専用。
+// ═══════════════════════════════════════
+(function _p535_init(){
+  function E(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];});}
+
+  // ロードマップ定義（status: done / partial / planned / future）
+  const ROADMAP = [
+    {phase:'Phase 1', title:'in-memory MVP', status:'done', packets:['500','501-507'], note:'登録/一覧/編集を JS のみで構築（DB 0）'},
+    {phase:'Phase 2', title:'Supabase テーブル設計 + 並行保存', status:'done', packets:['508','509','510'], note:'jagai_memory テーブル + INSERT 並行保存（フォールバック前提）'},
+    {phase:'Phase 3', title:'DB 復元 GET + 起動時マージ', status:'done', packets:['511'], note:'リロード後に DB から取得 → in-memory マージ'},
+    {phase:'Phase 4', title:'RLS + Auth 接続', status:'done', packets:['512','521-524','526','527'], note:'authenticated 限定 SELECT/INSERT、admin 手動 signIn'},
+    {phase:'Phase 5', title:'運用 UI ベース拡張', status:'done', packets:['528','529','530','531','532','533','534'], note:'カード操作 / 検索 / レビュー / 日報連携 / AI 参照 / ガイド'},
+    {phase:'Phase 6', title:'DB 正本化（書き込み信頼）', status:'planned', packets:['536+'], note:'保存失敗のリトライ + 失敗時バックログ → DB を最優先表示に', risks:['書き込み失敗時の挙動を社員が理解する必要','PostgREST/Supabase の障害時にも UI が壊れない設計']},
+    {phase:'Phase 7', title:'UPDATE/DELETE の安全実装', status:'future', packets:['ボス承認後'], note:'論理削除（deleted_at）+ 監査ログ → 物理 DELETE は使わない', risks:['誤削除リスク','RLS UPDATE policy の追加が必要']},
+    {phase:'Phase 8', title:'記憶 → AI プロンプト 半自動連結', status:'future', packets:['ボス承認後'], note:'関連 TOP3 を AI 相談プロンプト末尾に任意連結（社員が「使う/使わない」を選ぶ）', risks:['情報量増 → 出力品質変動','個人情報の意図せぬ送信防止のため二重チェック必須']},
+    {phase:'Phase 9', title:'OpenAI / Cloud Run 等の本番接続', status:'future', packets:['ボス承認後'], note:'API キーは Supabase Edge Function 経由（クライアントに鍵を置かない）', risks:['コスト管理','レート制限/フェイルセーフ']},
+    {phase:'Phase 10', title:'既存顧客テーブル接続（page-crm 復活含む）', status:'future', packets:['ボス承認後'], note:'packet 322 で永久封印中 → 復活には別 packet 設計', risks:['過去の事故を踏まえた段階的解放','RLS で店長以上限定']}
+  ];
+
+  function _p535_injectCard(){
+    try{
+      const memPage = document.getElementById('page-memory');
+      if(!memPage) return;
+      if(document.getElementById('p535-roadmap-card')) return;
+
+      const collapsed = (function(){
+        try{ return sessionStorage.getItem('p535-roadmap-collapsed') !== '0'; }catch(_){ return true; }
+      })();
+
+      const card = document.createElement('div');
+      card.id = 'p535-roadmap-card';
+      card.className = 'card';
+      card.style.cssText = 'border-top:4px solid #f97316;margin-bottom:10px';
+
+      const statusColor = {done:'#16a34a', partial:'#eab308', planned:'#0ea5e9', future:'#94a3b8'};
+      const statusLabel = {done:'✅ 完了', partial:'🟡 部分', planned:'📅 計画', future:'⏳ 将来'};
+
+      let bodyHtml = '<div style="font-size:11px;color:var(--t3);margin-bottom:8px;line-height:1.55">'
+        +'じゃがい記憶庫を「in-memory + DB 並行保存」から将来的に「Supabase DB 正本」にしていくロードマップ。'
+        +'<b>各 Phase の進捗は packet 番号で追跡可能</b>。Phase 6 以降はボス承認待ち。</div>';
+
+      ROADMAP.forEach(function(p){
+        const c = statusColor[p.status] || '#64748b';
+        const l = statusLabel[p.status] || p.status;
+        bodyHtml += '<div style="border-left:3px solid '+c+';background:#fafafa;border-radius:0 6px 6px 0;padding:6px 10px;margin-bottom:6px;font-size:11px;line-height:1.55">'
+          +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
+            +'<span style="font-weight:800;color:#1e293b">'+E(p.phase)+'</span>'
+            +'<span style="font-weight:700;color:'+c+'">'+l+'</span>'
+            +'<span style="font-weight:700;color:#0f172a">'+E(p.title)+'</span>'
+          +'</div>'
+          +'<div style="margin-top:3px;color:#475569">'+E(p.note)+'</div>'
+          +'<div style="margin-top:2px;color:#64748b;font-size:10px">packet: '+E(p.packets.join(' / '))+'</div>';
+        if(p.risks && p.risks.length){
+          bodyHtml += '<div style="margin-top:3px;color:#b45309;font-size:10px"><b>⚠ リスク:</b> '+p.risks.map(function(r){return E(r);}).join(' / ')+'</div>';
+        }
+        bodyHtml += '</div>';
+      });
+
+      bodyHtml += '<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:6px;padding:7px 10px;color:#9a3412;font-size:11px;line-height:1.55;margin-top:8px">'
+        +'🚧 <b>Phase 6 以降の実装には必ずボス承認が必要</b>です。SQL 変更 / RLS 追加 / DELETE 実装 / 外部 API 接続 / 既存顧客テーブル接続は本 packet では一切行いません。</div>';
+
+      card.innerHTML = ''
+        +'<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">'
+          +'<div style="font-weight:800;color:#9a3412">🗺 じゃがい記憶庫 正本化ロードマップ（packet 535）</div>'
+          +'<button type="button" id="p535-toggle-btn" class="dr-btn" style="background:#f97316;color:#fff;border:0;font-weight:700;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:11px">'+(collapsed?'▶ 展開':'▼ 閉じる')+'</button>'
+        +'</div>'
+        +'<div id="p535-roadmap-body" style="margin-top:8px;'+(collapsed?'display:none':'')+'">'+bodyHtml+'</div>'
+        +'<div style="font-size:10px;color:#666;background:#f8fafc;border:1px solid var(--bo);border-radius:4px;padding:5px 8px;margin-top:8px;line-height:1.55">※ 表示専用カード。DB 設定変更 0 / SQL 実行 0 / 新規 fetch 0。設計 docs：housetate-ai-company / docs / MEMORY_AUTHORITATIVE_ROADMAP_PACKET_535.md</div>';
+
+      // packet 534 ガイドカードの直後に挿入
+      const guideCard = document.getElementById('p534-guide-card');
+      if(guideCard && guideCard.parentNode === memPage){
+        if(guideCard.nextSibling) memPage.insertBefore(card, guideCard.nextSibling);
+        else memPage.appendChild(card);
+      }else{
+        const firstCard = memPage.querySelector('.card');
+        if(firstCard) memPage.insertBefore(card, firstCard);
+        else memPage.appendChild(card);
+      }
+
+      document.getElementById('p535-toggle-btn').addEventListener('click', function(){
+        const body = document.getElementById('p535-roadmap-body');
+        const btn = document.getElementById('p535-toggle-btn');
+        if(!body || !btn) return;
+        if(body.style.display === 'none'){
+          body.style.display = '';
+          btn.textContent = '▼ 閉じる';
+          try{sessionStorage.setItem('p535-roadmap-collapsed','0');}catch(_){}
+        }else{
+          body.style.display = 'none';
+          btn.textContent = '▶ 展開';
+          try{sessionStorage.setItem('p535-roadmap-collapsed','1');}catch(_){}
+        }
+      });
+    }catch(e){try{console.warn('[packet 535 injectCard]', e&&e.message);}catch(_){}}
+  }
+
+  (function _p535_wrapSwitchPage(){
+    try{
+      const orig = window.switchPage;
+      if(typeof orig !== 'function') return;
+      window.switchPage = function(pg){
+        try{ orig.apply(this, arguments); }catch(_){}
+        if(pg === 'memory'){
+          setTimeout(function(){ try{_p535_injectCard();}catch(_){} }, 80);
+        }
+      };
+    }catch(_){}
+  })();
+
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){ setTimeout(_p535_injectCard, 320); });
+  }else{
+    setTimeout(_p535_injectCard, 320);
+  }
+})();
+// ==== ここまで packet 535 じゃがい記憶庫 正本化ロードマップ ====
 </script>
 </body>
 </html>
