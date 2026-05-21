@@ -20718,6 +20718,290 @@ function _p500_buildCandidateFromPayload(payload){
   })();
 })();
 // ==== ここまで packet 536 DB INSERT 失敗時バックログ + リトライキュー ====
+
+// ═══════════════════════════════════════
+// packet 538: 記憶庫 DB 正本モード ↔ in-memory 優先モード切替 UI ベース（v0.9.288）
+// 目的：現在の運用モードを画面上で明示。表示・説明・運用ガイドのみ。
+// 厳守：実際の DB ロジックは切替えない（UI 表示専用）、localStorage / sessionStorage に本文保存しない、
+//      DB UPDATE/DELETE/UPSERT 0、SQL/RLS/Auth 設定変更 0、新規 fetch 0。
+// ═══════════════════════════════════════
+(function _p538_init(){
+  function E(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];});}
+
+  // ── モード状態（sessionStorage には mode token のみ保存、本文は一切保存しない）
+  const MODE_KEY = 'p538-display-mode'; // 'db' | 'memory'
+  function _p538_getMode(){
+    try{
+      const v = sessionStorage.getItem(MODE_KEY);
+      if(v === 'db' || v === 'memory') return v;
+    }catch(_){}
+    return 'db'; // デフォルト：DB 正本モード推奨
+  }
+  function _p538_setMode(m){
+    try{
+      if(m === 'db' || m === 'memory') sessionStorage.setItem(MODE_KEY, m);
+    }catch(_){}
+  }
+
+  // ── 実装状態チェック（packet 進捗から判定）
+  function _p538_implStatus(){
+    return [
+      {label:'in-memory 即表示',    status:'done',   packet:'500/507'},
+      {label:'DB 保存（INSERT）',   status:'done',   packet:'510/526'},
+      {label:'DB 復元（GET）',      status:'done',   packet:'511/527'},
+      {label:'RLS / Auth',           status:'done',   packet:'512/521-524'},
+      {label:'INSERT 失敗バックログ', status:'done',   packet:'536'},
+      {label:'カード操作 DB 同期',  status:'pending',packet:'528（UIのみ） → 実 UPDATE は未'},
+      {label:'監査ログ',             status:'pending',packet:'Phase 7+（ボス承認後）'},
+      {label:'DB 検索 / ページング',status:'pending',packet:'Phase 6+（候補）'}
+    ];
+  }
+
+  // ── 社員向け説明テキスト（コピー用、固定）
+  const STAFF_EXPLAIN_TEXT =
+    '【記憶庫 DB 正本モードについて】\n\n'
+    +'■ DB 正本モードとは？\n'
+    +'　記憶庫の本物データは Supabase（クラウド）にあります。\n'
+    +'　画面の一覧はその DB から復元 + あなたが新規登録した分を合わせて表示しています。\n\n'
+    +'■ 登録の流れ\n'
+    +'　1. 記憶を入力 → 「📚 記憶庫に登録」を押す\n'
+    +'　2. その場で画面に追加（in-memory）\n'
+    +'　3. signIn 済みなら DB へ並行保存（成功で「✅ 有効」表示）\n'
+    +'　4. リロード後も DB から復元されます\n\n'
+    +'■ 必ず確認してほしいこと\n'
+    +'　・登録後「📊 DB 状態まとめ」で DB 保存が「✅ 有効」になっているかチェック\n'
+    +'　・もし「📮 DB 保存リトライキュー」に件数が出ていたら、signIn 確認 → 「🔁 今すぐ再送」\n'
+    +'　・signIn する前に大量登録しないでください（保存失敗の山になります）\n\n'
+    +'■ 絶対に書かないこと\n'
+    +'　・顧客のフルネーム / 電話番号 / 住所などの個人情報\n'
+    +'　・パスワード / API キー / トークン\n'
+    +'　・特定個人への悪口・非難（事実 + 教訓のみ書く）\n\n'
+    +'■ こまったら\n'
+    +'　・「📖 記憶庫 投稿ガイド」（packet 534）を読む\n'
+    +'　・店長 / ボス相談タグを付けて記録（packet 531 テンプレ「👀 店長/ボス相談」）\n';
+
+  function _p538_injectCard(){
+    try{
+      const memPage = document.getElementById('page-memory');
+      if(!memPage) return;
+      if(document.getElementById('p538-mode-card')) return;
+
+      const card = document.createElement('div');
+      card.id = 'p538-mode-card';
+      card.className = 'card';
+      card.style.cssText = 'border-top:4px solid #2563eb;margin-bottom:10px;background:#eff6ff';
+      card.innerHTML = ''
+        +'<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">'
+          +'<div style="font-weight:800;color:#1e3a8a">📌 記憶庫モード（packet 538 / 表示専用ベース）</div>'
+          +'<button type="button" id="p538-toggle-collapse" class="dr-btn" style="background:#2563eb;color:#fff;border:0;font-weight:700;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:11px">▼ 閉じる</button>'
+        +'</div>'
+        +'<div id="p538-mode-body" style="margin-top:8px;font-size:12px;line-height:1.6"></div>'
+        +'<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:6px;padding:7px 10px;color:#9a3412;font-size:11px;line-height:1.55;margin-top:8px">'
+          +'⚠ <b>このカードは「表示だけの運用モード選択」です</b>。実際の DB 保存 / 復元 / バックログのロジックは切替えません（packet 500-536 のまま動作）。'
+          +'モードトグルは将来の参考表示用で、現状は説明と「次にやること」のガイドのみ提供します。'
+        +'</div>'
+        +'<div style="font-size:10px;color:#666;background:#f8fafc;border:1px solid var(--bo);border-radius:4px;padding:5px 8px;margin-top:8px;line-height:1.55">※ '
+          +'sessionStorage には選択モード token（「db」または「memory」）のみ保存します。記憶本文 / トークン / パスワードは一切保存しません。完全な正本化は、カード操作 DB 同期（UPDATE / 論理 DELETE）と監査ログ実装後（packet 535 ロードマップ Phase 7）。'
+        +'</div>';
+      // packet 534 ガイドの直前（記憶庫ページ最上部）に挿入
+      const firstCard = memPage.querySelector('.card');
+      if(firstCard) memPage.insertBefore(card, firstCard);
+      else memPage.appendChild(card);
+
+      document.getElementById('p538-toggle-collapse').addEventListener('click', function(){
+        const body = document.getElementById('p538-mode-body');
+        const btn = document.getElementById('p538-toggle-collapse');
+        if(!body || !btn) return;
+        if(body.style.display === 'none'){
+          body.style.display = '';
+          btn.textContent = '▼ 閉じる';
+          try{sessionStorage.removeItem('p538-collapsed');}catch(_){}
+        }else{
+          body.style.display = 'none';
+          btn.textContent = '▶ 開く';
+          try{sessionStorage.setItem('p538-collapsed','1');}catch(_){}
+        }
+      });
+
+      // 折りたたみ状態の初期反映
+      try{
+        if(sessionStorage.getItem('p538-collapsed') === '1'){
+          document.getElementById('p538-mode-body').style.display = 'none';
+          document.getElementById('p538-toggle-collapse').textContent = '▶ 開く';
+        }
+      }catch(_){}
+
+      _p538_renderBody();
+    }catch(e){try{console.warn('[packet 538 injectCard]', e && e.message);}catch(_){}}
+  }
+
+  function _p538_renderBody(){
+    try{
+      const body = document.getElementById('p538-mode-body');
+      if(!body) return;
+      const mode = _p538_getMode();
+      const isDb = (mode === 'db');
+
+      // ── モードトグル UI（表示専用）
+      let html = ''
+        +'<div style="background:#fff;border:1px solid #bfdbfe;border-radius:8px;padding:8px 10px;margin-bottom:10px">'
+          +'<div style="font-size:11px;color:#1e3a8a;font-weight:700;margin-bottom:5px">⚙ 表示用 運用モード（実ロジック非連動）</div>'
+          +'<div style="display:flex;gap:6px;flex-wrap:wrap">'
+            +'<button type="button" id="p538-mode-db" class="dr-btn" style="background:'+(isDb?'#2563eb':'#fff')+';color:'+(isDb?'#fff':'#2563eb')+';border:1.5px solid #2563eb;font-weight:700;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:11px">🌐 DB 正本モード'+(isDb?'（選択中）':'')+'</button>'
+            +'<button type="button" id="p538-mode-memory" class="dr-btn" style="background:'+(!isDb?'#0891b2':'#fff')+';color:'+(!isDb?'#fff':'#0891b2')+';border:1.5px solid #0891b2;font-weight:700;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:11px">💾 in-memory 優先モード'+(!isDb?'（選択中）':'')+'</button>'
+          +'</div>'
+          +'<div style="font-size:10px;color:var(--t3);margin-top:5px">※ 「推奨：DB 正本モード」。選択は表示のみ、実際の保存方式は変更されません。</div>'
+        +'</div>';
+
+      // ── 各モード説明カード（2 枚並列）
+      html += '<div style="display:grid;grid-template-columns:1fr;gap:8px;margin-bottom:10px">';
+
+      // DB 正本モード
+      html += ''
+        +'<div style="background:#fff;border:1.5px solid '+(isDb?'#2563eb':'#bfdbfe')+';border-radius:8px;padding:9px 11px">'
+          +'<div style="font-size:12px;font-weight:800;color:#1e3a8a;margin-bottom:4px">🌐 DB 正本モード（推奨）</div>'
+          +'<div style="font-size:11px;color:#475569;line-height:1.65">'
+            +'記憶庫の本物データは <b>Supabase DB</b>。画面は DB 復元 + あなたの新規分を合わせて表示。'
+            +'<ul style="margin:4px 0 0;padding-left:18px">'
+              +'<li><b>画面登録：</b>in-memory に即表示（packet 500 / 507）</li>'
+              +'<li><b>DB 保存：</b>signIn 済みなら jagai_memory へ INSERT（packet 510 / 526）</li>'
+              +'<li><b>DB 復元：</b>signIn 済みなら起動時に GET（packet 511 / 527）</li>'
+              +'<li><b>DB 保存失敗：</b>packet 536 バックログへ一時退避 → 再 signIn で自動再送</li>'
+              +'<li><b>リロード後：</b>DB 保存済み分は復元、in-memory のみ分は消える</li>'
+            +'</ul>'
+          +'</div>'
+        +'</div>';
+
+      // in-memory 優先モード
+      html += ''
+        +'<div style="background:#fff;border:1.5px solid '+(!isDb?'#0891b2':'#a5f3fc')+';border-radius:8px;padding:9px 11px">'
+          +'<div style="font-size:12px;font-weight:800;color:#155e75;margin-bottom:4px">💾 in-memory 優先モード（緊急・オフライン用）</div>'
+          +'<div style="font-size:11px;color:#475569;line-height:1.65">'
+            +'DB が使えないとき、または signIn なしで作業するときの一時運用。'
+            +'<ul style="margin:4px 0 0;padding-left:18px">'
+              +'<li><b>画面登録：</b>in-memory に即表示（同じ）</li>'
+              +'<li><b>DB 保存：</b>失敗してもバックログで保持（packet 536）</li>'
+              +'<li><b>DB 復元：</b>signIn できなければ復元なし、in-memory のみ表示</li>'
+              +'<li><b>リロード後：</b>DB 未保存分は全て消える → 重要記憶は signIn してから記録推奨</li>'
+              +'<li><b>使い所：</b>Supabase 障害時 / 出先で Auth 不調時の一時記録</li>'
+            +'</ul>'
+          +'</div>'
+        +'</div>';
+
+      html += '</div>';
+
+      // ── 現在の実装状態チェック
+      const items = _p538_implStatus();
+      html += '<div style="background:#fff;border:1px solid #bfdbfe;border-radius:8px;padding:9px 11px;margin-bottom:10px">'
+        +'<div style="font-size:12px;font-weight:800;color:#1e3a8a;margin-bottom:6px">📊 現在の実装状態チェック</div>';
+      items.forEach(function(it){
+        const c = (it.status === 'done') ? '#16a34a' : (it.status === 'pending') ? '#eab308' : '#94a3b8';
+        const l = (it.status === 'done') ? '✅ 実装済み' : (it.status === 'pending') ? '⏳ 未実装' : '–';
+        html += '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-top:1px dotted #cbd5e1;font-size:11px">'
+          +'<span style="background:'+c+';color:#fff;padding:1px 7px;border-radius:10px;font-weight:700;min-width:80px;text-align:center;font-size:10px">'+l+'</span>'
+          +'<span style="color:#1e293b;font-weight:600">'+E(it.label)+'</span>'
+          +'<span style="color:var(--t3);font-size:10px;margin-left:auto">packet '+E(it.packet)+'</span>'
+          +'</div>';
+      });
+      html += '</div>';
+
+      // ── 次にやること
+      html += '<div style="background:#fff;border:1px solid #fde68a;border-radius:8px;padding:9px 11px;margin-bottom:10px">'
+        +'<div style="font-size:12px;font-weight:800;color:#92400e;margin-bottom:6px">🚀 次にやること（Phase 6-7 候補）</div>'
+        +'<ul style="margin:0;padding-left:18px;color:#475569;font-size:11px;line-height:1.65">'
+          +'<li><b>解決済み / ボス確認 / 再発防止フラグの UPDATE 同期</b>（packet 528 UI → 実 UPDATE、Phase 7 論理削除と併せて）</li>'
+          +'<li><b>監査ログ</b>（誰が・いつ・何を変更したか、Phase 7、ボス承認後）</li>'
+          +'<li><b>DB 検索 / ページング</b>（jagai_memory が増えても重くならない、Phase 6）</li>'
+          +'<li><b>失敗詳細メタ記憶化</b>（バックログ失敗を自動で記憶庫へ起票、packet 539+ 候補）</li>'
+          +'<li><b>sessionStorage 一時保管</b>（リロード生存、XSS リスク考慮、ボス承認後）</li>'
+        +'</ul>'
+      +'</div>';
+
+      // ── 社員向け説明コピー
+      html += '<div style="background:#fff;border:1px solid #bfdbfe;border-radius:8px;padding:9px 11px">'
+        +'<div style="font-size:12px;font-weight:800;color:#1e3a8a;margin-bottom:4px">📋 社員向け説明文をコピー</div>'
+        +'<div style="font-size:11px;color:#475569;margin-bottom:6px">朝礼 / Slack / 配布物用。DB 正本モードの考え方・登録時の確認事項・絶対に書かないことを 1 メッセージで案内できます。</div>'
+        +'<button type="button" id="p538-copy-explain" class="dr-btn" style="background:#1e3a8a;color:#fff;border:0;font-weight:700;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:11px">📋 説明文をクリップボードにコピー</button>'
+        +'<div id="p538-copy-status" style="font-size:11px;color:#1e3a8a;margin-top:5px;display:none"></div>'
+        +'<details style="margin-top:6px"><summary style="font-size:11px;color:#475569;cursor:pointer">プレビューを表示</summary>'
+          +'<pre style="background:#f8fafc;border:1px solid var(--bo);border-radius:4px;padding:7px 10px;margin-top:5px;font-size:10px;line-height:1.55;white-space:pre-wrap;color:#1e293b">'+E(STAFF_EXPLAIN_TEXT)+'</pre>'
+        +'</details>'
+      +'</div>';
+
+      body.innerHTML = html;
+
+      // ── イベント bind
+      const dbBtn = document.getElementById('p538-mode-db');
+      const memBtn = document.getElementById('p538-mode-memory');
+      if(dbBtn) dbBtn.addEventListener('click', function(){ _p538_setMode('db'); _p538_renderBody(); });
+      if(memBtn) memBtn.addEventListener('click', function(){ _p538_setMode('memory'); _p538_renderBody(); });
+
+      const copyBtn = document.getElementById('p538-copy-explain');
+      if(copyBtn){
+        copyBtn.addEventListener('click', function(){
+          const status = document.getElementById('p538-copy-status');
+          try{
+            if(navigator.clipboard && navigator.clipboard.writeText){
+              navigator.clipboard.writeText(STAFF_EXPLAIN_TEXT).then(function(){
+                if(status){ status.style.display = ''; status.textContent = '✅ コピーしました（Slack 等にそのまま貼れます）'; }
+              }).catch(function(err){
+                _p538_copyFallback(STAFF_EXPLAIN_TEXT, status);
+              });
+            }else{
+              _p538_copyFallback(STAFF_EXPLAIN_TEXT, status);
+            }
+          }catch(e){
+            _p538_copyFallback(STAFF_EXPLAIN_TEXT, status);
+          }
+        });
+      }
+    }catch(e){try{console.warn('[packet 538 renderBody]', e && e.message);}catch(_){}}
+  }
+
+  function _p538_copyFallback(text, status){
+    try{
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.cssText = 'position:fixed;top:-1000px;left:-1000px;opacity:0';
+      document.body.appendChild(ta);
+      ta.select();
+      let ok = false;
+      try{ ok = document.execCommand('copy'); }catch(_){ ok = false; }
+      document.body.removeChild(ta);
+      if(status){
+        status.style.display = '';
+        status.textContent = ok ? '✅ コピーしました（Slack 等にそのまま貼れます）' : '⚠ コピーに失敗しました。プレビューから手動でコピーしてください。';
+        status.style.color = ok ? '#1e3a8a' : '#b91c1c';
+      }
+    }catch(_){
+      if(status){
+        status.style.display = '';
+        status.textContent = '⚠ コピーに失敗しました。プレビューから手動でコピーしてください。';
+        status.style.color = '#b91c1c';
+      }
+    }
+  }
+
+  (function _p538_wrapSwitchPage(){
+    try{
+      const orig = window.switchPage;
+      if(typeof orig !== 'function') return;
+      window.switchPage = function(pg){
+        try{ orig.apply(this, arguments); }catch(_){}
+        if(pg === 'memory'){
+          setTimeout(function(){ try{_p538_injectCard();}catch(_){} }, 100);
+        }
+      };
+    }catch(_){}
+  })();
+
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){ setTimeout(_p538_injectCard, 320); });
+  }else{
+    setTimeout(_p538_injectCard, 320);
+  }
+})();
+// ==== ここまで packet 538 記憶庫 DB 正本モード切替 UI ベース ====
 </script>
 </body>
 </html>
