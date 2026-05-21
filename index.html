@@ -2114,6 +2114,48 @@ textarea.ai-team-input{resize:vertical;min-height:60px}
       <div style="font-size:11px;color:#666;margin-bottom:8px;line-height:1.6">AI 名鑑・AI 組織図・AI 会議・AI 相談・記憶庫の中で「実際に動いている AI」と「設計のみで止まっている AI」を可視化し、未稼働メンバーを起動候補にします（packet 502 静的 MVP）。</div>
       <div style="font-size:10px;color:#7c3aed;background:#f5f3ff;border:1.5px solid #c4b5fd;border-radius:6px;padding:7px 9px;margin-bottom:10px;line-height:1.6">⚠ 各 AI の「起動ボタン」は外部 API には接続しません。in-memory で役割テンプレを表示するだけの静的 MVP です。本番接続は packet 497 endpoint 設定後に検討します。</div>
 
+      <!-- packet 520: じゃがい OS ヘルスチェック総合画面 -->
+      <div class="ai-team-card" id="p520-health-card" style="background:linear-gradient(135deg,#fef9c3 0%,#dcfce7 100%);border:1.5px solid #facc15;margin-bottom:10px">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;margin-bottom:6px">
+          <div style="font-size:14px;font-weight:800;color:#854d0e">🩺 packet 520：じゃがい OS ヘルスチェック</div>
+          <span style="font-size:10px;background:#fef9c3;color:#713f12;border:1px solid #facc15;border-radius:6px;padding:2px 7px;font-weight:700">read-only / 自動更新</span>
+        </div>
+        <div style="font-size:11px;color:var(--t2);line-height:1.6;margin-bottom:8px">ボス + 管理者が「どこまで動いているか」を一目で見られる総合ヘルスチェック。<b>read-only 表示のみ</b>、DB / 外部 API / SQL / Auth 変更はしません。</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:6px;font-size:11px" id="p520-grid">
+          <!-- 7 セクション、JS で埋める -->
+          <div style="background:#fff;border:1px solid var(--bo);border-radius:6px;padding:7px 9px">
+            <div style="font-weight:800;color:#0a3d7c;margin-bottom:3px">🧠 記憶庫</div>
+            <div id="p520-sec-memory" style="font-size:10.5px;line-height:1.55;color:var(--t2)">読み込み中...</div>
+          </div>
+          <div style="background:#fff;border:1px solid var(--bo);border-radius:6px;padding:7px 9px">
+            <div style="font-weight:800;color:#0a3d7c;margin-bottom:3px">🤖 AI チーム</div>
+            <div id="p520-sec-aiteam" style="font-size:10.5px;line-height:1.55;color:var(--t2)">読み込み中...</div>
+          </div>
+          <div style="background:#fff;border:1px solid var(--bo);border-radius:6px;padding:7px 9px">
+            <div style="font-weight:800;color:#0a3d7c;margin-bottom:3px">📝 日報</div>
+            <div id="p520-sec-report" style="font-size:10.5px;line-height:1.55;color:var(--t2)">読み込み中...</div>
+          </div>
+          <div style="background:#fff;border:1px solid var(--bo);border-radius:6px;padding:7px 9px">
+            <div style="font-weight:800;color:#0a3d7c;margin-bottom:3px">✅ タスク</div>
+            <div id="p520-sec-task" style="font-size:10.5px;line-height:1.55;color:var(--t2)">読み込み中...</div>
+          </div>
+          <div style="background:#fff;border:1px solid var(--bo);border-radius:6px;padding:7px 9px">
+            <div style="font-weight:800;color:#0a3d7c;margin-bottom:3px">📅 カレンダー</div>
+            <div id="p520-sec-cal" style="font-size:10.5px;line-height:1.55;color:var(--t2)">読み込み中...</div>
+          </div>
+          <div style="background:#fff;border:1px solid var(--bo);border-radius:6px;padding:7px 9px">
+            <div style="font-weight:800;color:#0a3d7c;margin-bottom:3px">👥 アカウント</div>
+            <div id="p520-sec-account" style="font-size:10.5px;line-height:1.55;color:var(--t2)">読み込み中...</div>
+          </div>
+          <div style="background:#fff;border:1px solid var(--bo);border-radius:6px;padding:7px 9px">
+            <div style="font-weight:800;color:#0a3d7c;margin-bottom:3px">🛡 危険操作ガード</div>
+            <div id="p520-sec-guard" style="font-size:10.5px;line-height:1.55;color:var(--t2)">読み込み中...</div>
+          </div>
+        </div>
+        <div id="p520-next-action" style="font-size:11px;color:#0a3d7c;background:#fef3c7;border:1.5px solid #fcd34d;border-radius:6px;padding:7px 9px;margin-top:8px;line-height:1.6;display:none"></div>
+        <div style="font-size:10px;color:#713f12;background:#fef9c3;border:1px solid #facc15;border-radius:4px;padding:5px 8px;margin-top:6px;line-height:1.55">※ 本ヘルスチェックは <b>read-only</b>。DB / 外部 API / SQL / Auth 変更はしません。状態は in-memory（packet 510/511 state + 既存 DOM 検査）から取得しています。</div>
+      </div>
+
       <!-- 稼働サマリーカード -->
       <div class="ai-team-card" id="p502-summary-card" style="background:#eff6ff;border:1.5px solid #93c5fd">
         <div style="font-size:13px;font-weight:800;color:#0a3d7c;margin-bottom:6px">📊 稼働サマリー</div>
@@ -18211,6 +18253,175 @@ function _p500_buildCandidateFromPayload(payload){
 
 })();
 // ==== ここまで packet 519 日報 → 記憶庫 候補化 MVP ====
+
+// ═══════════════════════════════════════
+// packet 520: じゃがい OS ヘルスチェック総合画面（v0.9.270）
+// 目的：機能が増えてきたので、ボス + 管理者が「どこまで動いているか」
+// を一目で見られる総合ヘルスチェック画面を AI 稼働状況ページ先頭に追加。
+// 厳守：read-only 表示のみ、DB / 外部 API / SQL / Auth 変更 0。
+// ═══════════════════════════════════════
+(function _p520_init(){
+  function E(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];});}
+
+  function _p520_setHTML(id, html){
+    try{ const el=document.getElementById(id); if(el) el.innerHTML=html; }catch(_){}
+  }
+
+  // ===== 7 セクション内容を組み立て =====
+  function _p520_renderAll(){
+    try{
+      // 記憶庫
+      const p510 = window._p510_state || null;
+      const p511 = window._p511_state || null;
+      const store = window._p500_memoryStore || [];
+      const memLines = [
+        '・登録：<b style="color:#0d9e6e">' + store.length + ' 件</b>（in-memory）',
+        '・DB 保存：<b style="color:' + (p510 && p510.saveStatus === '有効' ? '#0d9e6e' : (p510 && (p510.saveStatus === '失敗中' || p510.saveStatus === '未接続') ? '#dc2626' : '#94a3b8')) + '">' + ((p510 && p510.saveStatus) || '未試行') + '</b>',
+        '・DB 復元：<b style="color:' + (p511 && p511.loadStatus === '成功' ? '#0d9e6e' : (p511 && (p511.loadStatus === '失敗' || p511.loadStatus === '未接続') ? '#dc2626' : '#94a3b8')) + '">' + ((p511 && p511.loadStatus) || '未実行') + '</b>' + (p511 && p511.loadedCount > 0 ? ' (' + p511.loadedCount + ' 件)' : ''),
+        '・RLS / Auth：<b style="color:' + ((p510 && p510.saveStatus === '失敗中') ? '#dc2626' : '#94a3b8') + '">' + ((p510 && p510.saveStatus === '失敗中') ? '対応待ち' : ((p510 && p510.saveStatus === '有効') ? '通過' : '不明')) + '</b>'
+      ];
+      _p520_setHTML('p520-sec-memory', memLines.join('<br>'));
+
+      // AI チーム
+      let aiTotal = 0, mvpActivated = 0;
+      try{
+        if(typeof window._p502_getAllAIs === 'function'){
+          const ais = window._p502_getAllAIs();
+          aiTotal = (ais && ais.length) || 0;
+        }
+        if(window._P504_ACTIVATION_PROFILES){
+          mvpActivated = Object.keys(window._P504_ACTIVATION_PROFILES).length;
+        }
+      }catch(_){}
+      _p520_setHTML('p520-sec-aiteam',
+        '・総 AI 数：<b style="color:#0d9e6e">' + aiTotal + ' 名</b>（packet 502）<br>' +
+        '・MVP 起動済み：<b style="color:#0d9e6e">' + mvpActivated + ' 名</b>（packet 504）<br>' +
+        '・AI 会議：<b style="color:#0d9e6e">あり</b>（packet 502/518）<br>' +
+        '・記憶庫参照：<b style="color:#0d9e6e">あり</b>（packet 518）'
+      );
+
+      // 日報
+      const hasReportPage = !!document.getElementById('page-daily-report');
+      const hasP519Btn = !!document.getElementById('p519-to-memory-btn');
+      _p520_setHTML('p520-sec-report',
+        '・日報画面：<b style="color:' + (hasReportPage ? '#0d9e6e' : '#94a3b8') + '">' + (hasReportPage ? 'あり' : 'なし') + '</b><br>' +
+        '・記憶庫候補連携：<b style="color:' + (hasP519Btn ? '#0d9e6e' : '#94a3b8') + '">' + (hasP519Btn ? '実装済（packet 519）' : '未実装') + '</b>'
+      );
+
+      // タスク
+      const hasCalPage = !!document.getElementById('page-cal');
+      let tasksCount = 0;
+      try{ if(window.state && Array.isArray(state.tasks)) tasksCount = state.tasks.length; }catch(_){}
+      _p520_setHTML('p520-sec-task',
+        '・タスク画面：<b style="color:' + (hasCalPage ? '#0d9e6e' : '#94a3b8') + '">' + (hasCalPage ? 'あり（cal 統合）' : 'なし') + '</b><br>' +
+        '・現在タスク数：<b style="color:#0a3d7c">' + tasksCount + ' 件</b>'
+      );
+
+      // カレンダー
+      let eventsCount = 0;
+      try{ if(window.state && Array.isArray(state.events)) eventsCount = state.events.length; }catch(_){}
+      _p520_setHTML('p520-sec-cal',
+        '・カレンダー画面：<b style="color:' + (hasCalPage ? '#0d9e6e' : '#94a3b8') + '">' + (hasCalPage ? 'あり' : 'なし') + '</b><br>' +
+        '・予定数：<b style="color:#0a3d7c">' + eventsCount + ' 件</b>'
+      );
+
+      // アカウント
+      let admCount = 0, mgrCount = 0, agtCount = 0, supCount = 0, tomi = '?';
+      try{
+        const accs = window.accounts || [];
+        accs.forEach(function(a){
+          if(!a) return;
+          if(a.perm === 'admin') admCount++;
+          const role = String(a.role || '');
+          if(role.indexOf('店長') >= 0) mgrCount++;
+          if(role.indexOf('エージェント') >= 0) agtCount++;
+          if(role.indexOf('サポート') >= 0 || role.indexOf('事務') >= 0) supCount++;
+        });
+        // 冨永「未定」確認
+        try{
+          if(typeof getPersonalSecretaryMapping === 'function'){
+            const sm = getPersonalSecretaryMapping();
+            const tominaga = sm.find(function(s){return s.ownerName === '冨永';});
+            if(tominaga) tomi = tominaga.secretary || '?';
+          }
+        }catch(_){}
+      }catch(_){}
+      _p520_setHTML('p520-sec-account',
+        '・管理者：<b style="color:#0d9e6e">' + admCount + ' 名</b>　・店長：<b>' + mgrCount + '</b>　・エージェント：<b>' + agtCount + '</b>　・サポート：<b>' + supCount + '</b><br>' +
+        '・冨永秘書：<b style="color:' + (tomi === '未定' ? '#94a3b8' : '#0d9e6e') + '">' + E(tomi) + '</b>（仕様維持）'
+      );
+
+      // 危険操作ガード
+      const customerHidden = !document.querySelector('[data-pg="crm"]:not([hidden])');
+      let lsKeysCount = 0;
+      try{ lsKeysCount = (typeof localStorage !== 'undefined') ? localStorage.length : 0; }catch(_){}
+      _p520_setHTML('p520-sec-guard',
+        '・顧客タブ：<b style="color:#0d9e6e">非表示（packet 322 防御）</b><br>' +
+        '・localStorage 本文保存：<b style="color:#0d9e6e">なし</b>（' + lsKeysCount + ' キー）<br>' +
+        '・admin「管理者」：<b style="color:#0d9e6e">維持</b><br>' +
+        '・冨永「未定」：<b style="color:' + (tomi === '未定' ? '#0d9e6e' : '#94a3b8') + '">' + (tomi === '未定' ? '維持' : '変更あり') + '</b>'
+      );
+
+      // 「次にやること」自動推論
+      const nextEl = document.getElementById('p520-next-action');
+      if(nextEl){
+        let msg = '';
+        if(p510 && p510.saveStatus === '失敗中'){
+          msg = '🛡 packet 512 ガイド：policy SQL を Supabase で実行してください。それでも 401 なら packet 516 で auth.signIn 連携を検討。';
+        }else if(p510 && p510.saveStatus === '未接続'){
+          msg = '🔧 packet 509 ガイド：jagai_memory テーブル作成 SQL を Supabase で実行してください。';
+        }else if(p510 && p510.saveStatus === '有効' && p511 && p511.loadStatus === '成功'){
+          msg = '✅ 記憶庫 DB 連携 OK。次は packet 514（カード操作 DB 同期 設計）や packet 515 TOP10 から選定。';
+        }else if(store.length === 0){
+          msg = '💡 記憶庫に 1 件登録してみてください。packet 510/511 の DB 状態が更新されます。';
+        }
+        if(msg){
+          nextEl.style.display = 'block';
+          nextEl.textContent = '👉 次にやること：' + msg;
+        }else{
+          nextEl.style.display = 'none';
+        }
+      }
+    }catch(e){try{console.warn('[packet 520 renderAll]', e&&e.message);}catch(_){}}
+  }
+  window._p520_renderAll = _p520_renderAll;
+
+  // renderAIStatusPage 非破壊 wrap
+  (function _p520_wrapRender(){
+    try{
+      const orig = window.renderAIStatusPage;
+      if(typeof orig !== 'function') return;
+      window.renderAIStatusPage = function(){
+        try{orig.apply(this, arguments);}catch(_){}
+        try{_p520_renderAll();}catch(_){}
+      };
+    }catch(e){try{console.warn('[packet 520 wrapRender]', e&&e.message);}catch(_){}}
+  })();
+
+  // packet 510 / 511 / 513 の updateDiagDisplay wrap chain と連動
+  (function _p520_wrap510(){
+    try{
+      const orig = window._p510_updateDiagDisplay;
+      if(typeof orig !== 'function') return;
+      window._p510_updateDiagDisplay = function(){
+        try{orig.apply(this,arguments);}catch(_){}
+        try{_p520_renderAll();}catch(_){}
+      };
+    }catch(_){}
+  })();
+  (function _p520_wrap511(){
+    try{
+      const orig = window._p511_updateDiagDisplay;
+      if(typeof orig !== 'function') return;
+      window._p511_updateDiagDisplay = function(){
+        try{orig.apply(this,arguments);}catch(_){}
+        try{_p520_renderAll();}catch(_){}
+      };
+    }catch(_){}
+  })();
+
+})();
+// ==== ここまで packet 520 じゃがい OS ヘルスチェック総合画面 ====
 </script>
 </body>
 </html>
