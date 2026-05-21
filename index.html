@@ -20459,6 +20459,265 @@ function _p500_buildCandidateFromPayload(payload){
   }
 })();
 // ==== ここまで packet 535 じゃがい記憶庫 正本化ロードマップ ====
+
+// ═══════════════════════════════════════
+// packet 536: DB INSERT 失敗時のバックログ + リトライキュー（v0.9.286）
+// 目的：packet 510 INSERT 失敗（401 / network / RLS 拒否）時に in-memory バックログへ
+// 積み、signIn 後に自動リトライ + 手動ボタンで再送。記憶庫 Phase 6 第 1 弾。
+// 厳守：localStorage に本文保存しない（リロードで消える、明示）、新規 fetch 0
+//      （既存 _p510_dbInsert を非破壊 wrap）、DELETE / UPDATE / UPSERT 0、
+//      RLS / Auth 設定変更 0、service_role 0、in-memory のみ。
+// ═══════════════════════════════════════
+(function _p536_init(){
+  function E(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];});}
+
+  // ── State（in-memory のみ）
+  window._p536_backlog = window._p536_backlog || []; // [{row, ts, tries, lastError, id}]
+  window._p536_state = window._p536_state || {
+    totalEnqueued: 0,
+    totalRetrySuccess: 0,
+    totalRetryFail: 0,
+    lastEvent: '',
+    lastEventTs: 0,
+    maxBacklog: 100,
+    inRetry: false
+  };
+  let _p536_idCounter = 1;
+
+  function _p536_enqueue(row, err){
+    try{
+      if(window._p536_backlog.length >= window._p536_state.maxBacklog){
+        window._p536_backlog.shift(); // 最古から落とす
+      }
+      const entry = {
+        row: row,
+        ts: Date.now(),
+        tries: 1,
+        lastError: String(err && err.message || err || '').slice(0, 200),
+        id: 'p536-' + (_p536_idCounter++)
+      };
+      window._p536_backlog.push(entry);
+      window._p536_state.totalEnqueued++;
+      window._p536_state.lastEvent = '❌ INSERT 失敗 → バックログ追加（残 ' + window._p536_backlog.length + ' 件）';
+      window._p536_state.lastEventTs = Date.now();
+      try{ _p536_updateUI(); }catch(_){}
+    }catch(e){try{console.warn('[packet 536 enqueue]', e && e.message);}catch(_){}}
+  }
+
+  // ── _p510_dbInsert を非破壊 wrap
+  let _p536_origInsert = null;
+  function _p536_tryWrap(){
+    try{
+      if(typeof window._p510_dbInsert !== 'function') return false;
+      if(window._p510_dbInsert._p536_wrapped) return true;
+      _p536_origInsert = window._p510_dbInsert;
+      const wrapped = async function(row){
+        try{
+          const r = await _p536_origInsert.call(this, row);
+          return r;
+        }catch(e){
+          if(!window._p536_state.inRetry){
+            _p536_enqueue(row, e);
+          }
+          throw e; // packet 510 ステータス側で失敗扱い継続
+        }
+      };
+      wrapped._p536_wrapped = true;
+      window._p510_dbInsert = wrapped;
+      return true;
+    }catch(e){try{console.warn('[packet 536 tryWrap]', e && e.message);}catch(_){} return false;}
+  }
+
+  // ── リトライ
+  async function _p536_retryBacklog(reason){
+    if(window._p536_state.inRetry){
+      return {ok:false, error:'already retrying'};
+    }
+    if(!_p536_origInsert){
+      return {ok:false, error:'_p510_dbInsert not wrapped yet'};
+    }
+    if(window._p536_backlog.length === 0){
+      window._p536_state.lastEvent = 'リトライ呼出（' + (reason || 'manual') + '）→ バックログ空、何もしない';
+      window._p536_state.lastEventTs = Date.now();
+      try{ _p536_updateUI(); }catch(_){}
+      return {ok:true, success:0, fail:0};
+    }
+    window._p536_state.inRetry = true;
+    let success = 0, fail = 0;
+    const queue = window._p536_backlog.slice();
+    window._p536_backlog = [];
+    try{
+      for(let i = 0; i < queue.length; i++){
+        const entry = queue[i];
+        entry.tries = (entry.tries || 0) + 1;
+        try{
+          await _p536_origInsert.call(null, entry.row);
+          success++;
+          window._p536_state.totalRetrySuccess++;
+        }catch(e){
+          entry.lastError = String(e && e.message || e).slice(0, 200);
+          window._p536_backlog.push(entry);
+          fail++;
+          window._p536_state.totalRetryFail++;
+        }
+      }
+      window._p536_state.lastEvent = '🔁 リトライ完了（' + (reason || 'manual') + '）: 成功 ' + success + ' / 失敗 ' + fail + ' / 残 ' + window._p536_backlog.length;
+      window._p536_state.lastEventTs = Date.now();
+    } finally {
+      window._p536_state.inRetry = false;
+      try{ _p536_updateUI(); }catch(_){}
+      // packet 511 連動：成功があれば DB 復元 UI も更新
+      try{ if(success > 0 && typeof window._p511_updateDiagDisplay === 'function') window._p511_updateDiagDisplay(); }catch(_){}
+    }
+    return {ok:true, success:success, fail:fail};
+  }
+  window._p536_retryBacklog = _p536_retryBacklog;
+
+  // ── Auth signIn 検知 → 自動リトライ
+  (function _p536_hookAuth(){
+    try{
+      if(typeof sb !== 'undefined' && sb && sb.auth && typeof sb.auth.onAuthStateChange === 'function'){
+        sb.auth.onAuthStateChange(function(event, session){
+          try{
+            if((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session && session.access_token){
+              if(window._p536_backlog.length > 0 && !window._p536_state.inRetry){
+                setTimeout(function(){
+                  _p536_retryBacklog('auth:' + event).catch(function(_){});
+                }, 600);
+              }
+            }
+          }catch(_){}
+        });
+      }
+    }catch(_){}
+  })();
+
+  // ── UI カード
+  function _p536_injectCard(){
+    try{
+      const memPage = document.getElementById('page-memory');
+      if(!memPage) return;
+      if(document.getElementById('p536-backlog-card')) return;
+      const card = document.createElement('div');
+      card.id = 'p536-backlog-card';
+      card.className = 'card';
+      card.style.cssText = 'border-top:4px solid #f43f5e;margin-bottom:10px';
+      card.innerHTML = ''
+        +'<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">'
+          +'<div style="font-weight:800;color:#9f1239">📮 DB 保存リトライキュー（packet 536 / Phase 6）</div>'
+          +'<div style="display:flex;gap:6px;flex-wrap:wrap">'
+            +'<button type="button" id="p536-retry-btn" class="dr-btn" style="background:#f43f5e;color:#fff;border:0;font-weight:700;padding:5px 12px;border-radius:6px;cursor:pointer;font-size:11px">🔁 今すぐ再送</button>'
+            +'<button type="button" id="p536-clear-btn" class="dr-btn" style="background:#fff;color:#9f1239;border:1px solid #fda4af;font-weight:700;padding:5px 12px;border-radius:6px;cursor:pointer;font-size:11px">🗑 in-memoryバックログ消去</button>'
+          +'</div>'
+        +'</div>'
+        +'<div id="p536-status-block" style="margin-top:8px;font-size:12px;line-height:1.6"></div>'
+        +'<div id="p536-list" style="margin-top:8px;font-size:11px;line-height:1.5"></div>'
+        +'<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:6px;padding:7px 10px;color:#9a3412;font-size:11px;line-height:1.55;margin-top:8px">'
+          +'⚠ <b>このバックログは in-memory のみ</b>です（ロードマップ Phase 6 第 1 弾）。'
+          +'<br>・<b>リロードすると消えます</b>。リロード前に「🔁 今すぐ再送」を押して DB 反映を確認してください。'
+          +'<br>・signIn 成功時に自動リトライが走ります（packet 521 signIn / token refresh）。'
+          +'<br>・本文を localStorage / sessionStorage には保存しません（個人情報・トークン保護のため）。'
+          +'<br>・Phase 7 で永続化 / 監査ログを検討（ボス承認後）。'
+        +'</div>'
+        +'<div style="font-size:10px;color:#666;background:#f8fafc;border:1px solid var(--bo);border-radius:4px;padding:5px 8px;margin-top:8px;line-height:1.55">※ '
+          +'_p510_dbInsert 非破壊 wrap。INSERT 失敗時にバックログへ自動追加。DELETE / UPDATE / UPSERT は実装しません。'
+          +'リトライ呼出時は in-memory フラグで二重 enqueue を防止。最大 '+window._p536_state.maxBacklog+' 件（超過時は最古から脱落）。'
+        +'</div>';
+      // packet 510 DB ステータス（p510-db-status-block の親カード）の後に配置したいが、確実に出すために page-memory 末尾に追加
+      memPage.appendChild(card);
+
+      document.getElementById('p536-retry-btn').addEventListener('click', function(){
+        _p536_retryBacklog('manual').catch(function(_){});
+      });
+      document.getElementById('p536-clear-btn').addEventListener('click', function(){
+        const n = window._p536_backlog.length;
+        if(n === 0){ alert('バックログは既に空です'); return; }
+        if(!confirm('in-memory バックログ '+n+' 件を消去します。DB 反映前の記憶は失われます。続行しますか？')) return;
+        window._p536_backlog = [];
+        window._p536_state.lastEvent = '🗑 in-memory バックログ消去（手動、'+n+' 件）';
+        window._p536_state.lastEventTs = Date.now();
+        _p536_updateUI();
+      });
+      _p536_updateUI();
+    }catch(e){try{console.warn('[packet 536 injectCard]', e && e.message);}catch(_){}}
+  }
+
+  function _p536_updateUI(){
+    try{
+      const status = document.getElementById('p536-status-block');
+      const list = document.getElementById('p536-list');
+      if(!status || !list) return;
+      const n = window._p536_backlog.length;
+      const s = window._p536_state;
+      const wrapped = !!(window._p510_dbInsert && window._p510_dbInsert._p536_wrapped);
+      let statusColor = '#16a34a', statusLabel = '✅ 空（DB 保存は順調 or signIn 未）';
+      if(n > 0){ statusColor = '#dc2626'; statusLabel = '❌ '+n+' 件 未送信（リトライ待ち）'; }
+      if(!wrapped){ statusColor = '#94a3b8'; statusLabel = '⏳ _p510_dbInsert 未取得（待機中）'; }
+      status.innerHTML = ''
+        +'<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">'
+          +'<span style="background:'+statusColor+';color:#fff;padding:3px 10px;border-radius:12px;font-weight:700;font-size:11px">'+statusLabel+'</span>'
+          +'<span style="font-size:11px;color:#475569">累積：投入 '+s.totalEnqueued+' / 再送成功 '+s.totalRetrySuccess+' / 再送失敗 '+s.totalRetryFail+'</span>'
+        +'</div>'
+        +(s.lastEvent ? '<div style="font-size:11px;color:#475569;margin-top:4px">直近：'+E(s.lastEvent)+'</div>' : '');
+      if(n === 0){
+        list.innerHTML = '<div style="color:var(--t3);font-size:11px">（待機中の記憶はありません）</div>';
+        return;
+      }
+      let html = '<div style="font-weight:700;font-size:11px;color:#9f1239;margin-bottom:4px">⏳ 待機中（最大 '+s.maxBacklog+' 件、超過時最古脱落）</div>';
+      const max = Math.min(n, 10);
+      for(let i = 0; i < max; i++){
+        const e = window._p536_backlog[i];
+        const t = new Date(e.ts);
+        const tstr = t.toLocaleString('ja-JP', {hour12:false, month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'});
+        const title = String((e.row && (e.row.title || e.row.content)) || '(無題)').slice(0, 50);
+        html += '<div style="border:1px solid #fda4af;background:#fff1f2;border-radius:6px;padding:5px 8px;margin-bottom:3px">'
+          +'<div style="font-weight:700;color:#9f1239">'+(i+1)+'. '+E(title)+'</div>'
+          +'<div style="font-size:10px;color:#64748b">投入 '+E(tstr)+' / 試行 '+(e.tries||1)+' 回</div>'
+          +(e.lastError ? '<div style="font-size:10px;color:#b91c1c;margin-top:2px"><b>エラー：</b>'+E(e.lastError)+'</div>' : '')
+          +'</div>';
+      }
+      if(n > max){
+        html += '<div style="font-size:10px;color:#64748b">…他 '+(n-max)+' 件</div>';
+      }
+      list.innerHTML = html;
+    }catch(e){try{console.warn('[packet 536 updateUI]', e && e.message);}catch(_){}}
+  }
+
+  // ── wrap タイミング：DOMContentLoaded 後 → 失敗時はリトライ
+  function _p536_initialBind(){
+    try{
+      if(!_p536_tryWrap()){
+        // 後から定義される可能性 → 短いリトライ
+        let n = 0;
+        const iv = setInterval(function(){
+          n++;
+          if(_p536_tryWrap() || n >= 20){ clearInterval(iv); }
+        }, 250);
+      }
+      _p536_injectCard();
+    }catch(_){}
+  }
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', _p536_initialBind);
+  }else{
+    setTimeout(_p536_initialBind, 300);
+  }
+
+  // page-memory 再表示時に UI 更新
+  (function _p536_wrapSwitchPage(){
+    try{
+      const orig = window.switchPage;
+      if(typeof orig !== 'function') return;
+      window.switchPage = function(pg){
+        try{ orig.apply(this, arguments); }catch(_){}
+        if(pg === 'memory'){
+          setTimeout(function(){ try{_p536_injectCard(); _p536_updateUI();}catch(_){} }, 90);
+        }
+      };
+    }catch(_){}
+  })();
+})();
+// ==== ここまで packet 536 DB INSERT 失敗時バックログ + リトライキュー ====
 </script>
 </body>
 </html>
