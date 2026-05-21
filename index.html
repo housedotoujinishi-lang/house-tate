@@ -2055,6 +2055,51 @@ textarea.ai-team-input{resize:vertical;min-height:60px}
         </div>
       </div>
 
+      <!-- packet 521: admin Supabase Auth 接続 診断 MVP（admin 限定）-->
+      <div class="ai-team-card" id="p521-auth-card" style="display:none;margin-top:14px;background:#fef2f2;border:1.5px solid #f87171">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;margin-bottom:6px">
+          <div style="font-size:14px;font-weight:800;color:#991b1b">🔑 packet 521：admin Supabase Auth 接続（方式 B）</div>
+          <span style="font-size:10px;background:#fee2e2;color:#7f1d1d;border:1px solid #f87171;border-radius:6px;padding:2px 7px;font-weight:700">admin 限定 / 手動ボタンのみ</span>
+        </div>
+        <div style="font-size:11px;color:var(--t2);line-height:1.65;margin-bottom:8px">packet 516 で整理した <b>方式 B：管理者だけ Supabase Auth に紐付け</b> の診断 MVP。<br>admin のみ手動で Supabase Auth に signIn / signOut / セッション確認が可能。jagai_memory への DB 保存（packet 510）が RLS で 401 拒否されている場合、これを使って一時的に authenticated ロールへ切り替えてテストできます。</div>
+
+        <!-- Auth 接続状態 -->
+        <div style="background:#fff;border:1px solid var(--bo);border-radius:6px;padding:8px 10px;margin-bottom:8px;font-size:11px;line-height:1.7">
+          <div style="font-weight:800;color:#0a3d7c;margin-bottom:4px">🔍 Auth 接続状態</div>
+          <div>・Auth セッション：<b id="p521-status-session" style="color:#94a3b8">未確認</b></div>
+          <div>・現在の role 推定：<b id="p521-status-role" style="color:#94a3b8">不明</b></div>
+          <div>・接続中のメール：<b id="p521-status-email" style="color:#94a3b8">-</b></div>
+        </div>
+
+        <!-- admin 専用ログイン欄 -->
+        <div style="background:#fff;border:1px solid var(--bo);border-radius:6px;padding:8px 10px;margin-bottom:8px;font-size:11px;line-height:1.6">
+          <div style="font-weight:800;color:#0a3d7c;margin-bottom:6px">📝 admin 専用 Auth ログイン</div>
+          <div style="display:grid;grid-template-columns:1fr;gap:5px">
+            <label style="display:flex;flex-direction:column;font-size:10.5px;color:var(--t2)">メール（Supabase Auth）<input type="email" id="p521-email" autocomplete="off" placeholder="admin@example.com" style="margin-top:2px;padding:6px 8px;border-radius:5px;border:1.5px solid var(--bo);font-size:11.5px"></label>
+            <label style="display:flex;flex-direction:column;font-size:10.5px;color:var(--t2)">パスワード（保存されません）<input type="password" id="p521-password" autocomplete="off" placeholder="（手動入力、保存なし）" style="margin-top:2px;padding:6px 8px;border-radius:5px;border:1.5px solid var(--bo);font-size:11.5px"></label>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:6px;margin-top:8px">
+            <button type="button" id="p521-signin-btn" style="padding:9px 12px;border-radius:6px;border:0;background:#991b1b;color:#fff;font-size:11px;font-weight:700;cursor:pointer;min-height:38px">🔓 signIn（手動）</button>
+            <button type="button" id="p521-signout-btn" style="padding:9px 12px;border-radius:6px;border:1.5px solid #991b1b;background:#fff;color:#991b1b;font-size:11px;font-weight:700;cursor:pointer;min-height:38px">🚪 signOut</button>
+            <button type="button" id="p521-session-btn" style="padding:9px 12px;border-radius:6px;border:1.5px solid #991b1b;background:#fff;color:#991b1b;font-size:11px;font-weight:700;cursor:pointer;min-height:38px">🔍 セッション確認</button>
+          </div>
+        </div>
+
+        <!-- 結果表示エリア -->
+        <div id="p521-result" style="display:none;padding:8px 10px;border-radius:6px;font-size:11px;line-height:1.65;background:#fff;border:1px solid var(--bo);max-height:50vh;overflow-y:auto"></div>
+
+        <!-- 安全注意 -->
+        <div style="margin-top:8px;font-size:10px;color:#7f1d1d;background:#fee2e2;border:1px solid #f87171;border-radius:6px;padding:7px 9px;line-height:1.7">
+          ⚠ <b>本 packet 521 の安全条件</b>：<br>
+          ・Supabase Auth 用のメール / パスワードは<b>保存されません</b>（入力フィールドは autocomplete=off、localStorage 保存なし、console 出力なし）<br>
+          ・<code style="font-size:10px">service_role</code> は使用しません（anon key 経由の signInWithPassword のみ）<br>
+          ・本カードは <b>admin 権限ユーザーのみ表示</b>。一般社員には表示されません<br>
+          ・signIn は<b>手動ボタン押下時のみ</b>、自動 signIn なし<br>
+          ・Auth 接続後に <b>jagai_memory DB 保存（packet 510）を再テスト</b>してください（記憶を 1 件登録 → DB 並行保存ステータスを観察）<br>
+          ・Supabase Auth ユーザー作成 / SQL 実行 / RLS 変更 / UPDATE / DELETE / UPSERT はしません
+        </div>
+      </div>
+
       <!-- packet 517: DB 検索・ページング 設計 + UI 下準備 -->
       <div class="ai-team-card" id="p517-search-card" style="margin-top:14px;background:#f0fdfa;border:1.5px solid #5eead4">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;margin-bottom:6px">
@@ -18422,6 +18467,197 @@ function _p500_buildCandidateFromPayload(payload){
 
 })();
 // ==== ここまで packet 520 じゃがい OS ヘルスチェック総合画面 ====
+
+// ═══════════════════════════════════════
+// packet 521: admin Supabase Auth 接続 診断 MVP（v0.9.271）
+// 目的：方式 B（管理者だけ Supabase Auth に紐付け）の診断 MVP。
+// admin 限定 UI で手動 signIn / signOut / セッション確認。
+// 厳守：
+//   - admin 限定表示（currentUser.perm === 'admin'）
+//   - signIn は手動ボタン押下時のみ、自動 signIn なし
+//   - パスワードを console / localStorage に出さない / 保存しない
+//   - service_role キー使用 0
+//   - Supabase Auth ユーザー作成 / SQL 実行 / RLS 変更 / DELETE / UPDATE / UPSERT 0
+//   - 既存 anon key 流用、新規 createClient なし
+// ═══════════════════════════════════════
+(function _p521_init(){
+  function E(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];});}
+
+  function _p521_setResult(html, color){
+    try{
+      const r=document.getElementById('p521-result');
+      if(!r)return;
+      r.style.display='block';
+      if(color) r.style.color=color;
+      r.innerHTML=html;
+    }catch(_){}
+  }
+
+  // ===== admin 限定可視性制御 =====
+  function _p521_applyVisibility(){
+    try{
+      const card = document.getElementById('p521-auth-card');
+      if(!card) return;
+      let isAdmin = false;
+      try{
+        if(window.currentUser && currentUser.perm === 'admin') isAdmin = true;
+      }catch(_){}
+      card.style.display = isAdmin ? 'block' : 'none';
+    }catch(e){try{console.warn('[packet 521 applyVisibility]', e&&e.message);}catch(_){}}
+  }
+
+  // ===== セッション確認（read-only）=====
+  async function _p521_checkSession(silent){
+    try{
+      const setText = function(id, txt, color){
+        const el = document.getElementById(id);
+        if(!el) return;
+        el.textContent = txt;
+        if(color) el.style.color = color;
+      };
+      if(typeof sb === 'undefined' || !sb || !sb.auth){
+        setText('p521-status-session', '❌ sb.auth が利用できません', '#dc2626');
+        setText('p521-status-role', '不明', '#94a3b8');
+        setText('p521-status-email', '-', '#94a3b8');
+        if(!silent) _p521_setResult('❌ Supabase クライアント（sb.auth）が利用できません。', '#991b1b');
+        return null;
+      }
+      const r = await sb.auth.getSession();
+      const session = (r && r.data && r.data.session) || null;
+      if(session){
+        const email = (session.user && session.user.email) || '(email 不明)';
+        setText('p521-status-session', '✅ Auth セッションあり', '#0d9e6e');
+        setText('p521-status-role', 'authenticated', '#0d9e6e');
+        setText('p521-status-email', email, '#0d9e6e');
+        if(!silent) _p521_setResult('<div style="font-family:sans-serif"><div style="background:#d1fae5;border:1px solid #6ee7b7;border-radius:6px;padding:7px 9px;color:#065f46;font-weight:700">✅ Auth セッションあり（authenticated）</div><div style="font-size:11px;color:var(--t2);margin-top:5px">接続中：'+E(email)+'</div><div style="font-size:11px;color:var(--t2);margin-top:3px">💡 記憶を 1 件登録して packet 510 DB 並行保存が「✅ 有効」になるか確認してください。</div></div>', '#065f46');
+      }else{
+        setText('p521-status-session', '❌ Auth セッションなし', '#dc2626');
+        setText('p521-status-role', 'anon', '#dc2626');
+        setText('p521-status-email', '-', '#94a3b8');
+        if(!silent) _p521_setResult('<div style="font-family:sans-serif"><div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:6px;padding:7px 9px;color:#991b1b;font-weight:700">❌ Auth セッションなし（anon ロール）</div><div style="font-size:11px;color:var(--t2);margin-top:5px">下のフォームでメール / パスワードを入力して signIn してください。</div></div>', '#991b1b');
+      }
+      return session;
+    }catch(e){
+      const msg = String(e&&e.message||'').slice(0,200);
+      if(!silent) _p521_setResult('❌ セッション確認エラー：'+E(msg), '#991b1b');
+      return null;
+    }
+  }
+
+  // ===== signIn（admin 限定、手動ボタンのみ）=====
+  async function _p521_signIn(){
+    try{
+      // admin チェック
+      let isAdmin = false;
+      try{ if(window.currentUser && currentUser.perm === 'admin') isAdmin = true; }catch(_){}
+      if(!isAdmin){
+        _p521_setResult('❌ admin 権限が必要です。', '#991b1b');
+        return;
+      }
+      // sb チェック
+      if(typeof sb === 'undefined' || !sb || !sb.auth || typeof sb.auth.signInWithPassword !== 'function'){
+        _p521_setResult('❌ sb.auth.signInWithPassword が利用できません（SDK 未ロード or バージョン違い）。', '#991b1b');
+        return;
+      }
+      const emailEl = document.getElementById('p521-email');
+      const passwordEl = document.getElementById('p521-password');
+      const email = emailEl ? String(emailEl.value || '').trim() : '';
+      const password = passwordEl ? String(passwordEl.value || '') : '';
+      if(!email || !password){
+        _p521_setResult('❌ メールとパスワードを両方入力してください。', '#991b1b');
+        return;
+      }
+      _p521_setResult('⏳ Supabase Auth に signIn 中...', '#1e40af');
+      const r = await sb.auth.signInWithPassword({ email: email, password: password });
+      // パスワードを変数からも消す（明示クリア）
+      try{ if(passwordEl) passwordEl.value = ''; }catch(_){}
+      const err = r && r.error;
+      if(err){
+        // エラー status のみ表示、本文は出さない
+        const msg = String(err.message || 'sign in failed').slice(0, 200);
+        // console には status と短縮メッセージのみ、パスワードは出さない
+        try{console.warn('[packet 521 signIn] failed:', msg.slice(0,80));}catch(_){}
+        _p521_setResult('<div style="font-family:sans-serif"><div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:6px;padding:7px 9px;color:#991b1b;font-weight:700">❌ signIn 失敗</div><div style="font-size:11px;color:var(--t2);margin-top:5px">エラー：'+E(msg)+'</div><div style="font-size:10px;color:#666;margin-top:3px">※ メールアドレスが Supabase Auth に登録されていない可能性。Supabase ダッシュボード Authentication → Users で確認してください。</div></div>', '#991b1b');
+        await _p521_checkSession(true);
+        return;
+      }
+      // 成功
+      try{console.warn('[packet 521 signIn] OK');}catch(_){}
+      _p521_setResult('<div style="font-family:sans-serif"><div style="background:#d1fae5;border:1px solid #6ee7b7;border-radius:6px;padding:7px 9px;color:#065f46;font-weight:700">✅ signIn 成功</div><div style="font-size:11px;color:var(--t2);margin-top:5px">authenticated ロールに切り替わりました。次のテスト：<br>① 記憶を 1 件登録<br>② packet 510「🔄 DB 並行保存ステータス」が「✅ 有効」に変わるか確認<br>③ packet 513「📊 DB 状態まとめ」も併せて確認</div></div>', '#065f46');
+      await _p521_checkSession(true);
+      // packet 510/511/520 の表示も更新
+      try{ if(typeof _p510_updateDiagDisplay === 'function') _p510_updateDiagDisplay(); }catch(_){}
+      try{ if(typeof _p511_updateDiagDisplay === 'function') _p511_updateDiagDisplay(); }catch(_){}
+      try{ if(typeof _p520_renderAll === 'function') _p520_renderAll(); }catch(_){}
+    }catch(e){
+      const msg = String(e&&e.message||'').slice(0,200);
+      try{console.warn('[packet 521 signIn] exception:', msg.slice(0,80));}catch(_){}
+      _p521_setResult('❌ signIn 例外：'+E(msg), '#991b1b');
+    }
+  }
+
+  // ===== signOut =====
+  async function _p521_signOut(){
+    try{
+      if(typeof sb === 'undefined' || !sb || !sb.auth || typeof sb.auth.signOut !== 'function'){
+        _p521_setResult('❌ sb.auth.signOut が利用できません。', '#991b1b');
+        return;
+      }
+      _p521_setResult('⏳ signOut 中...', '#1e40af');
+      const r = await sb.auth.signOut();
+      const err = r && r.error;
+      if(err){
+        const msg = String(err.message || 'sign out failed').slice(0,200);
+        try{console.warn('[packet 521 signOut] failed:', msg.slice(0,80));}catch(_){}
+        _p521_setResult('❌ signOut 失敗：'+E(msg), '#991b1b');
+        return;
+      }
+      try{console.warn('[packet 521 signOut] OK');}catch(_){}
+      _p521_setResult('<div style="font-family:sans-serif"><div style="background:#dbeafe;border:1px solid #93c5fd;border-radius:6px;padding:7px 9px;color:#1e3a8a;font-weight:700">🚪 signOut 完了</div><div style="font-size:11px;color:var(--t2);margin-top:5px">anon ロールに戻りました。jagai_memory DB 保存は再び 401 になります（policy が authenticated 向けのため、想定通り）。</div></div>', '#1e3a8a');
+      await _p521_checkSession(true);
+      try{ if(typeof _p510_updateDiagDisplay === 'function') _p510_updateDiagDisplay(); }catch(_){}
+      try{ if(typeof _p520_renderAll === 'function') _p520_renderAll(); }catch(_){}
+    }catch(e){
+      _p521_setResult('❌ signOut 例外：'+E(String(e&&e.message||'').slice(0,200)), '#991b1b');
+    }
+  }
+
+  function _p521_bindButtons(){
+    try{
+      const signInBtn = document.getElementById('p521-signin-btn');
+      const signOutBtn = document.getElementById('p521-signout-btn');
+      const sessionBtn = document.getElementById('p521-session-btn');
+      if(signInBtn && signInBtn.dataset.p521Bound !== '1'){
+        signInBtn.dataset.p521Bound = '1';
+        signInBtn.addEventListener('click', _p521_signIn);
+      }
+      if(signOutBtn && signOutBtn.dataset.p521Bound !== '1'){
+        signOutBtn.dataset.p521Bound = '1';
+        signOutBtn.addEventListener('click', _p521_signOut);
+      }
+      if(sessionBtn && sessionBtn.dataset.p521Bound !== '1'){
+        sessionBtn.dataset.p521Bound = '1';
+        sessionBtn.addEventListener('click', function(){ _p521_checkSession(false); });
+      }
+    }catch(e){try{console.warn('[packet 521 bindButtons]', e&&e.message);}catch(_){}}
+  }
+
+  // renderMemoryPage 非破壊 wrap
+  (function _p521_wrapRender(){
+    try{
+      const orig = window.renderMemoryPage;
+      if(typeof orig !== 'function') return;
+      window.renderMemoryPage = function(){
+        try{orig.apply(this, arguments);}catch(_){}
+        try{_p521_applyVisibility();}catch(_){}
+        try{_p521_bindButtons();}catch(_){}
+        try{_p521_checkSession(true);}catch(_){}
+      };
+    }catch(e){try{console.warn('[packet 521 wrapRender]', e&&e.message);}catch(_){}}
+  })();
+
+})();
+// ==== ここまで packet 521 admin Supabase Auth 接続 診断 MVP ====
 </script>
 </body>
 </html>
