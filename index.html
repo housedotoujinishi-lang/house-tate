@@ -19387,6 +19387,172 @@ function _p500_buildCandidateFromPayload(payload){
 
 })();
 // ==== ここまで packet 528 記憶庫カード操作 DB 同期 UI ベース ====
+
+// ═══════════════════════════════════════
+// packet 529: 記憶庫検索・フィルター強化ベース（v0.9.279）
+// 目的：DB に記憶が増える前に、in-memory 側の詳細検索 UI を強化。
+// 厳守：DB クエリ追加 0、書き込み 0、既存 packet 500 検索は触らない。
+// ═══════════════════════════════════════
+(function _p529_init(){
+  function E(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];});}
+
+  let _p529_filter = {keyword:'', memoryType:'', category:'', relatedAi:'', relatedStaff:'', riskLevel:'', importanceLevel:'', requiresBossCheck:false, isResolved:'', tags:''};
+
+  function _p529_applyFilter(){
+    try{
+      const store = (window._p500_memoryStore || []).slice();
+      const f = _p529_filter;
+      const norm = function(s){return String(s||'').toLowerCase();};
+      const filtered = store.filter(function(m){
+        if(!m) return false;
+        if(f.keyword){
+          const kw = norm(f.keyword);
+          const hay = norm((m.title||'')+' '+(m.content||'')+' '+(m.lesson||'')+' '+(m.cause||'')+' '+(m.nextAction||'')+' '+((m.tags||[]).join(' ')));
+          if(hay.indexOf(kw) < 0) return false;
+        }
+        if(f.memoryType && m.memoryType !== f.memoryType) return false;
+        if(f.category && norm(m.category).indexOf(norm(f.category)) < 0) return false;
+        if(f.relatedAi){
+          const t = norm((m.relatedAi||'')+' '+(m.relatedTarget||''));
+          if(t.indexOf(norm(f.relatedAi)) < 0) return false;
+        }
+        if(f.relatedStaff){
+          const t = norm((m.relatedStaff||'')+' '+(m.relatedTarget||''));
+          if(t.indexOf(norm(f.relatedStaff)) < 0) return false;
+        }
+        if(f.riskLevel && String(m.riskLevel||'').toLowerCase() !== f.riskLevel.toLowerCase()) return false;
+        if(f.importanceLevel && String(m.importance||m.importance_level||'').toLowerCase() !== f.importanceLevel.toLowerCase()) return false;
+        if(f.requiresBossCheck && !m.needsManagerFollowup) return false;
+        if(f.isResolved === 'resolved' && m.unresolved) return false;
+        if(f.isResolved === 'unresolved' && !m.unresolved) return false;
+        if(f.tags){
+          const tt = norm(f.tags);
+          if(!(Array.isArray(m.tags) ? m.tags.some(function(t){return norm(t).indexOf(tt)>=0;}) : norm((m.tags||'')).indexOf(tt)>=0)) return false;
+        }
+        return true;
+      });
+      return filtered;
+    }catch(e){
+      try{console.warn('[packet 529 applyFilter]', e&&e.message);}catch(_){}
+      return [];
+    }
+  }
+
+  function _p529_renderResults(){
+    try{
+      const root = document.getElementById('p529-result');
+      if(!root) return;
+      const filtered = _p529_applyFilter();
+      const store = window._p500_memoryStore || [];
+      let html = '<div style="font-size:11px;font-weight:700;color:#1e3a8a;margin-bottom:6px">📋 詳細検索結果：'+filtered.length+' 件 / 全 '+store.length+' 件</div>';
+      if(filtered.length === 0){
+        html += '<div style="font-size:11px;color:#94a3b8;padding:7px 9px;background:#f8fafc;border-radius:6px">該当する記憶がありません。条件を緩めてください。</div>';
+      }else{
+        const top = filtered.slice(0, 10);
+        html += top.map(function(m){
+          const title = E(String(m.title || '(無題)').slice(0,80));
+          const cat = E(String(m.category || ''));
+          const mt = E(String(m.memoryType || ''));
+          const risk = E(String(m.riskLevel || 'normal'));
+          const imp = E(String(m.importance || m.importance_level || 'normal'));
+          const ai = E(String(m.relatedAi || m.relatedTarget || ''));
+          const created = E(String(m.createdAt || '').slice(0,19).replace('T',' '));
+          const badge = (m.unresolved ? '<span style="background:#fecaca;color:#991b1b;border-radius:3px;padding:0 5px;font-size:9px;font-weight:700;margin-right:3px">未解決</span>' : '')
+            + (m.needsManagerFollowup ? '<span style="background:#fde68a;color:#7c2d12;border-radius:3px;padding:0 5px;font-size:9px;font-weight:700;margin-right:3px">要ボス確認</span>' : '');
+          return '<div style="background:#fff;border:1px solid var(--bo);border-radius:6px;padding:6px 9px;margin-bottom:4px"><div style="font-weight:700;color:#0a3d7c;font-size:11.5px;margin-bottom:2px">'+title+'</div><div style="font-size:9.5px;color:var(--t3)">'+badge+(cat?'📁 '+cat+' ':'')+(mt?'🧠 '+mt+' ':'')+(risk!=='normal'?'⚠ '+risk+' ':'')+(imp!=='normal'?'★ '+imp+' ':'')+(ai?'👤 '+ai+' ':'')+'</div><div style="font-size:9px;color:var(--t4);margin-top:2px">'+created+'</div></div>';
+        }).join('');
+        if(filtered.length > 10){
+          html += '<div style="font-size:10px;color:#666;margin-top:4px">※ 上位 10 件まで表示。残り '+(filtered.length-10)+' 件は条件を絞ってください。</div>';
+        }
+      }
+      html += '<div style="font-size:9.5px;color:#1e3a8a;background:#dbeafe;border:1px solid #93c5fd;border-radius:4px;padding:4px 7px;margin-top:6px;line-height:1.55">💡 本検索は <b>in-memory（_p500_memoryStore）</b> に対する絞り込みです。DB 側検索の実装は packet 522+ の設計（docs/JAGAI_MEMORY_DB_SEARCH_PAGING_DESIGN_PACKET_517.md）に基づき承認後に追加予定。</div>';
+      root.innerHTML = html;
+    }catch(e){try{console.warn('[packet 529 renderResults]', e&&e.message);}catch(_){}}
+  }
+
+  function _p529_injectPanel(){
+    try{
+      const page = document.getElementById('page-memory');
+      if(!page) return;
+      if(document.getElementById('p529-search-panel')) return;
+      const list = document.getElementById('p500-list');
+      if(!list || !list.parentNode) return;
+      const panel = document.createElement('div');
+      panel.id = 'p529-search-panel';
+      panel.style.cssText = 'background:#f0fdfa;border:1.5px solid #5eead4;border-radius:8px;padding:9px 12px;margin-bottom:10px;font-size:11px';
+      panel.innerHTML = ''
+        +'<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;margin-bottom:6px">'
+          +'<div style="font-size:13px;font-weight:800;color:#0f766e">🔎 詳細検索 / フィルター（packet 529 ベース）</div>'
+          +'<span style="font-size:10px;background:#ccfbf1;color:#134e4a;border:1px solid #5eead4;border-radius:6px;padding:2px 7px;font-weight:700">in-memory のみ / DB クエリ追加なし</span>'
+        +'</div>'
+        +'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:5px;margin-bottom:6px">'
+          +'<input type="text" id="p529-f-keyword" placeholder="キーワード" style="padding:5px 7px;border-radius:5px;border:1.5px solid var(--bo);font-size:11px">'
+          +'<input type="text" id="p529-f-mt" placeholder="memory_type" style="padding:5px 7px;border-radius:5px;border:1.5px solid var(--bo);font-size:11px">'
+          +'<input type="text" id="p529-f-cat" placeholder="category" style="padding:5px 7px;border-radius:5px;border:1.5px solid var(--bo);font-size:11px">'
+          +'<input type="text" id="p529-f-ai" placeholder="related_ai" style="padding:5px 7px;border-radius:5px;border:1.5px solid var(--bo);font-size:11px">'
+          +'<input type="text" id="p529-f-staff" placeholder="related_staff" style="padding:5px 7px;border-radius:5px;border:1.5px solid var(--bo);font-size:11px">'
+          +'<input type="text" id="p529-f-risk" placeholder="risk_level (high等)" style="padding:5px 7px;border-radius:5px;border:1.5px solid var(--bo);font-size:11px">'
+          +'<input type="text" id="p529-f-imp" placeholder="importance (high等)" style="padding:5px 7px;border-radius:5px;border:1.5px solid var(--bo);font-size:11px">'
+          +'<input type="text" id="p529-f-tags" placeholder="tags" style="padding:5px 7px;border-radius:5px;border:1.5px solid var(--bo);font-size:11px">'
+        +'</div>'
+        +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px;font-size:10.5px;align-items:center">'
+          +'<label style="display:flex;align-items:center;gap:3px"><input type="checkbox" id="p529-f-boss"> 要ボス確認のみ</label>'
+          +'<label>解決状態：<select id="p529-f-resolved" style="padding:3px 5px;border-radius:4px;border:1.5px solid var(--bo);font-size:11px"><option value="">（すべて）</option><option value="unresolved">未解決のみ</option><option value="resolved">解決済のみ</option></select></label>'
+          +'<button type="button" id="p529-search-btn" style="padding:5px 12px;border-radius:5px;border:0;background:#0f766e;color:#fff;font-size:11px;font-weight:700;cursor:pointer">🔎 検索</button>'
+          +'<button type="button" id="p529-clear-btn" style="padding:5px 10px;border-radius:5px;border:1.5px solid #0f766e;background:#fff;color:#0f766e;font-size:11px;font-weight:700;cursor:pointer">クリア</button>'
+        +'</div>'
+        +'<div id="p529-result" style="padding:7px 9px;background:#fff;border:1px solid var(--bo);border-radius:6px;max-height:50vh;overflow-y:auto"><div style="font-size:11px;color:#94a3b8">条件を入力して「🔎 検索」を押してください。</div></div>';
+      list.parentNode.insertBefore(panel, list);
+      // bind
+      const collectFilter = function(){
+        const v = function(id){const el=document.getElementById(id); return el ? String(el.value||'').trim() : '';};
+        const chk = function(id){const el=document.getElementById(id); return !!(el && el.checked);};
+        _p529_filter = {
+          keyword: v('p529-f-keyword'),
+          memoryType: v('p529-f-mt'),
+          category: v('p529-f-cat'),
+          relatedAi: v('p529-f-ai'),
+          relatedStaff: v('p529-f-staff'),
+          riskLevel: v('p529-f-risk'),
+          importanceLevel: v('p529-f-imp'),
+          tags: v('p529-f-tags'),
+          requiresBossCheck: chk('p529-f-boss'),
+          isResolved: v('p529-f-resolved')
+        };
+      };
+      const btn = document.getElementById('p529-search-btn');
+      if(btn && btn.dataset.p529Bound !== '1'){
+        btn.dataset.p529Bound = '1';
+        btn.addEventListener('click', function(){ collectFilter(); _p529_renderResults(); });
+      }
+      const cl = document.getElementById('p529-clear-btn');
+      if(cl && cl.dataset.p529Bound !== '1'){
+        cl.dataset.p529Bound = '1';
+        cl.addEventListener('click', function(){
+          ['p529-f-keyword','p529-f-mt','p529-f-cat','p529-f-ai','p529-f-staff','p529-f-risk','p529-f-imp','p529-f-tags'].forEach(function(id){const el=document.getElementById(id); if(el)el.value='';});
+          const b=document.getElementById('p529-f-boss'); if(b)b.checked=false;
+          const r=document.getElementById('p529-f-resolved'); if(r)r.value='';
+          const root=document.getElementById('p529-result');
+          if(root) root.innerHTML='<div style="font-size:11px;color:#94a3b8">条件を入力して「🔎 検索」を押してください。</div>';
+        });
+      }
+    }catch(e){try{console.warn('[packet 529 injectPanel]', e&&e.message);}catch(_){}}
+  }
+
+  // renderMemoryPage 後勝ち wrap
+  (function _p529_wrapRender(){
+    try{
+      const orig = window.renderMemoryPage;
+      if(typeof orig !== 'function') return;
+      window.renderMemoryPage = function(){
+        try{orig.apply(this, arguments);}catch(_){}
+        try{_p529_injectPanel();}catch(_){}
+      };
+    }catch(_){}
+  })();
+
+})();
+// ==== ここまで packet 529 記憶庫検索・フィルター強化ベース ====
 </script>
 </body>
 </html>
