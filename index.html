@@ -2052,6 +2052,57 @@ textarea.ai-team-input{resize:vertical;min-height:60px}
           ⚠ <b>本 packet 516 では Auth 実装・Supabase Auth 設定変更を一切しません</b>。<br>・<code style="font-size:10px">auth.signIn</code> / <code>signUp</code> / <code>setSession</code> / <code>onAuthStateChange</code> 等の実行コード 0 件<br>・パスワードを console / localStorage に保存しない<br>・<code style="font-size:10px">service_role</code> キーは絶対にフロントに置かない<br>・状態確認は read-only（既存 <code>sb.auth.getSession()</code> を呼ぶのみ、新規 fetch なし）<br>・実装は packet 521+ でボス + 監督承認後に検討
         </div>
       </div>
+
+      <!-- packet 517: DB 検索・ページング 設計 + UI 下準備 -->
+      <div class="ai-team-card" id="p517-search-card" style="margin-top:14px;background:#f0fdfa;border:1.5px solid #5eead4">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;margin-bottom:6px">
+          <div style="font-size:14px;font-weight:800;color:#0f766e">🔎 packet 517：DB 検索・ページング 設計</div>
+          <span style="font-size:10px;background:#ccfbf1;color:#134e4a;border:1px solid #5eead4;border-radius:6px;padding:2px 7px;font-weight:700">設計のみ / 実装なし</span>
+        </div>
+        <div style="font-size:11px;color:var(--t2);line-height:1.65;margin-bottom:8px">packet 511 で DB 復元は<b>起動時 100 件まで</b>。記憶が増えると <b>検索・フィルター・ページング</b> が必要。本カードは<b>設計と UI 下準備</b>のみ。実 DB クエリは追加しません。</div>
+
+        <!-- 現状 -->
+        <div style="background:#fff;border:1px solid var(--bo);border-radius:6px;padding:8px 10px;margin-bottom:8px;font-size:11px;line-height:1.7">
+          <div style="font-weight:800;color:#0a3d7c;margin-bottom:4px">📊 現状</div>
+          <div>・起動時 GET：<b style="color:#0d9e6e">100 件まで</b>（packet 511、<code>order=created_at.desc&limit=100</code>）</div>
+          <div>・DB 側検索：<b style="color:#dc2626">未実装</b></div>
+          <div>・DB 側ページング：<b style="color:#dc2626">未実装</b></div>
+          <div>・in-memory 側フィルター：<b style="color:#0d9e6e">あり</b>（packet 500 検索ボックス / フィルター）</div>
+          <div>・in-memory 側ソート：<b style="color:#0d9e6e">あり</b>（packet 500 4 種ソート）</div>
+        </div>
+
+        <!-- 将来の検索項目 -->
+        <div style="background:#fff;border:1px solid var(--bo);border-radius:6px;padding:8px 10px;margin-bottom:8px;font-size:11px;line-height:1.65">
+          <div style="font-weight:800;color:#0a3d7c;margin-bottom:4px">🎯 将来の DB 検索項目（10 種）</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:4px;font-size:10.5px">
+            <div>・<code>memory_type</code></div>
+            <div>・<code>category</code></div>
+            <div>・<code>related_ai</code></div>
+            <div>・<code>related_staff</code></div>
+            <div>・<code>risk_level</code></div>
+            <div>・<code>importance_level</code></div>
+            <div>・<code>requires_boss_check</code></div>
+            <div>・<code>is_resolved</code></div>
+            <div>・<code>tags</code>（gin idx）</div>
+            <div>・<code>created_at</code> range</div>
+          </div>
+        </div>
+
+        <!-- 3 ボタン -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:6px;margin-bottom:8px">
+          <button type="button" id="p517-show-query-btn" style="padding:9px 12px;border-radius:6px;border:1.5px solid #0f766e;background:#fff;color:#0f766e;font-size:11px;font-weight:700;cursor:pointer;min-height:38px">📜 クエリ案を表示</button>
+          <button type="button" id="p517-copy-query-btn" style="padding:9px 12px;border-radius:6px;border:0;background:#0f766e;color:#fff;font-size:11px;font-weight:700;cursor:pointer;min-height:38px">📋 クエリ案をコピー</button>
+          <button type="button" id="p517-show-paging-btn" style="padding:9px 12px;border-radius:6px;border:1.5px solid #0f766e;background:#fff;color:#0f766e;font-size:11px;font-weight:700;cursor:pointer;min-height:38px">📃 ページング設計を表示</button>
+        </div>
+
+        <!-- 結果表示エリア -->
+        <div id="p517-result" style="display:none;padding:8px 10px;border-radius:6px;font-size:11px;line-height:1.65;background:#fff;border:1px solid var(--bo);max-height:60vh;overflow-y:auto;white-space:pre-wrap;word-break:break-word"></div>
+
+        <!-- 安全注意 -->
+        <div style="margin-top:8px;font-size:10px;color:#134e4a;background:#ccfbf1;border:1px solid #5eead4;border-radius:6px;padding:7px 9px;line-height:1.65">
+          ⚠ <b>本 packet 517 は設計のみ</b>。<br>・新規 DB クエリ実装なし、新規 GET 追加なし、UPDATE / DELETE / UPSERT 実装なし<br>・PostgREST クエリ案は<b>表示・コピーのみ</b><br>・実装は packet 522+ で承認後に検討
+        </div>
+      </div>
     </div>
   </div>
   <!-- packet 502: AI 稼働状況ダッシュボード（in-memory MVP、外部 API なし） -->
@@ -17630,6 +17681,171 @@ function _p500_buildCandidateFromPayload(payload){
 
 })();
 // ==== ここまで packet 516 Auth 接続準備診断 + authenticated 化ロードマップ ====
+
+// ═══════════════════════════════════════
+// packet 517: DB 検索・ページング 設計 + UI 下準備（v0.9.267）
+// 目的：将来の DB 検索・フィルター・ページング設計を UI と docs に整理。
+// 厳守：実 DB クエリは追加しない、新規 GET 追加なし、UPDATE/DELETE/UPSERT 0。
+// ═══════════════════════════════════════
+(function _p517_init(){
+  function E(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];});}
+
+  const QUERY_TEXT = ''
+    +'【packet 517 DB クエリ案（PostgREST、表示・コピーのみ）】\n'
+    +'※ 実装は packet 522+ で承認後。本 packet では追加しない。\n'
+    +'\n'
+    +'━━━ 1. memory_type フィルター ━━━\n'
+    +'GET /rest/v1/jagai_memory?memory_type=eq.success_log&limit=100\n'
+    +'\n'
+    +'━━━ 2. category フィルター ━━━\n'
+    +'GET /rest/v1/jagai_memory?category=eq.discussion&limit=100\n'
+    +'\n'
+    +'━━━ 3. 担当 AI フィルター ━━━\n'
+    +'GET /rest/v1/jagai_memory?related_ai=eq.家康&limit=100\n'
+    +'\n'
+    +'━━━ 4. 担当社員フィルター ━━━\n'
+    +'GET /rest/v1/jagai_memory?related_staff=eq.芳村&limit=100\n'
+    +'\n'
+    +'━━━ 5. risk_level / importance_level フィルター ━━━\n'
+    +'GET /rest/v1/jagai_memory?risk_level=eq.high&order=created_at.desc&limit=100\n'
+    +'GET /rest/v1/jagai_memory?importance_level=eq.high&order=created_at.desc&limit=100\n'
+    +'\n'
+    +'━━━ 6. ボス確認待ち / 未解決 ━━━\n'
+    +'GET /rest/v1/jagai_memory?requires_boss_check=eq.true&is_resolved=eq.false&limit=100\n'
+    +'\n'
+    +'━━━ 7. tags 検索（gin idx 活用）━━━\n'
+    +'GET /rest/v1/jagai_memory?tags=cs.{"営業","成功"}&limit=100\n'
+    +'※ cs = contains（配列に指定要素を含む）\n'
+    +'\n'
+    +'━━━ 8. キーワード検索（横断、ilike）━━━\n'
+    +'GET /rest/v1/jagai_memory?or=(title.ilike.%営業%,detail.ilike.%営業%,lessons.ilike.%営業%)&limit=100\n'
+    +'\n'
+    +'━━━ 9. created_at range 検索 ━━━\n'
+    +'GET /rest/v1/jagai_memory?created_at=gte.2026-05-01&created_at=lt.2026-06-01&order=created_at.desc&limit=100\n'
+    +'\n'
+    +'━━━ 10. 複合検索（type + ai + 期間）━━━\n'
+    +'GET /rest/v1/jagai_memory?memory_type=eq.failure_log&related_ai=eq.家康&created_at=gte.2026-05-01&order=created_at.desc&limit=100\n'
+    +'\n'
+    +'━━━ 既存 sbGet helper への適用例 ━━━\n'
+    +'await sbGet("jagai_memory", "memory_type=eq.failure_log&order=created_at.desc&limit=100");\n'
+    +'\n'
+    +'━━━ ⚠ 注意 ━━━\n'
+    +'・実 GET 実装は packet 522+ で承認後\n'
+    +'・複数フィルターは PostgREST のクエリパラメータで組み立てる\n'
+    +'・count 取得は Prefer: count=exact ヘッダーで（ページング用）\n';
+
+  const PAGING_TEXT = ''
+    +'【packet 517 ページング設計】\n'
+    +'※ 実装は packet 523+ で承認後。本 packet では追加しない。\n'
+    +'\n'
+    +'━━━ 方式 A：offset / limit（最も簡単）━━━\n'
+    +'1 ページ目：GET /rest/v1/jagai_memory?order=created_at.desc&limit=100&offset=0\n'
+    +'2 ページ目：GET /rest/v1/jagai_memory?order=created_at.desc&limit=100&offset=100\n'
+    +'メリット：実装が簡単、任意ページにジャンプ可\n'
+    +'デメリット：大量データで遅くなる（offset 増えるほど遅延）\n'
+    +'\n'
+    +'━━━ 方式 B：cursor（created_at ベース、推奨）━━━\n'
+    +'1 ページ目：GET /rest/v1/jagai_memory?order=created_at.desc&limit=100\n'
+    +'2 ページ目：GET /rest/v1/jagai_memory?created_at=lt.<last_created_at>&order=created_at.desc&limit=100\n'
+    +'メリット：大量データでも高速、追加データの取りこぼし無し\n'
+    +'デメリット：任意ページジャンプ不可、cursor 管理が必要\n'
+    +'\n'
+    +'━━━ 方式 C：Supabase Range ヘッダー ━━━\n'
+    +'Headers: Range: 0-99 / Range: 100-199\n'
+    +'Response: Content-Range: 0-99/250\n'
+    +'メリット：count + range が同時取得\n'
+    +'デメリット：fetch ヘッダー設定が必要、UI が少し複雑\n'
+    +'\n'
+    +'━━━ 推奨：方式 B（cursor）+ 「もっと読む」ボタン ━━━\n'
+    +'・初回 100 件 GET（既存 packet 511）\n'
+    +'・末尾に「もっと読む」ボタン\n'
+    +'・押下で最後の created_at をカーソルにして次 100 件 GET\n'
+    +'・全件読み込んだら「これ以上ありません」表示\n'
+    +'\n'
+    +'━━━ 全件カウント表示（任意）━━━\n'
+    +'GET /rest/v1/jagai_memory?select=count&head=true\n'
+    +'Prefer: count=exact\n'
+    +'→ Content-Range: */総件数\n'
+    +'\n'
+    +'━━━ ⚠ 注意 ━━━\n'
+    +'・実装は packet 523+ で承認後\n'
+    +'・packet 511 と整合：起動時 100 件は維持、追加で「もっと読む」を増設\n'
+    +'・packet 510 INSERT との重複は packet 511 dedupe（id + title+createdAt±5sec）でカバー\n';
+
+  function _p517_setResult(html){
+    try{
+      const r=document.getElementById('p517-result');
+      if(!r)return;
+      r.style.display='block';
+      r.innerHTML=html;
+      try{r.scrollIntoView({behavior:'smooth',block:'nearest'});}catch(_){}
+    }catch(_){}
+  }
+
+  function _p517_showQuery(){
+    try{
+      _p517_setResult(''
+        +'<div style="background:#f0fdfa;border:1.5px solid #5eead4;border-radius:6px;padding:7px 9px;margin-bottom:8px;color:#0f766e;font-weight:700;font-family:sans-serif">📜 PostgREST クエリ案（表示・コピーのみ、実装なし）</div>'
+        +'<pre style="background:#fafafa;border:1px solid var(--bo);border-radius:6px;padding:9px 11px;margin:0;font-family:Menlo,Consolas,monospace;font-size:10.5px;line-height:1.7;white-space:pre-wrap;word-break:break-word">'+E(QUERY_TEXT)+'</pre>'
+      );
+    }catch(e){
+      _p517_setResult('❌ 表示エラー：'+E(String(e&&e.message||e)));
+    }
+  }
+
+  function _p517_copyQuery(){
+    try{
+      const text=QUERY_TEXT;
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(text).then(function(){
+          _p517_setResult('<div style="font-family:sans-serif"><div style="background:#d1fae5;border:1px solid #6ee7b7;border-radius:6px;padding:7px 9px;color:#065f46;font-weight:700;margin-bottom:6px">✅ クエリ案をコピー（'+text.length+' chars）</div></div>');
+        });
+      }
+    }catch(e){
+      _p517_setResult('❌ コピーエラー：'+E(String(e&&e.message||e)));
+    }
+  }
+
+  function _p517_showPaging(){
+    try{
+      _p517_setResult(''
+        +'<div style="background:#dbeafe;border:1.5px solid #93c5fd;border-radius:6px;padding:7px 9px;margin-bottom:8px;color:#1e3a8a;font-family:sans-serif;font-weight:700">📃 ページング設計（3 方式 + 推奨）</div>'
+        +'<pre style="background:#fafafa;border:1px solid var(--bo);border-radius:6px;padding:9px 11px;margin:0;font-family:Menlo,Consolas,monospace;font-size:11px;line-height:1.7;white-space:pre-wrap;word-break:break-word">'+E(PAGING_TEXT)+'</pre>'
+      );
+    }catch(e){
+      _p517_setResult('❌ 表示エラー：'+E(String(e&&e.message||e)));
+    }
+  }
+
+  function _p517_bindButtons(){
+    try{
+      const m={
+        'p517-show-query-btn': _p517_showQuery,
+        'p517-copy-query-btn': _p517_copyQuery,
+        'p517-show-paging-btn': _p517_showPaging
+      };
+      Object.keys(m).forEach(function(id){
+        const b=document.getElementById(id);
+        if(!b || b.dataset.p517Bound==='1')return;
+        b.dataset.p517Bound='1';
+        b.addEventListener('click', m[id]);
+      });
+    }catch(e){try{console.warn('[packet 517 bindButtons]', e&&e.message);}catch(_){}}
+  }
+
+  (function _p517_wrapRender(){
+    try{
+      const orig=window.renderMemoryPage;
+      if(typeof orig!=='function')return;
+      window.renderMemoryPage=function(){
+        try{orig.apply(this,arguments);}catch(_){}
+        try{_p517_bindButtons();}catch(_){}
+      };
+    }catch(e){try{console.warn('[packet 517 wrapRender]', e&&e.message);}catch(_){}}
+  })();
+
+})();
+// ==== ここまで packet 517 DB 検索・ページング 設計 + UI 下準備 ====
 </script>
 </body>
 </html>
