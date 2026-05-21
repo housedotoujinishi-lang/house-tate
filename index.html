@@ -1896,16 +1896,16 @@ textarea.ai-team-input{resize:vertical;min-height:60px}
 
         <!-- 現状ステータス -->
         <div style="background:#fff;border:1px solid var(--bo);border-radius:6px;padding:8px 10px;margin-bottom:8px;font-size:11px;line-height:1.7">
-          <div style="font-weight:800;color:#0a3d7c;margin-bottom:4px">📊 現状ステータス</div>
-          <div>・現在の保存方式：<b>in-memory</b>（<code style="font-size:10px">window._p500_memoryStore</code>）</div>
-          <div>・リロード後：<b>消える</b>（仕様、packet 500 / 507 維持）</div>
-          <div>・Supabase 保存：<b style="color:#b91c1c">未接続 / 設計中</b></div>
-          <div>・必要テーブル：<code style="font-size:10px">jagai_memory</code>（<b style="color:#b91c1c">未作成</b>）</div>
-          <div>・書き込み実装：<b style="color:#b91c1c">未実装</b></div>
-          <div>・SQL 実行：<b style="color:#b91c1c">未実行</b></div>
-          <div>・RLS 設定：<b style="color:#b91c1c">未変更</b></div>
-          <div>・Auth 変更：<b style="color:#b91c1c">未変更</b></div>
-          <div>・次の段階：ボス承認後に SQL / RLS 設計を packet 509+ で実行候補</div>
+          <div style="font-weight:800;color:#0a3d7c;margin-bottom:4px">📊 現状ステータス <span style="font-size:10px;font-weight:600;color:#666">（packet 525 hotfix で最新実装状態に更新）</span></div>
+          <div>・現在の保存方式：<b style="color:#0d9e6e">in-memory 登録 + DB 並行保存 + DB 復元対応済み</b>（packet 500 / 510 / 511）</div>
+          <div>・リロード後：<b style="color:#0d9e6e">DB 保存成功分は復元</b>（packet 511 が起動時に jagai_memory から GET）</div>
+          <div>・Supabase 保存：<b style="color:#0d9e6e">実装済み</b>（RLS / Auth 状態により失敗する場合あり）</div>
+          <div>・必要テーブル：<code style="font-size:10px">jagai_memory</code>（<b style="color:#0d9e6e">作成済み</b>、下の「📋 jagai_memory テーブル存在診断」で確認可）</div>
+          <div>・書き込み実装：<b style="color:#0d9e6e">INSERT 並行保存 実装済み</b>（packet 510）</div>
+          <div>・DB 復元：<b style="color:#0d9e6e">GET 復元 実装済み</b>（packet 511）</div>
+          <div>・RLS policy：<b style="color:#0d9e6e">authenticated 向け SELECT / INSERT 適用済み</b>（packet 512 の手動 SQL でボスが実行）</div>
+          <div>・Auth 接続：<b style="color:#0d9e6e">admin Supabase Auth 接続 実装済み</b>（packet 521〜524、admin 限定 / 手動 signIn）</div>
+          <div style="font-size:10.5px;color:#0a3d7c;background:#eff6ff;border:1px solid #93c5fd;border-radius:4px;padding:5px 8px;margin-top:5px;line-height:1.6">💡 <b>実際のライブ状態</b>は記憶庫上部の「📊 DB 状態まとめ（packet 513）」と「🩺 OS ヘルスチェック（packet 520）」を参照してください。本欄は packet 525 hotfix で更新された静的な実装サマリーです。</div>
         </div>
 
         <!-- packet 510: DB 並行保存ステータス -->
