@@ -19707,6 +19707,187 @@ function _p500_buildCandidateFromPayload(payload){
 
 })();
 // ==== ここまで packet 530 記憶庫 運用レビュー画面ベース ====
+
+// ═══════════════════════════════════════
+// packet 531: 日報 → 記憶庫 実運用テンプレ強化（v0.9.281）
+// 目的：packet 519 の単一ボタンを 5 種類別ボタンに拡張。候補選択モーダルで
+// 社員が「成功 / 失敗 / 困りごと / 店長相談 / 明日の改善」を選んで pre-fill。
+// 厳守：DB 直接保存 0、新規 DB 処理 0、packet 507/510/526 既存導線に委ねる。
+// ═══════════════════════════════════════
+(function _p531_init(){
+  function E(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];});}
+
+  const TEMPLATE_DEFS = [
+    {key:'success', label:'✨ 成功事例', color:'#16a34a', memoryType:'success_pattern', category:'成功ログ', sourceField:'dr-reflect', fallback:['dr-tomorrow']},
+    {key:'failure', label:'📉 失敗・反省', color:'#dc2626', memoryType:'failure_lesson', category:'失敗ログ', sourceField:'dr-trouble', fallback:['dr-reflect']},
+    {key:'trouble', label:'⚠ 困りごと（未解決）', color:'#b45309', memoryType:'failure_lesson', category:'失敗ログ', sourceField:'dr-trouble', fallback:[], unresolved:true},
+    {key:'boss', label:'👀 店長/ボス相談', color:'#7c3aed', memoryType:'boss_decision', category:'ボス判断', sourceField:'dr-ask-manager', fallback:[], requiresBossCheck:true, importance:'high'},
+    {key:'tomorrow', label:'🚀 明日の改善', color:'#1e40af', memoryType:'operation_rule', category:'業務フロー', sourceField:'dr-tomorrow', fallback:[]}
+  ];
+
+  function _p531_readField(id){
+    try{const el=document.getElementById(id); return el ? String(el.value||'').trim() : '';}catch(_){return '';}
+  }
+
+  function _p531_buildCandidate(def){
+    try{
+      const main = _p531_readField(def.sourceField);
+      let body = main;
+      if(!body){
+        for(let i=0;i<(def.fallback||[]).length;i++){
+          const fb = _p531_readField(def.fallback[i]);
+          if(fb){ body = fb; break; }
+        }
+      }
+      if(!body) return {ok:false, error:'対応する記入欄が空です：'+def.sourceField};
+      const dateStr = _p531_readField('dr-date') || (new Date().toISOString().slice(0,10));
+      let author = '担当者';
+      try{
+        const el = document.getElementById('dr-author');
+        if(el && el.textContent && el.textContent.trim() && el.textContent.trim() !== '—') author = el.textContent.trim();
+        else if(window.currentUser && currentUser.name) author = currentUser.name;
+      }catch(_){}
+      const tags = ['daily-report','packet-531', def.key, author].filter(Boolean);
+      const candidate = {
+        memoryType: def.memoryType,
+        category: def.category,
+        title: def.label.replace(/^[^ ]+ /,'') + ' - ' + dateStr + ' - ' + author,
+        content: body,
+        cause: def.key === 'failure' || def.key === 'trouble' ? body : '',
+        lesson: def.key === 'success' || def.key === 'failure' ? body : '',
+        nextAction: def.key === 'tomorrow' ? body : '',
+        bossDecision: def.key === 'boss' ? body : '',
+        relatedPacket: '531',
+        relatedTarget: author,
+        riskLevel: 'normal',
+        importance: def.importance || (def.key === 'trouble' ? 'high' : 'mid'),
+        recurrenceRisk: 'mid',
+        tags: tags.join(','),
+        unresolved: def.unresolved || (def.key === 'trouble'),
+        needsManagerFollowup: def.requiresBossCheck || (def.key === 'boss'),
+        sourceType: 'daily-report-' + def.key
+      };
+      return {ok:true, candidate:candidate};
+    }catch(e){return {ok:false, error:String(e&&e.message||'unknown').slice(0,200)};}
+  }
+
+  function _p531_sendCandidate(def){
+    try{
+      const r = _p531_buildCandidate(def);
+      const resultEl = document.getElementById('p519-result') || document.getElementById('p531-result');
+      if(!r.ok){
+        if(resultEl){
+          resultEl.style.display = 'block';
+          resultEl.style.color = '#991b1b';
+          resultEl.textContent = '❌ ' + r.error;
+        }
+        return;
+      }
+      try{ _p500_pendingCandidate = r.candidate; }catch(_){}
+      if(resultEl){
+        resultEl.style.display = 'block';
+        resultEl.style.color = def.color;
+        resultEl.innerHTML = '🧠 「'+E(def.label)+'」を記憶庫 pre-fill へ送信しました。記憶庫ページに移動して「📚 この内容で記憶庫に登録」で確定してください。';
+      }
+      _p531_closeModal();
+      try{if(typeof switchPage === 'function') switchPage('memory');}catch(_){}
+    }catch(e){try{console.warn('[packet 531 sendCandidate]', e&&e.message);}catch(_){}}
+  }
+
+  function _p531_openModal(){
+    try{
+      let modal = document.getElementById('p531-modal');
+      if(!modal){
+        modal = document.createElement('div');
+        modal.id = 'p531-modal';
+        modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.55);display:flex;align-items:flex-start;justify-content:center;padding:20px 12px;overflow-y:auto';
+        modal.innerHTML = ''
+          +'<div style="background:#fff;border-radius:12px;max-width:560px;width:100%;max-height:calc(100vh - 40px);overflow-y:auto;border-top:6px solid #7c3aed;padding:14px 16px">'
+            +'<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:8px">'
+              +'<div>'
+                +'<div style="font-size:16px;font-weight:800;color:#5b21b6">📝 記憶庫候補を選ぶ（packet 531）</div>'
+                +'<div style="font-size:11px;color:var(--t3);margin-top:2px;line-height:1.5">日報から記憶庫へ送る候補を 5 種類から選んでください。選んだ候補のみ記憶庫 pre-fill へ送られます。</div>'
+              +'</div>'
+              +'<button type="button" id="p531-modal-close" style="background:0;border:0;font-size:22px;color:var(--t3);cursor:pointer;padding:4px 10px;line-height:1;min-width:40px;min-height:40px;border-radius:8px">✕</button>'
+            +'</div>'
+            +'<div id="p531-modal-options" style="display:flex;flex-direction:column;gap:6px"></div>'
+            +'<div id="p531-result" style="display:none;font-size:11px;background:#f5f3ff;border:1px solid #c4b5fd;border-radius:6px;padding:7px 10px;margin-top:8px;color:#5b21b6;line-height:1.55"></div>'
+            +'<div style="font-size:10px;color:#666;background:#f8fafc;border:1px solid var(--bo);border-radius:4px;padding:5px 8px;margin-top:8px;line-height:1.55">※ DB 直接保存はしません。packet 507 の「📚 この内容で記憶庫に登録」で確定 → packet 510 / 526 で DB 並行 INSERT。</div>'
+          +'</div>';
+        document.body.appendChild(modal);
+        modal.addEventListener('click', function(ev){
+          if(ev.target === modal) _p531_closeModal();
+        });
+        document.getElementById('p531-modal-close').addEventListener('click', _p531_closeModal);
+      }
+      // 各候補ボタンを生成（毎回 fresh）
+      const opts = document.getElementById('p531-modal-options');
+      opts.innerHTML = '';
+      TEMPLATE_DEFS.forEach(function(def){
+        const sourceVal = _p531_readField(def.sourceField);
+        const preview = sourceVal ? sourceVal.slice(0, 80) + (sourceVal.length > 80 ? '...' : '') : '（記入なし）';
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.style.cssText = 'text-align:left;padding:9px 12px;border-radius:6px;border:1.5px solid '+def.color+';background:'+(sourceVal?def.color:'#fff')+';color:'+(sourceVal?'#fff':def.color)+';font-size:12px;font-weight:700;cursor:pointer;line-height:1.5;'+(sourceVal?'':'opacity:.65');
+        btn.innerHTML = ''
+          +'<div style="display:flex;align-items:center;justify-content:space-between;gap:6px"><span>'+E(def.label)+'</span><span style="font-size:10px;font-weight:600">'+(sourceVal?'✅ 入力あり':'⚠ 空')+'</span></div>'
+          +'<div style="font-size:10px;font-weight:400;color:'+(sourceVal?'rgba(255,255,255,.85)':'#666')+';margin-top:3px">参照：'+E(def.sourceField)+' → '+E(preview)+'</div>';
+        btn.addEventListener('click', function(){ _p531_sendCandidate(def); });
+        opts.appendChild(btn);
+      });
+      modal.style.display = 'flex';
+      const resultEl = document.getElementById('p531-result');
+      if(resultEl){ resultEl.style.display = 'none'; resultEl.textContent = ''; }
+    }catch(e){try{console.warn('[packet 531 openModal]', e&&e.message);}catch(_){}}
+  }
+  function _p531_closeModal(){
+    const m = document.getElementById('p531-modal');
+    if(m) m.style.display = 'none';
+  }
+  window._p531_openModal = _p531_openModal;
+  window._p531_closeModal = _p531_closeModal;
+
+  // packet 519 ボタン横に「テンプレ選択」ボタンを追加
+  function _p531_injectButton(){
+    try{
+      const drActions = document.querySelector('#page-daily-report .dr-actions');
+      if(!drActions) return;
+      if(document.getElementById('p531-template-btn')) return;
+      const btn = document.createElement('button');
+      btn.id = 'p531-template-btn';
+      btn.type = 'button';
+      btn.className = 'dr-btn';
+      btn.style.cssText = 'background:#5b21b6;color:#fff;border:0;font-weight:700;padding:7px 14px;border-radius:6px;cursor:pointer;margin-left:6px';
+      btn.textContent = '📝 テンプレ別 記憶庫候補（packet 531）';
+      btn.addEventListener('click', _p531_openModal);
+      drActions.appendChild(btn);
+    }catch(e){try{console.warn('[packet 531 injectButton]', e&&e.message);}catch(_){}}
+  }
+
+  // switchPage 非破壊 wrap → daily-report 表示時に bind
+  (function _p531_wrapSwitchPage(){
+    try{
+      const orig = window.switchPage;
+      if(typeof orig !== 'function') return;
+      window.switchPage = function(pg){
+        try{ orig.apply(this, arguments); }catch(_){}
+        if(pg === 'daily-report'){
+          setTimeout(function(){ try{_p531_injectButton();}catch(_){} }, 60);
+        }
+      };
+    }catch(_){}
+  })();
+
+  // DOMContentLoaded 後にも 1 回 bind 試行
+  function _p531_initialBind(){ try{_p531_injectButton();}catch(_){} }
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', _p531_initialBind);
+  }else{
+    setTimeout(_p531_initialBind, 250);
+  }
+
+})();
+// ==== ここまで packet 531 日報 → 記憶庫 実運用テンプレ強化 ====
 </script>
 </body>
 </html>
