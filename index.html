@@ -16963,11 +16963,52 @@ function _p500_buildCandidateFromPayload(payload){
     window._p511_state.loading = true;
     window._p511_state.loadStatus = '読込中';
     _p511_updateDiagDisplay();
+    // packet 527 hotfix: GET にも Supabase Auth session.access_token を優先付与
+    // sessionあり → 直接 fetch で Bearer accessToken（authenticated ロール）
+    // sessionなし → 従来通り sbGet（anon Bearer SB_KEY）にフォールバック
+    // tokenはconsole/localStorage/sessionStorageに保存しない、真偽値のみ
+    let _p527_accessToken = null;
     try{
-      if(typeof sbGet !== 'function'){
-        throw new Error('sbGet helper not available');
+      if(typeof sb !== 'undefined' && sb && sb.auth && typeof sb.auth.getSession === 'function'){
+        const _p527_res = await sb.auth.getSession();
+        if(_p527_res && _p527_res.data && _p527_res.data.session && _p527_res.data.session.access_token){
+          _p527_accessToken = _p527_res.data.session.access_token;
+        }
       }
-      const rows = await sbGet('jagai_memory', 'order=created_at.desc&limit=100');
+    }catch(_p527_e){}
+    // packet 527 state（diag UI 用、tokenそのものは保存しない）
+    try{
+      if(!window._p527_state) window._p527_state = {};
+      window._p527_state.lastTokenUsed = !!_p527_accessToken;
+      window._p527_state.lastRoleEstimate = _p527_accessToken ? 'authenticated' : 'anon';
+    }catch(_){}
+    try{
+      let rows;
+      if(_p527_accessToken){
+        // 直接 fetch（access_token を Bearer に付与）、apikey は既存 SB_KEY 維持
+        if(typeof SB_URL === 'undefined' || !SB_URL || typeof SB_KEY === 'undefined' || !SB_KEY){
+          throw new Error('SB_URL/SB_KEY not configured');
+        }
+        const _p527_url = SB_URL + '/rest/v1/jagai_memory?order=created_at.desc&limit=100';
+        const _p527_r = await fetch(_p527_url, {
+          headers: {
+            apikey: SB_KEY,
+            Authorization: 'Bearer ' + _p527_accessToken,
+            Accept: 'application/json'
+          }
+        });
+        if(!_p527_r.ok){
+          const _p527_errText = await _p527_r.text().catch(function(){return '';});
+          throw new Error('HTTP ' + _p527_r.status + ' ' + (_p527_r.statusText||'').slice(0,40) + (_p527_errText ? ' / '+_p527_errText.slice(0,160) : ''));
+        }
+        rows = await _p527_r.json();
+      }else{
+        // フォールバック：既存 sbGet（anon Bearer SB_KEY）
+        if(typeof sbGet !== 'function'){
+          throw new Error('sbGet helper not available');
+        }
+        rows = await sbGet('jagai_memory', 'order=created_at.desc&limit=100');
+      }
       const rowsArr = Array.isArray(rows) ? rows : [];
       const added = _p511_mergeDBMemories(rowsArr);
       window._p511_state.loadStatus = '成功';
@@ -16976,7 +17017,7 @@ function _p500_buildCandidateFromPayload(payload){
       window._p511_state.lastTime = _p511_nowShort();
       window._p511_state.lastErrorBrief = '';
       window._p511_state.initialLoaded = true;
-      try{console.warn('[packet 511 loadFromDB] HTTP 200 OK loaded:', rowsArr.length, 'merged:', added);}catch(_){}
+      try{console.warn('[packet 511 loadFromDB] HTTP 200 OK loaded:', rowsArr.length, 'merged:', added, 'authToken=', (_p527_accessToken?'yes':'no'));}catch(_){}
       // re-render（filter は user 設定を尊重、解除しない）
       try{ if(typeof _p500_renderList === 'function') _p500_renderList(); }catch(_){}
       try{ if(typeof _p500_renderSummary === 'function') _p500_renderSummary(); }catch(_){}
@@ -16989,7 +17030,7 @@ function _p500_buildCandidateFromPayload(payload){
       window._p511_state.loadStatus = loadStatus;
       window._p511_state.lastErrorBrief = msg.slice(0, 140);
       window._p511_state.lastTime = _p511_nowShort();
-      try{console.warn('[packet 511 loadFromDB] failed status:', loadStatus);}catch(_){}
+      try{console.warn('[packet 511 loadFromDB] failed status:', loadStatus, 'authToken=', ((window._p527_state && window._p527_state.lastTokenUsed)?'yes':'no'));}catch(_){}
     }finally{
       window._p511_state.loading = false;
       _p511_updateDiagDisplay();
@@ -19186,6 +19227,112 @@ function _p500_buildCandidateFromPayload(payload){
 
 })();
 // ==== ここまで packet 526 jagai_memory INSERT Auth token 付与 hotfix ====
+
+// ═══════════════════════════════════════
+// packet 527: jagai_memory GET/DB復元 Auth token 付与 hotfix（v0.9.277）
+// 不具合：packet 511 _p511_loadMemoriesFromDB が global sbGet を使い、sbGet 内部の
+// Authorization は anon SB_KEY 固定。signIn 後のリロードでも DB 復元 GET が anon
+// 扱いになり、authenticated 向け RLS SELECT policy に通らない可能性。
+// 修正：_p511_loadMemoriesFromDB 内で sb.auth.getSession() の access_token を取得し、
+// 直接 fetch（Bearer accessToken）で GET。access_token なければ sbGet フォールバック。
+// 本 IIFE は diag UI（GET 時 Auth / role 推定）の表示のみ。
+// 厳守：
+//   - service_role 不使用
+//   - token / password を localStorage / sessionStorage / console に保存・出力しない
+//   - SQL / RLS / Auth 設定変更 0
+//   - DELETE / UPDATE / UPSERT 0、INSERT は packet 526 のまま
+//   - 新規 Supabase クライアント createClient 0
+//   - global sbGet は変更しない（accounts/kintai/tasks 等への影響を回避）
+// ═══════════════════════════════════════
+(function _p527_init(){
+  function E(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];});}
+
+  window._p527_state = window._p527_state || { lastTokenUsed: null, lastRoleEstimate: null };
+
+  // packet 511 status block に packet 527 表示行を注入
+  function _p527_injectStatusRow(){
+    try{
+      const block = document.getElementById('p511-restore-status-block');
+      if(!block) return;
+      let row = document.getElementById('p527-status-row');
+      if(!row){
+        row = document.createElement('div');
+        row.id = 'p527-status-row';
+        row.innerHTML = ''
+          +'・GET 時 Auth：<b id="p527-token-label" style="color:#94a3b8">未試行</b>'
+          +' ／ role 推定：<b id="p527-role-label" style="color:#94a3b8">不明</b>'
+          +' <span style="font-size:9.5px;color:#666">（packet 527）</span>';
+        // packet 511 結果バナーの前に挿入
+        const mergeMsg = document.getElementById('p511-merge-msg');
+        if(mergeMsg && mergeMsg.parentNode){
+          mergeMsg.parentNode.insertBefore(row, mergeMsg);
+        }else{
+          block.appendChild(row);
+        }
+      }
+      _p527_updateStatusRow();
+    }catch(e){try{console.warn('[packet 527 injectStatusRow]', e&&e.message);}catch(_){}}
+  }
+
+  function _p527_updateStatusRow(){
+    try{
+      const s = window._p527_state || {};
+      const tokenEl = document.getElementById('p527-token-label');
+      const roleEl = document.getElementById('p527-role-label');
+      if(tokenEl){
+        if(s.lastTokenUsed === true){
+          tokenEl.textContent = '✅ authenticated token 付与';
+          tokenEl.style.color = '#0d9e6e';
+        }else if(s.lastTokenUsed === false){
+          tokenEl.textContent = '⚠ token なし（anon で GET 試行）';
+          tokenEl.style.color = '#b45309';
+        }else{
+          tokenEl.textContent = '未試行';
+          tokenEl.style.color = '#94a3b8';
+        }
+      }
+      if(roleEl){
+        if(s.lastRoleEstimate === 'authenticated'){
+          roleEl.textContent = 'authenticated';
+          roleEl.style.color = '#0d9e6e';
+        }else if(s.lastRoleEstimate === 'anon'){
+          roleEl.textContent = 'anon';
+          roleEl.style.color = '#b45309';
+        }else{
+          roleEl.textContent = '不明';
+          roleEl.style.color = '#94a3b8';
+        }
+      }
+    }catch(e){try{console.warn('[packet 527 updateStatusRow]', e&&e.message);}catch(_){}}
+  }
+  window._p527_updateStatusRow = _p527_updateStatusRow;
+
+  // renderMemoryPage 後勝ち wrap
+  (function _p527_wrapRender(){
+    try{
+      const orig = window.renderMemoryPage;
+      if(typeof orig !== 'function') return;
+      window.renderMemoryPage = function(){
+        try{orig.apply(this, arguments);}catch(_){}
+        try{_p527_injectStatusRow();}catch(_){}
+      };
+    }catch(_){}
+  })();
+
+  // packet 511 updateDiagDisplay と連動更新
+  (function _p527_wrap511(){
+    try{
+      const orig = window._p511_updateDiagDisplay;
+      if(typeof orig !== 'function') return;
+      window._p511_updateDiagDisplay = function(){
+        try{orig.apply(this, arguments);}catch(_){}
+        try{_p527_updateStatusRow();}catch(_){}
+      };
+    }catch(_){}
+  })();
+
+})();
+// ==== ここまで packet 527 jagai_memory GET/DB復元 Auth token 付与 hotfix ====
 </script>
 </body>
 </html>
