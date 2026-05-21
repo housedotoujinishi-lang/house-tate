@@ -20068,6 +20068,153 @@ function _p500_buildCandidateFromPayload(payload){
 
 })();
 // ==== ここまで packet 532 AI 会議 記憶参照精度アップ MVP ====
+
+// ═══════════════════════════════════════
+// packet 533: AI 相談 記憶参照ベース（v0.9.283）
+// 目的：AI 相談ページの入力テキストに対し、関連 in-memory 記憶 TOP5 を
+// 「相談前ヒント」として参考表示。AI への自動プロンプト連結はしない。
+// 厳守：外部 API 0、DB 書き込み 0、AI プロンプト改変 0、社員の手で確認 → 必要なら自分で参照。
+// ═══════════════════════════════════════
+(function _p533_init(){
+  function E(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];});}
+
+  function _p533_topRelevant(query, n){
+    // packet 532 のスコア関数を流用（同居 IIFE のため window 経由）
+    try{
+      if(typeof window._p532_topRelevant === 'function'){
+        return window._p532_topRelevant(query, n);
+      }
+    }catch(_){}
+    // フォールバック：軽量スコア
+    try{
+      const store = (window._p500_memoryStore || []).slice();
+      const t = String(query||'').toLowerCase();
+      if(!t) return [];
+      const tokens = t.split(/[\s　、。,，.！？!?]+/).filter(function(x){return x && x.length>=2;});
+      const scored = store.map(function(m){
+        const hay = [m.title,m.content,m.cause,m.lesson,m.nextAction,m.bossDecision,m.category,m.tags].map(function(x){return String(x||'').toLowerCase();}).join(' ');
+        let s = 0;
+        tokens.forEach(function(tok){ if(hay.indexOf(tok)!==-1) s += 5; });
+        if(m.importance === 'high') s += 2;
+        if(m.needsManagerFollowup) s += 2;
+        if(m.unresolved) s += 1;
+        return {m:m, s:s};
+      }).filter(function(x){return x.s > 0;}).sort(function(a,b){return b.s-a.s;}).slice(0, n||5);
+      return scored;
+    }catch(_){return [];}
+  }
+
+  function _p533_readQuery(){
+    try{
+      const ids = ['ai-consult-input','ai-consult-question','consult-input','consult-question','ai-consult-text','ai-soudan-input'];
+      for(let i=0;i<ids.length;i++){
+        const el = document.getElementById(ids[i]);
+        if(el && String(el.value||'').trim()) return String(el.value||'').trim();
+      }
+      // 相談ページ内の textarea を走査
+      const page = document.getElementById('page-ai-consult') || document.getElementById('page-consult') || document.getElementById('page-ai-soudan');
+      if(page){
+        const ta = page.querySelectorAll('textarea, input[type="text"]');
+        for(let i=0;i<ta.length;i++){
+          if(ta[i].value && String(ta[i].value).trim().length >= 4) return String(ta[i].value).trim();
+        }
+      }
+    }catch(_){}
+    return '';
+  }
+
+  function _p533_findConsultPage(){
+    return document.getElementById('page-ai-consult')
+        || document.getElementById('page-consult')
+        || document.getElementById('page-ai-soudan')
+        || null;
+  }
+
+  function _p533_injectCard(){
+    try{
+      const page = _p533_findConsultPage();
+      if(!page) return;
+      if(document.getElementById('p533-hint-card')) return;
+      const card = document.createElement('div');
+      card.id = 'p533-hint-card';
+      card.className = 'card';
+      card.style.cssText = 'border-top:4px solid #14b8a6;margin-bottom:10px';
+      card.innerHTML = ''
+        +'<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">'
+          +'<div style="font-weight:800;color:#0f766e">🧭 相談前ヒント（packet 533）</div>'
+          +'<button type="button" id="p533-refresh-btn" class="dr-btn" style="background:#14b8a6;color:#fff;border:0;font-weight:700;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:11px">🔄 相談内容から再抽出</button>'
+        +'</div>'
+        +'<div style="font-size:11px;color:var(--t3);margin-top:4px;line-height:1.55">相談文に関連する過去の記憶（成功/失敗/ボス判断など）TOP5 を参考表示。社員の手で確認してください。<b>AI への自動プロンプト連結なし</b>。</div>'
+        +'<div id="p533-hint-result" style="margin-top:8px;font-size:12px;line-height:1.55">相談文を入力してから「🔄 相談内容から再抽出」を押してください。</div>'
+        +'<div style="font-size:10px;color:#666;background:#f8fafc;border:1px solid var(--bo);border-radius:4px;padding:5px 8px;margin-top:8px;line-height:1.55">※ in-memory のみ参照。DB 書き込み 0 / 外部 API 0 / AI プロンプト改変 0。</div>';
+      const firstChild = page.querySelector('.card, h2, h3');
+      if(firstChild) page.insertBefore(card, firstChild);
+      else page.appendChild(card);
+      document.getElementById('p533-refresh-btn').addEventListener('click', _p533_renderHints);
+    }catch(e){try{console.warn('[packet 533 injectCard]', e&&e.message);}catch(_){}}
+  }
+
+  function _p533_renderHints(){
+    try{
+      const out = document.getElementById('p533-hint-result');
+      if(!out) return;
+      const q = _p533_readQuery();
+      if(!q){
+        out.style.color = '#92400e';
+        out.innerHTML = '⚠ 相談文が見つかりません。相談欄に入力してから再抽出してください。';
+        return;
+      }
+      const top = _p533_topRelevant(q, 5);
+      if(top.length === 0){
+        out.style.color = 'var(--t3)';
+        out.innerHTML = '関連する過去の記憶は見つかりませんでした。（相談文：'+E(q.slice(0,60))+(q.length>60?'...':'')+'）';
+        return;
+      }
+      let html = '<div style="background:#f0fdfa;border:1px solid #5eead4;border-radius:6px;padding:8px 10px;margin-bottom:8px;font-size:11px;color:#0f766e">💬 相談文：「'+E(q.slice(0,80))+(q.length>80?'...':'')+'」 / 関連記憶 '+top.length+' 件</div>';
+      top.forEach(function(item, i){
+        const m = item.m;
+        const typeBadge = m.memoryType === 'success_pattern' ? '<span style="background:#16a34a;color:#fff;padding:1px 5px;border-radius:8px;font-size:10px">✨ 成功</span>'
+          : m.memoryType === 'failure_lesson' ? '<span style="background:#dc2626;color:#fff;padding:1px 5px;border-radius:8px;font-size:10px">📉 失敗</span>'
+          : m.memoryType === 'boss_decision' ? '<span style="background:#7c3aed;color:#fff;padding:1px 5px;border-radius:8px;font-size:10px">👀 ボス判断</span>'
+          : m.memoryType === 'operation_rule' ? '<span style="background:#1e40af;color:#fff;padding:1px 5px;border-radius:8px;font-size:10px">⚙ 業務</span>'
+          : '<span style="background:#64748b;color:#fff;padding:1px 5px;border-radius:8px;font-size:10px">📝 その他</span>';
+        html += '<div style="border:1px solid #99f6e4;background:#f0fdfa;border-radius:6px;padding:6px 8px;margin-bottom:4px;font-size:11px;line-height:1.5">'
+          +'<div style="font-weight:700;color:#0f766e">'+(i+1)+'. '+E(String(m.title||'(無題)').slice(0,60))+' '+typeBadge+' <span style="background:#14b8a6;color:#fff;padding:1px 6px;border-radius:8px;font-size:10px">score '+item.s+'</span></div>'
+          +'<div style="color:#475569;margin-top:2px">'+E(String(m.content||'').slice(0,120))+(String(m.content||'').length>120?'...':'')+'</div>';
+        if(m.lesson) html += '<div style="color:#0f766e;font-size:10px;margin-top:2px"><b>教訓：</b>'+E(String(m.lesson).slice(0,80))+'</div>';
+        if(m.bossDecision) html += '<div style="color:#7c3aed;font-size:10px;margin-top:2px"><b>ボス判断：</b>'+E(String(m.bossDecision).slice(0,80))+'</div>';
+        if(m.unresolved) html += '<div style="color:#b45309;font-size:10px;margin-top:2px"><b>⚠ 未解決</b></div>';
+        html += '</div>';
+      });
+      html += '<div style="font-size:10px;color:#666;margin-top:6px;line-height:1.5">💡 ヒント：これらは <b>参考表示のみ</b>。相談文に過去の知見を取り入れる場合は、社員が記憶内容を確認 → 必要に応じて自分の言葉で相談欄に追記してください。</div>';
+      out.style.color = '';
+      out.innerHTML = html;
+    }catch(e){try{console.warn('[packet 533 renderHints]', e&&e.message);}catch(_){}}
+  }
+
+  (function _p533_wrapSwitchPage(){
+    try{
+      const orig = window.switchPage;
+      if(typeof orig !== 'function') return;
+      window.switchPage = function(pg){
+        try{ orig.apply(this, arguments); }catch(_){}
+        if(pg === 'ai-consult' || pg === 'consult' || pg === 'ai-soudan'){
+          setTimeout(function(){ try{_p533_injectCard();}catch(_){} }, 80);
+        }
+      };
+    }catch(_){}
+  })();
+
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){ setTimeout(_p533_injectCard, 300); });
+  }else{
+    setTimeout(_p533_injectCard, 300);
+  }
+
+  window._p533_renderHints = _p533_renderHints;
+
+})();
+// ==== ここまで packet 533 AI 相談 記憶参照ベース ====
 </script>
 </body>
 </html>
