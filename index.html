@@ -16637,12 +16637,31 @@ function _p500_buildCandidateFromPayload(payload){
     if(typeof SB_URL === 'undefined' || typeof SB_KEY === 'undefined' || !SB_URL || !SB_KEY){
       throw new Error('SB_URL/SB_KEY not configured');
     }
+    // packet 526 hotfix: Authorization に Supabase Auth session.access_token を優先付与
+    // sessionあり → Bearer accessToken（authenticated ロール）
+    // sessionなし → Bearer SB_KEY（従来の anon 動作にフォールバック）
+    // tokenはconsole/localStorageに保存しない、文字列も表示しない
+    let _p526_accessToken = null;
+    try{
+      if(typeof sb !== 'undefined' && sb && sb.auth && typeof sb.auth.getSession === 'function'){
+        const _p526_res = await sb.auth.getSession();
+        if(_p526_res && _p526_res.data && _p526_res.data.session && _p526_res.data.session.access_token){
+          _p526_accessToken = _p526_res.data.session.access_token;
+        }
+      }
+    }catch(_p526_e){}
+    // packet 526 state（diag UI 用、tokenそのものは保存しない）
+    try{
+      if(!window._p526_state) window._p526_state = {};
+      window._p526_state.lastTokenUsed = !!_p526_accessToken;
+      window._p526_state.lastRoleEstimate = _p526_accessToken ? 'authenticated' : 'anon';
+    }catch(_){}
     const url = SB_URL + '/rest/v1/jagai_memory';
     const r = await fetch(url, {
       method: 'POST',
       headers: {
         apikey: SB_KEY,
-        Authorization: 'Bearer ' + SB_KEY,
+        Authorization: 'Bearer ' + (_p526_accessToken || SB_KEY),
         'Content-Type': 'application/json',
         Prefer: 'return=representation'  // merge-duplicates なし = 純粋 INSERT
       },
@@ -16652,13 +16671,13 @@ function _p500_buildCandidateFromPayload(payload){
       let errText = '';
       try{ errText = await r.text(); }catch(_){}
       // console には status のみ、body は出さない
-      try{console.warn('[packet 510 dbInsert] HTTP', r.status, r.statusText);}catch(_){}
+      try{console.warn('[packet 510 dbInsert] HTTP', r.status, r.statusText, 'authToken=', (_p526_accessToken?'yes':'no'));}catch(_){}
       const e = new Error('HTTP ' + r.status + ' ' + (r.statusText||'').slice(0,40) + (errText ? ' / '+errText.slice(0, 160) : ''));
       e.status = r.status;
       e.errText = errText;
       throw e;
     }
-    try{console.warn('[packet 510 dbInsert] HTTP', r.status, 'OK');}catch(_){}
+    try{console.warn('[packet 510 dbInsert] HTTP', r.status, 'OK', 'authToken=', (_p526_accessToken?'yes':'no'));}catch(_){}
     try{ return await r.json(); }catch(_){ return null; }
   }
   window._p510_dbInsert = _p510_dbInsert;
@@ -19064,6 +19083,109 @@ function _p500_buildCandidateFromPayload(payload){
 
 })();
 // ==== ここまで packet 524 admin Supabase Auth 接続 signIn 権限判定 hotfix ====
+
+// ═══════════════════════════════════════
+// packet 526: jagai_memory INSERT Auth token 付与 hotfix（v0.9.276）
+// 不具合：packet 510 _p510_dbInsert は Authorization: Bearer SB_KEY（anon key）で固定送信。
+// signIn 済みでも INSERT が anon ロール扱いになり、authenticated RLS policy で 401 拒否。
+// 修正：_p510_dbInsert 内で sb.auth.getSession() の access_token を優先 Bearer。
+// 本 IIFE は diag UI 表示のみ（実 INSERT ロジックは _p510_dbInsert 内で完結）。
+// 厳守：
+//   - service_role 不使用
+//   - token / password を localStorage / sessionStorage / console に保存・出力しない
+//   - SQL / RLS / Auth 設定変更 0
+//   - DELETE / UPDATE / UPSERT 0
+//   - 新規 Supabase クライアント createClient 0
+// ═══════════════════════════════════════
+(function _p526_init(){
+  function E(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];});}
+
+  window._p526_state = window._p526_state || { lastTokenUsed: null, lastRoleEstimate: null };
+
+  // packet 510 status block に packet 526 表示行を注入
+  function _p526_injectStatusRow(){
+    try{
+      const block = document.getElementById('p510-db-status-block');
+      if(!block) return;
+      let row = document.getElementById('p526-status-row');
+      if(!row){
+        row = document.createElement('div');
+        row.id = 'p526-status-row';
+        row.innerHTML = ''
+          +'・INSERT 時 Auth：<b id="p526-token-label" style="color:#94a3b8">未試行</b>'
+          +' ／ role 推定：<b id="p526-role-label" style="color:#94a3b8">不明</b>'
+          +' <span style="font-size:9.5px;color:#666">（packet 526）</span>';
+        // packet 510 注意フッターの直前に挿入
+        const footer = block.querySelector('div[style*="background:#e0f2fe"]');
+        if(footer && footer.parentNode){
+          footer.parentNode.insertBefore(row, footer);
+        }else{
+          block.appendChild(row);
+        }
+      }
+      _p526_updateStatusRow();
+    }catch(e){try{console.warn('[packet 526 injectStatusRow]', e&&e.message);}catch(_){}}
+  }
+
+  function _p526_updateStatusRow(){
+    try{
+      const s = window._p526_state || {};
+      const tokenEl = document.getElementById('p526-token-label');
+      const roleEl = document.getElementById('p526-role-label');
+      if(tokenEl){
+        if(s.lastTokenUsed === true){
+          tokenEl.textContent = '✅ authenticated token 付与';
+          tokenEl.style.color = '#0d9e6e';
+        }else if(s.lastTokenUsed === false){
+          tokenEl.textContent = '⚠ token なし（anon でINSERT試行）';
+          tokenEl.style.color = '#b45309';
+        }else{
+          tokenEl.textContent = '未試行';
+          tokenEl.style.color = '#94a3b8';
+        }
+      }
+      if(roleEl){
+        if(s.lastRoleEstimate === 'authenticated'){
+          roleEl.textContent = 'authenticated';
+          roleEl.style.color = '#0d9e6e';
+        }else if(s.lastRoleEstimate === 'anon'){
+          roleEl.textContent = 'anon';
+          roleEl.style.color = '#b45309';
+        }else{
+          roleEl.textContent = '不明';
+          roleEl.style.color = '#94a3b8';
+        }
+      }
+    }catch(e){try{console.warn('[packet 526 updateStatusRow]', e&&e.message);}catch(_){}}
+  }
+  window._p526_updateStatusRow = _p526_updateStatusRow;
+
+  // renderMemoryPage 後勝ち wrap
+  (function _p526_wrapRender(){
+    try{
+      const orig = window.renderMemoryPage;
+      if(typeof orig !== 'function') return;
+      window.renderMemoryPage = function(){
+        try{orig.apply(this, arguments);}catch(_){}
+        try{_p526_injectStatusRow();}catch(_){}
+      };
+    }catch(_){}
+  })();
+
+  // packet 510 / 511 / 513 / 520 updateDiagDisplay と連動更新
+  (function _p526_wrap510(){
+    try{
+      const orig = window._p510_updateDiagDisplay;
+      if(typeof orig !== 'function') return;
+      window._p510_updateDiagDisplay = function(){
+        try{orig.apply(this, arguments);}catch(_){}
+        try{_p526_updateStatusRow();}catch(_){}
+      };
+    }catch(_){}
+  })();
+
+})();
+// ==== ここまで packet 526 jagai_memory INSERT Auth token 付与 hotfix ====
 </script>
 </body>
 </html>
