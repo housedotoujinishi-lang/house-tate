@@ -21002,6 +21002,338 @@ function _p500_buildCandidateFromPayload(payload){
   }
 })();
 // ==== ここまで packet 538 記憶庫 DB 正本モード切替 UI ベース ====
+
+// ═══════════════════════════════════════
+// packet 539: 記憶庫 DB ページング GET + 検索強化 UI ベース（v0.9.289）
+// 目的：DB に保存される記憶が増える前提で、DB ページング・DB 検索の UI ベース。
+// 厳守：実 DB クエリ切替 0、新規 fetch 0、UPDATE/DELETE/UPSERT 0、SQL/RLS/Auth 設定変更 0、
+//      localStorage / sessionStorage 本文保存 0（クエリ表示用文字列も保存しない）。
+//      既存 packet 511 DB 復元 100 件 GET は壊さない（一切手を入れない）。
+// ═══════════════════════════════════════
+(function _p539_init(){
+  function E(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];});}
+
+  // 将来 DB 検索条件カラム（packet 511 mapping 由来）
+  const SEARCH_FIELDS = [
+    {col:'memory_type',         label:'記憶タイプ',         filter:"memory_type=eq.failure_lesson",                examples:['failure_lesson','success_pattern','boss_decision','operation_rule']},
+    {col:'category',            label:'カテゴリ',           filter:"category=eq.失敗ログ",                         examples:['失敗ログ','成功ログ','ボス判断','業務フロー','再発防止']},
+    {col:'related_ai',          label:'関連 AI',            filter:"related_ai=eq.クロード",                       examples:['クロード','GPT','Gemini','Grok','メタAI','Perplexity']},
+    {col:'related_staff',       label:'関連社員',           filter:"related_staff=eq.芳村",                        examples:['芳村','冨永','店長']},
+    {col:'risk_level',          label:'リスクレベル',       filter:"risk_level=eq.high",                           examples:['high','mid','low','normal']},
+    {col:'importance_level',    label:'重要度',             filter:"importance_level=eq.high",                     examples:['high','mid','low']},
+    {col:'requires_boss_check', label:'ボス確認必要',       filter:"requires_boss_check=is.true",                  examples:['true','false']},
+    {col:'is_resolved',         label:'解決済み',           filter:"is_resolved=is.false",                         examples:['true','false']},
+    {col:'tags',                label:'タグ（部分一致）',   filter:"tags=ilike.*daily-report*",                    examples:['daily-report','packet-531','顧客対応']},
+    {col:'(keyword)',           label:'本文・タイトル全文', filter:"or=(title.ilike.*kw*,content.ilike.*kw*)",     examples:['内見','クレーム','契約']},
+    {col:'created_at',          label:'作成日範囲',         filter:"created_at=gte.2026-05-01T00:00:00Z&created_at=lt.2026-06-01T00:00:00Z", examples:['今週','今月','過去30日','期間指定']}
+  ];
+
+  // ページング方式案
+  const PAGING_PROPOSALS = [
+    {key:'offset',  title:'offset 方式（オーソドックス）',  query:"order=created_at.desc&limit=20&offset=0",
+     pros:['実装シンプル / page 番号管理直感','「N ページ目」UI に直結'],
+     cons:['offset が大きくなると遅い','行追加時に重複/欠落の可能性']},
+    {key:'cursor',  title:'cursor 方式（id ベース）',       query:"order=created_at.desc,id.desc&limit=20&id=lt.<最後の id>",
+     pros:['大量データでも一定速度','重複/欠落しにくい'],
+     cons:['UI で「N ページ目」を作りにくい（次へ / 前へ中心）','カーソル状態管理が必要']},
+    {key:'created_at', title:'created_at 基準方式（時系列）', query:"order=created_at.desc&limit=20&created_at=lt.<最後の created_at>",
+     pros:['時系列に強い / 「もっと古い」UI に直結','同時刻が稀ならシンプル'],
+     cons:['同時刻が複数あると tie-break 必要（→ cursor 方式とほぼ同じになる）']}
+  ];
+
+  function _p539_buildQuery(opts){
+    // opts: {filters:[...], paging:'offset'|'cursor'|'created_at', limit, offset, lastId, lastCreatedAt, keyword}
+    const parts = [];
+    (opts.filters || []).forEach(function(f){
+      if(f && f.trim()) parts.push(f.trim());
+    });
+    if(opts.keyword){
+      const kw = opts.keyword.replace(/[*]/g,'').replace(/\s+/g,'%20');
+      parts.push('or=(title.ilike.*' + kw + '*,content.ilike.*' + kw + '*)');
+    }
+    if(opts.paging === 'cursor'){
+      parts.push('order=created_at.desc,id.desc');
+      if(opts.lastId) parts.push('id=lt.' + opts.lastId);
+    }else if(opts.paging === 'created_at'){
+      parts.push('order=created_at.desc');
+      if(opts.lastCreatedAt) parts.push('created_at=lt.' + opts.lastCreatedAt);
+    }else{
+      parts.push('order=created_at.desc');
+      if(opts.offset != null && opts.offset > 0) parts.push('offset=' + opts.offset);
+    }
+    parts.push('limit=' + (opts.limit || 20));
+    return '/rest/v1/jagai_memory?' + parts.join('&');
+  }
+
+  function _p539_injectCard(){
+    try{
+      const memPage = document.getElementById('page-memory');
+      if(!memPage) return;
+      if(document.getElementById('p539-paging-search-card')) return;
+
+      const card = document.createElement('div');
+      card.id = 'p539-paging-search-card';
+      card.className = 'card';
+      card.style.cssText = 'border-top:4px solid #6366f1;margin-bottom:10px';
+      card.innerHTML = ''
+        +'<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">'
+          +'<div style="font-weight:800;color:#3730a3">🔎 DB 検索・ページング準備（packet 539 / 表示専用ベース）</div>'
+          +'<button type="button" id="p539-toggle-collapse" class="dr-btn" style="background:#6366f1;color:#fff;border:0;font-weight:700;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:11px">▼ 閉じる</button>'
+        +'</div>'
+        +'<div id="p539-body" style="margin-top:8px;font-size:12px;line-height:1.6"></div>'
+        +'<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:6px;padding:7px 10px;color:#9a3412;font-size:11px;line-height:1.55;margin-top:8px">'
+          +'⚠ <b>このカードは「将来の DB 検索・ページング」の準備 UI です</b>。'
+          +'<br>・現在の検索は <b>取得済みデータ（in-memory）に対するクライアント絞り込み</b>（packet 529）です。'
+          +'<br>・本 packet では <b>実 DB クエリは送りません</b>。既存 packet 511 の DB 復元 100 件 GET は壊しません。'
+          +'<br>・クエリ案はあくまで設計参考。実装は packet 540+ でボス承認後に進めます。'
+        +'</div>'
+        +'<div style="font-size:10px;color:#666;background:#f8fafc;border:1px solid var(--bo);border-radius:4px;padding:5px 8px;margin-top:8px;line-height:1.55">※ '
+          +'クエリ案文字列は localStorage / sessionStorage に保存しません（毎回 in-memory で生成）。記憶本文 / トークン / パスワードも一切保存しません。'
+        +'</div>';
+      // packet 538 モードカード直後（記憶庫ページ上部）
+      const modeCard = document.getElementById('p538-mode-card');
+      if(modeCard && modeCard.parentNode === memPage){
+        if(modeCard.nextSibling) memPage.insertBefore(card, modeCard.nextSibling);
+        else memPage.appendChild(card);
+      }else{
+        const firstCard = memPage.querySelector('.card');
+        if(firstCard) memPage.insertBefore(card, firstCard);
+        else memPage.appendChild(card);
+      }
+
+      document.getElementById('p539-toggle-collapse').addEventListener('click', function(){
+        const body = document.getElementById('p539-body');
+        const btn = document.getElementById('p539-toggle-collapse');
+        if(!body || !btn) return;
+        if(body.style.display === 'none'){
+          body.style.display = '';
+          btn.textContent = '▼ 閉じる';
+          try{sessionStorage.removeItem('p539-collapsed');}catch(_){}
+        }else{
+          body.style.display = 'none';
+          btn.textContent = '▶ 開く';
+          try{sessionStorage.setItem('p539-collapsed','1');}catch(_){}
+        }
+      });
+      // 折りたたみ状態初期反映
+      try{
+        if(sessionStorage.getItem('p539-collapsed') === '1'){
+          document.getElementById('p539-body').style.display = 'none';
+          document.getElementById('p539-toggle-collapse').textContent = '▶ 開く';
+        }
+      }catch(_){}
+
+      _p539_renderBody();
+    }catch(e){try{console.warn('[packet 539 injectCard]', e && e.message);}catch(_){}}
+  }
+
+  function _p539_renderBody(){
+    try{
+      const body = document.getElementById('p539-body');
+      if(!body) return;
+
+      let html = '';
+
+      // ── 現在の取得方式
+      html += '<div style="background:#fff;border:1px solid #c7d2fe;border-radius:8px;padding:9px 11px;margin-bottom:10px">'
+        +'<div style="font-size:12px;font-weight:800;color:#3730a3;margin-bottom:6px">📥 現在の取得方式</div>'
+        +'<div style="font-size:11px;line-height:1.65">'
+          +'<div style="display:flex;gap:8px;align-items:center;padding:3px 0"><span style="background:#16a34a;color:#fff;padding:1px 7px;border-radius:10px;font-weight:700;min-width:90px;text-align:center;font-size:10px">✅ 実装済み</span><span style="color:#1e293b;font-weight:600">起動時 DB 復元：</span><span style="color:#475569">最大 100 件 GET（packet 511 / 527）</span></div>'
+          +'<div style="display:flex;gap:8px;align-items:center;padding:3px 0"><span style="background:#16a34a;color:#fff;padding:1px 7px;border-radius:10px;font-weight:700;min-width:90px;text-align:center;font-size:10px">✅ 実装済み</span><span style="color:#1e293b;font-weight:600">画面検索：</span><span style="color:#475569">取得済みデータに対するクライアント絞り込み（packet 529）</span></div>'
+          +'<div style="display:flex;gap:8px;align-items:center;padding:3px 0"><span style="background:#eab308;color:#fff;padding:1px 7px;border-radius:10px;font-weight:700;min-width:90px;text-align:center;font-size:10px">⏳ 未実装</span><span style="color:#1e293b;font-weight:600">DB 側検索：</span><span style="color:#475569">PostgREST フィルター条件付き GET</span></div>'
+          +'<div style="display:flex;gap:8px;align-items:center;padding:3px 0"><span style="background:#eab308;color:#fff;padding:1px 7px;border-radius:10px;font-weight:700;min-width:90px;text-align:center;font-size:10px">⏳ 未実装</span><span style="color:#1e293b;font-weight:600">ページング：</span><span style="color:#475569">offset / cursor / created_at いずれも未実装</span></div>'
+          +'<div style="display:flex;gap:8px;align-items:center;padding:3px 0"><span style="background:#eab308;color:#fff;padding:1px 7px;border-radius:10px;font-weight:700;min-width:90px;text-align:center;font-size:10px">⏳ 未実装</span><span style="color:#1e293b;font-weight:600">DB 検索インデックス：</span><span style="color:#475569">tags / content 用 GIN / pg_trgm はボス承認後 SQL 実行</span></div>'
+        +'</div>'
+      +'</div>';
+
+      // ── 将来の検索条件一覧
+      html += '<div style="background:#fff;border:1px solid #c7d2fe;border-radius:8px;padding:9px 11px;margin-bottom:10px">'
+        +'<div style="font-size:12px;font-weight:800;color:#3730a3;margin-bottom:6px">📋 将来の DB 検索条件（jagai_memory 列ベース）</div>'
+        +'<table style="width:100%;border-collapse:collapse;font-size:10.5px;line-height:1.5">'
+          +'<thead><tr style="background:#eef2ff"><th style="text-align:left;padding:5px 8px;border-bottom:1px solid #c7d2fe;color:#3730a3">列</th><th style="text-align:left;padding:5px 8px;border-bottom:1px solid #c7d2fe;color:#3730a3">説明</th><th style="text-align:left;padding:5px 8px;border-bottom:1px solid #c7d2fe;color:#3730a3">クエリ片</th></tr></thead>'
+          +'<tbody>';
+      SEARCH_FIELDS.forEach(function(f){
+        html += '<tr style="border-bottom:1px dotted #e0e7ff">'
+          +'<td style="padding:5px 8px;color:#1e293b;font-weight:600;white-space:nowrap">'+E(f.col)+'</td>'
+          +'<td style="padding:5px 8px;color:#475569">'+E(f.label)+'<div style="font-size:9.5px;color:#94a3b8;margin-top:2px">例：'+E(f.examples.join(', '))+'</div></td>'
+          +'<td style="padding:5px 8px;color:#3730a3;font-family:ui-monospace,Consolas,monospace;font-size:10px;word-break:break-all">'+E(f.filter)+'</td>'
+          +'</tr>';
+      });
+      html += '</tbody></table>'
+        +'<div style="font-size:10px;color:#64748b;margin-top:6px">※ <code>related_ai</code> / <code>related_staff</code> / <code>requires_boss_check</code> / <code>is_resolved</code> は将来カラム名候補（packet 510 mapping 由来）。実カラム追加は <b>ボス承認 + SQL 実行</b> が必要。</div>'
+      +'</div>';
+
+      // ── ページング方式案
+      html += '<div style="background:#fff;border:1px solid #c7d2fe;border-radius:8px;padding:9px 11px;margin-bottom:10px">'
+        +'<div style="font-size:12px;font-weight:800;color:#3730a3;margin-bottom:6px">📄 ページング方式案（3 種類）</div>';
+      PAGING_PROPOSALS.forEach(function(p){
+        html += '<div style="border:1px solid #e0e7ff;border-radius:6px;padding:7px 9px;margin-bottom:6px">'
+          +'<div style="font-weight:700;color:#3730a3;font-size:11px">'+E(p.title)+'</div>'
+          +'<div style="font-family:ui-monospace,Consolas,monospace;font-size:10px;color:#1e293b;background:#f8fafc;border:1px solid #e2e8f0;border-radius:4px;padding:4px 7px;margin:4px 0;word-break:break-all">/rest/v1/jagai_memory?'+E(p.query)+'</div>'
+          +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:10px;line-height:1.55">'
+            +'<div style="color:#15803d"><b>👍 利点：</b><br>'+p.pros.map(function(x){return '・'+E(x);}).join('<br>')+'</div>'
+            +'<div style="color:#b91c1c"><b>👎 注意：</b><br>'+p.cons.map(function(x){return '・'+E(x);}).join('<br>')+'</div>'
+          +'</div>'
+        +'</div>';
+      });
+      html += '<div style="font-size:10px;color:#64748b;margin-top:4px">推奨：当面は <b>offset 方式</b>（実装シンプル、現状 100 件 GET の延長）。将来 1000 件超なら <b>cursor 方式</b> へ移行。</div>'
+      +'</div>';
+
+      // ── クエリビルダー（入力 → 表示・コピーのみ、fetch は出さない）
+      html += '<div style="background:#fff;border:1px solid #c7d2fe;border-radius:8px;padding:9px 11px;margin-bottom:10px">'
+        +'<div style="font-size:12px;font-weight:800;color:#3730a3;margin-bottom:6px">🛠 将来クエリ案ビルダー（表示・コピーのみ）</div>'
+        +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:11px;margin-bottom:6px">'
+          +'<div><label style="font-weight:600;color:#475569">memory_type<br><select id="p539-q-memtype" style="width:100%;padding:3px 6px;border:1px solid var(--bo);border-radius:4px;font-size:11px"><option value="">(任意)</option><option value="memory_type=eq.failure_lesson">failure_lesson</option><option value="memory_type=eq.success_pattern">success_pattern</option><option value="memory_type=eq.boss_decision">boss_decision</option><option value="memory_type=eq.operation_rule">operation_rule</option></select></label></div>'
+          +'<div><label style="font-weight:600;color:#475569">risk_level<br><select id="p539-q-risk" style="width:100%;padding:3px 6px;border:1px solid var(--bo);border-radius:4px;font-size:11px"><option value="">(任意)</option><option value="risk_level=eq.high">high</option><option value="risk_level=eq.mid">mid</option><option value="risk_level=eq.low">low</option></select></label></div>'
+          +'<div><label style="font-weight:600;color:#475569">フラグ<br><select id="p539-q-flag" style="width:100%;padding:3px 6px;border:1px solid var(--bo);border-radius:4px;font-size:11px"><option value="">(任意)</option><option value="requires_boss_check=is.true">requires_boss_check=true</option><option value="is_resolved=is.false">is_resolved=false（未解決）</option></select></label></div>'
+          +'<div><label style="font-weight:600;color:#475569">ページング<br><select id="p539-q-paging" style="width:100%;padding:3px 6px;border:1px solid var(--bo);border-radius:4px;font-size:11px"><option value="offset" selected>offset 方式</option><option value="cursor">cursor 方式</option><option value="created_at">created_at 基準</option></select></label></div>'
+          +'<div><label style="font-weight:600;color:#475569">limit<br><input id="p539-q-limit" type="number" value="20" min="1" max="100" style="width:100%;padding:3px 6px;border:1px solid var(--bo);border-radius:4px;font-size:11px"></label></div>'
+          +'<div><label style="font-weight:600;color:#475569">offset / cursor 値<br><input id="p539-q-cursor" type="text" placeholder="offset=0 or id / created_at" style="width:100%;padding:3px 6px;border:1px solid var(--bo);border-radius:4px;font-size:11px"></label></div>'
+          +'<div style="grid-column:1 / -1"><label style="font-weight:600;color:#475569">キーワード（title / content 部分一致、※ 表示用、入力値はサーバへ送信されません）<br><input id="p539-q-keyword" type="text" placeholder="例：内見" style="width:100%;padding:3px 6px;border:1px solid var(--bo);border-radius:4px;font-size:11px"></label></div>'
+        +'</div>'
+        +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin:6px 0">'
+          +'<button type="button" id="p539-build-btn" class="dr-btn" style="background:#6366f1;color:#fff;border:0;font-weight:700;padding:5px 12px;border-radius:6px;cursor:pointer;font-size:11px">▶ クエリ案を生成</button>'
+          +'<button type="button" id="p539-copy-btn" class="dr-btn" style="background:#fff;color:#3730a3;border:1.5px solid #6366f1;font-weight:700;padding:5px 12px;border-radius:6px;cursor:pointer;font-size:11px">📋 生成クエリ案をコピー</button>'
+        +'</div>'
+        +'<div id="p539-query-output" style="font-family:ui-monospace,Consolas,monospace;font-size:11px;background:#0f172a;color:#a5b4fc;padding:8px 10px;border-radius:6px;word-break:break-all;min-height:30px;line-height:1.55">（まだ生成していません）</div>'
+        +'<div id="p539-copy-status" style="font-size:11px;color:#3730a3;margin-top:4px;display:none"></div>'
+        +'<div style="background:#fef3c7;border:1px solid #fde68a;border-radius:6px;padding:6px 9px;color:#92400e;font-size:10px;line-height:1.55;margin-top:8px">'
+          +'※ <b>このボタンは fetch を発行しません</b>。クエリ案文字列を生成・コピーするだけです。実 DB 検索は packet 540+ でボス承認後に実装します。'
+        +'</div>'
+      +'</div>';
+
+      // ── 実装ロードマップ（packet 539 → 540+ の流れ）
+      html += '<div style="background:#fff;border:1px solid #fde68a;border-radius:8px;padding:9px 11px">'
+        +'<div style="font-size:12px;font-weight:800;color:#92400e;margin-bottom:6px">🛣 検索・ページング 実装ロードマップ</div>'
+        +'<ol style="margin:0;padding-left:18px;color:#475569;font-size:11px;line-height:1.65">'
+          +'<li><b>packet 539（本 packet、✅ 完了）</b>：UI ベース + クエリ案ビルダー + 設計 docs</li>'
+          +'<li><b>packet 540（候補）</b>：offset 方式の「もっと見る」ボタン実装（既存 100 件 GET の後ろに追加読み込み、UI 配線のみ。Auth + 既存 RLS で動作可なら DB 側変更なし）</li>'
+          +'<li><b>packet 541（候補）</b>：クライアント検索 → DB 側フィルター GET への切替（読み取り SELECT のみ、SQL/RLS 変更なしで動作可）</li>'
+          +'<li><b>packet 542（候補、ボス承認後）</b>：tags / content の DB 側インデックス追加（GIN / pg_trgm）→ SQL 実行必要</li>'
+          +'<li><b>packet 543+（さらに先）</b>：UPDATE / 論理 DELETE / 監査ログ（Phase 7、ボス承認後）</li>'
+        +'</ol>'
+      +'</div>';
+
+      body.innerHTML = html;
+
+      // ── イベント bind
+      const buildBtn = document.getElementById('p539-build-btn');
+      const copyBtn = document.getElementById('p539-copy-btn');
+      const out = document.getElementById('p539-query-output');
+      function readForm(){
+        return {
+          memtype: document.getElementById('p539-q-memtype').value,
+          risk: document.getElementById('p539-q-risk').value,
+          flag: document.getElementById('p539-q-flag').value,
+          paging: document.getElementById('p539-q-paging').value,
+          limit: parseInt(document.getElementById('p539-q-limit').value, 10) || 20,
+          cursor: String(document.getElementById('p539-q-cursor').value || '').trim(),
+          keyword: String(document.getElementById('p539-q-keyword').value || '').trim()
+        };
+      }
+      function buildPath(form){
+        const filters = [];
+        if(form.memtype) filters.push(form.memtype);
+        if(form.risk) filters.push(form.risk);
+        if(form.flag) filters.push(form.flag);
+        const opts = {
+          filters: filters,
+          paging: form.paging,
+          limit: Math.min(Math.max(form.limit, 1), 100),
+          keyword: form.keyword
+        };
+        if(form.paging === 'offset'){
+          const n = parseInt(form.cursor, 10);
+          opts.offset = Number.isFinite(n) ? n : 0;
+        }else if(form.paging === 'cursor'){
+          opts.lastId = form.cursor;
+        }else if(form.paging === 'created_at'){
+          opts.lastCreatedAt = form.cursor;
+        }
+        return _p539_buildQuery(opts);
+      }
+      if(buildBtn){
+        buildBtn.addEventListener('click', function(){
+          try{
+            const path = buildPath(readForm());
+            out.textContent = 'GET ' + path;
+          }catch(e){
+            out.textContent = '（エラー: ' + (e && e.message || 'unknown') + '）';
+          }
+        });
+      }
+      if(copyBtn){
+        copyBtn.addEventListener('click', function(){
+          const status = document.getElementById('p539-copy-status');
+          let path;
+          try{ path = buildPath(readForm()); }catch(e){ path = ''; }
+          if(!path){
+            if(status){status.style.display=''; status.textContent='⚠ 先に「▶ クエリ案を生成」を押してください'; status.style.color='#b91c1c';}
+            return;
+          }
+          const text = 'GET ' + path;
+          try{
+            if(navigator.clipboard && navigator.clipboard.writeText){
+              navigator.clipboard.writeText(text).then(function(){
+                if(status){status.style.display=''; status.textContent='✅ コピーしました（実 GET は送っていません）'; status.style.color='#3730a3';}
+              }).catch(function(){ _p539_copyFallback(text, status); });
+            }else{
+              _p539_copyFallback(text, status);
+            }
+          }catch(_){
+            _p539_copyFallback(text, status);
+          }
+        });
+      }
+    }catch(e){try{console.warn('[packet 539 renderBody]', e && e.message);}catch(_){}}
+  }
+
+  function _p539_copyFallback(text, status){
+    try{
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.cssText = 'position:fixed;top:-1000px;left:-1000px;opacity:0';
+      document.body.appendChild(ta);
+      ta.select();
+      let ok = false;
+      try{ ok = document.execCommand('copy'); }catch(_){ ok = false; }
+      document.body.removeChild(ta);
+      if(status){
+        status.style.display = '';
+        status.textContent = ok ? '✅ コピーしました（実 GET は送っていません）' : '⚠ コピーに失敗。出力欄から手動コピーしてください。';
+        status.style.color = ok ? '#3730a3' : '#b91c1c';
+      }
+    }catch(_){
+      if(status){
+        status.style.display = '';
+        status.textContent = '⚠ コピーに失敗。出力欄から手動コピーしてください。';
+        status.style.color = '#b91c1c';
+      }
+    }
+  }
+
+  (function _p539_wrapSwitchPage(){
+    try{
+      const orig = window.switchPage;
+      if(typeof orig !== 'function') return;
+      window.switchPage = function(pg){
+        try{ orig.apply(this, arguments); }catch(_){}
+        if(pg === 'memory'){
+          setTimeout(function(){ try{_p539_injectCard();}catch(_){} }, 120);
+        }
+      };
+    }catch(_){}
+  })();
+
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){ setTimeout(_p539_injectCard, 360); });
+  }else{
+    setTimeout(_p539_injectCard, 360);
+  }
+
+  window._p539_buildQuery = _p539_buildQuery;
+})();
+// ==== ここまで packet 539 記憶庫 DB ページング GET + 検索強化 UI ベース ====
 </script>
 </body>
 </html>
