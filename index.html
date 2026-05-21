@@ -18918,6 +18918,152 @@ function _p500_buildCandidateFromPayload(payload){
 
 })();
 // ==== ここまで packet 523 currentUser 検出 + admin Auth 接続カード表示診断 hotfix ====
+
+// ═══════════════════════════════════════
+// packet 524: admin Supabase Auth 接続 signIn 権限判定 hotfix（v0.9.274）
+// 不具合：packet 521 _p521_signIn の admin チェックも `window.currentUser &&
+// currentUser.perm === 'admin'` の狭い判定だったため、admin/owner/芳村でログイン中
+// でも signIn 押下時に「admin 権限が必要です」エラー。
+// 修正：packet 523 の _p523_isAdminLikeUser() を使う _p524_signIn handler に
+// 置き換える。signIn ボタンを clone+replace で packet 521 listener を解除し、
+// packet 524 handler を bind。signOut / checkSession は admin チェックなしの
+// ため packet 521 のまま維持。
+// 厳守：
+//   - Auth 処理（signInWithPassword / signOut / getSession）の挙動は変更なし
+//   - パスワード保存 0、service_role 不使用維持
+//   - SQL / RLS / Auth 設定変更 0
+//   - DELETE / UPDATE / UPSERT 0
+//   - 既存 currentUser 変数の上書き 0
+// ═══════════════════════════════════════
+(function _p524_init(){
+  function E(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];});}
+
+  function _p524_setResult(html, color){
+    try{
+      const r = document.getElementById('p521-result');
+      if(!r) return;
+      r.style.display = 'block';
+      if(color) r.style.color = color;
+      r.innerHTML = html;
+    }catch(_){}
+  }
+
+  // 後続表示更新 helper（packet 521 と同等の連動更新）
+  function _p524_refreshPanels(){
+    try{ if(typeof _p510_updateDiagDisplay === 'function') _p510_updateDiagDisplay(); }catch(_){}
+    try{ if(typeof _p511_updateDiagDisplay === 'function') _p511_updateDiagDisplay(); }catch(_){}
+    try{ if(typeof _p520_renderAll === 'function') _p520_renderAll(); }catch(_){}
+    try{ if(typeof window._p523_renderDetectionInfo === 'function') window._p523_renderDetectionInfo(); }catch(_){}
+  }
+
+  // ===== signIn handler（admin 判定を packet 523 helper に置換）=====
+  async function _p524_signIn(){
+    try{
+      // admin-like チェック（broad）
+      let adminLike = false;
+      try{ if(typeof _p523_isAdminLikeUser === 'function') adminLike = !!_p523_isAdminLikeUser(); }catch(_){}
+      if(!adminLike){
+        // 現在の検出ユーザー情報を表示（パスワード / Auth メールは出さない）
+        let u = null;
+        try{ if(typeof _p523_getCurrentInternalUser === 'function') u = _p523_getCurrentInternalUser(); }catch(_){}
+        const name = u ? String(u.name || u.uid || '?') : '(未検出)';
+        const role = u ? String(u.role || '-') : '-';
+        const perm = u ? String(u.perm || '-') : '-';
+        _p524_setResult(''
+          +'<div style="font-family:sans-serif">'
+          +'<div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:6px;padding:7px 9px;color:#991b1b;font-weight:700">❌ admin / owner / 管理者権限が必要です</div>'
+          +'<div style="font-size:11px;color:var(--t2);line-height:1.65;margin-top:5px">現在の検出ユーザー：<b>'+E(name)+'</b><br>role：<b>'+E(role)+'</b><br>perm：<b>'+E(perm)+'</b></div>'
+          +'<div style="font-size:10px;color:#666;margin-top:3px">※ admin / owner / role に「管理者」を含む / name に「芳村」「管理者」を含む / uid=admin のいずれかが必要です。</div>'
+          +'</div>'
+        , '#991b1b');
+        return;
+      }
+      // sb チェック
+      if(typeof sb === 'undefined' || !sb || !sb.auth || typeof sb.auth.signInWithPassword !== 'function'){
+        _p524_setResult('❌ sb.auth.signInWithPassword が利用できません（SDK 未ロード or バージョン違い）。', '#991b1b');
+        return;
+      }
+      const emailEl = document.getElementById('p521-email');
+      const passwordEl = document.getElementById('p521-password');
+      const email = emailEl ? String(emailEl.value || '').trim() : '';
+      const password = passwordEl ? String(passwordEl.value || '') : '';
+      if(!email || !password){
+        _p524_setResult('❌ メールとパスワードを両方入力してください。', '#991b1b');
+        return;
+      }
+      _p524_setResult('⏳ Supabase Auth に signIn 中...', '#1e40af');
+      const r = await sb.auth.signInWithPassword({ email: email, password: password });
+      // パスワードを input から即時クリア
+      try{ if(passwordEl) passwordEl.value = ''; }catch(_){}
+      const err = r && r.error;
+      if(err){
+        const msg = String(err.message || 'sign in failed').slice(0, 200);
+        // console には status / 短縮 msg のみ、パスワード / メール本体は出さない
+        try{console.warn('[packet 524 signIn] failed:', msg.slice(0,80));}catch(_){}
+        _p524_setResult(''
+          +'<div style="font-family:sans-serif">'
+          +'<div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:6px;padding:7px 9px;color:#991b1b;font-weight:700">❌ signIn 失敗</div>'
+          +'<div style="font-size:11px;color:var(--t2);margin-top:5px">エラー：'+E(msg)+'</div>'
+          +'<div style="font-size:10px;color:#666;margin-top:3px">※ メールアドレスが Supabase Auth に登録されていない可能性。Supabase ダッシュボード Authentication → Users で確認してください。</div>'
+          +'</div>'
+        , '#991b1b');
+        try{ if(typeof _p521_checkSession === 'function') await _p521_checkSession(true); }catch(_){}
+        return;
+      }
+      // 成功
+      try{console.warn('[packet 524 signIn] OK');}catch(_){}
+      _p524_setResult(''
+        +'<div style="font-family:sans-serif">'
+        +'<div style="background:#d1fae5;border:1px solid #6ee7b7;border-radius:6px;padding:7px 9px;color:#065f46;font-weight:700">✅ signIn 成功（packet 524、broad admin check）</div>'
+        +'<div style="font-size:11px;color:var(--t2);margin-top:5px">authenticated ロールに切り替わりました。次のテスト：<br>① 記憶を 1 件登録<br>② packet 510「🔄 DB 並行保存ステータス」が「✅ 有効」に変わるか確認<br>③ packet 513「📊 DB 状態まとめ」も併せて確認</div>'
+        +'</div>'
+      , '#065f46');
+      try{ if(typeof _p521_checkSession === 'function') await _p521_checkSession(true); }catch(_){}
+      _p524_refreshPanels();
+    }catch(e){
+      const msg = String(e && e.message || '').slice(0,200);
+      try{console.warn('[packet 524 signIn] exception:', msg.slice(0,80));}catch(_){}
+      _p524_setResult('❌ signIn 例外：'+E(msg), '#991b1b');
+    }
+  }
+  window._p524_signIn = _p524_signIn;
+
+  // ===== signIn ボタンのみ clone+replace で listener 置換 =====
+  // signOut / セッション確認は admin チェックなしのため packet 521 のまま維持
+  function _p524_replaceSignInButton(){
+    try{
+      const btn = document.getElementById('p521-signin-btn');
+      if(!btn) return;
+      // packet 524 で既に置換済みかチェック
+      if(btn.dataset.p524Replaced === '1') return;
+      // clone で packet 521 の listener を解除（addEventListener は removeEventListener
+      // のために参照保存が必要だが packet 521 では未保存。clone+replace で確実に解除）
+      const newBtn = btn.cloneNode(true);
+      // packet 521 の wrap が再 bind しないように
+      newBtn.dataset.p521Bound = '1';
+      // packet 524 で置換済みとマーク
+      newBtn.dataset.p524Replaced = '1';
+      newBtn.dataset.p524Bound = '1';
+      btn.parentNode && btn.parentNode.replaceChild(newBtn, btn);
+      newBtn.addEventListener('click', _p524_signIn);
+    }catch(e){try{console.warn('[packet 524 replaceSignInButton]', e&&e.message);}catch(_){}}
+  }
+
+  // renderMemoryPage 後勝ち wrap（packet 521/522/523 の後）
+  (function _p524_wrapRender(){
+    try{
+      const orig = window.renderMemoryPage;
+      if(typeof orig !== 'function') return;
+      window.renderMemoryPage = function(){
+        try{orig.apply(this, arguments);}catch(_){}
+        // packet 521 がボタンを bind した後、packet 524 で置換
+        try{_p524_replaceSignInButton();}catch(_){}
+      };
+    }catch(_){}
+  })();
+
+})();
+// ==== ここまで packet 524 admin Supabase Auth 接続 signIn 権限判定 hotfix ====
 </script>
 </body>
 </html>
