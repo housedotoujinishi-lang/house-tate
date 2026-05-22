@@ -16952,6 +16952,11 @@ function _p500_buildCandidateFromPayload(payload){
       createdAt: row.created_at || new Date().toISOString(),
       sourceType: String(row.source_type || 'manual'),
       sourcePage: String(row.source_page || ''),
+      // packet 546: 論理削除フィールド（packet 545B でカラム追加済み、packet 545E で UPDATE policy 作成済み）
+      deletedAt:    row.deleted_at || null,
+      deletedBy:    String(row.deleted_by || ''),
+      deleteReason: String(row.delete_reason || ''),
+      _isDeleted:   !!row.deleted_at,
       _fromDB: true  // DB 由来マーカー
     };
   }
@@ -22813,6 +22818,529 @@ function _p500_buildCandidateFromPayload(payload){
   }
 })();
 // ==== ここまで packet 544 記憶庫 論理削除候補 CSV / JSON エクスポート UI ====
+
+// ═══════════════════════════════════════
+// packet 546: jagai_memory 論理削除 実 UPDATE 実装 MVP（v0.9.303 / Phase 7 第10弾）
+// 目的：packet 543 で集めた候補を、packet 545B/545E で整備した DB カラム + RLS UPDATE policy
+// 経由で実 PATCH（論理削除）する。admin / owner 限定、deleted_at / deleted_by / delete_reason
+// の 3 カラムのみ更新、物理 DELETE / UPSERT は実装しない。
+// 厳守：PATCH のみ（method:'PATCH'）、DELETE / UPSERT 0、SQL / RLS / Auth 設定変更 0、
+//      service_role 0、token は console / localStorage / sessionStorage に保存しない、
+//      anon フォールバックなし（admin 限定操作のため token 必須・無ければ事前ブロック）、
+//      既存 packet 510/511/526/527/528-545E すべて非破壊。
+// ═══════════════════════════════════════
+(function _p546_init(){
+  function E(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];});}
+  function _p546_nowShort(){
+    try{const d=new Date(); const pad=function(n){return n<10?'0'+n:''+n;}; return pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds());}catch(_){return '';}
+  }
+
+  // ── State（in-memory のみ、token / 本文 / reason は console / localStorage / sessionStorage に保存しない）
+  window._p546_state = window._p546_state || {
+    busy: false,
+    totalDeleted: 0,
+    totalRestored: 0,
+    lastBatchSuccess: 0,
+    lastBatchFail: 0,
+    failedQueue: [],     // [{id, reason, error, ts}]（in-memory のみ、リロードで消える）
+    lastError: '',
+    lastTime: '',
+    lastTokenUsed: false,
+    lastEvent: ''
+  };
+
+  function _p546_getCurrentUser(){
+    try{
+      if(typeof currentUser !== 'undefined' && currentUser) return currentUser;
+      if(window.currentUser) return window.currentUser;
+    }catch(_){}
+    return null;
+  }
+  function _p546_isAuthorized(){
+    try{
+      const u = _p546_getCurrentUser();
+      return !!(u && (u.perm === 'admin' || u.perm === 'owner'));
+    }catch(_){return false;}
+  }
+  function _p546_authStatusText(){
+    const u = _p546_getCurrentUser();
+    if(!u) return '🚪 未ログイン';
+    const auth = _p546_isAuthorized() ? '✅ admin/owner' : '⚠ 一般 user（PATCH 不可）';
+    return auth + '（perm=' + E(String(u.perm||'')) + ' / name=' + E(String(u.name||'')) + '）';
+  }
+
+  async function _p546_getAccessToken(){
+    try{
+      if(typeof sb !== 'undefined' && sb && sb.auth && typeof sb.auth.getSession === 'function'){
+        const res = await sb.auth.getSession();
+        if(res && res.data && res.data.session && res.data.session.access_token){
+          return res.data.session.access_token;
+        }
+      }
+    }catch(_){}
+    return null;
+  }
+
+  // ── 単発 PATCH：論理削除
+  async function _p546_softDelete(id, reason){
+    if(!_p546_isAuthorized()){
+      return {ok:false, error:'admin / owner 限定操作です（currentUser.perm = admin/owner が必要）'};
+    }
+    if(!id) return {ok:false, error:'id が空です'};
+    if(typeof SB_URL === 'undefined' || !SB_URL || typeof SB_KEY === 'undefined' || !SB_KEY){
+      return {ok:false, error:'SB_URL/SB_KEY 未設定'};
+    }
+    const accessToken = await _p546_getAccessToken();
+    if(!accessToken){
+      return {ok:false, error:'Supabase Auth signIn が必要です（packet 521 / 448 系ログイン）'};
+    }
+    window._p546_state.lastTokenUsed = true;
+    const u = _p546_getCurrentUser() || {};
+    const deletedBy = String(u.name || u.uid || 'unknown').slice(0, 200);
+    const deleteReason = String(reason || '').slice(0, 500);
+    const url = SB_URL + '/rest/v1/jagai_memory?id=eq.' + encodeURIComponent(String(id));
+    try{
+      const r = await fetch(url, {
+        method: 'PATCH',
+        headers: {
+          apikey: SB_KEY,
+          Authorization: 'Bearer ' + accessToken,
+          'Content-Type': 'application/json',
+          Prefer: 'return=representation'
+        },
+        body: JSON.stringify({
+          deleted_at:    new Date().toISOString(),
+          deleted_by:    deletedBy,
+          delete_reason: deleteReason
+        })
+      });
+      if(!r.ok){
+        const errText = await r.text().catch(function(){return '';});
+        throw new Error('HTTP ' + r.status + ' ' + (r.statusText||'').slice(0,40) + (errText ? ' / '+errText.slice(0,160) : ''));
+      }
+      const rows = await r.json().catch(function(){return null;});
+      // store 反映
+      try{
+        const mem = (window._p500_memoryStore || []).find(function(m){return String(m.id) === String(id);});
+        if(mem){
+          const row = Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
+          mem.deletedAt    = row ? row.deleted_at    : new Date().toISOString();
+          mem.deletedBy    = row ? row.deleted_by    : deletedBy;
+          mem.deleteReason = row ? row.delete_reason : deleteReason;
+          mem._isDeleted   = true;
+        }
+      }catch(_){}
+      // packet 543 候補から外す
+      try{ if(typeof window._p543_unmarkPending === 'function') window._p543_unmarkPending(id); }catch(_){}
+      window._p546_state.totalDeleted++;
+      window._p546_state.lastTime = _p546_nowShort();
+      window._p546_state.lastEvent = '✅ 1 件論理削除（id=' + String(id).slice(0,8) + '...）';
+      try{console.warn('[packet 546 softDelete] HTTP 200 OK id=', id, 'authToken= yes');}catch(_){}
+      return {ok:true};
+    }catch(e){
+      const msg = String(e&&e.message||e).slice(0,200);
+      // 失敗 in-memory キュー（リロードで消える）
+      try{
+        window._p546_state.failedQueue.push({id:String(id), reason:String(reason||''), error:msg, ts:Date.now()});
+        if(window._p546_state.failedQueue.length > 100) window._p546_state.failedQueue.shift();
+      }catch(_){}
+      window._p546_state.lastError = msg;
+      window._p546_state.lastTime = _p546_nowShort();
+      window._p546_state.lastEvent = '❌ 失敗（' + msg.slice(0,60) + '...）';
+      try{console.warn('[packet 546 softDelete] failed id=', id, msg, 'authToken= yes');}catch(_){}
+      return {ok:false, error:msg};
+    }finally{
+      // 連動再描画
+      try{ if(typeof _p500_renderList === 'function') _p500_renderList(); }catch(_){}
+      try{ if(typeof _p500_renderSummary === 'function') _p500_renderSummary(); }catch(_){}
+      try{ if(typeof window._p543_renderControlCard === 'function') window._p543_renderControlCard(); }catch(_){}
+      try{ if(typeof window._p544_renderCard === 'function') window._p544_renderCard(); }catch(_){}
+      try{ _p546_renderActionCard(); }catch(_){}
+    }
+  }
+  window._p546_softDelete = _p546_softDelete;
+
+  // ── 単発 PATCH：論理削除取消（3 カラム NULL）
+  async function _p546_restore(id){
+    if(!_p546_isAuthorized()){
+      return {ok:false, error:'admin / owner 限定操作です'};
+    }
+    if(!id) return {ok:false, error:'id が空です'};
+    if(typeof SB_URL === 'undefined' || !SB_URL || typeof SB_KEY === 'undefined' || !SB_KEY){
+      return {ok:false, error:'SB_URL/SB_KEY 未設定'};
+    }
+    const accessToken = await _p546_getAccessToken();
+    if(!accessToken) return {ok:false, error:'Supabase Auth signIn が必要です'};
+    window._p546_state.lastTokenUsed = true;
+    const url = SB_URL + '/rest/v1/jagai_memory?id=eq.' + encodeURIComponent(String(id));
+    try{
+      const r = await fetch(url, {
+        method: 'PATCH',
+        headers: {
+          apikey: SB_KEY,
+          Authorization: 'Bearer ' + accessToken,
+          'Content-Type': 'application/json',
+          Prefer: 'return=representation'
+        },
+        body: JSON.stringify({
+          deleted_at:    null,
+          deleted_by:    null,
+          delete_reason: null
+        })
+      });
+      if(!r.ok){
+        const errText = await r.text().catch(function(){return '';});
+        throw new Error('HTTP ' + r.status + ' ' + (r.statusText||'').slice(0,40) + (errText ? ' / '+errText.slice(0,160) : ''));
+      }
+      try{
+        const mem = (window._p500_memoryStore || []).find(function(m){return String(m.id) === String(id);});
+        if(mem){
+          mem.deletedAt = null;
+          mem.deletedBy = '';
+          mem.deleteReason = '';
+          mem._isDeleted = false;
+        }
+      }catch(_){}
+      window._p546_state.totalRestored++;
+      window._p546_state.lastTime = _p546_nowShort();
+      window._p546_state.lastEvent = '↩ 1 件取消（id=' + String(id).slice(0,8) + '...）';
+      try{console.warn('[packet 546 restore] HTTP 200 OK id=', id, 'authToken= yes');}catch(_){}
+      return {ok:true};
+    }catch(e){
+      const msg = String(e&&e.message||e).slice(0,200);
+      window._p546_state.lastError = msg;
+      window._p546_state.lastTime = _p546_nowShort();
+      window._p546_state.lastEvent = '❌ 取消失敗（' + msg.slice(0,60) + '...）';
+      try{console.warn('[packet 546 restore] failed id=', id, msg);}catch(_){}
+      return {ok:false, error:msg};
+    }finally{
+      try{ if(typeof _p500_renderList === 'function') _p500_renderList(); }catch(_){}
+      try{ if(typeof _p500_renderSummary === 'function') _p500_renderSummary(); }catch(_){}
+      try{ if(typeof window._p543_renderControlCard === 'function') window._p543_renderControlCard(); }catch(_){}
+      try{ _p546_renderActionCard(); }catch(_){}
+    }
+  }
+  window._p546_restore = _p546_restore;
+
+  // ── 一括 PATCH：packet 543 候補リスト全件を順次 PATCH
+  async function _p546_batchDelete(){
+    if(window._p546_state.busy) return {ok:false, reason:'busy'};
+    if(!_p546_isAuthorized()){
+      window._p546_state.lastError = 'admin / owner 限定操作です';
+      _p546_renderActionCard();
+      return {ok:false, error:'unauthorized'};
+    }
+    const st = window._p543_state || {pendingOrder:[], pendingDeletes:{}};
+    const pendingIds = (st.pendingOrder || []).filter(function(id){return !!st.pendingDeletes[id];});
+    if(pendingIds.length === 0){
+      window._p546_state.lastEvent = '候補リスト空、何もしない';
+      _p546_renderActionCard();
+      return {ok:true, success:0, fail:0};
+    }
+    const accessToken = await _p546_getAccessToken();
+    if(!accessToken){
+      window._p546_state.lastError = 'Supabase Auth signIn が必要です';
+      _p546_renderActionCard();
+      return {ok:false, error:'no-token'};
+    }
+    window._p546_state.busy = true;
+    window._p546_state.lastBatchSuccess = 0;
+    window._p546_state.lastBatchFail = 0;
+    _p546_renderActionCard();
+    let success = 0, fail = 0;
+    try{
+      for(let i = 0; i < pendingIds.length; i++){
+        const id = pendingIds[i];
+        const entry = st.pendingDeletes[id] || {};
+        const r = await _p546_softDelete(id, entry.reason || '');
+        if(r.ok) success++;
+        else fail++;
+      }
+    }finally{
+      window._p546_state.busy = false;
+      window._p546_state.lastBatchSuccess = success;
+      window._p546_state.lastBatchFail = fail;
+      window._p546_state.lastTime = _p546_nowShort();
+      window._p546_state.lastEvent = '🏁 一括完了：成功 ' + success + ' / 失敗 ' + fail;
+      _p546_renderActionCard();
+    }
+    return {ok:true, success:success, fail:fail};
+  }
+  window._p546_batchDelete = _p546_batchDelete;
+
+  // ── 確認モーダル（一括 PATCH 前）
+  function _p546_openBatchConfirm(){
+    try{
+      const st = window._p543_state || {pendingOrder:[], pendingDeletes:{}};
+      const pendingIds = (st.pendingOrder || []).filter(function(id){return !!st.pendingDeletes[id];});
+      const n = pendingIds.length;
+      let modal = document.getElementById('p546-batch-modal');
+      if(!modal){
+        modal = document.createElement('div');
+        modal.id = 'p546-batch-modal';
+        modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.55);display:flex;align-items:flex-start;justify-content:center;padding:20px 12px;overflow-y:auto';
+        document.body.appendChild(modal);
+        modal.addEventListener('click', function(ev){ if(ev.target === modal) _p546_closeBatchConfirm(); });
+      }
+      const auth = _p546_authStatusText();
+      const authorized = _p546_isAuthorized();
+      modal.innerHTML = ''
+        +'<div style="background:#fff;border-radius:12px;max-width:520px;width:100%;border-top:6px solid #b91c1c;padding:14px 16px">'
+          +'<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:8px">'
+            +'<div>'
+              +'<div style="font-size:16px;font-weight:800;color:#7f1d1d">💢 DB に一括論理削除を実行（packet 546）</div>'
+              +'<div style="font-size:11px;color:var(--t3);margin-top:4px;line-height:1.5">対象：候補 <b>'+n+' 件</b> / 操作：deleted_at / deleted_by / delete_reason の 3 カラムに PATCH（物理削除ではない）</div>'
+            +'</div>'
+            +'<button type="button" id="p546-batch-close" style="background:0;border:0;font-size:22px;color:var(--t3);cursor:pointer;padding:4px 10px;line-height:1;min-width:40px;min-height:40px;border-radius:8px">✕</button>'
+          +'</div>'
+          +'<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:7px 10px;color:#7f1d1d;font-size:11px;line-height:1.55;margin:8px 0">'
+            +'⚠ <b>本操作は実際の DB UPDATE を送ります</b>。RLS で admin/owner 限定。'
+            +'<br>・PATCH /rest/v1/jagai_memory?id=eq.&lt;id&gt; を <b>'+n+' 件</b>順次実行'
+            +'<br>・成功した行は in-memory store でも <code>_isDeleted=true</code> になり一覧から非表示扱い'
+            +'<br>・失敗時は in-memory 失敗キューに記録（リロードで消える）'
+            +'<br>・「↩ 取消」ボタンで 3 カラム NULL に戻すことが可能（admin/owner 限定）'
+          +'</div>'
+          +'<div style="background:#f0f9ff;border:1px solid #93c5fd;border-radius:6px;padding:6px 9px;color:#0c4a6e;font-size:11px;line-height:1.55;margin-bottom:8px">🔑 現在の Auth 状態：'+auth+'</div>'
+          +(authorized ? '' : '<div style="background:#fef3c7;border:1px solid #fde68a;border-radius:6px;padding:7px 10px;color:#92400e;font-size:11px;line-height:1.55;margin-bottom:8px">❌ admin / owner ではないため実行不可。一般 user の場合は RLS で拒否されます。</div>')
+          +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">'
+            +'<button type="button" id="p546-batch-confirm" '+(authorized && n>0 ? '' : 'disabled')+' style="background:'+(authorized && n>0 ? '#b91c1c' : '#cbd5e1')+';color:#fff;border:0;font-weight:700;padding:8px 16px;border-radius:6px;cursor:'+(authorized && n>0 ? 'pointer' : 'not-allowed')+';font-size:12px;opacity:'+(authorized && n>0 ? '1' : '0.55')+'">💢 '+n+' 件すべて PATCH 実行</button>'
+            +'<button type="button" id="p546-batch-cancel" style="background:#fff;color:#475569;border:1px solid var(--bo);font-weight:700;padding:8px 14px;border-radius:6px;cursor:pointer;font-size:12px">キャンセル</button>'
+          +'</div>'
+          +'<div style="font-size:10px;color:#666;background:#f8fafc;border:1px solid var(--bo);border-radius:4px;padding:5px 8px;margin-top:10px;line-height:1.55">※ token は console / localStorage / sessionStorage に保存しません（真偽値 authToken=yes/no のみログ）。物理 DELETE / UPSERT は実装しません。PATCH のみ、対象カラム 3 つ（deleted_at / deleted_by / delete_reason）のみ。</div>'
+        +'</div>';
+      modal.style.display = 'flex';
+      document.getElementById('p546-batch-close').addEventListener('click', _p546_closeBatchConfirm);
+      document.getElementById('p546-batch-cancel').addEventListener('click', _p546_closeBatchConfirm);
+      const confirmBtn = document.getElementById('p546-batch-confirm');
+      if(confirmBtn && !confirmBtn.disabled){
+        confirmBtn.addEventListener('click', function(){
+          _p546_closeBatchConfirm();
+          _p546_batchDelete().catch(function(_){});
+        });
+      }
+    }catch(e){try{console.warn('[packet 546 openBatchConfirm]', e&&e.message);}catch(_){}}
+  }
+  function _p546_closeBatchConfirm(){
+    const m = document.getElementById('p546-batch-modal');
+    if(m) m.style.display = 'none';
+  }
+
+  // ── action card：packet 543 カード直下に挿入
+  function _p546_renderActionCard(){
+    try{
+      const memPage = document.getElementById('page-memory');
+      if(!memPage) return;
+      let card = document.getElementById('p546-action-card');
+      if(!card){
+        card = document.createElement('div');
+        card.id = 'p546-action-card';
+        card.className = 'card';
+        card.style.cssText = 'border-top:4px solid #991b1b;margin-bottom:10px;background:#fef2f2';
+        // packet 543 カード直後（あるいは 544 直後）
+        const prev = document.getElementById('p544-export-card')
+                  || document.getElementById('p543-control-card');
+        if(prev && prev.parentNode === memPage){
+          if(prev.nextSibling) memPage.insertBefore(card, prev.nextSibling);
+          else memPage.appendChild(card);
+        }else{
+          memPage.appendChild(card);
+        }
+      }
+      const st = window._p546_state;
+      const auth = _p546_authStatusText();
+      const authorized = _p546_isAuthorized();
+      const pendingN = (function(){
+        try{
+          const s = window._p543_state || {pendingOrder:[], pendingDeletes:{}};
+          return (s.pendingOrder||[]).filter(function(id){return !!s.pendingDeletes[id];}).length;
+        }catch(_){return 0;}
+      })();
+      const failQ = (st.failedQueue || []);
+      let html = ''
+        +'<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">'
+          +'<div style="font-weight:800;color:#7f1d1d">💢 DB 論理削除 実行（packet 546 / 実 PATCH MVP）</div>'
+          +'<button type="button" id="p546-batch-btn" '+(authorized && pendingN>0 && !st.busy ? '' : 'disabled')+' style="background:'+(authorized && pendingN>0 && !st.busy ? '#b91c1c' : '#cbd5e1')+';color:#fff;border:0;font-weight:700;padding:7px 14px;border-radius:6px;cursor:'+(authorized && pendingN>0 && !st.busy ? 'pointer' : 'not-allowed')+';font-size:12px;opacity:'+(authorized && pendingN>0 && !st.busy ? '1' : '0.55')+'">'+(st.busy ? '⏳ 実行中...' : '💢 候補 '+pendingN+' 件を DB に論理削除（PATCH）')+'</button>'
+        +'</div>'
+        +'<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:7px 10px;color:#7f1d1d;font-size:11px;line-height:1.55;margin-top:8px">'
+          +'🔑 Auth 状態：'+auth
+          +'<br>📋 候補件数：'+pendingN+' 件（packet 543 由来）'
+          +'<br>📊 累積：論理削除 '+st.totalDeleted+' / 取消 '+st.totalRestored+' / 直近 batch 成功 '+st.lastBatchSuccess+' / 失敗 '+st.lastBatchFail
+          +(st.lastEvent ? '<br>🔁 直近：'+E(st.lastEvent)+(st.lastTime?'（'+E(st.lastTime)+'）':'') : '')
+        +'</div>'
+        + (failQ.length > 0 ? ''
+            +'<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:6px;padding:7px 10px;color:#9a3412;font-size:11px;line-height:1.55;margin-top:6px">'
+              +'⚠ 失敗キュー（in-memory、リロードで消える）：'+failQ.length+' 件'
+              +'<details style="margin-top:4px"><summary style="font-size:11px;cursor:pointer;font-weight:700">直近 5 件のエラー詳細</summary>'
+              + failQ.slice(-5).map(function(e){
+                  return '<div style="font-size:10px;margin-top:3px;border-top:1px dotted #fed7aa;padding-top:3px">id='+E(String(e.id).slice(0,12))+'... / '+E(String(e.error).slice(0,100))+'</div>';
+                }).join('')
+              +'</details>'
+            +'</div>'
+          : '')
+        +'<div style="font-size:10px;color:#666;background:#f8fafc;border:1px solid var(--bo);border-radius:4px;padding:5px 8px;margin-top:8px;line-height:1.55">※ '
+          +'PATCH のみ（物理 DELETE / UPSERT は実装なし）。対象カラムは <code>deleted_at</code> / <code>deleted_by</code> / <code>delete_reason</code> の 3 つのみ。'
+          +'token は console / localStorage / sessionStorage 不保存（authToken=yes/no 真偽値のみ）。'
+          +'失敗時 in-memory キュー保持（リロード消失）。'
+        +'</div>';
+      card.innerHTML = html;
+
+      const btn = document.getElementById('p546-batch-btn');
+      if(btn && !btn.disabled){
+        btn.addEventListener('click', _p546_openBatchConfirm);
+      }
+    }catch(e){try{console.warn('[packet 546 renderActionCard]', e&&e.message);}catch(_){}}
+  }
+  window._p546_renderActionCard = _p546_renderActionCard;
+
+  // ── 各記憶カードに「💢 PATCH」「↩ 取消」ボタン + 削除済みマーク（_p500_renderList 非破壊 wrap、chain）
+  function _p546_decorateCards(){
+    try{
+      const list = document.getElementById('p500-list');
+      if(!list) return;
+      const cards = list.querySelectorAll('.p500-card');
+      const authorized = _p546_isAuthorized();
+      cards.forEach(function(card){
+        const id = card.getAttribute('data-id');
+        if(!id) return;
+        // 重複防止
+        const oldBar = card.querySelector('[data-p546-bar="1"]');
+        if(oldBar) oldBar.remove();
+        const oldMark = card.querySelector('[data-p546-mark="1"]');
+        if(oldMark) oldMark.remove();
+
+        const mem = (window._p500_memoryStore || []).find(function(m){return String(m.id) === String(id);});
+        const isDeleted = !!(mem && mem._isDeleted);
+        const isPending = !!(window._p543_state && window._p543_state.pendingDeletes && window._p543_state.pendingDeletes[String(id)]);
+
+        // 削除済みマーク（カード header 内）
+        if(isDeleted){
+          const header = card.querySelector('div[style*="display:flex"][style*="align-items:flex-start"]');
+          if(header){
+            const mark = document.createElement('span');
+            mark.setAttribute('data-p546-mark','1');
+            mark.style.cssText = 'font-size:10px;padding:2px 7px;border-radius:10px;background:#7f1d1d;color:#fff;font-weight:700';
+            mark.textContent = '🗑 DB 論理削除済み';
+            const autoSpan = header.querySelector('span[style*="margin-left:auto"]');
+            if(autoSpan) header.insertBefore(mark, autoSpan);
+            else header.appendChild(mark);
+          }
+          // カード全体を薄く（CSS 直接）
+          card.style.opacity = '0.55';
+          card.style.background = '#fef2f2';
+        }
+
+        // ボタン行（admin/owner かつ pending または _isDeleted の場合のみ）
+        if(!authorized) return;
+        if(!isPending && !isDeleted) return;
+
+        const bar = document.createElement('div');
+        bar.setAttribute('data-p546-bar','1');
+        bar.style.cssText = 'display:flex;gap:4px;margin-top:6px;flex-wrap:wrap;padding-top:6px;border-top:1px dashed #991b1b';
+
+        if(isPending && !isDeleted){
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.style.cssText = 'font-size:10px;padding:4px 9px;border-radius:5px;border:1.5px solid #991b1b;background:#991b1b;color:#fff;cursor:pointer;font-weight:700';
+          btn.textContent = '💢 この記憶を DB 論理削除（PATCH）';
+          btn.addEventListener('click', async function(){
+            if(btn.disabled) return;
+            const entry = (window._p543_state && window._p543_state.pendingDeletes) ? window._p543_state.pendingDeletes[String(id)] : null;
+            const reason = entry ? entry.reason : '';
+            if(!confirm('この記憶を DB へ論理削除します（PATCH）。\nid=' + String(id).slice(0,12) + '...\n理由：' + (reason || '（未入力）') + '\n\n実行しますか？')) return;
+            btn.disabled = true;
+            btn.textContent = '⏳ 実行中...';
+            const r = await _p546_softDelete(id, reason);
+            if(!r.ok){ try{alert('❌ 失敗：' + (r.error||'unknown'));}catch(_){} }
+          });
+          bar.appendChild(btn);
+        }
+
+        if(isDeleted){
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.style.cssText = 'font-size:10px;padding:4px 9px;border-radius:5px;border:1.5px solid #0d9e6e;background:#fff;color:#0d9e6e;cursor:pointer;font-weight:700';
+          btn.textContent = '↩ 論理削除を取消（PATCH）';
+          btn.addEventListener('click', async function(){
+            if(btn.disabled) return;
+            if(!confirm('この記憶の論理削除を取消します（deleted_at/deleted_by/delete_reason を NULL に PATCH）。\nid=' + String(id).slice(0,12) + '...\n\n実行しますか？')) return;
+            btn.disabled = true;
+            btn.textContent = '⏳ 実行中...';
+            const r = await _p546_restore(id);
+            if(!r.ok){ try{alert('❌ 失敗：' + (r.error||'unknown'));}catch(_){} }
+          });
+          bar.appendChild(btn);
+          // 削除メタ情報表示
+          if(mem){
+            const meta = document.createElement('span');
+            meta.style.cssText = 'font-size:10px;color:#7f1d1d;align-self:center;line-height:1.4';
+            const at = mem.deletedAt ? String(mem.deletedAt).replace('T',' ').slice(0,16) : '?';
+            const by = mem.deletedBy || '?';
+            const rs = mem.deleteReason ? '「'+(mem.deleteReason.length>30?mem.deleteReason.slice(0,30)+'…':mem.deleteReason)+'」' : '（理由なし）';
+            meta.textContent = '削除：'+at+' / '+by+' / 理由：'+rs;
+            bar.appendChild(meta);
+          }
+        }
+        card.appendChild(bar);
+      });
+    }catch(e){try{console.warn('[packet 546 decorateCards]', e&&e.message);}catch(_){}}
+  }
+
+  // ── _p500_renderList wrap（packet 528 / 543 と chain）
+  (function _p546_wrapRender(){
+    try{
+      const orig = window._p500_renderList;
+      if(typeof orig !== 'function') return;
+      window._p500_renderList = function(){
+        try{ orig.apply(this, arguments); }catch(_){}
+        try{ _p546_decorateCards(); }catch(_){}
+      };
+    }catch(_){}
+  })();
+
+  // ── _p543_renderControlCard wrap で連動
+  (function _p546_wrapP543(){
+    try{
+      const orig = window._p543_renderControlCard;
+      if(typeof orig !== 'function') return;
+      window._p543_renderControlCard = function(){
+        try{ orig.apply(this, arguments); }catch(_){}
+        try{ _p546_renderActionCard(); }catch(_){}
+      };
+    }catch(_){}
+  })();
+
+  // ── switchPage wrap
+  (function _p546_wrapSwitchPage(){
+    try{
+      const orig = window.switchPage;
+      if(typeof orig !== 'function') return;
+      window.switchPage = function(pg){
+        try{ orig.apply(this, arguments); }catch(_){}
+        if(pg === 'memory'){
+          setTimeout(function(){
+            try{ _p546_renderActionCard(); }catch(_){}
+            try{ if(typeof _p500_renderList === 'function') _p500_renderList(); }catch(_){}
+          }, 170);
+        }
+      };
+    }catch(_){}
+  })();
+
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){
+      setTimeout(function(){
+        try{ _p546_renderActionCard(); }catch(_){}
+        try{ if(typeof _p500_renderList === 'function') _p500_renderList(); }catch(_){}
+      }, 460);
+    });
+  }else{
+    setTimeout(function(){
+      try{ _p546_renderActionCard(); }catch(_){}
+      try{ if(typeof _p500_renderList === 'function') _p500_renderList(); }catch(_){}
+    }, 460);
+  }
+})();
+// ==== ここまで packet 546 jagai_memory 論理削除 実 UPDATE 実装 MVP ====
 </script>
 </body>
 </html>
