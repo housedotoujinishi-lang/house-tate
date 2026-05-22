@@ -21334,6 +21334,283 @@ function _p500_buildCandidateFromPayload(payload){
   window._p539_buildQuery = _p539_buildQuery;
 })();
 // ==== ここまで packet 539 記憶庫 DB ページング GET + 検索強化 UI ベース ====
+
+// ═══════════════════════════════════════
+// packet 540: 記憶庫 DB もっと見るボタン + offset 追加読み込み MVP（v0.9.290）
+// 目的：packet 511 起動時 100 件 GET の後ろを「もっと見る」で 20 件単位追加読み込み。
+//      Auth 方針は packet 527/536 と同じ（access_token Bearer 優先、無ければ anon フォールバック）。
+//      取得行は packet 511 _p511_mergeDBMemories で id + (title+createdAt±5sec) dedup → 既存一覧へ反映。
+// 厳守：SELECT/GET のみ、UPDATE/DELETE/UPSERT 0、SQL/RLS/Auth 設定変更 0、service_role 0、
+//      token / password を console / localStorage / sessionStorage に保存しない（真偽値のみ）、
+//      既存 packet 510/511/526/527/529/536/538/539 を壊さない。
+// ═══════════════════════════════════════
+(function _p540_init(){
+  function E(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];});}
+  function _p540_nowShort(){
+    try{
+      const d = new Date();
+      const pad = function(n){return n<10 ? '0'+n : ''+n;};
+      return pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+    }catch(_){return '';}
+  }
+
+  // ── State（in-memory のみ、本文・token は保存しない）
+  window._p540_state = window._p540_state || {
+    offset: 100,         // 初期 packet 511 GET の limit と一致（次の取得は 100 番目以降）
+    batchSize: 20,       // もっと見る 1 回あたり
+    totalLoaded: 0,      // 累計 GET 行数（重複除外前）
+    totalMerged: 0,      // 累計 store 追加件数（重複除外後）
+    busy: false,
+    status: 'idle',      // 'idle'|'loading'|'success'|'success_last'|'empty'|'error'
+    lastBatchLoaded: 0,
+    lastBatchAdded: 0,
+    lastError: '',
+    lastTime: '',
+    lastTokenUsed: false // packet 527 と同じ、真偽値のみ（token 値は保存しない）
+  };
+
+  async function _p540_loadMore(){
+    const st = window._p540_state;
+    if(st.busy) return {ok:false, reason:'busy'};
+    if(st.status === 'empty' || st.status === 'success_last') return {ok:false, reason:'end'};
+    if(typeof window._p511_mergeDBMemories !== 'function'){
+      st.status = 'error';
+      st.lastError = '_p511_mergeDBMemories not available';
+      st.lastTime = _p540_nowShort();
+      _p540_renderStatus();
+      return {ok:false, reason:'no-merge'};
+    }
+    if(typeof SB_URL === 'undefined' || !SB_URL || typeof SB_KEY === 'undefined' || !SB_KEY){
+      st.status = 'error';
+      st.lastError = 'SB_URL/SB_KEY not configured';
+      st.lastTime = _p540_nowShort();
+      _p540_renderStatus();
+      return {ok:false, reason:'no-config'};
+    }
+    st.busy = true;
+    st.status = 'loading';
+    st.lastError = '';
+    _p540_renderStatus();
+
+    // packet 527 と同じ Auth：access_token を取れたら Bearer に、無ければ anon フォールバック
+    let accessToken = null;
+    try{
+      if(typeof sb !== 'undefined' && sb && sb.auth && typeof sb.auth.getSession === 'function'){
+        const res = await sb.auth.getSession();
+        if(res && res.data && res.data.session && res.data.session.access_token){
+          accessToken = res.data.session.access_token;
+        }
+      }
+    }catch(_){}
+    st.lastTokenUsed = !!accessToken;
+
+    const offset = st.offset;
+    const limit = st.batchSize;
+    const url = SB_URL + '/rest/v1/jagai_memory?order=created_at.desc&limit=' + limit + '&offset=' + offset;
+    try{
+      const r = await fetch(url, {
+        headers: {
+          apikey: SB_KEY,
+          Authorization: 'Bearer ' + (accessToken || SB_KEY),
+          Accept: 'application/json'
+        }
+      });
+      if(!r.ok){
+        const errText = await r.text().catch(function(){return '';});
+        throw new Error('HTTP ' + r.status + ' ' + (r.statusText || '').slice(0,40) + (errText ? ' / ' + errText.slice(0,160) : ''));
+      }
+      const rows = await r.json();
+      const rowsArr = Array.isArray(rows) ? rows : [];
+      const loaded = rowsArr.length;
+      let added = 0;
+      if(loaded > 0){
+        added = window._p511_mergeDBMemories(rowsArr) || 0;
+      }
+      st.lastBatchLoaded = loaded;
+      st.lastBatchAdded = added;
+      st.totalLoaded += loaded;
+      st.totalMerged += added;
+      st.offset += loaded;           // 実取得件数分だけ進める
+      st.lastTime = _p540_nowShort();
+      if(loaded === 0){
+        st.status = 'empty';
+      }else if(loaded < limit){
+        st.status = 'success_last';  // 末尾到達
+      }else{
+        st.status = 'success';
+      }
+      try{console.warn('[packet 540 loadMore] HTTP 200 OK offset=', offset, 'loaded=', loaded, 'merged=', added, 'authToken=', (accessToken?'yes':'no'));}catch(_){}
+      // 再描画：既存 packet 500/507 一覧 + packet 511 diag + その他連動
+      try{ if(typeof _p500_renderList === 'function') _p500_renderList(); }catch(_){}
+      try{ if(typeof _p500_renderSummary === 'function') _p500_renderSummary(); }catch(_){}
+      try{ if(typeof window._p511_updateDiagDisplay === 'function') window._p511_updateDiagDisplay(); }catch(_){}
+    }catch(e){
+      const msg = String(e && e.message || '').slice(0, 200);
+      st.status = 'error';
+      st.lastError = msg.slice(0, 160);
+      st.lastTime = _p540_nowShort();
+      try{console.warn('[packet 540 loadMore] failed:', msg, 'authToken=', (accessToken?'yes':'no'));}catch(_){}
+    }finally{
+      st.busy = false;
+      _p540_renderStatus();
+    }
+    return {ok: st.status !== 'error'};
+  }
+  window._p540_loadMore = _p540_loadMore;
+
+  function _p540_resetCursor(){
+    const st = window._p540_state;
+    if(st.busy) return;
+    st.offset = 100;
+    st.status = 'idle';
+    st.lastError = '';
+    st.lastBatchLoaded = 0;
+    st.lastBatchAdded = 0;
+    _p540_renderStatus();
+  }
+  window._p540_resetCursor = _p540_resetCursor;
+
+  function _p540_injectCard(){
+    try{
+      const memPage = document.getElementById('page-memory');
+      if(!memPage) return;
+      if(document.getElementById('p540-loadmore-card')) return;
+      const card = document.createElement('div');
+      card.id = 'p540-loadmore-card';
+      card.className = 'card';
+      card.style.cssText = 'border-top:4px solid #10b981;margin-bottom:10px';
+      card.innerHTML = ''
+        +'<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">'
+          +'<div style="font-weight:800;color:#047857">📥 記憶庫 もっと見る（追加読み込み MVP / packet 540）</div>'
+          +'<div style="display:flex;gap:6px;flex-wrap:wrap">'
+            +'<button type="button" id="p540-loadmore-btn" class="dr-btn" style="background:#10b981;color:#fff;border:0;font-weight:700;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:11px">📥 もっと見る（次の '+window._p540_state.batchSize+' 件）</button>'
+            +'<button type="button" id="p540-reset-btn" class="dr-btn" style="background:#fff;color:#047857;border:1.5px solid #10b981;font-weight:700;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:11px">🔄 カーソルをリセット</button>'
+          +'</div>'
+        +'</div>'
+        +'<div id="p540-status-block" style="margin-top:8px;font-size:12px;line-height:1.6"></div>'
+        +'<div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:6px;padding:7px 10px;color:#047857;font-size:11px;line-height:1.55;margin-top:8px">'
+          +'💡 起動時 packet 511 が <b>最新 100 件</b>を読み込み済み。本ボタンは <b>その続き</b>を 20 件単位で追加取得します。'
+          +'<br>・SELECT / GET のみ（UPDATE / DELETE / UPSERT は一切送りません）'
+          +'<br>・取得行は packet 511 の dedup（id + title+createdAt±5sec）で既存一覧へマージ'
+          +'<br>・Auth：signIn 済みなら access_token Bearer（authenticated）、未なら anon フォールバック（既存 RLS 次第）'
+        +'</div>'
+        +'<div style="font-size:10px;color:#666;background:#f8fafc;border:1px solid var(--bo);border-radius:4px;padding:5px 8px;margin-top:8px;line-height:1.55">※ '
+          +'token / password は console / localStorage / sessionStorage に保存しません（真偽値のみログ）。'
+          +'クエリ案ビルダーは packet 539 を継続。本 packet は実 GET MVP。'
+        +'</div>';
+      // packet 539 カード直後（記憶庫ページ上部）に配置
+      const prevCard = document.getElementById('p539-paging-search-card') || document.getElementById('p538-mode-card');
+      if(prevCard && prevCard.parentNode === memPage){
+        if(prevCard.nextSibling) memPage.insertBefore(card, prevCard.nextSibling);
+        else memPage.appendChild(card);
+      }else{
+        const firstCard = memPage.querySelector('.card');
+        if(firstCard) memPage.insertBefore(card, firstCard);
+        else memPage.appendChild(card);
+      }
+
+      document.getElementById('p540-loadmore-btn').addEventListener('click', function(){
+        _p540_loadMore().catch(function(_){});
+      });
+      document.getElementById('p540-reset-btn').addEventListener('click', _p540_resetCursor);
+
+      _p540_renderStatus();
+    }catch(e){try{console.warn('[packet 540 injectCard]', e && e.message);}catch(_){}}
+  }
+
+  function _p540_renderStatus(){
+    try{
+      const st = window._p540_state;
+      const status = document.getElementById('p540-status-block');
+      const btn = document.getElementById('p540-loadmore-btn');
+      if(!status) return;
+
+      let badge, msg, badgeColor;
+      switch(st.status){
+        case 'loading':
+          badge = '⏳ 読込中...'; badgeColor = '#1e40af';
+          msg = 'offset=' + st.offset + ' limit=' + st.batchSize + ' を取得中…';
+          break;
+        case 'success':
+          badge = '✅ ' + st.lastBatchAdded + ' 件追加'; badgeColor = '#16a34a';
+          msg = '取得 ' + st.lastBatchLoaded + ' 件 / 重複除外 ' + (st.lastBatchLoaded - st.lastBatchAdded) + ' 件 / 次の offset=' + st.offset;
+          break;
+        case 'success_last':
+          badge = '✅ ' + st.lastBatchAdded + ' 件追加（末尾到達）'; badgeColor = '#0d9488';
+          msg = '取得 ' + st.lastBatchLoaded + ' 件 / 重複除外 ' + (st.lastBatchLoaded - st.lastBatchAdded) + ' 件 / DB に残りなし（offset=' + st.offset + '）';
+          break;
+        case 'empty':
+          badge = '（これ以上 DB に記憶はありません）'; badgeColor = '#64748b';
+          msg = 'offset=' + st.offset + ' で 0 件返却。リセットで先頭から再開できます。';
+          break;
+        case 'error':
+          badge = '❌ エラー'; badgeColor = '#dc2626';
+          msg = E(st.lastError || '不明なエラー');
+          break;
+        default:
+          badge = '🟢 待機中'; badgeColor = '#10b981';
+          msg = '次の offset=' + st.offset + ' / 1 回あたり最大 ' + st.batchSize + ' 件';
+      }
+
+      const tokenLabel = st.lastTokenUsed ? '<span style="color:#16a34a">✅ authenticated</span>' : '<span style="color:#94a3b8">anon フォールバック</span>';
+      status.innerHTML = ''
+        +'<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">'
+          +'<span style="background:'+badgeColor+';color:#fff;padding:3px 10px;border-radius:12px;font-weight:700;font-size:11px">'+badge+'</span>'
+          +'<span style="font-size:11px;color:#475569">'+msg+'</span>'
+        +'</div>'
+        +'<div style="font-size:11px;color:#475569;margin-top:4px;line-height:1.55">'
+          +'累積：取得 '+st.totalLoaded+' 件 / 追加 '+st.totalMerged+' 件 / 一覧合計 '+((window._p500_memoryStore||[]).length)+' 件'
+          +(st.lastTime ? ' / 直近 '+E(st.lastTime) : '')
+          +' / Auth：'+tokenLabel
+        +'</div>';
+
+      // ボタン制御
+      if(btn){
+        const disabled = st.busy || st.status === 'empty' || st.status === 'success_last';
+        btn.disabled = disabled;
+        btn.style.opacity = disabled ? '0.55' : '1';
+        btn.style.cursor = disabled ? 'not-allowed' : 'pointer';
+        if(st.busy) btn.textContent = '⏳ 読込中...';
+        else if(st.status === 'empty' || st.status === 'success_last') btn.textContent = '📭 これ以上ありません';
+        else btn.textContent = '📥 もっと見る（次の ' + st.batchSize + ' 件）';
+      }
+    }catch(e){try{console.warn('[packet 540 renderStatus]', e && e.message);}catch(_){}}
+  }
+  window._p540_renderStatus = _p540_renderStatus;
+
+  // page-memory 表示時に inject + 再描画
+  (function _p540_wrapSwitchPage(){
+    try{
+      const orig = window.switchPage;
+      if(typeof orig !== 'function') return;
+      window.switchPage = function(pg){
+        try{ orig.apply(this, arguments); }catch(_){}
+        if(pg === 'memory'){
+          setTimeout(function(){ try{_p540_injectCard(); _p540_renderStatus();}catch(_){} }, 130);
+        }
+      };
+    }catch(_){}
+  })();
+
+  // packet 511 の diag 更新時に packet 540 状態も再描画（一覧合計件数の同期）
+  (function _p540_wrapP511Diag(){
+    try{
+      const orig = window._p511_updateDiagDisplay;
+      if(typeof orig !== 'function') return;
+      window._p511_updateDiagDisplay = function(){
+        try{ orig.apply(this, arguments); }catch(_){}
+        try{ _p540_renderStatus(); }catch(_){}
+      };
+    }catch(_){}
+  })();
+
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){ setTimeout(_p540_injectCard, 380); });
+  }else{
+    setTimeout(_p540_injectCard, 380);
+  }
+})();
+// ==== ここまで packet 540 記憶庫 DB もっと見るボタン + offset 追加読み込み MVP ====
 </script>
 </body>
 </html>
