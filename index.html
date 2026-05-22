@@ -23851,6 +23851,463 @@ function _p500_buildCandidateFromPayload(payload){
 
 })();
 // ==== ここまで packet 546-fix 論理削除 PATCH UUID 解決 hotfix ====
+
+// ═══════════════════════════════════════
+// packet 546-fix2: 論理削除 PATCH Response 空配列検知 + Auth/Profile 診断 hotfix（v0.9.305）
+// 不具合：packet 546-fix で UUID は解決したが、PATCH HTTP 200 でも Response が []
+// （更新行 0 件）を成功扱いしていた。原因は RLS UPDATE policy のサブクエリ
+// EXISTS (SELECT 1 FROM profiles WHERE p.id = auth.uid() AND p.perm IN ('admin','owner'))
+// が 0 行を返すため policy 拒否 → PostgREST が 200 + [] で返す挙動。
+// 修正方針：
+//   1. PATCH 後 Array.isArray(json) && json.length >= 1 で成功判定
+//   2. 0 件は失敗扱いで明示メッセージ（profiles.perm 確認を促す）
+//   3. Auth/Profile 診断関数 _p546fix2_diagnose 追加
+//      （sb.auth.getSession + sb.from('profiles').select で自分の profile 取得、SELECT のみ）
+//   4. 診断結果を ActionCard にミニ表示
+//   5. PATCH 前にも診断結果を加味、profiles.perm が admin/owner でなければ事前 block
+//   6. token / access_token / refresh_token は絶対に表示・保存しない
+//      （診断は auth.user.id と profiles.id/perm/name のみ）
+// 厳守：PATCH のみ（既存）、新規 fetch / method 追加 0（profiles SELECT は既存 sb.from 経由）、
+//      DELETE/UPSERT 0、SQL/RLS/Auth 設定変更 0、service_role 0、
+//      UPDATE 対象カラム追加 0（既存 deleted_at/by/reason のまま）、
+//      既存 packet 510/511/526/527/528-546-fix すべて非破壊。
+// ═══════════════════════════════════════
+(function _p546fix2_init(){
+  function E(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];});}
+
+  // 診断結果 state（token は絶対保持しない、表示用 id/perm/name のみ）
+  window._p546fix2_diag = window._p546fix2_diag || {
+    timestamp:  '',
+    sessionExists: false,
+    authUserId: '',
+    profileFound: false,
+    profilePerm: '',
+    profileName: '',
+    isAdminOwner: false,
+    errorAtStep: '',
+    inProgress: false
+  };
+
+  // ── Auth + Profile 診断（SELECT のみ、token / refresh_token に触れない）
+  async function _p546fix2_diagnose(){
+    const d = {
+      timestamp: new Date().toISOString(),
+      sessionExists: false,
+      authUserId: '',
+      profileFound: false,
+      profilePerm: '',
+      profileName: '',
+      isAdminOwner: false,
+      errorAtStep: '',
+      inProgress: false
+    };
+    try{
+      if(typeof sb === 'undefined' || !sb || !sb.auth){
+        d.errorAtStep = 'Supabase client (sb) または sb.auth が見つかりません';
+        return d;
+      }
+      // step 1: session 確認（access_token / refresh_token には触らない）
+      let sess;
+      try{
+        sess = await sb.auth.getSession();
+      }catch(e){
+        d.errorAtStep = 'sb.auth.getSession 例外：' + String(e&&e.message||e).slice(0,80);
+        return d;
+      }
+      if(!sess || !sess.data || !sess.data.session){
+        d.errorAtStep = 'Supabase Auth session なし（signIn が必要）';
+        return d;
+      }
+      d.sessionExists = true;
+      const user = sess.data.session.user;
+      if(!user || !user.id){
+        d.errorAtStep = 'session.user.id なし';
+        return d;
+      }
+      d.authUserId = String(user.id);
+      // step 2: profiles SELECT
+      if(!sb.from){
+        d.errorAtStep = 'sb.from が見つかりません';
+        return d;
+      }
+      let profRes;
+      try{
+        profRes = await sb.from('profiles').select('id, perm, name').eq('id', d.authUserId).maybeSingle();
+      }catch(e){
+        d.errorAtStep = 'profiles SELECT 例外：' + String(e&&e.message||e).slice(0,80);
+        return d;
+      }
+      if(profRes && profRes.error){
+        d.errorAtStep = 'profiles SELECT error：' + String(profRes.error.message||profRes.error).slice(0,80);
+        return d;
+      }
+      const prof = profRes && profRes.data;
+      if(!prof){
+        d.errorAtStep = 'profiles 行が見つかりません（auth.uid() に対応する profile なし）';
+        return d;
+      }
+      d.profileFound = true;
+      d.profilePerm = String(prof.perm || '');
+      d.profileName = String(prof.name || '');
+      d.isAdminOwner = (d.profilePerm === 'admin' || d.profilePerm === 'owner');
+      try{console.warn('[packet 546-fix2 diagnose] OK profilePerm=', d.profilePerm, 'isAdminOwner=', d.isAdminOwner);}catch(_){}
+    }catch(e){
+      d.errorAtStep = '診断例外：' + String(e&&e.message||e).slice(0,100);
+    }
+    return d;
+  }
+  window._p546fix2_diagnose = _p546fix2_diagnose;
+
+  async function _p546fix2_runDiagnose(){
+    if(window._p546fix2_diag.inProgress) return;
+    window._p546fix2_diag.inProgress = true;
+    try{ _p546fix2_renderDiagUI(); }catch(_){}
+    try{
+      const result = await _p546fix2_diagnose();
+      Object.assign(window._p546fix2_diag, result);
+      window._p546fix2_diag.inProgress = false;
+    }catch(_){
+      window._p546fix2_diag.inProgress = false;
+    }
+    try{ _p546fix2_renderDiagUI(); }catch(_){}
+  }
+  window._p546fix2_runDiagnose = _p546fix2_runDiagnose;
+
+  // ── PATCH 関数を hotfix2 版で再上書き
+  // 既存 packet 546-fix _p546fix_softDelete / _p546fix_restore のロジックを基本踏襲、
+  // 1) PATCH 後 Array.isArray && length>=1 判定追加
+  // 2) PATCH 前に診断結果を加味して事前 block
+
+  function _p546fix2_isAdminOwnerByDiag(){
+    const d = window._p546fix2_diag || {};
+    // 診断未実行（timestamp 空）の場合は currentUser ベースに任せる
+    if(!d.timestamp) return null;
+    // 診断結果がある場合：profileFound でかつ admin/owner なら true、そうでなければ false
+    if(!d.profileFound) return false;
+    return d.isAdminOwner === true;
+  }
+
+  function _p546fix2_uuidCheck(v){
+    return typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
+  }
+
+  function _p546fix2_getDBId(memoryOrId){
+    try{
+      if(typeof window._p546_getDBId === 'function') return window._p546_getDBId(memoryOrId);
+    }catch(_){}
+    // フォールバック
+    if(memoryOrId && typeof memoryOrId === 'object'){
+      const arr = [memoryOrId.dbId, memoryOrId._dbId, memoryOrId.db_id, memoryOrId.id];
+      for(let i=0;i<arr.length;i++){ if(_p546fix2_uuidCheck(String(arr[i]||''))) return String(arr[i]); }
+      return null;
+    }
+    if(typeof memoryOrId === 'string'){
+      if(_p546fix2_uuidCheck(memoryOrId)) return memoryOrId;
+      const mem = (window._p500_memoryStore || []).find(function(m){return m && String(m.id) === String(memoryOrId);});
+      if(mem) return _p546fix2_getDBId(mem);
+    }
+    return null;
+  }
+
+  function _p546fix2_isAuthorizedClient(){
+    try{
+      const u = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : (window.currentUser || null);
+      return !!(u && (u.perm === 'admin' || u.perm === 'owner'));
+    }catch(_){return false;}
+  }
+
+  async function _p546fix2_softDelete(memoryOrId, reason){
+    if(memoryOrId == null) return {ok:false, error:'対象 id が空です'};
+    // ガード 1：クライアント側 admin/owner（currentUser.perm）
+    if(!_p546fix2_isAuthorizedClient()){
+      return {ok:false, error:'admin / owner 限定操作です（currentUser.perm = admin/owner が必要）'};
+    }
+    // ガード 1b：診断ベース admin/owner（実行済みなら）
+    const diagAuthorized = _p546fix2_isAdminOwnerByDiag();
+    if(diagAuthorized === false){
+      return {ok:false, error:'Auth/Profile 診断結果：profiles.perm が admin/owner ではありません（perm='
+        + String(window._p546fix2_diag.profilePerm||'?')+'）。RLS で拒否されるため事前 block しました。'
+        + 'profiles テーブルの自分の行で perm を admin/owner に整える必要があります（別 packet 必要）。'};
+    }
+    // ガード 2：UUID 解決
+    const dbId = _p546fix2_getDBId(memoryOrId);
+    if(!dbId){
+      const msg = 'この記憶は DB UUID が未取得のため、DB 論理削除できません。'
+                + 'DB から再読込後、DB 保存済み記憶で実行してください。';
+      try{ window._p546_state.lastEvent = '⛔ UUID 未取得で PATCH 事前ブロック'; window._p546_state.lastError = msg; }catch(_){}
+      try{ if(typeof window._p546_renderActionCard === 'function') window._p546_renderActionCard(); }catch(_){}
+      return {ok:false, error:msg};
+    }
+    // ガード 3：SB_URL/KEY
+    if(typeof SB_URL === 'undefined' || !SB_URL || typeof SB_KEY === 'undefined' || !SB_KEY){
+      return {ok:false, error:'SB_URL/SB_KEY 未設定'};
+    }
+    // ガード 4：access_token
+    let accessToken = null;
+    try{
+      if(typeof sb !== 'undefined' && sb && sb.auth && typeof sb.auth.getSession === 'function'){
+        const res = await sb.auth.getSession();
+        if(res && res.data && res.data.session && res.data.session.access_token){
+          accessToken = res.data.session.access_token;
+        }
+      }
+    }catch(_){}
+    if(!accessToken){
+      return {ok:false, error:'Supabase Auth signIn が必要です（packet 521 / 448 系ログイン）'};
+    }
+    try{ window._p546_state.lastTokenUsed = true; }catch(_){}
+
+    let mem = null;
+    if(typeof memoryOrId === 'object') mem = memoryOrId;
+    else{
+      try{
+        mem = (window._p500_memoryStore || []).find(function(m){
+          return m && (String(m.id) === String(memoryOrId)
+                    || String(m.dbId||'') === String(memoryOrId)
+                    || String(m._dbId||'') === String(memoryOrId));
+        });
+      }catch(_){}
+    }
+    const u = (function(){try{return (typeof currentUser !== 'undefined' && currentUser) ? currentUser : (window.currentUser || {});}catch(_){return {};}})();
+    const deletedBy = String(u.name || u.uid || 'unknown').slice(0, 200);
+    const deleteReason = String(reason || '').slice(0, 500);
+    const url = SB_URL + '/rest/v1/jagai_memory?id=eq.' + encodeURIComponent(dbId);
+    try{
+      const r = await fetch(url, {
+        method: 'PATCH',
+        headers: {
+          apikey: SB_KEY,
+          Authorization: 'Bearer ' + accessToken,
+          'Content-Type': 'application/json',
+          Prefer: 'return=representation'
+        },
+        body: JSON.stringify({
+          deleted_at:    new Date().toISOString(),
+          deleted_by:    deletedBy,
+          delete_reason: deleteReason
+        })
+      });
+      if(!r.ok){
+        const errText = await r.text().catch(function(){return '';});
+        throw new Error('HTTP ' + r.status + ' ' + (r.statusText||'').slice(0,40) + (errText ? ' / '+errText.slice(0,160) : ''));
+      }
+      const rows = await r.json().catch(function(){return null;});
+      // ★ hotfix2 の核心：HTTP 200 でも Response が [] / 配列でない場合は失敗扱い
+      if(!Array.isArray(rows) || rows.length === 0){
+        // 自動で診断を走らせて状況を可視化
+        try{ _p546fix2_runDiagnose(); }catch(_){}
+        throw new Error('HTTP 200 だが Response が空（更新行 0 件）。'
+                      + 'RLS UPDATE policy が拒否している可能性が高い：'
+                      + 'Supabase Auth ユーザーが profiles.perm = admin/owner ではない、'
+                      + 'または profiles に対応行が無い。「🔍 Auth/Profile 診断」結果を確認してください。');
+      }
+      // 成功：1 行以上返ってきた
+      try{
+        if(mem){
+          const row = rows[0];
+          mem.deletedAt    = row ? row.deleted_at    : new Date().toISOString();
+          mem.deletedBy    = row ? row.deleted_by    : deletedBy;
+          mem.deleteReason = row ? row.delete_reason : deleteReason;
+          mem._isDeleted   = true;
+          if(!_p546fix2_uuidCheck(String(mem.dbId||''))) mem.dbId = dbId;
+          if(!_p546fix2_uuidCheck(String(mem._dbId||''))) mem._dbId = dbId;
+        }
+      }catch(_){}
+      try{
+        if(typeof window._p543_unmarkPending === 'function'){
+          if(mem && mem.id) window._p543_unmarkPending(mem.id);
+          window._p543_unmarkPending(dbId);
+        }
+      }catch(_){}
+      try{ window._p546_state.totalDeleted++; }catch(_){}
+      try{ window._p546_state.lastTime = (new Date()).toTimeString().slice(0,8); }catch(_){}
+      try{ window._p546_state.lastEvent = '✅ 1 件論理削除（dbId=' + dbId.slice(0,8) + '...、更新 '+rows.length+' 行）'; }catch(_){}
+      try{console.warn('[packet 546-fix2 softDelete] HTTP 200 OK rows=', rows.length, 'dbId=', dbId, 'authToken= yes');}catch(_){}
+      return {ok:true, dbId:dbId, rowsAffected: rows.length};
+    }catch(e){
+      const msg = String(e&&e.message||e).slice(0,300);
+      try{
+        window._p546_state.failedQueue.push({id:dbId, reason:deleteReason, error:msg, ts:Date.now()});
+        if(window._p546_state.failedQueue.length > 100) window._p546_state.failedQueue.shift();
+        window._p546_state.lastError = msg;
+        window._p546_state.lastTime = (new Date()).toTimeString().slice(0,8);
+        window._p546_state.lastEvent = '❌ 失敗（' + msg.slice(0,80) + '...）';
+      }catch(_){}
+      try{console.warn('[packet 546-fix2 softDelete] failed dbId=', dbId, msg, 'authToken= yes');}catch(_){}
+      return {ok:false, error:msg};
+    }finally{
+      try{ if(typeof _p500_renderList === 'function') _p500_renderList(); }catch(_){}
+      try{ if(typeof _p500_renderSummary === 'function') _p500_renderSummary(); }catch(_){}
+      try{ if(typeof window._p543_renderControlCard === 'function') window._p543_renderControlCard(); }catch(_){}
+      try{ if(typeof window._p544_renderCard === 'function') window._p544_renderCard(); }catch(_){}
+      try{ if(typeof window._p546_renderActionCard === 'function') window._p546_renderActionCard(); }catch(_){}
+    }
+  }
+  window._p546_softDelete = _p546fix2_softDelete;
+
+  async function _p546fix2_restore(memoryOrId){
+    if(memoryOrId == null) return {ok:false, error:'対象 id が空です'};
+    if(!_p546fix2_isAuthorizedClient()) return {ok:false, error:'admin / owner 限定操作です'};
+    const diagAuthorized = _p546fix2_isAdminOwnerByDiag();
+    if(diagAuthorized === false){
+      return {ok:false, error:'Auth/Profile 診断結果：profiles.perm が admin/owner ではありません（perm='
+        + String(window._p546fix2_diag.profilePerm||'?')+'）。RLS で拒否されるため事前 block しました。'};
+    }
+    const dbId = _p546fix2_getDBId(memoryOrId);
+    if(!dbId) return {ok:false, error:'DB UUID 未取得のため取消できません。'};
+    if(typeof SB_URL === 'undefined' || !SB_URL) return {ok:false, error:'SB_URL 未設定'};
+    let accessToken = null;
+    try{
+      if(typeof sb !== 'undefined' && sb && sb.auth && typeof sb.auth.getSession === 'function'){
+        const res = await sb.auth.getSession();
+        if(res && res.data && res.data.session && res.data.session.access_token){
+          accessToken = res.data.session.access_token;
+        }
+      }
+    }catch(_){}
+    if(!accessToken) return {ok:false, error:'Supabase Auth signIn が必要です'};
+    let mem = null;
+    if(typeof memoryOrId === 'object') mem = memoryOrId;
+    else{
+      try{
+        mem = (window._p500_memoryStore || []).find(function(m){
+          return m && (String(m.id) === String(memoryOrId)
+                    || String(m.dbId||'') === String(memoryOrId)
+                    || String(m._dbId||'') === String(memoryOrId));
+        });
+      }catch(_){}
+    }
+    const url = SB_URL + '/rest/v1/jagai_memory?id=eq.' + encodeURIComponent(dbId);
+    try{
+      const r = await fetch(url, {
+        method: 'PATCH',
+        headers: {
+          apikey: SB_KEY,
+          Authorization: 'Bearer ' + accessToken,
+          'Content-Type': 'application/json',
+          Prefer: 'return=representation'
+        },
+        body: JSON.stringify({
+          deleted_at:    null,
+          deleted_by:    null,
+          delete_reason: null
+        })
+      });
+      if(!r.ok){
+        const errText = await r.text().catch(function(){return '';});
+        throw new Error('HTTP ' + r.status + ' ' + (r.statusText||'').slice(0,40) + (errText ? ' / '+errText.slice(0,160) : ''));
+      }
+      const rows = await r.json().catch(function(){return null;});
+      if(!Array.isArray(rows) || rows.length === 0){
+        try{ _p546fix2_runDiagnose(); }catch(_){}
+        throw new Error('HTTP 200 だが Response が空（取消対象行 0 件）。'
+                      + 'RLS UPDATE policy で拒否されている可能性が高い。「🔍 Auth/Profile 診断」確認推奨。');
+      }
+      try{
+        if(mem){
+          mem.deletedAt = null;
+          mem.deletedBy = '';
+          mem.deleteReason = '';
+          mem._isDeleted = false;
+        }
+      }catch(_){}
+      try{ window._p546_state.totalRestored++; }catch(_){}
+      try{ window._p546_state.lastTime = (new Date()).toTimeString().slice(0,8); }catch(_){}
+      try{ window._p546_state.lastEvent = '↩ 1 件取消（dbId=' + dbId.slice(0,8) + '...、更新 '+rows.length+' 行）'; }catch(_){}
+      try{console.warn('[packet 546-fix2 restore] HTTP 200 OK rows=', rows.length, 'dbId=', dbId, 'authToken= yes');}catch(_){}
+      return {ok:true, dbId:dbId, rowsAffected: rows.length};
+    }catch(e){
+      const msg = String(e&&e.message||e).slice(0,300);
+      try{
+        window._p546_state.lastError = msg;
+        window._p546_state.lastEvent = '❌ 取消失敗（' + msg.slice(0,80) + '...）';
+      }catch(_){}
+      try{console.warn('[packet 546-fix2 restore] failed dbId=', dbId, msg);}catch(_){}
+      return {ok:false, error:msg};
+    }finally{
+      try{ if(typeof _p500_renderList === 'function') _p500_renderList(); }catch(_){}
+      try{ if(typeof _p500_renderSummary === 'function') _p500_renderSummary(); }catch(_){}
+      try{ if(typeof window._p543_renderControlCard === 'function') window._p543_renderControlCard(); }catch(_){}
+      try{ if(typeof window._p546_renderActionCard === 'function') window._p546_renderActionCard(); }catch(_){}
+    }
+  }
+  window._p546_restore = _p546fix2_restore;
+
+  // ── Auth/Profile 診断 UI 描画
+  function _p546fix2_renderDiagUI(){
+    try{
+      const card = document.getElementById('p546-action-card');
+      if(!card) return;
+      let diagEl = card.querySelector('[data-p546fix2-diag="1"]');
+      if(!diagEl){
+        diagEl = document.createElement('div');
+        diagEl.setAttribute('data-p546fix2-diag','1');
+        diagEl.style.cssText = 'background:#f0f9ff;border:1px solid #93c5fd;border-radius:6px;padding:7px 10px;color:#0c4a6e;font-size:11px;line-height:1.55;margin-top:6px';
+        card.appendChild(diagEl);
+      }
+      const d = window._p546fix2_diag || {};
+      let html = '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">'
+        +'<div style="font-weight:800">🔍 Auth/Profile 診断（packet 546-fix2）</div>'
+        +'<button type="button" id="p546fix2-diag-run" class="dr-btn" style="background:#0ea5e9;color:#fff;border:0;font-weight:700;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:11px"'+(d.inProgress?' disabled':'')+'>'+(d.inProgress?'⏳ 診断中...':'🔄 診断を実行')+'</button>'
+      +'</div>';
+      if(!d.timestamp){
+        html += '<div style="margin-top:4px;color:#475569">未実行。「🔄 診断を実行」を押すか、PATCH を試行すると自動で走ります。</div>';
+      }else{
+        const sess = d.sessionExists ? '✅ あり' : '❌ なし';
+        const uid  = d.authUserId    ? '✅ '+E(d.authUserId.slice(0,8))+'...'+E(d.authUserId.slice(-4)) : '❌ なし';
+        const pf   = d.profileFound  ? '✅ 取得成功' : '❌ なし';
+        const perm = d.profilePerm   ? E(d.profilePerm) : '(未取得)';
+        const name = d.profileName   ? E(d.profileName) : '(未取得)';
+        const ao   = d.isAdminOwner  ? '✅ admin/owner OK' : '❌ admin/owner ではない（RLS 拒否される）';
+        html += '<div style="margin-top:4px"><b>Supabase Auth session：</b>'+sess+'</div>';
+        html += '<div><b>auth.user.id：</b>'+uid+'</div>';
+        html += '<div><b>profiles 取得：</b>'+pf+'</div>';
+        html += '<div><b>profiles.perm：</b>'+perm+'</div>';
+        html += '<div><b>profiles.name：</b>'+name+'</div>';
+        html += '<div><b>admin/owner 判定：</b>'+ao+'</div>';
+        if(d.errorAtStep){
+          html += '<div style="margin-top:4px;color:#b91c1c"><b>エラー：</b>'+E(d.errorAtStep)+'</div>';
+        }
+        html += '<div style="font-size:10px;color:#64748b;margin-top:4px">'+E(d.timestamp)+' 時点</div>';
+      }
+      html += '<div style="font-size:10px;color:#666;margin-top:4px">※ profiles SELECT は既存 sb.from 経由（packet 448 系と同じ）。token / refresh_token は表示・保存しません。</div>';
+      diagEl.innerHTML = html;
+      const btn = document.getElementById('p546fix2-diag-run');
+      if(btn && !btn.disabled){
+        btn.addEventListener('click', function(){
+          _p546fix2_runDiagnose().catch(function(_){});
+        });
+      }
+    }catch(e){try{console.warn('[packet 546-fix2 renderDiagUI]', e&&e.message);}catch(_){}}
+  }
+  window._p546fix2_renderDiagUI = _p546fix2_renderDiagUI;
+
+  // ── ActionCard wrap：診断 UI を毎回再描画
+  (function _p546fix2_wrapActionCard(){
+    try{
+      const orig = window._p546_renderActionCard;
+      if(typeof orig !== 'function') return;
+      window._p546_renderActionCard = function(){
+        try{ orig.apply(this, arguments); }catch(_){}
+        try{ _p546fix2_renderDiagUI(); }catch(_){}
+      };
+    }catch(_){}
+  })();
+
+  // 初回：診断 UI を出す（自動診断はしない、ユーザ操作で）
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){
+      setTimeout(function(){
+        try{ if(typeof window._p546_renderActionCard === 'function') window._p546_renderActionCard(); }catch(_){}
+      }, 540);
+    });
+  }else{
+    setTimeout(function(){
+      try{ if(typeof window._p546_renderActionCard === 'function') window._p546_renderActionCard(); }catch(_){}
+    }, 540);
+  }
+})();
+// ==== ここまで packet 546-fix2 PATCH Response 空配列検知 + Auth/Profile 診断 hotfix ====
 </script>
 </body>
 </html>
