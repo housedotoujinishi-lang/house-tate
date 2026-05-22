@@ -16957,6 +16957,9 @@ function _p500_buildCandidateFromPayload(payload){
       deletedBy:    String(row.deleted_by || ''),
       deleteReason: String(row.delete_reason || ''),
       _isDeleted:   !!row.deleted_at,
+      // packet 546-fix: DB UUID を明示保持（id は packet 543 等の既存参照を壊さないため別フィールドにも）
+      dbId:  String(row.id || ''),
+      _dbId: String(row.id || ''),
       _fromDB: true  // DB 由来マーカー
     };
   }
@@ -23341,6 +23344,513 @@ function _p500_buildCandidateFromPayload(payload){
   }
 })();
 // ==== ここまで packet 546 jagai_memory 論理削除 実 UPDATE 実装 MVP ====
+
+// ═══════════════════════════════════════
+// packet 546-fix: 論理削除 PATCH UUID 解決 hotfix（v0.9.304）
+// 不具合：jagai_memory.id は uuid 型だが、in-memory 仮 ID（mem-1-... 等）を
+// PATCH URL に直接埋めて HTTP 400「invalid input syntax for type uuid」が発生。
+// 修正方針（曖昧検索でPATCH対象を推定はしない、UUIDが取れない場合は事前ブロック）：
+//   1. _p511_mapRowToMemory に dbId/_dbId 追加（DB由来は確実にUUID保持）
+//   2. _p510_dbInsert 非破壊 wrap で INSERT 戻り row.id を対応 memory.dbId に反映
+//      （title + createdAt±10sec マッチング、UUID 既持ち memory は skip）
+//   3. _p546_isUUID / _p546_getDBId 追加
+//   4. _p546_softDelete / _p546_restore / _p546_batchDelete 冒頭で UUID 事前検証
+//      → 取れない場合は PATCH 送らず error 返却（NetworkにPATCH出ない）
+//   5. UI 装飾：UUID 未取得 memory はボタン disable + 「DB UUID 未取得」表示
+// 厳守：PATCH のみ（既存）、新規 fetch / method 追加 0、DELETE/UPSERT 0、
+//      SQL/RLS/Auth 設定変更 0、service_role 0、本文/token を storage に保存しない、
+//      曖昧検索による PATCH 対象推定 0（title 一致は INSERT 戻り反映の補助のみ、
+//      PATCH 対象決定には使わない）。既存 packet 510-546 すべて非破壊。
+// ═══════════════════════════════════════
+(function _p546fix_init(){
+  function E(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];});}
+
+  // 寛容な UUID 判定（タスク指示の v4 寄り正規表現）
+  function _p546fix_isUUID(v){
+    return typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
+  }
+  window._p546_isUUID = _p546fix_isUUID;
+
+  // memory or id から DB UUID を解決（取れなければ null、曖昧推測しない）
+  function _p546fix_getDBId(memoryOrId){
+    try{
+      // memory オブジェクトを渡された場合
+      if(memoryOrId && typeof memoryOrId === 'object'){
+        const candidates = [memoryOrId.dbId, memoryOrId._dbId, memoryOrId.db_id, memoryOrId.id];
+        for(let i = 0; i < candidates.length; i++){
+          if(_p546fix_isUUID(String(candidates[i] || ''))) return String(candidates[i]);
+        }
+        return null;
+      }
+      // 文字列 id の場合
+      if(typeof memoryOrId === 'string'){
+        if(_p546fix_isUUID(memoryOrId)) return memoryOrId;
+        // store から探して、その memory の dbId 系を返す
+        const mem = (window._p500_memoryStore || []).find(function(m){return m && String(m.id) === String(memoryOrId);});
+        if(mem) return _p546fix_getDBId(mem);
+      }
+    }catch(_){}
+    return null;
+  }
+  window._p546_getDBId = _p546fix_getDBId;
+
+  // ── _p510_dbInsert 非破壊 wrap（packet 536 wrap chain の更に外側）
+  // 成功時：INSERT 戻り row.id（UUID）を対応 memory.dbId に反映
+  function _p546fix_wrapInsert(){
+    try{
+      if(typeof window._p510_dbInsert !== 'function') return false;
+      if(window._p510_dbInsert._p546_fix_wrapped) return true;
+      const prev = window._p510_dbInsert;
+      const wrapped = async function(row){
+        const result = await prev.call(this, row);
+        try{
+          // PostgREST return=representation → 配列 [row...] が返る
+          if(Array.isArray(result) && result.length > 0){
+            const newRow = result[0];
+            const newId = newRow && newRow.id ? String(newRow.id) : '';
+            if(_p546fix_isUUID(newId)){
+              // store から title + createdAt 近い memory を 1 件だけ探す
+              // ※ ここの title 一致は「INSERT 直後の戻り反映」用の補助のみ。
+              //   PATCH 対象決定には使わない（曖昧推測しない方針）。
+              const store = window._p500_memoryStore || [];
+              const newTitle = String(newRow.title || row.title || '');
+              const newCreatedAt = newRow.created_at || row.created_at || '';
+              const newTs = newCreatedAt ? new Date(newCreatedAt).getTime() : 0;
+              const mem = store.find(function(m){
+                if(!m) return false;
+                // 既に UUID id を持つ memory は packet 511 由来でスキップ
+                if(_p546fix_isUUID(String(m.id))) return false;
+                // 既に dbId 持ち（過去の INSERT 反映済み）は skip
+                if(_p546fix_isUUID(String(m.dbId || m._dbId || ''))) return false;
+                if(String(m.title || '') !== newTitle) return false;
+                const mTs = m.createdAt ? new Date(m.createdAt).getTime() : 0;
+                if(newTs && mTs && Math.abs(newTs - mTs) > 10000) return false;
+                return true;
+              });
+              if(mem){
+                mem.dbId  = newId;
+                mem._dbId = newId;
+                // mem.id は変更しない（packet 543 pendingDeletes 等が古い id 参照中の可能性、整合性維持）
+                // 再描画：UUID 取れたので PATCH ボタン有効化
+                try{ if(typeof _p500_renderList === 'function') _p500_renderList(); }catch(_){}
+                try{ if(typeof window._p546_renderActionCard === 'function') window._p546_renderActionCard(); }catch(_){}
+                try{console.warn('[packet 546-fix wrapInsert] dbId reflected (title-matched, single)');}catch(_){}
+              }
+            }
+          }
+        }catch(_){}
+        return result;
+      };
+      wrapped._p546_fix_wrapped = true;
+      // packet 536 wrap がさらに外側にあれば、その wrap のフラグも引き継ぐ
+      if(prev._p536_wrapped) wrapped._p536_wrapped = true;
+      window._p510_dbInsert = wrapped;
+      return true;
+    }catch(_){return false;}
+  }
+  // すぐ wrap 試行、未取得時はリトライ
+  if(!_p546fix_wrapInsert()){
+    let n = 0;
+    const iv = setInterval(function(){
+      n++;
+      if(_p546fix_wrapInsert() || n >= 20){ clearInterval(iv); }
+    }, 250);
+  }
+
+  // ── packet 546 PATCH 関数を hotfix 版に差し替え（既存 window._p546_softDelete / _restore / _batchDelete を上書き）
+  // 既存関数の振る舞い・UI 連動は維持。違いは「PATCH 前に UUID 必須チェック」のみ。
+
+  async function _p546fix_softDelete(memoryOrId, reason){
+    // ガード 0：memoryOrId 検証
+    if(memoryOrId == null) return {ok:false, error:'対象 id が空です'};
+    // ガード 1：admin/owner（既存ロジック流用）
+    let isAuth = false;
+    try{
+      const u = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : (window.currentUser || null);
+      isAuth = !!(u && (u.perm === 'admin' || u.perm === 'owner'));
+    }catch(_){}
+    if(!isAuth) return {ok:false, error:'admin / owner 限定操作です（currentUser.perm = admin/owner が必要）'};
+    // ガード 2：UUID 解決（packet 546-fix の核心）
+    const dbId = _p546fix_getDBId(memoryOrId);
+    if(!dbId){
+      const msg = 'この記憶は DB UUID が未取得のため、DB 論理削除できません。'
+                + 'DB から再読込後、DB 保存済み記憶で実行してください。'
+                + '（記憶がローカルのみで DB に保存されていない可能性があります）';
+      try{
+        if(window._p546_state){
+          window._p546_state.lastError = msg;
+          window._p546_state.lastEvent = '⛔ UUID 未取得で PATCH 事前ブロック';
+        }
+      }catch(_){}
+      try{console.warn('[packet 546-fix softDelete] blocked: non-UUID id');}catch(_){}
+      try{ if(typeof window._p546_renderActionCard === 'function') window._p546_renderActionCard(); }catch(_){}
+      return {ok:false, error:msg};
+    }
+    // ガード 3：SB_URL/KEY
+    if(typeof SB_URL === 'undefined' || !SB_URL || typeof SB_KEY === 'undefined' || !SB_KEY){
+      return {ok:false, error:'SB_URL/SB_KEY 未設定'};
+    }
+    // ガード 4：access_token（admin 限定、anon フォールバックなし）
+    let accessToken = null;
+    try{
+      if(typeof sb !== 'undefined' && sb && sb.auth && typeof sb.auth.getSession === 'function'){
+        const res = await sb.auth.getSession();
+        if(res && res.data && res.data.session && res.data.session.access_token){
+          accessToken = res.data.session.access_token;
+        }
+      }
+    }catch(_){}
+    if(!accessToken){
+      return {ok:false, error:'Supabase Auth signIn が必要です（packet 521 / 448 系ログイン）'};
+    }
+    try{ window._p546_state.lastTokenUsed = true; }catch(_){}
+
+    // 対象 memory（store から探す、memory 直渡しなら優先）
+    let mem = null;
+    if(typeof memoryOrId === 'object') mem = memoryOrId;
+    else{
+      try{
+        mem = (window._p500_memoryStore || []).find(function(m){
+          return m && (String(m.id) === String(memoryOrId)
+                    || String(m.dbId||'') === String(memoryOrId)
+                    || String(m._dbId||'') === String(memoryOrId));
+        });
+      }catch(_){}
+    }
+    const u = (function(){try{return (typeof currentUser !== 'undefined' && currentUser) ? currentUser : (window.currentUser || {});}catch(_){return {};}})();
+    const deletedBy = String(u.name || u.uid || 'unknown').slice(0, 200);
+    const deleteReason = String(reason || '').slice(0, 500);
+    const url = SB_URL + '/rest/v1/jagai_memory?id=eq.' + encodeURIComponent(dbId);
+    try{
+      const r = await fetch(url, {
+        method: 'PATCH',
+        headers: {
+          apikey: SB_KEY,
+          Authorization: 'Bearer ' + accessToken,
+          'Content-Type': 'application/json',
+          Prefer: 'return=representation'
+        },
+        body: JSON.stringify({
+          deleted_at:    new Date().toISOString(),
+          deleted_by:    deletedBy,
+          delete_reason: deleteReason
+        })
+      });
+      if(!r.ok){
+        const errText = await r.text().catch(function(){return '';});
+        throw new Error('HTTP ' + r.status + ' ' + (r.statusText||'').slice(0,40) + (errText ? ' / '+errText.slice(0,160) : ''));
+      }
+      const rows = await r.json().catch(function(){return null;});
+      // store 反映
+      try{
+        if(mem){
+          const row = Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
+          mem.deletedAt    = row ? row.deleted_at    : new Date().toISOString();
+          mem.deletedBy    = row ? row.deleted_by    : deletedBy;
+          mem.deleteReason = row ? row.delete_reason : deleteReason;
+          mem._isDeleted   = true;
+          // dbId 未保持なら反映
+          if(!_p546fix_isUUID(String(mem.dbId||''))) mem.dbId = dbId;
+          if(!_p546fix_isUUID(String(mem._dbId||''))) mem._dbId = dbId;
+        }
+      }catch(_){}
+      // packet 543 候補から外す（memory.id か dbId のどちらかで一致するもの）
+      try{
+        if(typeof window._p543_unmarkPending === 'function'){
+          if(mem && mem.id) window._p543_unmarkPending(mem.id);
+          window._p543_unmarkPending(dbId);
+        }
+      }catch(_){}
+      try{ window._p546_state.totalDeleted++; }catch(_){}
+      try{ window._p546_state.lastTime = (new Date()).toTimeString().slice(0,8); }catch(_){}
+      try{ window._p546_state.lastEvent = '✅ 1 件論理削除（dbId=' + dbId.slice(0,8) + '...）'; }catch(_){}
+      try{console.warn('[packet 546-fix softDelete] HTTP 200 OK dbId=', dbId, 'authToken= yes');}catch(_){}
+      return {ok:true, dbId:dbId};
+    }catch(e){
+      const msg = String(e&&e.message||e).slice(0,200);
+      try{
+        window._p546_state.failedQueue.push({id:dbId, reason:deleteReason, error:msg, ts:Date.now()});
+        if(window._p546_state.failedQueue.length > 100) window._p546_state.failedQueue.shift();
+        window._p546_state.lastError = msg;
+        window._p546_state.lastTime = (new Date()).toTimeString().slice(0,8);
+        window._p546_state.lastEvent = '❌ 失敗（' + msg.slice(0,60) + '...）';
+      }catch(_){}
+      try{console.warn('[packet 546-fix softDelete] failed dbId=', dbId, msg, 'authToken= yes');}catch(_){}
+      return {ok:false, error:msg};
+    }finally{
+      try{ if(typeof _p500_renderList === 'function') _p500_renderList(); }catch(_){}
+      try{ if(typeof _p500_renderSummary === 'function') _p500_renderSummary(); }catch(_){}
+      try{ if(typeof window._p543_renderControlCard === 'function') window._p543_renderControlCard(); }catch(_){}
+      try{ if(typeof window._p544_renderCard === 'function') window._p544_renderCard(); }catch(_){}
+      try{ if(typeof window._p546_renderActionCard === 'function') window._p546_renderActionCard(); }catch(_){}
+    }
+  }
+  window._p546_softDelete = _p546fix_softDelete;
+
+  async function _p546fix_restore(memoryOrId){
+    if(memoryOrId == null) return {ok:false, error:'対象 id が空です'};
+    let isAuth = false;
+    try{
+      const u = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : (window.currentUser || null);
+      isAuth = !!(u && (u.perm === 'admin' || u.perm === 'owner'));
+    }catch(_){}
+    if(!isAuth) return {ok:false, error:'admin / owner 限定操作です'};
+    const dbId = _p546fix_getDBId(memoryOrId);
+    if(!dbId){
+      const msg = 'この記憶は DB UUID が未取得のため、取消できません。DB から再読込後、DB 保存済み記憶で実行してください。';
+      try{ window._p546_state.lastEvent = '⛔ UUID 未取得で 取消 PATCH 事前ブロック'; }catch(_){}
+      return {ok:false, error:msg};
+    }
+    if(typeof SB_URL === 'undefined' || !SB_URL) return {ok:false, error:'SB_URL 未設定'};
+    let accessToken = null;
+    try{
+      if(typeof sb !== 'undefined' && sb && sb.auth && typeof sb.auth.getSession === 'function'){
+        const res = await sb.auth.getSession();
+        if(res && res.data && res.data.session && res.data.session.access_token){
+          accessToken = res.data.session.access_token;
+        }
+      }
+    }catch(_){}
+    if(!accessToken) return {ok:false, error:'Supabase Auth signIn が必要です'};
+    let mem = null;
+    if(typeof memoryOrId === 'object') mem = memoryOrId;
+    else{
+      try{
+        mem = (window._p500_memoryStore || []).find(function(m){
+          return m && (String(m.id) === String(memoryOrId)
+                    || String(m.dbId||'') === String(memoryOrId)
+                    || String(m._dbId||'') === String(memoryOrId));
+        });
+      }catch(_){}
+    }
+    const url = SB_URL + '/rest/v1/jagai_memory?id=eq.' + encodeURIComponent(dbId);
+    try{
+      const r = await fetch(url, {
+        method: 'PATCH',
+        headers: {
+          apikey: SB_KEY,
+          Authorization: 'Bearer ' + accessToken,
+          'Content-Type': 'application/json',
+          Prefer: 'return=representation'
+        },
+        body: JSON.stringify({
+          deleted_at:    null,
+          deleted_by:    null,
+          delete_reason: null
+        })
+      });
+      if(!r.ok){
+        const errText = await r.text().catch(function(){return '';});
+        throw new Error('HTTP ' + r.status + ' ' + (r.statusText||'').slice(0,40) + (errText ? ' / '+errText.slice(0,160) : ''));
+      }
+      try{
+        if(mem){
+          mem.deletedAt = null;
+          mem.deletedBy = '';
+          mem.deleteReason = '';
+          mem._isDeleted = false;
+        }
+      }catch(_){}
+      try{ window._p546_state.totalRestored++; }catch(_){}
+      try{ window._p546_state.lastTime = (new Date()).toTimeString().slice(0,8); }catch(_){}
+      try{ window._p546_state.lastEvent = '↩ 1 件取消（dbId=' + dbId.slice(0,8) + '...）'; }catch(_){}
+      try{console.warn('[packet 546-fix restore] HTTP 200 OK dbId=', dbId, 'authToken= yes');}catch(_){}
+      return {ok:true, dbId:dbId};
+    }catch(e){
+      const msg = String(e&&e.message||e).slice(0,200);
+      try{
+        window._p546_state.lastError = msg;
+        window._p546_state.lastEvent = '❌ 取消失敗（' + msg.slice(0,60) + '...）';
+      }catch(_){}
+      try{console.warn('[packet 546-fix restore] failed dbId=', dbId, msg);}catch(_){}
+      return {ok:false, error:msg};
+    }finally{
+      try{ if(typeof _p500_renderList === 'function') _p500_renderList(); }catch(_){}
+      try{ if(typeof _p500_renderSummary === 'function') _p500_renderSummary(); }catch(_){}
+      try{ if(typeof window._p543_renderControlCard === 'function') window._p543_renderControlCard(); }catch(_){}
+      try{ if(typeof window._p546_renderActionCard === 'function') window._p546_renderActionCard(); }catch(_){}
+    }
+  }
+  window._p546_restore = _p546fix_restore;
+
+  // 一括 PATCH：UUID 取れる候補のみ PATCH、取れないものはスキップ + 失敗キューに記録
+  async function _p546fix_batchDelete(){
+    if(window._p546_state && window._p546_state.busy) return {ok:false, reason:'busy'};
+    let isAuth = false;
+    try{
+      const u = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : (window.currentUser || null);
+      isAuth = !!(u && (u.perm === 'admin' || u.perm === 'owner'));
+    }catch(_){}
+    if(!isAuth){
+      if(window._p546_state) window._p546_state.lastError = 'admin / owner 限定操作です';
+      try{ if(typeof window._p546_renderActionCard === 'function') window._p546_renderActionCard(); }catch(_){}
+      return {ok:false, error:'unauthorized'};
+    }
+    const st = window._p543_state || {pendingOrder:[], pendingDeletes:{}};
+    const pendingIds = (st.pendingOrder || []).filter(function(id){return !!st.pendingDeletes[id];});
+    if(pendingIds.length === 0){
+      if(window._p546_state) window._p546_state.lastEvent = '候補リスト空、何もしない';
+      try{ if(typeof window._p546_renderActionCard === 'function') window._p546_renderActionCard(); }catch(_){}
+      return {ok:true, success:0, fail:0, skipped:0};
+    }
+    // UUID 解決可能な候補のみ対象に
+    const targets = [];
+    const skipped = [];
+    pendingIds.forEach(function(id){
+      const dbId = _p546fix_getDBId(id);
+      if(dbId) targets.push({id:id, dbId:dbId, entry: st.pendingDeletes[id]});
+      else     skipped.push(id);
+    });
+    if(targets.length === 0){
+      if(window._p546_state){
+        window._p546_state.lastEvent = '⛔ UUID 取得済み候補が 0 件のため PATCH 送信せず（候補 '+pendingIds.length+' 件は DB UUID 未取得）';
+        window._p546_state.lastError = '候補すべてが DB UUID 未取得（DB 復元 / DB INSERT 成功済みの記憶のみ PATCH 可能）';
+      }
+      try{ if(typeof window._p546_renderActionCard === 'function') window._p546_renderActionCard(); }catch(_){}
+      return {ok:false, error:'no-uuid-targets', skipped:skipped.length};
+    }
+    if(window._p546_state){ window._p546_state.busy = true; window._p546_state.lastBatchSuccess = 0; window._p546_state.lastBatchFail = 0; }
+    try{ if(typeof window._p546_renderActionCard === 'function') window._p546_renderActionCard(); }catch(_){}
+    let success = 0, fail = 0;
+    try{
+      for(let i = 0; i < targets.length; i++){
+        const t = targets[i];
+        const r = await _p546fix_softDelete(t.id, (t.entry && t.entry.reason) || '');
+        if(r && r.ok) success++; else fail++;
+      }
+    }finally{
+      if(window._p546_state){
+        window._p546_state.busy = false;
+        window._p546_state.lastBatchSuccess = success;
+        window._p546_state.lastBatchFail = fail;
+        window._p546_state.lastTime = (new Date()).toTimeString().slice(0,8);
+        window._p546_state.lastEvent = '🏁 一括完了：成功 '+success+' / 失敗 '+fail+' / UUID 未取得スキップ '+skipped.length;
+      }
+      try{ if(typeof window._p546_renderActionCard === 'function') window._p546_renderActionCard(); }catch(_){}
+    }
+    return {ok:true, success:success, fail:fail, skipped:skipped.length};
+  }
+  window._p546_batchDelete = _p546fix_batchDelete;
+
+  // ── 各カードの装飾を hotfix（_p500_renderList wrap 追加で、packet 546 装飾の後に上書き）
+  function _p546fix_decorateCards(){
+    try{
+      const list = document.getElementById('p500-list');
+      if(!list) return;
+      const cards = list.querySelectorAll('.p500-card');
+      let isAuth = false;
+      try{
+        const u = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : (window.currentUser || null);
+        isAuth = !!(u && (u.perm === 'admin' || u.perm === 'owner'));
+      }catch(_){}
+      cards.forEach(function(card){
+        const id = card.getAttribute('data-id');
+        if(!id) return;
+        const mem = (window._p500_memoryStore || []).find(function(m){return m && String(m.id) === String(id);});
+        if(!mem) return;
+        const hasUUID = !!_p546fix_getDBId(mem);
+        const isDeleted = !!mem._isDeleted;
+
+        // packet 546 が貼った bar 内の PATCH ボタンを UUID 状態で更新
+        const bar = card.querySelector('[data-p546-bar="1"]');
+        if(!bar) return;
+
+        // 「💢 この記憶を DB 論理削除（PATCH）」ボタン：UUID 未取得なら disable
+        const patchBtn = Array.prototype.find.call(bar.querySelectorAll('button'), function(b){
+          return b.textContent && b.textContent.indexOf('💢') === 0;
+        });
+        if(patchBtn && !hasUUID){
+          patchBtn.disabled = true;
+          patchBtn.style.opacity = '0.55';
+          patchBtn.style.cursor = 'not-allowed';
+          patchBtn.title = 'DB UUID 未取得のため PATCH 不可（DB から再読込 or DB INSERT 成功後に有効化）';
+          // 注意マークを横に追加（重複防止）
+          if(!bar.querySelector('[data-p546fix-warn="1"]')){
+            const warn = document.createElement('span');
+            warn.setAttribute('data-p546fix-warn','1');
+            warn.style.cssText = 'font-size:10px;color:#b45309;background:#fef3c7;border:1px solid #fde68a;border-radius:4px;padding:2px 6px;align-self:center';
+            warn.textContent = '⚠ DB UUID 未取得';
+            bar.appendChild(warn);
+          }
+        }
+        // 「↩ 論理削除を取消（PATCH）」ボタン：UUID 必須（_isDeleted の場合は通常 dbId 持ち）
+        if(isDeleted && !hasUUID){
+          const restoreBtn = Array.prototype.find.call(bar.querySelectorAll('button'), function(b){
+            return b.textContent && b.textContent.indexOf('↩') === 0;
+          });
+          if(restoreBtn){
+            restoreBtn.disabled = true;
+            restoreBtn.style.opacity = '0.55';
+            restoreBtn.style.cursor = 'not-allowed';
+            restoreBtn.title = 'DB UUID 未取得のため取消不可';
+          }
+        }
+      });
+    }catch(e){try{console.warn('[packet 546-fix decorateCards]', e&&e.message);}catch(_){}}
+  }
+
+  // _p500_renderList chain wrap（packet 528/543/546 の後）
+  (function _p546fix_wrapRender(){
+    try{
+      const orig = window._p500_renderList;
+      if(typeof orig !== 'function') return;
+      window._p500_renderList = function(){
+        try{ orig.apply(this, arguments); }catch(_){}
+        try{ _p546fix_decorateCards(); }catch(_){}
+      };
+    }catch(_){}
+  })();
+
+  // _p546_renderActionCard を chain wrap：候補件数表示に「うち UUID あり N 件」追記
+  (function _p546fix_wrapActionCard(){
+    try{
+      const orig = window._p546_renderActionCard;
+      if(typeof orig !== 'function') return;
+      window._p546_renderActionCard = function(){
+        try{ orig.apply(this, arguments); }catch(_){}
+        try{
+          const card = document.getElementById('p546-action-card');
+          if(!card) return;
+          // 既存追記除去
+          const old = card.querySelector('[data-p546fix-info="1"]');
+          if(old) old.remove();
+          // UUID あり / 未取得 候補件数
+          const st = window._p543_state || {pendingOrder:[], pendingDeletes:{}};
+          const pendingIds = (st.pendingOrder || []).filter(function(id){return !!st.pendingDeletes[id];});
+          let withUuid = 0, withoutUuid = 0;
+          pendingIds.forEach(function(id){
+            if(_p546fix_getDBId(id)) withUuid++; else withoutUuid++;
+          });
+          const info = document.createElement('div');
+          info.setAttribute('data-p546fix-info','1');
+          info.style.cssText = 'background:#eef2ff;border:1px solid #c7d2fe;border-radius:6px;padding:6px 9px;color:#3730a3;font-size:11px;line-height:1.55;margin-top:6px';
+          info.innerHTML = '🔧 packet 546-fix UUID 解決：候補 '+pendingIds.length+' 件 / '
+            +'<b style="color:#0d9e6e">PATCH 可能（DB UUID あり）'+withUuid+' 件</b> / '
+            +'<b style="color:#b45309">DB UUID 未取得（PATCH スキップ）'+withoutUuid+' 件</b>'
+            +(withoutUuid>0 ? '<br>※ DB UUID 未取得分は事前 block。DB 復元 / DB INSERT 成功後に PATCH 可能になります。' : '');
+          card.appendChild(info);
+        }catch(_){}
+      };
+    }catch(_){}
+  })();
+
+  // 初回呼び出し（packet 546 IIFE 完了後の order を尊重）
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){
+      setTimeout(function(){
+        try{ if(typeof _p500_renderList === 'function') _p500_renderList(); }catch(_){}
+        try{ if(typeof window._p546_renderActionCard === 'function') window._p546_renderActionCard(); }catch(_){}
+      }, 500);
+    });
+  }else{
+    setTimeout(function(){
+      try{ if(typeof _p500_renderList === 'function') _p500_renderList(); }catch(_){}
+      try{ if(typeof window._p546_renderActionCard === 'function') window._p546_renderActionCard(); }catch(_){}
+    }, 500);
+  }
+
+})();
+// ==== ここまで packet 546-fix 論理削除 PATCH UUID 解決 hotfix ====
 </script>
 </body>
 </html>
