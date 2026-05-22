@@ -22516,6 +22516,303 @@ function _p500_buildCandidateFromPayload(payload){
   }
 })();
 // ==== ここまで packet 543 jagai_memory 論理削除 deleted_at UI ベース ====
+
+// ═══════════════════════════════════════
+// packet 544: 記憶庫 論理削除候補 CSV / JSON エクスポート UI（v0.9.295）
+// 目的：packet 543 で集めた論理削除候補リストを、実 UPDATE 前にボスが
+// CSV / JSON でレビューできるようコピー＋ローカルダウンロードを提供。
+// 厳守：DB 通信 0、新規 fetch 0、UPDATE / DELETE / UPSERT 0、SQL / RLS / Auth 設定変更 0、
+//      service_role 0、本文（タイトル / 理由）を localStorage / sessionStorage に保存しない
+//      （Blob URL も生成後すぐ revoke、永続化なし）、
+//      既存 packet 510/511/526/527/528-542/542A/543 を壊さない。
+// ═══════════════════════════════════════
+(function _p544_init(){
+  function E(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];});}
+  function _p544_nowShort(){
+    try{const d=new Date(); const pad=function(n){return n<10?'0'+n:''+n;}; return pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds());}catch(_){return '';}
+  }
+
+  // 出力項目（タスク指示に準拠）
+  const FIELDS = ['id','title','memory_type','category','related_packet','related_target','reason','added_at','added_by'];
+
+  function _p544_collectRows(){
+    try{
+      const st = (window._p543_state || {});
+      const pending = st.pendingDeletes || {};
+      const order = (st.pendingOrder || []).filter(function(id){return !!pending[id];});
+      const store = (window._p500_memoryStore || []);
+      const byId = {};
+      store.forEach(function(m){ if(m && m.id != null) byId[String(m.id)] = m; });
+      return order.map(function(id){
+        const m = byId[id] || {};
+        const p = pending[id] || {};
+        return {
+          id:             String(m.id != null ? m.id : id),
+          title:          String(m.title || ''),
+          memory_type:    String(m.memoryType || ''),
+          category:       String(m.category || ''),
+          related_packet: String(m.relatedPacket || ''),
+          related_target: String(m.relatedTarget || ''),
+          reason:         String(p.reason || ''),
+          added_at:       String(p.addedAt || ''),
+          added_by:       String(p.addedBy || '')
+        };
+      });
+    }catch(_){return [];}
+  }
+
+  function _p544_csvEscape(v){
+    const s = String(v == null ? '' : v).replace(/\r\n|\r|\n/g, ' ');
+    if(s.indexOf('"') === -1 && s.indexOf(',') === -1 && s.indexOf('\n') === -1){
+      return '"' + s + '"';
+    }
+    return '"' + s.replace(/"/g, '""') + '"';
+  }
+  function _p544_buildCSV(rows){
+    const header = FIELDS.map(_p544_csvEscape).join(',');
+    if(!rows.length) return header + '\n';
+    const body = rows.map(function(r){
+      return FIELDS.map(function(f){ return _p544_csvEscape(r[f]); }).join(',');
+    }).join('\n');
+    return header + '\n' + body + '\n';
+  }
+  function _p544_buildJSON(rows){
+    try{ return JSON.stringify(rows, null, 2); }catch(_){ return '[]'; }
+  }
+  function _p544_buildTSDateStr(){
+    try{
+      const d = new Date();
+      const pad = function(n){return n<10?'0'+n:''+n;};
+      return d.getFullYear() + pad(d.getMonth()+1) + pad(d.getDate()) + '-' + pad(d.getHours()) + pad(d.getMinutes());
+    }catch(_){return 'export';}
+  }
+
+  // ── コピー
+  function _p544_copyText(text, statusKey){
+    const status = document.getElementById(statusKey);
+    function setStatus(ok, msg){
+      if(!status) return;
+      status.style.display = '';
+      status.textContent = (ok ? '✅ ' : '⚠ ') + msg + '（' + _p544_nowShort() + '）';
+      status.style.color = ok ? '#065f46' : '#b91c1c';
+    }
+    try{
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(text).then(function(){ setStatus(true,'コピーしました'); }).catch(function(){
+          _p544_copyFallback(text, function(ok){ setStatus(ok, ok?'コピーしました（fallback）':'コピー失敗。下のプレビューから手動コピーしてください'); });
+        });
+      }else{
+        _p544_copyFallback(text, function(ok){ setStatus(ok, ok?'コピーしました（fallback）':'コピー失敗。下のプレビューから手動コピーしてください'); });
+      }
+    }catch(_){
+      _p544_copyFallback(text, function(ok){ setStatus(ok, ok?'コピーしました（fallback）':'コピー失敗。下のプレビューから手動コピーしてください'); });
+    }
+  }
+  function _p544_copyFallback(text, cb){
+    try{
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.cssText = 'position:fixed;top:-1000px;left:-1000px;opacity:0';
+      document.body.appendChild(ta);
+      ta.select();
+      let ok = false;
+      try{ ok = document.execCommand('copy'); }catch(_){ ok = false; }
+      document.body.removeChild(ta);
+      cb(ok);
+    }catch(_){ cb(false); }
+  }
+
+  // ── ダウンロード（Blob、即 revoke）
+  function _p544_download(text, mime, suffix, statusKey){
+    const status = document.getElementById(statusKey);
+    function setStatus(ok, msg){
+      if(!status) return;
+      status.style.display = '';
+      status.textContent = (ok ? '✅ ' : '⚠ ') + msg + '（' + _p544_nowShort() + '）';
+      status.style.color = ok ? '#065f46' : '#b91c1c';
+    }
+    try{
+      const blob = new Blob([text], {type: mime});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'jagai_memory_delete_candidates_' + _p544_buildTSDateStr() + suffix;
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      // 即 revoke（Blob URL を残さない）
+      setTimeout(function(){ try{ URL.revokeObjectURL(url); }catch(_){} try{ a.remove(); }catch(_){} }, 100);
+      setStatus(true, 'ダウンロード開始');
+    }catch(e){
+      setStatus(false, 'ダウンロード失敗：' + (e && e.message || 'unknown').slice(0,80));
+    }
+  }
+
+  // ── UI
+  function _p544_injectCard(){
+    try{
+      const memPage = document.getElementById('page-memory');
+      if(!memPage) return;
+      let card = document.getElementById('p544-export-card');
+      if(card){ _p544_renderCard(); return; }
+      card = document.createElement('div');
+      card.id = 'p544-export-card';
+      card.className = 'card';
+      card.style.cssText = 'border-top:4px solid #4338ca;margin-bottom:10px;background:#eef2ff';
+      // packet 543 直後（フォールバックは packet 541 / 540 / 539 / 538）
+      const prev = document.getElementById('p543-control-card')
+                || document.getElementById('p541-search-card')
+                || document.getElementById('p540-loadmore-card')
+                || document.getElementById('p539-paging-search-card')
+                || document.getElementById('p538-mode-card');
+      if(prev && prev.parentNode === memPage){
+        if(prev.nextSibling) memPage.insertBefore(card, prev.nextSibling);
+        else memPage.appendChild(card);
+      }else{
+        const firstCard = memPage.querySelector('.card');
+        if(firstCard) memPage.insertBefore(card, firstCard);
+        else memPage.appendChild(card);
+      }
+      _p544_renderCard();
+    }catch(e){try{console.warn('[packet 544 injectCard]', e && e.message);}catch(_){}}
+  }
+
+  function _p544_renderCard(){
+    try{
+      const card = document.getElementById('p544-export-card');
+      if(!card) return;
+      const rows = _p544_collectRows();
+      const isEmpty = rows.length === 0;
+      const csvPreview = _p544_buildCSV(rows.slice(0, 5));
+      const jsonPreview = _p544_buildJSON(rows.slice(0, 5));
+
+      let html = ''
+        +'<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">'
+          +'<div style="font-weight:800;color:#3730a3">📤 論理削除候補 エクスポート（packet 544 / ボスレビュー用）</div>'
+          +'<button type="button" id="p544-toggle-collapse" class="dr-btn" style="background:#4338ca;color:#fff;border:0;font-weight:700;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:11px">▼ 閉じる</button>'
+        +'</div>'
+        +'<div id="p544-body" style="margin-top:8px">'
+          +'<div style="background:#fff;border:1px solid #c7d2fe;border-radius:6px;padding:7px 10px;color:#3730a3;font-size:11px;line-height:1.55">'
+            +'💡 packet 543 で集めた <b>論理削除候補</b>（in-memory only）を CSV / JSON でエクスポートします。'
+            +'<br>・<b>DB 通信は一切しません</b>（UPDATE / PATCH / DELETE / UPSERT 0、新規 fetch 0）'
+            +'<br>・出力項目：'+E(FIELDS.join(' / '))
+            +'<br>・実 UPDATE は packet 545+ でボス承認 + RLS UPDATE policy + SQL 実行後'
+          +'</div>'
+          +'<div style="margin-top:8px;font-size:11px;color:'+(isEmpty?'#94a3b8':'#3730a3')+';font-weight:'+(isEmpty?'400':'700')+'">'
+          + (isEmpty
+              ? '（削除候補がありません。packet 543 カード上の「🗑 論理削除準備」ボタンで先に候補を追加してください）'
+              : '候補：'+rows.length+' 件 / プレビューは最初の 5 件まで')
+          +'</div>'
+          +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">'
+            +'<button type="button" id="p544-copy-csv" class="dr-btn" '+(isEmpty?'disabled':'')+' style="background:'+(isEmpty?'#cbd5e1':'#4338ca')+';color:#fff;border:0;font-weight:700;padding:6px 12px;border-radius:6px;cursor:'+(isEmpty?'not-allowed':'pointer')+';font-size:11px;opacity:'+(isEmpty?'0.55':'1')+'">📋 CSV をコピー</button>'
+            +'<button type="button" id="p544-copy-json" class="dr-btn" '+(isEmpty?'disabled':'')+' style="background:'+(isEmpty?'#cbd5e1':'#0891b2')+';color:#fff;border:0;font-weight:700;padding:6px 12px;border-radius:6px;cursor:'+(isEmpty?'not-allowed':'pointer')+';font-size:11px;opacity:'+(isEmpty?'0.55':'1')+'">📋 JSON をコピー</button>'
+            +'<button type="button" id="p544-dl-csv" class="dr-btn" '+(isEmpty?'disabled':'')+' style="background:#fff;color:#3730a3;border:1.5px solid #4338ca;font-weight:700;padding:6px 12px;border-radius:6px;cursor:'+(isEmpty?'not-allowed':'pointer')+';font-size:11px;opacity:'+(isEmpty?'0.55':'1')+'">💾 CSV ダウンロード</button>'
+            +'<button type="button" id="p544-dl-json" class="dr-btn" '+(isEmpty?'disabled':'')+' style="background:#fff;color:#0e7490;border:1.5px solid #0891b2;font-weight:700;padding:6px 12px;border-radius:6px;cursor:'+(isEmpty?'not-allowed':'pointer')+';font-size:11px;opacity:'+(isEmpty?'0.55':'1')+'">💾 JSON ダウンロード</button>'
+            +'<button type="button" id="p544-refresh" class="dr-btn" style="background:#fff;color:#475569;border:1px solid var(--bo);font-weight:700;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:11px">🔄 再集計</button>'
+          +'</div>'
+          +'<div id="p544-status" style="display:none;font-size:11px;line-height:1.55;margin-top:6px;padding:5px 8px;border-radius:4px;background:#f8fafc;border:1px solid var(--bo)"></div>'
+          + (isEmpty ? '' : ''
+              +'<details style="margin-top:10px"><summary style="font-size:11px;color:#475569;cursor:pointer;font-weight:700">CSV プレビュー（最初の 5 件）</summary>'
+                +'<pre style="background:#0f172a;color:#a5b4fc;border-radius:4px;padding:7px 10px;margin-top:5px;font-size:10px;line-height:1.55;white-space:pre-wrap;word-break:break-all;font-family:ui-monospace,Consolas,monospace">'+E(csvPreview)+'</pre>'
+              +'</details>'
+              +'<details style="margin-top:6px"><summary style="font-size:11px;color:#475569;cursor:pointer;font-weight:700">JSON プレビュー（最初の 5 件）</summary>'
+                +'<pre style="background:#0f172a;color:#67e8f9;border-radius:4px;padding:7px 10px;margin-top:5px;font-size:10px;line-height:1.55;white-space:pre-wrap;word-break:break-all;font-family:ui-monospace,Consolas,monospace">'+E(jsonPreview)+'</pre>'
+              +'</details>'
+            )
+          +'<div style="font-size:10px;color:#666;background:#f8fafc;border:1px solid var(--bo);border-radius:4px;padding:5px 8px;margin-top:8px;line-height:1.55">※ '
+            +'コピー：navigator.clipboard.writeText 優先 / execCommand("copy") フォールバック。'
+            +'ダウンロード：Blob URL を生成 → 即 revokeObjectURL。'
+            +'localStorage / sessionStorage に CSV / JSON / 本文 / 理由を保存しません。'
+            +'ファイル名は <code>jagai_memory_delete_candidates_YYYYMMDD-HHMM.csv|.json</code>。'
+          +'</div>'
+        +'</div>'
+        +'<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:6px;padding:7px 10px;color:#9a3412;font-size:11px;line-height:1.55;margin-top:8px">'
+          +'⚠ <b>本機能はボスレビュー用</b>です。エクスポートしても候補は in-memory のまま、リロードで消えます。実 UPDATE には packet 545+（<b>ボス承認 + SQL 必須</b>）が必要です。'
+        +'</div>';
+
+      card.innerHTML = html;
+
+      // bind
+      const collapse = document.getElementById('p544-toggle-collapse');
+      const body = document.getElementById('p544-body');
+      if(collapse && body){
+        collapse.addEventListener('click', function(){
+          if(body.style.display === 'none'){
+            body.style.display = '';
+            collapse.textContent = '▼ 閉じる';
+            try{sessionStorage.removeItem('p544-collapsed');}catch(_){}
+          }else{
+            body.style.display = 'none';
+            collapse.textContent = '▶ 開く';
+            try{sessionStorage.setItem('p544-collapsed','1');}catch(_){}
+          }
+        });
+        try{
+          if(sessionStorage.getItem('p544-collapsed') === '1'){
+            body.style.display = 'none';
+            collapse.textContent = '▶ 開く';
+          }
+        }catch(_){}
+      }
+      const refresh = document.getElementById('p544-refresh');
+      if(refresh) refresh.addEventListener('click', function(){ _p544_renderCard(); });
+      const copyCsv = document.getElementById('p544-copy-csv');
+      const copyJson = document.getElementById('p544-copy-json');
+      const dlCsv = document.getElementById('p544-dl-csv');
+      const dlJson = document.getElementById('p544-dl-json');
+      if(copyCsv && !isEmpty) copyCsv.addEventListener('click', function(){
+        const text = _p544_buildCSV(_p544_collectRows());
+        _p544_copyText(text, 'p544-status');
+      });
+      if(copyJson && !isEmpty) copyJson.addEventListener('click', function(){
+        const text = _p544_buildJSON(_p544_collectRows());
+        _p544_copyText(text, 'p544-status');
+      });
+      if(dlCsv && !isEmpty) dlCsv.addEventListener('click', function(){
+        const text = _p544_buildCSV(_p544_collectRows());
+        _p544_download(text, 'text/csv;charset=utf-8', '.csv', 'p544-status');
+      });
+      if(dlJson && !isEmpty) dlJson.addEventListener('click', function(){
+        const text = _p544_buildJSON(_p544_collectRows());
+        _p544_download(text, 'application/json;charset=utf-8', '.json', 'p544-status');
+      });
+    }catch(e){try{console.warn('[packet 544 renderCard]', e && e.message);}catch(_){}}
+  }
+  window._p544_renderCard = _p544_renderCard;
+
+  // packet 543 renderControlCard 非破壊 wrap → packet 544 も更新
+  (function _p544_wrapP543(){
+    try{
+      const orig = window._p543_renderControlCard;
+      if(typeof orig !== 'function') return;
+      window._p543_renderControlCard = function(){
+        try{ orig.apply(this, arguments); }catch(_){}
+        try{ _p544_renderCard(); }catch(_){}
+      };
+    }catch(_){}
+  })();
+
+  // switchPage wrap
+  (function _p544_wrapSwitchPage(){
+    try{
+      const orig = window.switchPage;
+      if(typeof orig !== 'function') return;
+      window.switchPage = function(pg){
+        try{ orig.apply(this, arguments); }catch(_){}
+        if(pg === 'memory'){
+          setTimeout(function(){ try{_p544_injectCard();}catch(_){} }, 160);
+        }
+      };
+    }catch(_){}
+  })();
+
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){ setTimeout(_p544_injectCard, 440); });
+  }else{
+    setTimeout(_p544_injectCard, 440);
+  }
+})();
+// ==== ここまで packet 544 記憶庫 論理削除候補 CSV / JSON エクスポート UI ====
 </script>
 </body>
 </html>
