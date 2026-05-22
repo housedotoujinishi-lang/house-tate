@@ -27638,6 +27638,143 @@ function _p500_buildCandidateFromPayload(payload){
   }else{ setTimeout(_p573_enhance, 1080); }
 })();
 // ==== ここまで packet 573 監査ログ可視化 UI ベース ====
+
+// ═══════════════════════════════════════
+// packet 574: 社内向け 日本語運用マニュアル UI カード（v0.9.341）
+// 目的：社員が日本語で迷わず使えるよう、運用全体を 1 カードで案内。
+// 多言語化 / 翻訳 / 外部 API 接続は一切しない。表示のみ。
+// ═══════════════════════════════════════
+(function _p574_init(){
+  function _p574_inject(){
+    try{
+      const memPage = document.getElementById('page-memory');
+      if(!memPage) return;
+      if(document.getElementById('p574-manual-card')) return;
+      const card = document.createElement('div');
+      card.id = 'p574-manual-card';
+      card.className = 'card';
+      card.style.cssText = 'border-top:4px solid #0369a1;margin-bottom:10px;background:#f0f9ff';
+      const collapsed = (function(){try{return sessionStorage.getItem('p574-collapsed') !== '0';}catch(_){return true;}})();
+      card.innerHTML = ''
+        +'<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">'
+          +'<div style="font-weight:800;color:#075985">📘 社内マニュアル 日本語版（packet 574）</div>'
+          +'<button type="button" id="p574-toggle" class="dr-btn" style="background:#0369a1;color:#fff;border:0;font-weight:700;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:11px">'+(collapsed?'▶ 展開':'▼ 閉じる')+'</button>'
+        +'</div>'
+        +'<div id="p574-body" style="margin-top:8px;'+(collapsed?'display:none':'')+'">'
+          +'<div style="background:#fff;border:1px solid #93c5fd;border-radius:6px;padding:8px 10px;color:#075985;font-size:11px;line-height:1.7">'
+            +'<div style="font-weight:700;color:#0c4a6e">🎯 一文まとめ</div>'
+            +'<div>記憶庫は「成功・失敗・判断・ルール変更」を残す場所。<b>個人情報は書かない</b>、削除は <b>論理削除のみ</b>、間違えたら <b>ゴミ箱から復元</b>できる。</div>'
+          +'</div>'
+          +'<div style="display:grid;grid-template-columns:1fr;gap:6px;margin-top:8px">'
+            +'<div style="background:#fff;border:1px solid #93c5fd;border-radius:6px;padding:8px 10px;font-size:11px;line-height:1.65;color:#075985">'
+              +'<div style="font-weight:700;color:#0c4a6e">📝 何を書く？</div>'
+              +'<ul style="margin:4px 0 0;padding-left:18px">'
+                +'<li>✨ 成功事例（再現したい）</li>'
+                +'<li>📉 失敗・反省・クレーム原因（再発防止）</li>'
+                +'<li>👀 ボスの判断 / 方針変更</li>'
+                +'<li>⚙ 新しい業務ルール / 手順変更</li>'
+              +'</ul>'
+              +'<div style="font-size:10px;color:#475569;margin-top:4px">→ 迷ったら「📝 投稿テンプレート集（packet 559）」から選ぶ</div>'
+            +'</div>'
+            +'<div style="background:#fff;border:1px solid #fecaca;border-radius:6px;padding:8px 10px;color:#7f1d1d;font-size:11px;line-height:1.65">'
+              +'<div style="font-weight:700;margin-bottom:4px">⚠ 書いてはいけない</div>'
+              +'<ul style="margin:0;padding-left:18px">'
+                +'<li>顧客のフルネーム / 電話 / 住所 / メール</li>'
+                +'<li>パスワード / API キー / トークン</li>'
+                +'<li>特定個人への悪口・人格否定</li>'
+                +'<li>未確認の噂を断定形で</li>'
+              +'</ul>'
+              +'<div style="font-size:10px;margin-top:4px">→ 代わりに「A 様」「顧客 K」「物件 ID A-001」等で匿名化</div>'
+            +'</div>'
+            +'<div style="background:#fff;border:1px solid #93c5fd;border-radius:6px;padding:8px 10px;font-size:11px;line-height:1.65;color:#075985">'
+              +'<div style="font-weight:700;color:#0c4a6e">📥 日報から記憶にする 3 ステップ</div>'
+              +'<ol style="margin:4px 0 0;padding-left:18px">'
+                +'<li>日報の「📝 テンプレ別 記憶庫候補」（packet 531）or 投稿テンプレ集の「📥 日報の内容を取り込む」（packet 571）</li>'
+                +'<li>記憶庫ページに pre-fill されるので確認・微調整</li>'
+                +'<li>「📚 この内容で記憶庫に登録」で確定（packet 507）</li>'
+              +'</ol>'
+            +'</div>'
+            +'<div style="background:#fff;border:1px solid #93c5fd;border-radius:6px;padding:8px 10px;font-size:11px;line-height:1.65;color:#075985">'
+              +'<div style="font-weight:700;color:#0c4a6e">👀 ボス確認が必要な記憶</div>'
+              +'<div>記憶登録時に「店長/ボス確認必要」チェック ON で登録。ボスは「👀 ボス確認キュー（packet 567）」で確認、コメントテンプレをコピーして共有。</div>'
+            +'</div>'
+            +'<div style="background:#fff;border:1px solid #93c5fd;border-radius:6px;padding:8px 10px;font-size:11px;line-height:1.65;color:#075985">'
+              +'<div style="font-weight:700;color:#0c4a6e">🗑 削除・復元の使い方</div>'
+              +'<ul style="margin:4px 0 0;padding-left:18px">'
+                +'<li>各カード末尾「🗑 論理削除準備」で候補追加（packet 543）</li>'
+                +'<li>admin/owner のみ「💢 候補を DB に論理削除」で実行（packet 546）</li>'
+                +'<li>削除済みは通常一覧から消えるが <b>DB には残る</b></li>'
+                +'<li>「🗑 ゴミ箱」（packet 547）で確認、「↩ 復元」で戻せる（packet 547）</li>'
+                +'<li>30 日経過は警告のみ、<b>物理削除はしない</b></li>'
+              +'</ul>'
+            +'</div>'
+            +'<div style="background:#fff;border:1px solid #93c5fd;border-radius:6px;padding:8px 10px;font-size:11px;line-height:1.65;color:#075985">'
+              +'<div style="font-weight:700;color:#0c4a6e">🎯 AI 会議で記憶を使う</div>'
+              +'<ol style="margin:4px 0 0;padding-left:18px">'
+                +'<li>AI 議論ページで議題を入力</li>'
+                +'<li>「📚 議題に関連する記憶ヒント」（packet 532）+「🎯 強化フィルター」（packet 553）で TOP10 抽出</li>'
+                +'<li>「📋 Claude / ChatGPT 用プロンプトをコピー」→ 貼付して相談</li>'
+                +'<li>結論を「💼 改善タスク化」（packet 572）でタスク文面化</li>'
+              +'</ol>'
+            +'</div>'
+            +'<div style="background:#fff;border:1px solid #93c5fd;border-radius:6px;padding:8px 10px;font-size:11px;line-height:1.65;color:#075985">'
+              +'<div style="font-weight:700;color:#0c4a6e">🧭 AI 相談で過去判断を見る</div>'
+              +'<ol style="margin:4px 0 0;padding-left:18px">'
+                +'<li>AI 相談ページで相談文を入力</li>'
+                +'<li>「🧭 相談前ヒント」（packet 533）+「🔍 過去関連記憶を検索」（packet 554）</li>'
+                +'<li>役立つ記憶を「📝 相談文に追記」</li>'
+                +'<li>大きな議題は「💬 AI 会議へ送る」</li>'
+              +'</ol>'
+            +'</div>'
+            +'<div style="background:#fff;border:1px solid #93c5fd;border-radius:6px;padding:8px 10px;font-size:11px;line-height:1.65;color:#075985">'
+              +'<div style="font-weight:700;color:#0c4a6e">📅 振り返りの頻度</div>'
+              +'<ul style="margin:4px 0 0;padding-left:18px">'
+                +'<li>日次：「🚨 要対応ダッシュボード」（packet 555）で未解決 / RED 確認</li>'
+                +'<li>週次：「📅 週次レビュー」（packet 564）→ Markdown / CSV ダウンロード（packet 570）→ Slack 共有 or AI 会議議題化</li>'
+                +'<li>大事な記憶は「📌 ピン留め」（packet 557/563/569）でタブを閉じても残せる</li>'
+              +'</ul>'
+            +'</div>'
+            +'<div style="background:#fff;border:1px solid #fde68a;border-radius:6px;padding:8px 10px;font-size:11px;line-height:1.65;color:#92400e">'
+              +'<div style="font-weight:700;margin-bottom:4px">❓ よくある質問</div>'
+              +'<ul style="margin:0;padding-left:18px">'
+                +'<li><b>Q. 誰が削除できる？</b> → admin / owner のみ。一般 user は事前 block されます（packet 546-fix2）</li>'
+                +'<li><b>Q. 間違えて削除した</b> → ゴミ箱（packet 547）から「↩ 復元」で完全に元に戻ります</li>'
+                +'<li><b>Q. 個人情報を書いてしまった</b> → 即「🗑 論理削除準備」→ admin に削除を依頼。30 日警告中もそのまま残るので注意</li>'
+                +'<li><b>Q. どこで振り返る？</b> → 日次「要対応ダッシュボード」、週次「週次レビュー」、月次は 30 日 Markdown DL</li>'
+                +'<li><b>Q. AI 会議で記憶を使いたい</b> → AI 議論ページの「📚 関連記憶ヒント」+「📋 プロンプトコピー」</li>'
+              +'</ul>'
+            +'</div>'
+          +'</div>'
+        +'</div>'
+        +'<div style="font-size:10px;color:#666;background:#fff;border:1px solid var(--bo);border-radius:4px;padding:5px 8px;margin-top:8px;line-height:1.55">※ 表示のみ、新規通信 0。多言語化 / 翻訳 API は採用しません。日本語のみ。</div>';
+      // 一番上に挿入（記憶庫ページの上部）
+      const firstCard = memPage.querySelector('.card');
+      if(firstCard) memPage.insertBefore(card, firstCard);
+      else memPage.appendChild(card);
+      document.getElementById('p574-toggle').addEventListener('click', function(){
+        const body = document.getElementById('p574-body');
+        const btn = document.getElementById('p574-toggle');
+        if(!body || !btn) return;
+        if(body.style.display==='none'){ body.style.display=''; btn.textContent='▼ 閉じる'; try{sessionStorage.setItem('p574-collapsed','0');}catch(_){} }
+        else{ body.style.display='none'; btn.textContent='▶ 展開'; try{sessionStorage.setItem('p574-collapsed','1');}catch(_){} }
+      });
+    }catch(_){}
+  }
+  (function _p574_wrap(){
+    try{
+      const orig = window.switchPage;
+      if(typeof orig !== 'function') return;
+      window.switchPage = function(pg){
+        try{ orig.apply(this, arguments); }catch(_){}
+        if(pg === 'memory'){ setTimeout(_p574_inject, 460); }
+      };
+    }catch(_){}
+  })();
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){ setTimeout(_p574_inject, 1100); });
+  }else{ setTimeout(_p574_inject, 1100); }
+})();
+// ==== ここまで packet 574 社内マニュアル UI カード ====
 </script>
 </body>
 </html>
