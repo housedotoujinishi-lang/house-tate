@@ -25437,6 +25437,888 @@ function _p500_buildCandidateFromPayload(payload){
   }
 })();
 // ==== ここまで packet 551 運用ルールカード ====
+
+// ═══════════════════════════════════════
+// packet 555: 記憶庫 未解決・ボス確認 ダッシュボード（v0.9.319）
+// 目的：未解決 / ボス確認 / リスクレベル / 削除済み / 直近 7 日 を一目で見える集計カード。
+// 厳守：DB 書き込み 0、新規 fetch 0、store 参照のみ、本文 storage 保存 0。
+// ═══════════════════════════════════════
+(function _p555_init(){
+  function E(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];});}
+  function _p555_aggregate(){
+    try{
+      const store = (window._p500_memoryStore || []);
+      const trash = (window._p547_state && window._p547_state.items) || [];
+      const now = Date.now();
+      const week = 7 * 24 * 60 * 60 * 1000;
+      let unresolved = 0, bossCheck = 0, red = 0, yellow = 0, green = 0, recent = 0, deleted = 0;
+      store.forEach(function(m){
+        if(!m) return;
+        if(m._isDeleted){ deleted++; return; }
+        if(m.unresolved) unresolved++;
+        if(m.needsManagerFollowup) bossCheck++;
+        const rl = String(m.riskLevel||'').toUpperCase();
+        if(rl === 'RED') red++;
+        else if(rl === 'YELLOW') yellow++;
+        else if(rl === 'GREEN') green++;
+        try{
+          const t = m.createdAt ? new Date(m.createdAt).getTime() : 0;
+          if(t && (now - t) <= week) recent++;
+        }catch(_){}
+      });
+      // ゴミ箱の削除済みもカウント（重複防止のため _isDeleted で既に数えたものとは別）
+      const trashOnly = trash.filter(function(m){
+        return !store.some(function(s){return s && (String(s.id) === String(m.id) || String(s.dbId||'') === String(m.id));});
+      }).length;
+      deleted += trashOnly;
+      return {total: store.length, unresolved, bossCheck, red, yellow, green, recent, deleted};
+    }catch(_){return {total:0,unresolved:0,bossCheck:0,red:0,yellow:0,green:0,recent:0,deleted:0};}
+  }
+  function _p555_renderCard(){
+    try{
+      const memPage = document.getElementById('page-memory');
+      if(!memPage) return;
+      let card = document.getElementById('p555-dashboard-card');
+      if(!card){
+        card = document.createElement('div');
+        card.id = 'p555-dashboard-card';
+        card.className = 'card';
+        card.style.cssText = 'border-top:4px solid #dc2626;margin-bottom:10px;background:#fff7ed';
+        // packet 547C 説明カードの直後（最上部の方）
+        const prev = document.getElementById('p547c-explain-card');
+        if(prev && prev.parentNode === memPage){
+          if(prev.nextSibling) memPage.insertBefore(card, prev.nextSibling);
+          else memPage.appendChild(card);
+        }else{
+          memPage.insertBefore(card, memPage.firstChild);
+        }
+      }
+      const a = _p555_aggregate();
+      const cell = function(label, val, color){
+        return '<div style="background:#fff;border:1px solid '+color+';border-radius:6px;padding:6px 8px;text-align:center;min-width:90px;flex:1">'
+          +'<div style="font-size:10px;color:#666">'+E(label)+'</div>'
+          +'<div style="font-size:18px;font-weight:800;color:'+color+'">'+val+'</div>'
+          +'</div>';
+      };
+      card.innerHTML = ''
+        +'<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">'
+          +'<div style="font-weight:800;color:#9a3412">🚨 要対応ダッシュボード（packet 555）</div>'
+          +'<button type="button" id="p555-refresh" class="dr-btn" style="background:#dc2626;color:#fff;border:0;font-weight:700;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:11px">🔄 集計を更新</button>'
+        +'</div>'
+        +'<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">'
+          + cell('総数（生存）', a.total - a.deleted < 0 ? 0 : (a.total - (a.deleted ? 0 : 0)), '#64748b')
+          + cell('⏳ 未解決', a.unresolved, '#dc2626')
+          + cell('👀 ボス確認', a.bossCheck, '#b45309')
+          + cell('🔴 RED', a.red, '#dc2626')
+          + cell('🟡 YELLOW', a.yellow, '#eab308')
+          + cell('🟢 GREEN', a.green, '#16a34a')
+          + cell('🗑 削除済', a.deleted, '#94a3b8')
+          + cell('📅 直近 7 日', a.recent, '#0ea5e9')
+        +'</div>'
+        +'<div style="background:#fff;border:1px solid #fed7aa;border-radius:6px;padding:7px 10px;color:#9a3412;font-size:11px;line-height:1.55;margin-top:8px">'
+          +'💡 未解決 + ボス確認 + RED は <b>優先確認候補</b>です。packet 529 検索カードで「未解決のみ」「ボス確認必要のみ」にチェックして絞り込めます。'
+        +'</div>'
+        +'<div style="font-size:10px;color:#666;background:#fff;border:1px solid var(--bo);border-radius:4px;padding:5px 8px;margin-top:8px;line-height:1.55">※ store 参照のみ。DB 書き込み / 新規 fetch 0、本文 storage 保存 0。</div>';
+      const btn = document.getElementById('p555-refresh');
+      if(btn) btn.addEventListener('click', _p555_renderCard);
+    }catch(e){try{console.warn('[packet 555 render]', e&&e.message);}catch(_){}}
+  }
+  (function _p555_wrapRender(){
+    try{
+      const orig = window._p500_renderList;
+      if(typeof orig !== 'function') return;
+      window._p500_renderList = function(){
+        try{ orig.apply(this, arguments); }catch(_){}
+        try{ _p555_renderCard(); }catch(_){}
+      };
+    }catch(_){}
+  })();
+  (function _p555_wrapSwitchPage(){
+    try{
+      const orig = window.switchPage;
+      if(typeof orig !== 'function') return;
+      window.switchPage = function(pg){
+        try{ orig.apply(this, arguments); }catch(_){}
+        if(pg === 'memory'){ setTimeout(_p555_renderCard, 280); }
+      };
+    }catch(_){}
+  })();
+  setInterval(_p555_renderCard, 8000);
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){ setTimeout(_p555_renderCard, 740); });
+  }else{ setTimeout(_p555_renderCard, 740); }
+  window._p555_renderCard = _p555_renderCard;
+})();
+// ==== ここまで packet 555 要対応ダッシュボード ====
+
+// ═══════════════════════════════════════
+// packet 552: 日報→記憶候補 ボス承認 UI 強化（v0.9.320）
+// 目的：packet 519/531 で候補化された記憶を「承認待ちキュー」で見せ、ボスが
+// 一括/個別で記憶庫 pre-fill 経由で承認できる UI。DB 直接保存はしない。
+// 厳守：in-memory のみ、本文 localStorage / sessionStorage 保存 0。
+// ═══════════════════════════════════════
+(function _p552_init(){
+  function E(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];});}
+  window._p552_state = window._p552_state || {
+    queue: [],   // [{id, type, title, content, addedAt, source}]、in-memory only
+    counter: 1,
+    totalAdded: 0,
+    totalApproved: 0,
+    totalRejected: 0
+  };
+  function _p552_addCandidate(cand){
+    try{
+      const st = window._p552_state;
+      const id = 'p552-cand-' + (st.counter++);
+      st.queue.push({
+        id: id,
+        type: String(cand.type || 'discussion_log'),
+        title: String(cand.title || '').slice(0, 200),
+        content: String(cand.content || '').slice(0, 2000),
+        addedAt: new Date().toISOString(),
+        source: String(cand.source || 'daily-report'),
+        category: String(cand.category || ''),
+        riskLevel: String(cand.riskLevel || 'GREEN'),
+        importance: String(cand.importance || 'mid')
+      });
+      st.totalAdded++;
+      if(st.queue.length > 50) st.queue.shift();
+      _p552_renderCard();
+      return {ok:true, id};
+    }catch(_){return {ok:false};}
+  }
+  window._p552_addCandidate = _p552_addCandidate;
+
+  function _p552_approve(id){
+    try{
+      const st = window._p552_state;
+      const c = st.queue.find(function(x){return x.id === id;});
+      if(!c) return {ok:false};
+      // packet 507 pre-fill 経路に流す
+      try{
+        window._p500_pendingCandidate = {
+          memoryType: c.type,
+          category: c.category || (c.type === 'failure_lesson' ? '失敗ログ' : c.type === 'success_pattern' ? '成功ログ' : ''),
+          title: c.title,
+          content: c.content,
+          riskLevel: c.riskLevel,
+          importance: c.importance,
+          tags: 'packet-552,daily-report-approved'
+        };
+        if(typeof _p500_prefillFromCandidate === 'function') _p500_prefillFromCandidate();
+      }catch(_){}
+      st.queue = st.queue.filter(function(x){return x.id !== id;});
+      st.totalApproved++;
+      _p552_renderCard();
+      try{if(typeof showToast==='function')showToast('🧠 候補を記憶庫 pre-fill に送りました（packet 507「📚 この内容で記憶庫に登録」で確定）');}catch(_){}
+      return {ok:true};
+    }catch(_){return {ok:false};}
+  }
+  function _p552_reject(id){
+    try{
+      const st = window._p552_state;
+      st.queue = st.queue.filter(function(x){return x.id !== id;});
+      st.totalRejected++;
+      _p552_renderCard();
+      return {ok:true};
+    }catch(_){return {ok:false};}
+  }
+  function _p552_renderCard(){
+    try{
+      const memPage = document.getElementById('page-memory');
+      if(!memPage) return;
+      let card = document.getElementById('p552-approval-card');
+      if(!card){
+        card = document.createElement('div');
+        card.id = 'p552-approval-card';
+        card.className = 'card';
+        card.style.cssText = 'border-top:4px solid #7c3aed;margin-bottom:10px;background:#faf5ff';
+        const prev = document.getElementById('p555-dashboard-card') || document.getElementById('p547c-explain-card');
+        if(prev && prev.parentNode === memPage){
+          if(prev.nextSibling) memPage.insertBefore(card, prev.nextSibling);
+          else memPage.appendChild(card);
+        }else{ memPage.appendChild(card); }
+      }
+      const st = window._p552_state;
+      const queue = st.queue || [];
+      const collapsed = (function(){try{return sessionStorage.getItem('p552-collapsed') !== '0';}catch(_){return true;}})();
+      let html = ''
+        +'<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">'
+          +'<div style="font-weight:800;color:#5b21b6">📥 日報→記憶候補 ボス承認キュー（packet 552、'+queue.length+' 件）</div>'
+          +'<button type="button" id="p552-toggle" class="dr-btn" style="background:#7c3aed;color:#fff;border:0;font-weight:700;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:11px">'+(collapsed?'▶ 展開':'▼ 閉じる')+'</button>'
+        +'</div>'
+        +'<div id="p552-body" style="margin-top:8px;'+(collapsed?'display:none':'')+'">'
+          +'<div style="background:#fff;border:1px solid #c4b5fd;border-radius:6px;padding:7px 10px;color:#5b21b6;font-size:11px;line-height:1.55">'
+            +'💡 packet 519 / 531 から「記憶候補」が追加されると、ここに溜まります。'
+            +'<br>・「✅ 承認」→ packet 507 pre-fill に送る（DB 直接保存はしない、ボスが「📚 この内容で記憶庫に登録」で最終確定）'
+            +'<br>・「❌ 却下」→ in-memory キューから外す'
+            +'<br>・本文 / 理由は <b>storage に保存しません</b>（リロード消失）'
+          +'</div>'
+          +'<div style="font-size:11px;color:#475569;margin-top:6px">累積：追加 '+st.totalAdded+' / 承認 '+st.totalApproved+' / 却下 '+st.totalRejected+'</div>'
+          + (queue.length === 0
+              ? '<div style="font-size:11px;color:var(--t3);margin-top:8px">（候補キュー空）packet 531「📝 テンプレ別 記憶庫候補」で日報から送信すると、ここに溜まる予定です。</div>'
+              : '<div style="display:flex;flex-direction:column;gap:5px;margin-top:8px">'
+                + queue.slice(0, 20).map(function(c, i){
+                    const typeBadge = c.type === 'failure_lesson' ? '<span style="background:#dc2626;color:#fff;padding:1px 6px;border-radius:8px;font-size:10px">📉 失敗</span>'
+                      : c.type === 'success_pattern' ? '<span style="background:#16a34a;color:#fff;padding:1px 6px;border-radius:8px;font-size:10px">✨ 成功</span>'
+                      : c.type === 'boss_decision' ? '<span style="background:#7c3aed;color:#fff;padding:1px 6px;border-radius:8px;font-size:10px">👀 ボス判断</span>'
+                      : c.type === 'operation_rule' ? '<span style="background:#1e40af;color:#fff;padding:1px 6px;border-radius:8px;font-size:10px">⚙ 業務</span>'
+                      : '<span style="background:#64748b;color:#fff;padding:1px 6px;border-radius:8px;font-size:10px">📝 '+E(c.type)+'</span>';
+                    return '<div style="border:1px solid #c4b5fd;background:#fff;border-radius:6px;padding:6px 8px;font-size:11px;line-height:1.5">'
+                      +'<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">'
+                        +'<span style="font-weight:700;color:#5b21b6">'+(i+1)+'. '+E(String(c.title||'(無題)').slice(0,60))+'</span>'
+                        + typeBadge
+                        +'<span style="font-size:10px;color:#94a3b8">追加 '+E(String(c.addedAt||'').slice(11,16))+' / '+E(c.source)+'</span>'
+                      +'</div>'
+                      +'<div style="color:#475569;margin-top:2px">'+E(String(c.content||'').slice(0,100))+(String(c.content||'').length>100?'...':'')+'</div>'
+                      +'<div style="display:flex;gap:4px;margin-top:5px;flex-wrap:wrap">'
+                        +'<button type="button" data-p552-approve="'+E(c.id)+'" style="font-size:10px;padding:4px 9px;border-radius:5px;border:1.5px solid #16a34a;background:#16a34a;color:#fff;cursor:pointer;font-weight:700">✅ 承認（pre-fill へ）</button>'
+                        +'<button type="button" data-p552-reject="'+E(c.id)+'" style="font-size:10px;padding:4px 9px;border-radius:5px;border:1.5px solid #dc2626;background:#fff;color:#dc2626;cursor:pointer;font-weight:700">❌ 却下</button>'
+                      +'</div>'
+                    +'</div>';
+                  }).join('')
+                + (queue.length > 20 ? '<div style="font-size:10px;color:#94a3b8">…他 '+(queue.length-20)+' 件</div>' : '')
+                +'</div>'
+            )
+        +'</div>'
+        +'<div style="font-size:10px;color:#666;background:#fff;border:1px solid var(--bo);border-radius:4px;padding:5px 8px;margin-top:8px;line-height:1.55">※ in-memory のみ、リロードで消える。DB 書き込み 0、本文 storage 保存 0。</div>';
+      card.innerHTML = html;
+      const tg = document.getElementById('p552-toggle');
+      const body = document.getElementById('p552-body');
+      if(tg && body){
+        tg.addEventListener('click', function(){
+          if(body.style.display==='none'){ body.style.display=''; tg.textContent='▼ 閉じる'; try{sessionStorage.setItem('p552-collapsed','0');}catch(_){} }
+          else{ body.style.display='none'; tg.textContent='▶ 展開'; try{sessionStorage.setItem('p552-collapsed','1');}catch(_){} }
+        });
+      }
+      card.querySelectorAll('button[data-p552-approve]').forEach(function(b){
+        b.addEventListener('click', function(){ _p552_approve(b.getAttribute('data-p552-approve')); });
+      });
+      card.querySelectorAll('button[data-p552-reject]').forEach(function(b){
+        b.addEventListener('click', function(){ _p552_reject(b.getAttribute('data-p552-reject')); });
+      });
+    }catch(e){try{console.warn('[packet 552 render]', e&&e.message);}catch(_){}}
+  }
+  window._p552_renderCard = _p552_renderCard;
+  (function _p552_wrapSwitchPage(){
+    try{
+      const orig = window.switchPage;
+      if(typeof orig !== 'function') return;
+      window.switchPage = function(pg){
+        try{ orig.apply(this, arguments); }catch(_){}
+        if(pg === 'memory'){ setTimeout(_p552_renderCard, 300); }
+      };
+    }catch(_){}
+  })();
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){ setTimeout(_p552_renderCard, 760); });
+  }else{ setTimeout(_p552_renderCard, 760); }
+})();
+// ==== ここまで packet 552 日報→記憶候補 ボス承認 UI ====
+
+// ═══════════════════════════════════════
+// packet 553: AI 会議 記憶庫参照強化（v0.9.321）
+// 目的：packet 532 のヒントを拡張し、フィルター + プロンプト生成コピー。
+// 厳守：store 参照のみ、新規 fetch 0、外部 AI 接続 0。
+// ═══════════════════════════════════════
+(function _p553_init(){
+  function E(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];});}
+  window._p553_filter = window._p553_filter || {memoryType:'', relatedAi:'', relatedStaff:'', riskLevel:'', unresolvedOnly:false, bossCheckOnly:false};
+
+  function _p553_topRelevant(query, n){
+    try{
+      const f = window._p553_filter;
+      const store = (window._p500_memoryStore || []).filter(function(m){
+        if(!m || m._isDeleted) return false;
+        if(f.memoryType && m.memoryType !== f.memoryType) return false;
+        if(f.relatedAi && String(m.relatedAi||m.relatedTarget||'').indexOf(f.relatedAi) === -1) return false;
+        if(f.relatedStaff && String(m.relatedStaff||m.relatedTarget||'').indexOf(f.relatedStaff) === -1) return false;
+        if(f.riskLevel && String(m.riskLevel||'').toUpperCase() !== f.riskLevel.toUpperCase()) return false;
+        if(f.unresolvedOnly && !m.unresolved) return false;
+        if(f.bossCheckOnly && !m.needsManagerFollowup) return false;
+        return true;
+      });
+      const t = String(query||'').toLowerCase();
+      const tokens = t.split(/[\s　、。,，.！？!?]+/).filter(function(x){return x && x.length >= 2;});
+      const scored = store.map(function(m){
+        let s = 0;
+        const hay = [m.title,m.content,m.cause,m.lesson,m.nextAction,m.bossDecision,m.category,m.tags].map(function(x){return String(x||'').toLowerCase();}).join(' ');
+        tokens.forEach(function(tok){ if(hay.indexOf(tok) !== -1) s += 5; });
+        if(m.importance === 'high') s += 2;
+        if(m.needsManagerFollowup) s += 2;
+        if(m.unresolved) s += 1;
+        return {m:m, s:s};
+      }).filter(function(x){return x.s > 0;}).sort(function(a,b){return b.s - a.s;}).slice(0, n || 10);
+      return scored;
+    }catch(_){return [];}
+  }
+  window._p553_topRelevant = _p553_topRelevant;
+
+  function _p553_readQuery(){
+    try{
+      const ids = ['ai-topic-input','ai-discussion-topic','discussion-topic','ai-meeting-topic','ai-topic','ai-team-topic'];
+      for(let i=0;i<ids.length;i++){
+        const el = document.getElementById(ids[i]);
+        if(el && String(el.value||'').trim()) return String(el.value||'').trim();
+      }
+    }catch(_){}
+    return '';
+  }
+  function _p553_buildPrompt(query, items){
+    let p = '# 議題\n' + (query || '(未入力)') + '\n\n# 関連記憶（じゃがい記憶庫より、in-memory 抽出）\n\n';
+    items.forEach(function(it, i){
+      const m = it.m;
+      p += '## ' + (i+1) + '. ' + (m.title || '(無題)') + '（score=' + it.s + '）\n';
+      if(m.content) p += '- 内容：' + String(m.content).slice(0, 200) + '\n';
+      if(m.lesson) p += '- 学び：' + String(m.lesson).slice(0, 200) + '\n';
+      if(m.bossDecision) p += '- ボス判断：' + String(m.bossDecision).slice(0, 200) + '\n';
+      if(m.unresolved) p += '- ⚠ 未解決\n';
+      if(m.needsManagerFollowup) p += '- 👀 ボス確認待ち\n';
+      p += '\n';
+    });
+    p += '# 求める出力\n- 上記の関連記憶を踏まえ、今回の議題に対する 3 案以上の方針案\n- 各案の根拠・懸念・実行コスト\n- ボス承認が必要なポイントの明示\n';
+    return p;
+  }
+  function _p553_injectCard(){
+    try{
+      const aiPage = document.getElementById('page-ai-discussion');
+      if(!aiPage) return;
+      if(document.getElementById('p553-enhance-card')) return;
+      const card = document.createElement('div');
+      card.id = 'p553-enhance-card';
+      card.className = 'card';
+      card.style.cssText = 'border-top:4px solid #0ea5e9;margin-bottom:10px;background:#f0f9ff';
+      const refCard = document.getElementById('p532-hint-card');
+      if(refCard && refCard.parentNode === aiPage){
+        if(refCard.nextSibling) aiPage.insertBefore(card, refCard.nextSibling);
+        else aiPage.appendChild(card);
+      }else{
+        aiPage.insertBefore(card, aiPage.firstChild);
+      }
+      _p553_renderBody(card);
+    }catch(e){try{console.warn('[packet 553 inject]', e&&e.message);}catch(_){}}
+  }
+  function _p553_renderBody(card){
+    try{
+      const f = window._p553_filter;
+      card.innerHTML = ''
+        +'<div style="font-weight:800;color:#075985">🎯 AI 会議 記憶庫参照 強化（packet 553）</div>'
+        +'<div style="background:#fff;border:1px solid #bae6fd;border-radius:6px;padding:7px 10px;color:#075985;font-size:11px;line-height:1.55;margin-top:6px">'
+          +'💡 packet 532 ヒントを拡張：フィルター適用 + Claude/ChatGPT 用プロンプト生成。'
+          +'<br>・store 参照のみ、DB 書き込み 0、外部 AI 接続 0'
+        +'</div>'
+        +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px;font-size:11px">'
+          +'<div><label style="font-weight:600;color:#475569">memory_type<br><select id="p553-f-type" style="width:100%;padding:3px 6px;border:1px solid var(--bo);border-radius:4px;font-size:11px">'
+            +'<option value="">(任意)</option>'
+            +'<option value="failure_lesson"'+(f.memoryType==='failure_lesson'?' selected':'')+'>failure_lesson</option>'
+            +'<option value="success_pattern"'+(f.memoryType==='success_pattern'?' selected':'')+'>success_pattern</option>'
+            +'<option value="boss_decision"'+(f.memoryType==='boss_decision'?' selected':'')+'>boss_decision</option>'
+            +'<option value="operation_rule"'+(f.memoryType==='operation_rule'?' selected':'')+'>operation_rule</option>'
+          +'</select></label></div>'
+          +'<div><label style="font-weight:600;color:#475569">risk_level<br><select id="p553-f-risk" style="width:100%;padding:3px 6px;border:1px solid var(--bo);border-radius:4px;font-size:11px">'
+            +'<option value="">(任意)</option><option value="RED">🔴 RED</option><option value="YELLOW">🟡 YELLOW</option><option value="GREEN">🟢 GREEN</option>'
+          +'</select></label></div>'
+          +'<div><label style="font-weight:600;color:#475569">関連 AI<br><input id="p553-f-ai" type="text" value="'+E(f.relatedAi||'')+'" placeholder="例：GPT/クロード" style="width:100%;padding:3px 6px;border:1px solid var(--bo);border-radius:4px;font-size:11px"></label></div>'
+          +'<div><label style="font-weight:600;color:#475569">関連社員<br><input id="p553-f-staff" type="text" value="'+E(f.relatedStaff||'')+'" placeholder="例：芳村" style="width:100%;padding:3px 6px;border:1px solid var(--bo);border-radius:4px;font-size:11px"></label></div>'
+          +'<div style="grid-column:1 / -1;display:flex;gap:12px;font-size:11px;color:#475569">'
+            +'<label><input type="checkbox" id="p553-f-unresolved"'+(f.unresolvedOnly?' checked':'')+'> 未解決のみ</label>'
+            +'<label><input type="checkbox" id="p553-f-boss"'+(f.bossCheckOnly?' checked':'')+'> ボス確認のみ</label>'
+          +'</div>'
+        +'</div>'
+        +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">'
+          +'<button type="button" id="p553-run" class="dr-btn" style="background:#0ea5e9;color:#fff;border:0;font-weight:700;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:11px">🔎 関連記憶を再抽出</button>'
+          +'<button type="button" id="p553-copy" class="dr-btn" style="background:#fff;color:#0c4a6e;border:1.5px solid #0ea5e9;font-weight:700;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:11px">📋 Claude / ChatGPT 用プロンプトをコピー</button>'
+        +'</div>'
+        +'<div id="p553-result" style="margin-top:8px;font-size:11px"></div>'
+        +'<div id="p553-status" style="display:none;font-size:11px;margin-top:5px;padding:4px 8px;border-radius:4px;background:#f8fafc;border:1px solid var(--bo)"></div>'
+        +'<div style="font-size:10px;color:#666;background:#fff;border:1px solid var(--bo);border-radius:4px;padding:5px 8px;margin-top:8px;line-height:1.55">※ プロンプトは社員が手動でコピー → Claude / ChatGPT に貼る運用。AI への自動送信 0。</div>';
+      document.getElementById('p553-run').addEventListener('click', function(){
+        const f = window._p553_filter;
+        f.memoryType = document.getElementById('p553-f-type').value;
+        f.riskLevel = document.getElementById('p553-f-risk').value;
+        f.relatedAi = document.getElementById('p553-f-ai').value;
+        f.relatedStaff = document.getElementById('p553-f-staff').value;
+        f.unresolvedOnly = document.getElementById('p553-f-unresolved').checked;
+        f.bossCheckOnly = document.getElementById('p553-f-boss').checked;
+        const q = _p553_readQuery();
+        const items = _p553_topRelevant(q, 10);
+        const out = document.getElementById('p553-result');
+        if(!q){ out.innerHTML = '<div style="color:#b45309">⚠ 議題テキストが見つかりません</div>'; return; }
+        if(items.length === 0){ out.innerHTML = '<div style="color:var(--t3)">関連記憶 0 件（in-memory: '+(window._p500_memoryStore||[]).length+' 件）</div>'; return; }
+        let html = '<div style="font-weight:700;color:#075985;margin-bottom:4px">関連 TOP'+items.length+'（議題：「'+E(q.slice(0,60))+'」）</div>';
+        items.forEach(function(it, i){
+          html += '<div style="border:1px solid #bae6fd;background:#fff;border-radius:6px;padding:5px 8px;margin-bottom:3px;font-size:11px;line-height:1.5">'
+            +'<div style="font-weight:700;color:#0c4a6e">'+(i+1)+'. '+E(String(it.m.title||'(無題)').slice(0,60))+' <span style="background:#0ea5e9;color:#fff;padding:1px 6px;border-radius:8px;font-size:10px">score '+it.s+'</span></div>'
+            +'<div style="color:#475569">'+E(String(it.m.content||'').slice(0,100))+'</div>'
+          +'</div>';
+        });
+        out.innerHTML = html;
+      });
+      document.getElementById('p553-copy').addEventListener('click', function(){
+        const q = _p553_readQuery();
+        const items = _p553_topRelevant(q, 10);
+        const prompt = _p553_buildPrompt(q, items);
+        const status = document.getElementById('p553-status');
+        function setStatus(ok, msg){ if(status){ status.style.display=''; status.textContent=(ok?'✅ ':'⚠ ')+msg; status.style.color = ok?'#065f46':'#b91c1c'; }}
+        try{
+          if(navigator.clipboard && navigator.clipboard.writeText){
+            navigator.clipboard.writeText(prompt).then(function(){setStatus(true,'プロンプトをコピーしました');}).catch(function(){
+              try{
+                const ta = document.createElement('textarea'); ta.value = prompt; ta.style.cssText='position:fixed;top:-1000px;opacity:0'; document.body.appendChild(ta); ta.select(); const ok = document.execCommand('copy'); document.body.removeChild(ta);
+                setStatus(ok, ok?'コピーしました（fallback）':'コピー失敗');
+              }catch(_){setStatus(false,'コピー失敗');}
+            });
+          }else{
+            const ta = document.createElement('textarea'); ta.value = prompt; ta.style.cssText='position:fixed;top:-1000px;opacity:0'; document.body.appendChild(ta); ta.select(); const ok = document.execCommand('copy'); document.body.removeChild(ta);
+            setStatus(ok, ok?'コピーしました（fallback）':'コピー失敗');
+          }
+        }catch(_){setStatus(false,'コピー失敗');}
+      });
+    }catch(_){}
+  }
+  (function _p553_wrapSwitchPage(){
+    try{
+      const orig = window.switchPage;
+      if(typeof orig !== 'function') return;
+      window.switchPage = function(pg){
+        try{ orig.apply(this, arguments); }catch(_){}
+        if(pg === 'ai-discussion'){ setTimeout(_p553_injectCard, 320); }
+      };
+    }catch(_){}
+  })();
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){ setTimeout(_p553_injectCard, 780); });
+  }else{ setTimeout(_p553_injectCard, 780); }
+})();
+// ==== ここまで packet 553 AI 会議 記憶庫参照強化 ====
+
+// ═══════════════════════════════════════
+// packet 554: AI 相談 記憶庫参照 + 過去判断 UI（v0.9.322）
+// 目的：packet 533 ヒントを拡張、相談文に追記 / 記憶庫転記 / AI 会議に送る導線。
+// 厳守：store 参照のみ、外部 AI 接続 0、新規 fetch 0。
+// ═══════════════════════════════════════
+(function _p554_init(){
+  function E(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];});}
+  function _p554_findConsultPage(){
+    return document.getElementById('page-ai-consult')
+        || document.getElementById('page-consult')
+        || document.getElementById('page-ai-soudan')
+        || null;
+  }
+  function _p554_readQuery(){
+    try{
+      const page = _p554_findConsultPage();
+      if(!page) return '';
+      const ta = page.querySelectorAll('textarea, input[type="text"]');
+      for(let i=0;i<ta.length;i++){
+        if(ta[i].value && String(ta[i].value).trim().length >= 3) return String(ta[i].value).trim();
+      }
+    }catch(_){}
+    return '';
+  }
+  function _p554_top(query, n){
+    try{
+      if(typeof window._p553_topRelevant === 'function'){
+        // packet 553 のスコア関数を流用（フィルター無）
+        const f = window._p553_filter; const savedF = JSON.parse(JSON.stringify(f||{}));
+        window._p553_filter = {memoryType:'', relatedAi:'', relatedStaff:'', riskLevel:'', unresolvedOnly:false, bossCheckOnly:false};
+        const items = window._p553_topRelevant(query, n);
+        window._p553_filter = savedF;
+        return items;
+      }
+      if(typeof window._p532_topRelevant === 'function') return window._p532_topRelevant(query, n);
+    }catch(_){}
+    return [];
+  }
+  function _p554_inject(){
+    try{
+      const page = _p554_findConsultPage();
+      if(!page) return;
+      if(document.getElementById('p554-card')) return;
+      const card = document.createElement('div');
+      card.id = 'p554-card';
+      card.className = 'card';
+      card.style.cssText = 'border-top:4px solid #14b8a6;margin-bottom:10px;background:#f0fdfa';
+      const refCard = document.getElementById('p533-hint-card');
+      if(refCard && refCard.parentNode === page){
+        if(refCard.nextSibling) page.insertBefore(card, refCard.nextSibling);
+        else page.appendChild(card);
+      }else{
+        page.insertBefore(card, page.firstChild);
+      }
+      _p554_renderBody(card);
+    }catch(_){}
+  }
+  function _p554_renderBody(card){
+    card.innerHTML = ''
+      +'<div style="font-weight:800;color:#0f766e">🧭 AI 相談 過去判断参照 強化（packet 554）</div>'
+      +'<div style="background:#fff;border:1px solid #5eead4;border-radius:6px;padding:7px 10px;color:#0f766e;font-size:11px;line-height:1.55;margin-top:6px">'
+        +'💡 相談文に近い記憶を検索し、相談文に追記 / 記憶庫に転記 / AI 会議に送る導線。store 参照のみ、外部 AI 接続 0。'
+      +'</div>'
+      +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">'
+        +'<button type="button" id="p554-search" class="dr-btn" style="background:#14b8a6;color:#fff;border:0;font-weight:700;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:11px">🔍 過去関連記憶を検索</button>'
+      +'</div>'
+      +'<div id="p554-result" style="margin-top:8px"></div>';
+    document.getElementById('p554-search').addEventListener('click', function(){
+      const q = _p554_readQuery();
+      const out = document.getElementById('p554-result');
+      if(!q){ out.innerHTML = '<div style="color:#b45309;font-size:11px">⚠ 相談文を入力してから検索してください</div>'; return; }
+      const items = _p554_top(q, 5);
+      if(items.length === 0){ out.innerHTML = '<div style="color:var(--t3);font-size:11px">関連記憶 0 件</div>'; return; }
+      let html = '<div style="font-weight:700;color:#0f766e;margin-bottom:4px;font-size:11px">関連 TOP'+items.length+'</div>';
+      items.forEach(function(it, i){
+        const m = it.m;
+        const idEnc = encodeURIComponent(String(m.id||''));
+        html += '<div style="border:1px solid #5eead4;background:#fff;border-radius:6px;padding:6px 8px;margin-bottom:4px;font-size:11px;line-height:1.5">'
+          +'<div style="font-weight:700;color:#0f766e">'+(i+1)+'. '+E(String(m.title||'(無題)').slice(0,60))+' <span style="background:#14b8a6;color:#fff;padding:1px 6px;border-radius:8px;font-size:10px">score '+it.s+'</span></div>'
+          +'<div style="color:#475569;margin-top:2px">'+E(String(m.content||'').slice(0,120))+'</div>'
+          + (m.lesson ? '<div style="color:#0f766e;font-size:10px;margin-top:2px"><b>学び：</b>'+E(String(m.lesson).slice(0,80))+'</div>' : '')
+          +'<div style="display:flex;gap:4px;margin-top:5px;flex-wrap:wrap">'
+            +'<button type="button" data-p554-append="'+idEnc+'" style="font-size:10px;padding:3px 8px;border-radius:5px;border:1.5px solid #0f766e;background:#fff;color:#0f766e;cursor:pointer;font-weight:700">📝 相談文に追記</button>'
+            +'<button type="button" data-p554-toagenda="'+idEnc+'" style="font-size:10px;padding:3px 8px;border-radius:5px;border:1.5px solid #7c3aed;background:#fff;color:#7c3aed;cursor:pointer;font-weight:700">💬 AI 会議へ送る</button>'
+          +'</div>'
+        +'</div>';
+      });
+      out.innerHTML = html;
+      document.querySelectorAll('button[data-p554-append]').forEach(function(b){
+        b.addEventListener('click', function(){
+          const id = decodeURIComponent(b.getAttribute('data-p554-append'));
+          const m = (window._p500_memoryStore || []).find(function(x){return x && String(x.id) === String(id);});
+          if(!m) return;
+          const page = _p554_findConsultPage();
+          if(!page) return;
+          const ta = page.querySelector('textarea');
+          if(ta){
+            const append = '\n\n[過去記憶参考] ' + (m.title || '') + '\n- ' + String(m.content||'').slice(0,100) + (m.lesson ? '\n- 学び：'+String(m.lesson).slice(0,100) : '');
+            ta.value = (ta.value || '') + append;
+            try{ta.focus();}catch(_){}
+          }
+        });
+      });
+      document.querySelectorAll('button[data-p554-toagenda]').forEach(function(b){
+        b.addEventListener('click', function(){
+          const id = decodeURIComponent(b.getAttribute('data-p554-toagenda'));
+          const m = (window._p500_memoryStore || []).find(function(x){return x && String(x.id) === String(id);});
+          if(!m) return;
+          try{
+            const topic = document.getElementById('ai-team-topic') || document.getElementById('ai-topic-input');
+            if(topic){ topic.value = '【記憶庫から】' + (m.title || ''); }
+            const ex = document.getElementById('ai-team-expected');
+            if(ex){ ex.value = ((m.lesson||m.nextAction||'')+'\n（記憶庫 id: '+(m.id||'')+'）'); }
+            if(typeof switchPage === 'function') switchPage('ai-discussion');
+          }catch(_){}
+        });
+      });
+    });
+  }
+  (function _p554_wrapSwitchPage(){
+    try{
+      const orig = window.switchPage;
+      if(typeof orig !== 'function') return;
+      window.switchPage = function(pg){
+        try{ orig.apply(this, arguments); }catch(_){}
+        if(pg === 'ai-consult' || pg === 'consult' || pg === 'ai-soudan'){ setTimeout(_p554_inject, 320); }
+      };
+    }catch(_){}
+  })();
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){ setTimeout(_p554_inject, 800); });
+  }else{ setTimeout(_p554_inject, 800); }
+})();
+// ==== ここまで packet 554 AI 相談 過去判断参照強化 ====
+
+// ═══════════════════════════════════════
+// packet 559: 投稿テンプレート集（v0.9.323）
+// 目的：社員が迷わず投稿できるよう 7 種類テンプレートのワンクリック pre-fill。
+// 厳守：DB 書き込み 0、_p500_pendingCandidate + _p500_prefillFromCandidate のみ。
+// ═══════════════════════════════════════
+(function _p559_init(){
+  function E(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];});}
+  const TEMPLATES = [
+    {key:'success', label:'✨ 成功パターン', type:'success_pattern', cat:'成功ログ', risk:'GREEN', importance:'mid', title:'【成功】__内容__', content:'いつ：\nどこで：\n誰が：\n何をして：\nどんな成果が：\nなぜ成功した（仮説）：\n再現方法：'},
+    {key:'failure', label:'📉 失敗事例', type:'failure_lesson', cat:'失敗ログ', risk:'YELLOW', importance:'high', title:'【失敗】__内容__', content:'いつ：\nどこで：\n誰が：\n何が起きた：\n原因（仮説）：\n影響範囲：\n再発防止策：'},
+    {key:'claim', label:'⚠ クレーム', type:'failure_lesson', cat:'失敗ログ', risk:'RED', importance:'high', title:'【クレーム】__顧客対応__', content:'発生日時：\n顧客（ニックネーム/物件 ID）：\n申し出内容：\n対応者：\n初動対応：\nボス報告：\n最終決着：\n再発防止：'},
+    {key:'decision', label:'👀 ボス判断記録', type:'boss_decision', cat:'ボス判断', risk:'YELLOW', importance:'high', title:'【ボス判断】__テーマ__', content:'背景：\n選択肢 A：\n選択肢 B：\nボス判断：\n根拠：\n反対意見：\n施行期日：'},
+    {key:'rule', label:'⚙ ルール変更', type:'operation_rule', cat:'業務フロー', risk:'GREEN', importance:'mid', title:'【ルール変更】__項目__', content:'変更前：\n変更後：\n変更理由：\n適用日：\n影響部署：\n周知方法：'},
+    {key:'prevention', label:'🛡 再発防止', type:'recurrence_prevention', cat:'再発防止', risk:'YELLOW', importance:'high', title:'【再発防止】__対象__', content:'対象事象：\n根本原因：\n対策内容：\nチェック頻度：\n責任者：'},
+    {key:'review', label:'🙋 ボス確認依頼', type:'discussion_log', cat:'議論ログ', risk:'YELLOW', importance:'mid', title:'【ボス確認依頼】__件名__', content:'背景：\n判断してほしいこと：\n選択肢：\n希望期日：'}
+  ];
+  function _p559_apply(t){
+    try{
+      window._p500_pendingCandidate = {
+        memoryType: t.type, category: t.cat, title: t.title, content: t.content,
+        riskLevel: t.risk, importance: t.importance,
+        tags: 'packet-559,'+t.key
+      };
+      if(typeof _p500_prefillFromCandidate === 'function') _p500_prefillFromCandidate();
+      try{document.getElementById('p500-f-title') && document.getElementById('p500-f-title').scrollIntoView({behavior:'smooth',block:'center'});}catch(_){}
+    }catch(_){}
+  }
+  function _p559_inject(){
+    try{
+      const memPage = document.getElementById('page-memory');
+      if(!memPage) return;
+      if(document.getElementById('p559-templates-card')) return;
+      const card = document.createElement('div');
+      card.id = 'p559-templates-card';
+      card.className = 'card';
+      card.style.cssText = 'border-top:4px solid #ec4899;margin-bottom:10px;background:#fdf2f8';
+      const collapsed = (function(){try{return sessionStorage.getItem('p559-collapsed') !== '0';}catch(_){return true;}})();
+      const buttons = TEMPLATES.map(function(t){
+        return '<button type="button" data-p559-key="'+E(t.key)+'" style="background:#fff;border:1.5px solid #ec4899;color:#9d174d;font-size:11px;font-weight:700;padding:6px 12px;border-radius:6px;cursor:pointer;text-align:left;line-height:1.5">'+E(t.label)+'</button>';
+      }).join('');
+      card.innerHTML = ''
+        +'<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">'
+          +'<div style="font-weight:800;color:#9d174d">📝 投稿テンプレート集（packet 559、7 種類）</div>'
+          +'<button type="button" id="p559-toggle" class="dr-btn" style="background:#ec4899;color:#fff;border:0;font-weight:700;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:11px">'+(collapsed?'▶ 展開':'▼ 閉じる')+'</button>'
+        +'</div>'
+        +'<div id="p559-body" style="margin-top:8px;'+(collapsed?'display:none':'')+'">'
+          +'<div style="background:#fff;border:1px solid #fbcfe8;border-radius:6px;padding:7px 10px;color:#9d174d;font-size:11px;line-height:1.55">💡 ワンクリックで記憶登録フォーム（packet 500/507）に pre-fill します。DB 書き込みは「📚 この内容で記憶庫に登録」で確定。</div>'
+          +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px">'+buttons+'</div>'
+        +'</div>'
+        +'<div style="font-size:10px;color:#666;background:#fff;border:1px solid var(--bo);border-radius:4px;padding:5px 8px;margin-top:8px;line-height:1.55">※ テンプレ文字列は内蔵、DB 書き込み / 新規 fetch 0。</div>';
+      // packet 551 運用ルール直後
+      const prev = document.getElementById('p551-rules-card');
+      if(prev && prev.parentNode === memPage){
+        if(prev.nextSibling) memPage.insertBefore(card, prev.nextSibling);
+        else memPage.appendChild(card);
+      }else{
+        memPage.appendChild(card);
+      }
+      document.getElementById('p559-toggle').addEventListener('click', function(){
+        const body = document.getElementById('p559-body');
+        const btn = document.getElementById('p559-toggle');
+        if(!body || !btn) return;
+        if(body.style.display==='none'){ body.style.display=''; btn.textContent='▼ 閉じる'; try{sessionStorage.setItem('p559-collapsed','0');}catch(_){} }
+        else{ body.style.display='none'; btn.textContent='▶ 展開'; try{sessionStorage.setItem('p559-collapsed','1');}catch(_){} }
+      });
+      card.querySelectorAll('button[data-p559-key]').forEach(function(b){
+        b.addEventListener('click', function(){
+          const key = b.getAttribute('data-p559-key');
+          const t = TEMPLATES.find(function(x){return x.key === key;});
+          if(t) _p559_apply(t);
+        });
+      });
+    }catch(e){try{console.warn('[packet 559 inject]', e&&e.message);}catch(_){}}
+  }
+  (function _p559_wrapSwitchPage(){
+    try{
+      const orig = window.switchPage;
+      if(typeof orig !== 'function') return;
+      window.switchPage = function(pg){
+        try{ orig.apply(this, arguments); }catch(_){}
+        if(pg === 'memory'){ setTimeout(_p559_inject, 340); }
+      };
+    }catch(_){}
+  })();
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){ setTimeout(_p559_inject, 820); });
+  }else{ setTimeout(_p559_inject, 820); }
+})();
+// ==== ここまで packet 559 投稿テンプレート集 ====
+
+// ═══════════════════════════════════════
+// packet 556: 検索 UI 統合整理（v0.9.324）
+// 目的：検索カードが増えたため、ユーザーが迷わないよう役割マップを記憶庫ページに常設。
+// 厳守：表示のみ、新規通信 0。
+// ═══════════════════════════════════════
+(function _p556_init(){
+  function _p556_inject(){
+    try{
+      const memPage = document.getElementById('page-memory');
+      if(!memPage) return;
+      if(document.getElementById('p556-search-map-card')) return;
+      const card = document.createElement('div');
+      card.id = 'p556-search-map-card';
+      card.className = 'card';
+      card.style.cssText = 'border-top:4px solid #6366f1;margin-bottom:10px;background:#eef2ff';
+      const collapsed = (function(){try{return sessionStorage.getItem('p556-collapsed') !== '0';}catch(_){return true;}})();
+      card.innerHTML = ''
+        +'<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">'
+          +'<div style="font-weight:800;color:#3730a3">🔍 検索 UI 案内（packet 556）</div>'
+          +'<button type="button" id="p556-toggle" class="dr-btn" style="background:#6366f1;color:#fff;border:0;font-weight:700;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:11px">'+(collapsed?'▶ 展開':'▼ 閉じる')+'</button>'
+        +'</div>'
+        +'<div id="p556-body" style="margin-top:8px;'+(collapsed?'display:none':'')+'">'
+          +'<div style="background:#fff;border:1px solid #c7d2fe;border-radius:6px;padding:8px 10px;font-size:11px;line-height:1.7;color:#3730a3">'
+            +'<div style="font-weight:700;margin-bottom:4px">記憶庫の検索 UI は役割別に分かれています</div>'
+            +'<table style="width:100%;border-collapse:collapse;font-size:11px">'
+              +'<thead><tr><th style="text-align:left;padding:4px;border-bottom:1px solid #c7d2fe">UI</th><th style="text-align:left;padding:4px;border-bottom:1px solid #c7d2fe">対象</th><th style="text-align:left;padding:4px;border-bottom:1px solid #c7d2fe">通信</th></tr></thead>'
+              +'<tbody>'
+                +'<tr><td style="padding:4px">📋 通常検索（packet 500/529）</td><td style="padding:4px">in-memory（生存記憶）</td><td style="padding:4px">なし</td></tr>'
+                +'<tr><td style="padding:4px">🔎 DB 検索 MVP（packet 541）</td><td style="padding:4px">DB SELECT（生存行のみ）</td><td style="padding:4px">GET ?deleted_at=is.null</td></tr>'
+                +'<tr><td style="padding:4px">📥 もっと見る（packet 540）</td><td style="padding:4px">DB SELECT（offset）</td><td style="padding:4px">GET ?deleted_at=is.null</td></tr>'
+                +'<tr><td style="padding:4px">🗑 ゴミ箱絞り込み（packet 547B）</td><td style="padding:4px">ゴミ箱 items</td><td style="padding:4px">なし</td></tr>'
+                +'<tr><td style="padding:4px">📜 監査ログビューア（packet 549）</td><td style="padding:4px">jagai_memory_audit</td><td style="padding:4px">GET（テーブル作成後有効化）</td></tr>'
+              +'</tbody>'
+            +'</table>'
+          +'</div>'
+        +'</div>'
+        +'<div style="font-size:10px;color:#666;background:#fff;border:1px solid var(--bo);border-radius:4px;padding:5px 8px;margin-top:8px;line-height:1.55">※ 表示のみ。既存検索 UI を変更しません。</div>';
+      const prev = document.getElementById('p559-templates-card') || document.getElementById('p551-rules-card');
+      if(prev && prev.parentNode === memPage){
+        if(prev.nextSibling) memPage.insertBefore(card, prev.nextSibling);
+        else memPage.appendChild(card);
+      }else{ memPage.appendChild(card); }
+      document.getElementById('p556-toggle').addEventListener('click', function(){
+        const body = document.getElementById('p556-body');
+        const btn = document.getElementById('p556-toggle');
+        if(!body || !btn) return;
+        if(body.style.display==='none'){ body.style.display=''; btn.textContent='▼ 閉じる'; try{sessionStorage.setItem('p556-collapsed','0');}catch(_){} }
+        else{ body.style.display='none'; btn.textContent='▶ 展開'; try{sessionStorage.setItem('p556-collapsed','1');}catch(_){} }
+      });
+    }catch(_){}
+  }
+  (function _p556_wrapSwitchPage(){
+    try{
+      const orig = window.switchPage;
+      if(typeof orig !== 'function') return;
+      window.switchPage = function(pg){
+        try{ orig.apply(this, arguments); }catch(_){}
+        if(pg === 'memory'){ setTimeout(_p556_inject, 360); }
+      };
+    }catch(_){}
+  })();
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){ setTimeout(_p556_inject, 840); });
+  }else{ setTimeout(_p556_inject, 840); }
+})();
+// ==== ここまで packet 556 検索 UI 統合整理 ====
+
+// ═══════════════════════════════════════
+// packet 557: 重要記憶ピン留め UI ベース（v0.9.325）
+// 目的：重要記憶を上部にピン留めできる UI。永続化は id のみ sessionStorage（本文保存 0）。
+// 厳守：DB 書き込み 0、本文 localStorage / sessionStorage 保存 0、id のみ flag 保存 OK。
+// ═══════════════════════════════════════
+(function _p557_init(){
+  function E(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];});}
+  function _p557_getPinned(){
+    try{
+      const raw = sessionStorage.getItem('p557-pinned-ids') || '';
+      if(!raw) return [];
+      return raw.split(',').filter(Boolean);
+    }catch(_){return [];}
+  }
+  function _p557_setPinned(ids){
+    try{
+      if(Array.isArray(ids) && ids.length){
+        sessionStorage.setItem('p557-pinned-ids', ids.map(String).filter(Boolean).join(','));
+      }else{
+        sessionStorage.removeItem('p557-pinned-ids');
+      }
+    }catch(_){}
+  }
+  function _p557_isPinned(id){
+    return _p557_getPinned().indexOf(String(id)) !== -1;
+  }
+  function _p557_togglePin(id){
+    const ids = _p557_getPinned();
+    const sid = String(id);
+    const idx = ids.indexOf(sid);
+    if(idx === -1) ids.push(sid);
+    else ids.splice(idx, 1);
+    _p557_setPinned(ids);
+    _p557_renderCard();
+    try{ if(typeof _p500_renderList === 'function') _p500_renderList(); }catch(_){}
+  }
+  window._p557_togglePin = _p557_togglePin;
+
+  function _p557_renderCard(){
+    try{
+      const memPage = document.getElementById('page-memory');
+      if(!memPage) return;
+      let card = document.getElementById('p557-pin-card');
+      if(!card){
+        card = document.createElement('div');
+        card.id = 'p557-pin-card';
+        card.className = 'card';
+        card.style.cssText = 'border-top:4px solid #f59e0b;margin-bottom:10px;background:#fefce8';
+        const prev = document.getElementById('p555-dashboard-card') || document.getElementById('p547c-explain-card');
+        if(prev && prev.parentNode === memPage){
+          if(prev.nextSibling) memPage.insertBefore(card, prev.nextSibling);
+          else memPage.appendChild(card);
+        }else{ memPage.insertBefore(card, memPage.firstChild); }
+      }
+      const pinned = _p557_getPinned();
+      const store = window._p500_memoryStore || [];
+      const items = pinned.map(function(id){ return store.find(function(m){return m && (String(m.id)===id || String(m.dbId||'')===id);}); }).filter(Boolean);
+      let html = ''
+        +'<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">'
+          +'<div style="font-weight:800;color:#92400e">📌 重要記憶ピン留め（packet 557、'+items.length+' 件）</div>'
+        +'</div>'
+        +'<div style="background:#fff;border:1px solid #fde68a;border-radius:6px;padding:7px 10px;color:#92400e;font-size:11px;line-height:1.55;margin-top:6px">💡 各記憶カードの「📌 ピン留め」ボタンで追加。<b>本文は storage に保存せず、id のみ</b>。リロード後もタブを閉じるまで維持（sessionStorage）。</div>'
+        + (items.length === 0
+            ? '<div style="font-size:11px;color:var(--t3);margin-top:8px">（ピン留めなし）一覧の「📌 ピン留め」で追加してください。</div>'
+            : '<div style="display:flex;flex-direction:column;gap:5px;margin-top:8px">'
+              + items.slice(0, 10).map(function(m){
+                  return '<div style="background:#fff;border:1px solid #fde68a;border-radius:6px;padding:6px 8px;font-size:11px;line-height:1.5">'
+                    +'<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">'
+                      +'<span style="font-weight:700;color:#92400e">📌 '+E(String(m.title||'(無題)').slice(0,60))+'</span>'
+                      +'<button type="button" data-p557-unpin="'+E(String(m.id||''))+'" style="margin-left:auto;font-size:10px;padding:3px 8px;border-radius:5px;border:1.5px solid #94a3b8;background:#fff;color:#64748b;cursor:pointer">📌 解除</button>'
+                    +'</div>'
+                    +'<div style="color:#475569;margin-top:2px">'+E(String(m.content||'').slice(0,100))+'</div>'
+                  +'</div>';
+                }).join('')
+            +'</div>'
+          )
+        +'<div style="font-size:10px;color:#666;background:#fff;border:1px solid var(--bo);border-radius:4px;padding:5px 8px;margin-top:8px;line-height:1.55">※ sessionStorage に id のみ保存（最大 50 件）、本文・タイトル・理由は保存しません。</div>';
+      card.innerHTML = html;
+      card.querySelectorAll('button[data-p557-unpin]').forEach(function(b){
+        b.addEventListener('click', function(){ _p557_togglePin(b.getAttribute('data-p557-unpin')); });
+      });
+    }catch(_){}
+  }
+  window._p557_renderCard = _p557_renderCard;
+
+  // 各カードに「📌」ボタンを inject
+  function _p557_decorateCards(){
+    try{
+      const list = document.getElementById('p500-list');
+      if(!list) return;
+      const cards = list.querySelectorAll('.p500-card');
+      cards.forEach(function(card){
+        const id = card.getAttribute('data-id');
+        if(!id) return;
+        if(card.querySelector('[data-p557-pin-btn="1"]')) return;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.setAttribute('data-p557-pin-btn','1');
+        const pinned = _p557_isPinned(id);
+        btn.style.cssText = 'font-size:10px;padding:4px 9px;border-radius:5px;border:1.5px solid #f59e0b;background:'+(pinned?'#f59e0b':'#fff')+';color:'+(pinned?'#fff':'#92400e')+';cursor:pointer;font-weight:700;margin-left:4px';
+        btn.textContent = pinned ? '📌 ピン解除' : '📌 ピン留め';
+        btn.addEventListener('click', function(){ _p557_togglePin(id); });
+        // ボタン行（既存）にぶら下げる
+        const actionRow = card.querySelector('div[style*="display:flex"][style*="gap:4px"]');
+        if(actionRow) actionRow.appendChild(btn);
+        else card.appendChild(btn);
+      });
+    }catch(_){}
+  }
+  (function _p557_wrapRender(){
+    try{
+      const orig = window._p500_renderList;
+      if(typeof orig !== 'function') return;
+      window._p500_renderList = function(){
+        try{ orig.apply(this, arguments); }catch(_){}
+        try{ _p557_decorateCards(); }catch(_){}
+        try{ _p557_renderCard(); }catch(_){}
+      };
+    }catch(_){}
+  })();
+  (function _p557_wrapSwitchPage(){
+    try{
+      const orig = window.switchPage;
+      if(typeof orig !== 'function') return;
+      window.switchPage = function(pg){
+        try{ orig.apply(this, arguments); }catch(_){}
+        if(pg === 'memory'){ setTimeout(function(){ try{_p557_renderCard();}catch(_){} }, 380); }
+      };
+    }catch(_){}
+  })();
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){ setTimeout(_p557_renderCard, 860); });
+  }else{ setTimeout(_p557_renderCard, 860); }
+})();
+// ==== ここまで packet 557 ピン留め UI ベース ====
 </script>
 </body>
 </html>
