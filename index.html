@@ -17075,7 +17075,8 @@ function _p500_buildCandidateFromPayload(payload){
         if(typeof SB_URL === 'undefined' || !SB_URL || typeof SB_KEY === 'undefined' || !SB_KEY){
           throw new Error('SB_URL/SB_KEY not configured');
         }
-        const _p527_url = SB_URL + '/rest/v1/jagai_memory?order=created_at.desc&limit=100';
+        // packet 547: 生存行のみ取得（deleted_at=is.null）、削除済みは packet 547 ゴミ箱 UI から別 GET
+        const _p527_url = SB_URL + '/rest/v1/jagai_memory?order=created_at.desc&limit=100&deleted_at=is.null';
         const _p527_r = await fetch(_p527_url, {
           headers: {
             apikey: SB_KEY,
@@ -17093,7 +17094,8 @@ function _p500_buildCandidateFromPayload(payload){
         if(typeof sbGet !== 'function'){
           throw new Error('sbGet helper not available');
         }
-        rows = await sbGet('jagai_memory', 'order=created_at.desc&limit=100');
+        // packet 547: 生存行のみ取得（deleted_at=is.null）
+        rows = await sbGet('jagai_memory', 'order=created_at.desc&limit=100&deleted_at=is.null');
       }
       const rowsArr = Array.isArray(rows) ? rows : [];
       const added = _p511_mergeDBMemories(rowsArr);
@@ -21492,7 +21494,8 @@ function _p500_buildCandidateFromPayload(payload){
 
     const offset = st.offset;
     const limit = st.batchSize;
-    const url = SB_URL + '/rest/v1/jagai_memory?order=created_at.desc&limit=' + limit + '&offset=' + offset;
+    // packet 547: 生存行のみ取得（deleted_at=is.null）、ゴミ箱は packet 547 で別 GET
+    const url = SB_URL + '/rest/v1/jagai_memory?order=created_at.desc&limit=' + limit + '&offset=' + offset + '&deleted_at=is.null';
     try{
       const r = await fetch(url, {
         headers: {
@@ -21744,6 +21747,8 @@ function _p500_buildCandidateFromPayload(payload){
     if(filter.isResolved === 'false') filters.push('is_resolved=is.false');
     if(filter.requiresBossCheck === 'true')  filters.push('requires_boss_check=is.true');
     if(filter.requiresBossCheck === 'false') filters.push('requires_boss_check=is.false');
+    // packet 547: 生存行のみ取得（deleted_at=is.null）、ゴミ箱は packet 547 で別 GET
+    filters.push('deleted_at=is.null');
     // packet 539 のクエリビルダーがあれば流用、なければ自前で組み立て
     if(typeof window._p539_buildQuery === 'function'){
       return window._p539_buildQuery({
@@ -24308,6 +24313,349 @@ function _p500_buildCandidateFromPayload(payload){
   }
 })();
 // ==== ここまで packet 546-fix2 PATCH Response 空配列検知 + Auth/Profile 診断 hotfix ====
+
+// ═══════════════════════════════════════
+// packet 547: 「ゴミ箱」UI + 削除済み非表示 + 復元一覧（v0.9.307 / Phase 7 第14弾）
+// 目的：論理削除済み記憶（deleted_at IS NOT NULL）を「ゴミ箱」カードで表示し、
+//      復元 UI を提供。通常一覧の GET は packet 511/540/541 すべてに
+//      &deleted_at=is.null を付加済み（生存行のみ取得）。
+// 厳守：GET のみ追加（PATCH は packet 546-fix2 流用、新規 method 追加なし）、
+//      DELETE/UPSERT 0、SQL/RLS/Auth 設定変更 0、service_role 0、
+//      30 日経過判定はクライアント側のみ（DB の物理削除は実装しない）、
+//      既存 packet 510-546-fix2 すべて非破壊。
+// ═══════════════════════════════════════
+(function _p547_init(){
+  function E(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];});}
+  function _p547_nowShort(){
+    try{const d=new Date(); const pad=function(n){return n<10?'0'+n:''+n;}; return pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds());}catch(_){return '';}
+  }
+
+  // ── State（in-memory のみ、本文 / token / reason は storage 保存しない）
+  window._p547_state = window._p547_state || {
+    items: [],         // ゴミ箱記憶（deleted_at IS NOT NULL）
+    offset: 0,
+    batchSize: 20,
+    busy: false,
+    status: 'idle',    // idle | loading | success | success_last | empty | error
+    lastBatchLoaded: 0,
+    totalLoaded: 0,
+    lastError: '',
+    lastTime: '',
+    lastTokenUsed: false
+  };
+
+  async function _p547_loadTrash(reset){
+    const st = window._p547_state;
+    if(st.busy) return {ok:false, reason:'busy'};
+    if(typeof SB_URL === 'undefined' || !SB_URL || typeof SB_KEY === 'undefined' || !SB_KEY){
+      st.status = 'error';
+      st.lastError = 'SB_URL/SB_KEY 未設定';
+      _p547_renderCard();
+      return {ok:false, reason:'no-config'};
+    }
+    // Auth：access_token 優先（authenticated でないと deleted_at は SELECT できない可能性あり）
+    let accessToken = null;
+    try{
+      if(typeof sb !== 'undefined' && sb && sb.auth && typeof sb.auth.getSession === 'function'){
+        const res = await sb.auth.getSession();
+        if(res && res.data && res.data.session && res.data.session.access_token){
+          accessToken = res.data.session.access_token;
+        }
+      }
+    }catch(_){}
+    st.lastTokenUsed = !!accessToken;
+
+    if(reset){
+      st.offset = 0;
+      st.items = [];
+      st.totalLoaded = 0;
+    }
+    st.busy = true;
+    st.status = 'loading';
+    st.lastError = '';
+    _p547_renderCard();
+
+    // ゴミ箱専用 GET：deleted_at=not.is.null、order=deleted_at.desc
+    const url = SB_URL + '/rest/v1/jagai_memory'
+              + '?deleted_at=not.is.null'
+              + '&order=deleted_at.desc'
+              + '&limit=' + st.batchSize
+              + '&offset=' + st.offset;
+    try{
+      const r = await fetch(url, {
+        headers: {
+          apikey: SB_KEY,
+          Authorization: 'Bearer ' + (accessToken || SB_KEY),
+          Accept: 'application/json'
+        }
+      });
+      if(!r.ok){
+        const errText = await r.text().catch(function(){return '';});
+        throw new Error('HTTP ' + r.status + ' ' + (r.statusText||'').slice(0,40) + (errText ? ' / '+errText.slice(0,160) : ''));
+      }
+      const rows = await r.json();
+      const rowsArr = Array.isArray(rows) ? rows : [];
+      const loaded = rowsArr.length;
+      // mapping（packet 511 流用するが、ゴミ箱専用 store なので _p547_state.items に格納）
+      const mapped = rowsArr.map(function(row){
+        if(typeof window._p511_mapRowToMemory === 'function'){
+          return window._p511_mapRowToMemory(row);
+        }
+        return {
+          id: String(row.id || ''),
+          dbId: String(row.id || ''),
+          _dbId: String(row.id || ''),
+          title: String(row.title || ''),
+          content: String(row.detail || row.content || ''),
+          deletedAt:    row.deleted_at || null,
+          deletedBy:    String(row.deleted_by || ''),
+          deleteReason: String(row.delete_reason || ''),
+          _isDeleted:   true,
+          _fromDB: true
+        };
+      });
+      // 既存 items と id 重複排除でマージ（offset 追加読み込み対応）
+      try{
+        const existingIds = new Set(st.items.map(function(m){return String(m.id||'');}));
+        mapped.forEach(function(m){
+          if(m && m.id && !existingIds.has(String(m.id))){
+            st.items.push(m);
+            existingIds.add(String(m.id));
+          }
+        });
+      }catch(_){}
+      st.lastBatchLoaded = loaded;
+      st.totalLoaded += loaded;
+      st.offset += loaded;
+      st.lastTime = _p547_nowShort();
+      if(loaded === 0){
+        st.status = (st.offset === 0) ? 'empty' : 'success_last';
+      }else if(loaded < st.batchSize){
+        st.status = 'success_last';
+      }else{
+        st.status = 'success';
+      }
+      try{console.warn('[packet 547 loadTrash] HTTP 200 OK loaded:', loaded, 'totalItems:', st.items.length, 'authToken=', (accessToken?'yes':'no'));}catch(_){}
+    }catch(e){
+      const msg = String(e&&e.message||e).slice(0,200);
+      st.status = 'error';
+      st.lastError = msg;
+      st.lastTime = _p547_nowShort();
+      try{console.warn('[packet 547 loadTrash] failed:', msg, 'authToken=', (accessToken?'yes':'no'));}catch(_){}
+    }finally{
+      st.busy = false;
+      _p547_renderCard();
+    }
+    return {ok: st.status !== 'error'};
+  }
+  window._p547_loadTrash = _p547_loadTrash;
+
+  // 復元：packet 546-fix2 _p546_restore を流用、成功時は _p547_state.items から除去
+  async function _p547_restoreFromTrash(memOrId){
+    if(typeof window._p546_restore !== 'function'){
+      return {ok:false, error:'_p546_restore が利用できません（packet 546 系未ロード）'};
+    }
+    const r = await window._p546_restore(memOrId);
+    if(r && r.ok){
+      // ゴミ箱 items から除去
+      try{
+        const id = (memOrId && typeof memOrId === 'object') ? (memOrId.id || memOrId.dbId) : memOrId;
+        const sid = String(id);
+        window._p547_state.items = (window._p547_state.items || []).filter(function(m){
+          return m && String(m.id) !== sid && String(m.dbId||'') !== sid;
+        });
+      }catch(_){}
+      try{ window._p547_state.lastEvent = '↩ 復元完了（リロードで通常一覧に表示）'; }catch(_){}
+      _p547_renderCard();
+    }
+    return r;
+  }
+  window._p547_restoreFromTrash = _p547_restoreFromTrash;
+
+  function _p547_daysAgo(iso){
+    try{
+      if(!iso) return null;
+      const t = new Date(iso).getTime();
+      if(!t) return null;
+      return Math.floor((Date.now() - t) / (1000 * 60 * 60 * 24));
+    }catch(_){return null;}
+  }
+
+  function _p547_renderCard(){
+    try{
+      const memPage = document.getElementById('page-memory');
+      if(!memPage) return;
+      let card = document.getElementById('p547-trash-card');
+      if(!card){
+        card = document.createElement('div');
+        card.id = 'p547-trash-card';
+        card.className = 'card';
+        card.style.cssText = 'border-top:4px solid #64748b;margin-bottom:10px;background:#f8fafc';
+        // packet 546 action card 直後（フォールバックは末尾）
+        const prev = document.getElementById('p546-action-card')
+                  || document.getElementById('p544-export-card')
+                  || document.getElementById('p543-control-card');
+        if(prev && prev.parentNode === memPage){
+          if(prev.nextSibling) memPage.insertBefore(card, prev.nextSibling);
+          else memPage.appendChild(card);
+        }else{
+          memPage.appendChild(card);
+        }
+      }
+      const st = window._p547_state;
+      const collapsed = (function(){
+        try{ return sessionStorage.getItem('p547-collapsed') !== '0'; }catch(_){ return true; }
+      })();
+      const tokenLabel = st.lastTokenUsed ? '<span style="color:#16a34a">✅ authenticated</span>' : '<span style="color:#94a3b8">anon フォールバック</span>';
+      let badge, badgeColor, msg;
+      switch(st.status){
+        case 'loading':       badge='⏳ 読込中...'; badgeColor='#1e40af'; msg='offset='+st.offset+' limit='+st.batchSize+' を取得中'; break;
+        case 'success':       badge='✅ '+st.lastBatchLoaded+' 件追加'; badgeColor='#16a34a'; msg='次の offset='+st.offset; break;
+        case 'success_last':  badge='✅ '+st.lastBatchLoaded+' 件追加（末尾到達）'; badgeColor='#0d9488'; msg='DB に残りなし'; break;
+        case 'empty':         badge='（ゴミ箱は空）'; badgeColor='#64748b'; msg='論理削除された記憶はありません'; break;
+        case 'error':         badge='❌ エラー'; badgeColor='#dc2626'; msg=E(st.lastError||'不明なエラー'); break;
+        default:              badge='🟢 待機中'; badgeColor='#64748b'; msg='「🔄 ゴミ箱を読み込む」を押してください';
+      }
+      let html = ''
+        +'<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">'
+          +'<div style="font-weight:800;color:#334155">🗑 ゴミ箱（論理削除済み・packet 547）</div>'
+          +'<div style="display:flex;gap:6px;flex-wrap:wrap">'
+            +'<button type="button" id="p547-toggle-collapse" class="dr-btn" style="background:#64748b;color:#fff;border:0;font-weight:700;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:11px">'+(collapsed?'▶ 展開':'▼ 閉じる')+'</button>'
+          +'</div>'
+        +'</div>'
+        +'<div id="p547-body" style="margin-top:8px;'+(collapsed?'display:none':'')+'">'
+          +'<div style="background:#fff;border:1px solid var(--bo);border-radius:6px;padding:7px 10px;color:#475569;font-size:11px;line-height:1.55">'
+            +'💡 論理削除された記憶（packet 546-fix2 経由で <code>deleted_at</code> がセットされた行）を表示します。'
+            +'<br>・通常一覧（packet 511 / 540 / 541）には表示されません（GET に <code>&amp;deleted_at=is.null</code> 付加済み）'
+            +'<br>・「↩ 復元」で <code>deleted_at</code> / <code>deleted_by</code> / <code>delete_reason</code> を NULL に戻します（admin/owner 限定）'
+            +'<br>・30 日経過した記憶は警告表示（物理削除は実装しません、別 packet で監査ログと併せて検討）'
+          +'</div>'
+          +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">'
+            +'<button type="button" id="p547-load-btn" '+(st.busy?'disabled':'')+' class="dr-btn" style="background:'+(st.busy?'#cbd5e1':'#64748b')+';color:#fff;border:0;font-weight:700;padding:6px 14px;border-radius:6px;cursor:'+(st.busy?'not-allowed':'pointer')+';font-size:11px">'+(st.busy?'⏳ 読込中...':'🔄 ゴミ箱を読み込む（最初から）')+'</button>'
+            +'<button type="button" id="p547-more-btn" '+((st.busy||st.status==='empty'||st.status==='success_last')?'disabled':'')+' class="dr-btn" style="background:#fff;color:#334155;border:1.5px solid #64748b;font-weight:700;padding:6px 14px;border-radius:6px;cursor:'+((st.busy||st.status==='empty'||st.status==='success_last')?'not-allowed':'pointer')+';font-size:11px;opacity:'+((st.busy||st.status==='empty'||st.status==='success_last')?'0.55':'1')+'">📥 もっと見る（ゴミ箱の続き）</button>'
+          +'</div>'
+          +'<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:6px">'
+            +'<span style="background:'+badgeColor+';color:#fff;padding:3px 10px;border-radius:12px;font-weight:700;font-size:11px">'+badge+'</span>'
+            +'<span style="font-size:11px;color:#475569">'+E(msg)+'</span>'
+          +'</div>'
+          +'<div style="font-size:11px;color:#475569;margin-top:4px">累積取得：'+st.totalLoaded+' 件 / 一覧表示：'+(st.items||[]).length+' 件 / Auth：'+tokenLabel+(st.lastTime?' / 直近 '+E(st.lastTime):'')+'</div>'
+          + _p547_renderItemList()
+        +'</div>'
+        +'<div style="font-size:10px;color:#666;background:#fff;border:1px solid var(--bo);border-radius:4px;padding:5px 8px;margin-top:8px;line-height:1.55">※ '
+          +'GET のみ（DELETE / UPSERT 通信 0）。復元は packet 546-fix2 PATCH 流用（admin/owner 限定 + UUID 必須）。'
+          +'localStorage / sessionStorage は collapsed フラグのみ、本文 / token 保存 0。'
+        +'</div>';
+      card.innerHTML = html;
+
+      const collapseBtn = document.getElementById('p547-toggle-collapse');
+      const body = document.getElementById('p547-body');
+      if(collapseBtn && body){
+        collapseBtn.addEventListener('click', function(){
+          if(body.style.display === 'none'){
+            body.style.display = '';
+            collapseBtn.textContent = '▼ 閉じる';
+            try{sessionStorage.setItem('p547-collapsed','0');}catch(_){}
+          }else{
+            body.style.display = 'none';
+            collapseBtn.textContent = '▶ 展開';
+            try{sessionStorage.setItem('p547-collapsed','1');}catch(_){}
+          }
+        });
+      }
+      const loadBtn = document.getElementById('p547-load-btn');
+      if(loadBtn && !loadBtn.disabled){
+        loadBtn.addEventListener('click', function(){ _p547_loadTrash(true).catch(function(_){}); });
+      }
+      const moreBtn = document.getElementById('p547-more-btn');
+      if(moreBtn && !moreBtn.disabled){
+        moreBtn.addEventListener('click', function(){ _p547_loadTrash(false).catch(function(_){}); });
+      }
+      // 個別「↩ 復元」ボタン bind
+      card.querySelectorAll('button[data-p547-restore]').forEach(function(b){
+        b.addEventListener('click', async function(){
+          const id = b.getAttribute('data-p547-restore');
+          if(!id) return;
+          if(!confirm('この記憶を復元します（deleted_at / deleted_by / delete_reason を NULL に PATCH）。\nid=' + String(id).slice(0,12) + '...\n\n実行しますか？')) return;
+          b.disabled = true;
+          b.textContent = '⏳ 復元中...';
+          const r = await _p547_restoreFromTrash(id);
+          if(!r.ok){ try{alert('❌ 失敗：' + (r.error||'unknown'));}catch(_){} }
+        });
+      });
+    }catch(e){try{console.warn('[packet 547 renderCard]', e&&e.message);}catch(_){}}
+  }
+  window._p547_renderCard = _p547_renderCard;
+
+  function _p547_renderItemList(){
+    try{
+      const items = window._p547_state.items || [];
+      if(items.length === 0){
+        return '<div style="font-size:11px;color:var(--t3);margin-top:8px">（ゴミ箱は空、または未読込）</div>';
+      }
+      let isAuth = false;
+      try{
+        const u = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : (window.currentUser || null);
+        isAuth = !!(u && (u.perm === 'admin' || u.perm === 'owner'));
+      }catch(_){}
+      let html = '<div style="margin-top:8px;display:flex;flex-direction:column;gap:5px">';
+      items.forEach(function(m, idx){
+        const days = _p547_daysAgo(m.deletedAt);
+        const overdue = (days !== null && days >= 30);
+        const delAt = m.deletedAt ? String(m.deletedAt).replace('T',' ').slice(0,16) : '?';
+        const delBy = m.deletedBy || '?';
+        const rs = m.deleteReason ? '「'+(m.deleteReason.length>40?m.deleteReason.slice(0,40)+'…':m.deleteReason)+'」' : '（理由なし）';
+        const id = String(m.id || m.dbId || '');
+        html += '<div style="background:#fff;border:1px solid '+(overdue?'#f59e0b':'#cbd5e1')+';border-left-width:5px;border-radius:6px;padding:7px 10px;font-size:11px;line-height:1.55">'
+          +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
+            +'<span style="font-weight:700;color:#334155">'+(idx+1)+'. '+E(String(m.title || '(無題)').slice(0,80))+'</span>'
+            +(overdue ? '<span style="background:#f59e0b;color:#fff;padding:1px 7px;border-radius:10px;font-size:10px;font-weight:700">⚠ '+days+' 日経過</span>' : '')
+            +(days!==null && !overdue ? '<span style="background:#94a3b8;color:#fff;padding:1px 7px;border-radius:10px;font-size:10px">'+days+' 日経過</span>' : '')
+          +'</div>'
+          +'<div style="color:#475569;margin-top:2px">🗑 削除：'+E(delAt)+' / '+E(delBy)+' / 理由：'+E(rs)+'</div>'
+          + (isAuth && id ? '<div style="margin-top:5px"><button type="button" data-p547-restore="'+E(id)+'" style="font-size:10px;padding:4px 9px;border-radius:5px;border:1.5px solid #0d9e6e;background:#fff;color:#0d9e6e;cursor:pointer;font-weight:700">↩ この記憶を復元（PATCH）</button></div>' : '')
+        +'</div>';
+      });
+      html += '</div>';
+      if(items.some(function(m){return _p547_daysAgo(m.deletedAt) >= 30;})){
+        html += '<div style="background:#fef3c7;border:1px solid #fde68a;border-radius:6px;padding:6px 9px;color:#92400e;font-size:11px;line-height:1.55;margin-top:6px">⚠ 30 日経過した記憶は通常運用では物理削除候補ですが、本 packet では物理削除は実装していません（監査ログと併せて別 packet で検討）。</div>';
+      }
+      return html;
+    }catch(_){return '';}
+  }
+
+  // packet 546 ActionCard wrap chain（packet 546-fix2 の上）：診断 + ゴミ箱誘導追記なし（独立カード）
+  // 既存カード描画後に packet 547 カードも追従描画する保険
+  (function _p547_wrapActionCard(){
+    try{
+      const orig = window._p546_renderActionCard;
+      if(typeof orig !== 'function') return;
+      window._p546_renderActionCard = function(){
+        try{ orig.apply(this, arguments); }catch(_){}
+        try{ _p547_renderCard(); }catch(_){}
+      };
+    }catch(_){}
+  })();
+
+  (function _p547_wrapSwitchPage(){
+    try{
+      const orig = window.switchPage;
+      if(typeof orig !== 'function') return;
+      window.switchPage = function(pg){
+        try{ orig.apply(this, arguments); }catch(_){}
+        if(pg === 'memory'){
+          setTimeout(function(){ try{_p547_renderCard();}catch(_){} }, 200);
+        }
+      };
+    }catch(_){}
+  })();
+
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){ setTimeout(_p547_renderCard, 580); });
+  }else{
+    setTimeout(_p547_renderCard, 580);
+  }
+})();
+// ==== ここまで packet 547 ゴミ箱 UI + 削除済み非表示 + 復元一覧 ====
 </script>
 </body>
 </html>
