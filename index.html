@@ -21611,6 +21611,450 @@ function _p500_buildCandidateFromPayload(payload){
   }
 })();
 // ==== ここまで packet 540 記憶庫 DB もっと見るボタン + offset 追加読み込み MVP ====
+
+// ═══════════════════════════════════════
+// packet 541: 記憶庫 クライアント検索 → DB 側フィルター GET 切替 MVP（v0.9.291）
+// 目的：keyword / memory_type / risk_level / is_resolved / requires_boss_check を
+//      DB 側 PostgREST フィルター付き GET で取得（in-memory 絞り込みではなく実 GET）。
+//      packet 539 _p539_buildQuery(opts) を流用、packet 540 と同 Auth 方針。
+//      検索結果は packet 511 _p511_mergeDBMemories で既存一覧へマージ → packet 529
+//      クライアント絞り込みと共存（別レイヤー）。続きは「もっと見る」で offset 追加。
+// 厳守：SELECT/GET のみ、UPDATE/DELETE/UPSERT 0、SQL/RLS/Auth 設定変更 0、service_role 0、
+//      token / password を console / localStorage / sessionStorage に保存しない（真偽値のみ）、
+//      既存 packet 510/511/526/527/529/536/538/539/540 を壊さない。
+// ═══════════════════════════════════════
+(function _p541_init(){
+  function E(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];});}
+  function _p541_nowShort(){
+    try{
+      const d = new Date();
+      const pad = function(n){return n<10 ? '0'+n : ''+n;};
+      return pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+    }catch(_){return '';}
+  }
+
+  window._p541_state = window._p541_state || {
+    filter: {keyword:'', memoryType:'', riskLevel:'', isResolved:'', requiresBossCheck:''},
+    filterHash: '',
+    offset: 0,
+    batchSize: 20,
+    totalLoaded: 0,
+    totalMerged: 0,
+    busy: false,
+    status: 'idle',     // 'idle'|'loading'|'success'|'success_last'|'empty'|'error'
+    lastBatchLoaded: 0,
+    lastBatchAdded: 0,
+    lastError: '',
+    lastTime: '',
+    lastTokenUsed: false,
+    lastQueryPath: ''   // 直近 GET の path（表示用、token は含まない）
+  };
+
+  function _p541_buildPath(filter, offset, limit){
+    const filters = [];
+    if(filter.memoryType)         filters.push('memory_type=eq.' + encodeURIComponent(filter.memoryType));
+    if(filter.riskLevel)          filters.push('risk_level=eq.' + encodeURIComponent(filter.riskLevel));
+    if(filter.isResolved === 'true')  filters.push('is_resolved=is.true');
+    if(filter.isResolved === 'false') filters.push('is_resolved=is.false');
+    if(filter.requiresBossCheck === 'true')  filters.push('requires_boss_check=is.true');
+    if(filter.requiresBossCheck === 'false') filters.push('requires_boss_check=is.false');
+    // packet 539 のクエリビルダーがあれば流用、なければ自前で組み立て
+    if(typeof window._p539_buildQuery === 'function'){
+      return window._p539_buildQuery({
+        filters: filters,
+        keyword: filter.keyword || '',
+        paging: 'offset',
+        limit: limit,
+        offset: offset
+      });
+    }
+    // フォールバック（互換）
+    const parts = filters.slice();
+    if(filter.keyword){
+      const kw = String(filter.keyword).replace(/[*]/g,'').replace(/\s+/g,'%20');
+      parts.push('or=(title.ilike.*' + kw + '*,content.ilike.*' + kw + '*)');
+    }
+    parts.push('order=created_at.desc');
+    if(offset > 0) parts.push('offset=' + offset);
+    parts.push('limit=' + (limit || 20));
+    return '/rest/v1/jagai_memory?' + parts.join('&');
+  }
+
+  function _p541_hashFilter(f){
+    return [f.keyword||'', f.memoryType||'', f.riskLevel||'', f.isResolved||'', f.requiresBossCheck||''].join('|');
+  }
+
+  function _p541_readForm(){
+    return {
+      keyword:           String((document.getElementById('p541-q-keyword') || {}).value || '').trim(),
+      memoryType:        String((document.getElementById('p541-q-memtype') || {}).value || '').trim(),
+      riskLevel:         String((document.getElementById('p541-q-risk') || {}).value || '').trim(),
+      isResolved:        String((document.getElementById('p541-q-resolved') || {}).value || '').trim(),
+      requiresBossCheck: String((document.getElementById('p541-q-boss') || {}).value || '').trim()
+    };
+  }
+
+  async function _p541_runFetch(){
+    const st = window._p541_state;
+    if(st.busy) return {ok:false, reason:'busy'};
+    if(typeof window._p511_mergeDBMemories !== 'function'){
+      st.status = 'error';
+      st.lastError = '_p511_mergeDBMemories not available';
+      st.lastTime = _p541_nowShort();
+      _p541_renderStatus();
+      return {ok:false, reason:'no-merge'};
+    }
+    if(typeof SB_URL === 'undefined' || !SB_URL || typeof SB_KEY === 'undefined' || !SB_KEY){
+      st.status = 'error';
+      st.lastError = 'SB_URL/SB_KEY not configured';
+      st.lastTime = _p541_nowShort();
+      _p541_renderStatus();
+      return {ok:false, reason:'no-config'};
+    }
+    st.busy = true;
+    st.status = 'loading';
+    st.lastError = '';
+    _p541_renderStatus();
+
+    // Auth：packet 527/540 と同方針（access_token Bearer 優先、無ければ anon フォールバック）
+    let accessToken = null;
+    try{
+      if(typeof sb !== 'undefined' && sb && sb.auth && typeof sb.auth.getSession === 'function'){
+        const res = await sb.auth.getSession();
+        if(res && res.data && res.data.session && res.data.session.access_token){
+          accessToken = res.data.session.access_token;
+        }
+      }
+    }catch(_){}
+    st.lastTokenUsed = !!accessToken;
+
+    const path = _p541_buildPath(st.filter, st.offset, st.batchSize);
+    st.lastQueryPath = path;
+    const url = SB_URL + path;
+    try{
+      const r = await fetch(url, {
+        headers: {
+          apikey: SB_KEY,
+          Authorization: 'Bearer ' + (accessToken || SB_KEY),
+          Accept: 'application/json'
+        }
+      });
+      if(!r.ok){
+        const errText = await r.text().catch(function(){return '';});
+        throw new Error('HTTP ' + r.status + ' ' + (r.statusText || '').slice(0,40) + (errText ? ' / ' + errText.slice(0,160) : ''));
+      }
+      const rows = await r.json();
+      const rowsArr = Array.isArray(rows) ? rows : [];
+      const loaded = rowsArr.length;
+      let added = 0;
+      if(loaded > 0){
+        added = window._p511_mergeDBMemories(rowsArr) || 0;
+      }
+      st.lastBatchLoaded = loaded;
+      st.lastBatchAdded = added;
+      st.totalLoaded += loaded;
+      st.totalMerged += added;
+      st.offset += loaded; // 実取得件数分のみ進める
+      st.lastTime = _p541_nowShort();
+      if(loaded === 0){
+        st.status = (st.offset === 0) ? 'empty' : 'success_last';
+      }else if(loaded < st.batchSize){
+        st.status = 'success_last';
+      }else{
+        st.status = 'success';
+      }
+      try{console.warn('[packet 541 search] HTTP 200 OK offset=', (st.offset - loaded), 'loaded=', loaded, 'merged=', added, 'authToken=', (accessToken?'yes':'no'));}catch(_){}
+      try{ if(typeof _p500_renderList === 'function') _p500_renderList(); }catch(_){}
+      try{ if(typeof _p500_renderSummary === 'function') _p500_renderSummary(); }catch(_){}
+      try{ if(typeof window._p511_updateDiagDisplay === 'function') window._p511_updateDiagDisplay(); }catch(_){}
+      try{ if(typeof window._p540_renderStatus === 'function') window._p540_renderStatus(); }catch(_){}
+    }catch(e){
+      const msg = String(e && e.message || '').slice(0, 200);
+      st.status = 'error';
+      st.lastError = msg.slice(0, 160);
+      st.lastTime = _p541_nowShort();
+      try{console.warn('[packet 541 search] failed:', msg, 'authToken=', (accessToken?'yes':'no'));}catch(_){}
+    }finally{
+      st.busy = false;
+      _p541_renderStatus();
+    }
+    return {ok: st.status !== 'error'};
+  }
+
+  async function _p541_runSearch(){
+    const st = window._p541_state;
+    const form = _p541_readForm();
+    const newHash = _p541_hashFilter(form);
+    // 検索条件が変わったら offset をリセット、同じなら次バッチ取得
+    if(newHash !== st.filterHash){
+      st.filter = form;
+      st.filterHash = newHash;
+      st.offset = 0;
+      st.totalLoaded = 0;
+      st.totalMerged = 0;
+      st.lastBatchLoaded = 0;
+      st.lastBatchAdded = 0;
+      st.status = 'idle';
+    }
+    return _p541_runFetch();
+  }
+  window._p541_runSearch = _p541_runSearch;
+
+  async function _p541_loadMoreSearch(){
+    const st = window._p541_state;
+    if(st.status === 'empty' || st.status === 'success_last') return {ok:false, reason:'end'};
+    if(!st.filterHash){
+      st.status = 'error';
+      st.lastError = 'まず「🔍 DB 検索を実行」を押してください';
+      _p541_renderStatus();
+      return {ok:false, reason:'no-search'};
+    }
+    return _p541_runFetch();
+  }
+  window._p541_loadMoreSearch = _p541_loadMoreSearch;
+
+  function _p541_resetSearch(){
+    const st = window._p541_state;
+    if(st.busy) return;
+    st.filter = {keyword:'', memoryType:'', riskLevel:'', isResolved:'', requiresBossCheck:''};
+    st.filterHash = '';
+    st.offset = 0;
+    st.totalLoaded = 0;
+    st.totalMerged = 0;
+    st.lastBatchLoaded = 0;
+    st.lastBatchAdded = 0;
+    st.lastError = '';
+    st.lastQueryPath = '';
+    st.status = 'idle';
+    // フォームクリア
+    try{
+      const ids = ['p541-q-keyword','p541-q-memtype','p541-q-risk','p541-q-resolved','p541-q-boss'];
+      ids.forEach(function(id){ const el = document.getElementById(id); if(el) el.value = ''; });
+    }catch(_){}
+    _p541_renderStatus();
+  }
+  window._p541_resetSearch = _p541_resetSearch;
+
+  function _p541_injectCard(){
+    try{
+      const memPage = document.getElementById('page-memory');
+      if(!memPage) return;
+      if(document.getElementById('p541-search-card')) return;
+
+      const card = document.createElement('div');
+      card.id = 'p541-search-card';
+      card.className = 'card';
+      card.style.cssText = 'border-top:4px solid #06b6d4;margin-bottom:10px';
+      card.innerHTML = ''
+        +'<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">'
+          +'<div style="font-weight:800;color:#155e75">🔍 記憶庫 DB 検索 MVP（packet 541）</div>'
+          +'<button type="button" id="p541-toggle-collapse" class="dr-btn" style="background:#06b6d4;color:#fff;border:0;font-weight:700;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:11px">▼ 閉じる</button>'
+        +'</div>'
+        +'<div id="p541-body" style="margin-top:8px"></div>'
+        +'<div style="background:#ecfeff;border:1px solid #a5f3fc;border-radius:6px;padding:7px 10px;color:#155e75;font-size:11px;line-height:1.55;margin-top:8px">'
+          +'💡 <b>DB 側で SELECT 条件を付けて取得</b>します（クライアント絞り込みではなく、PostgREST フィルター付き GET）。'
+          +'<br>・キーワード：title / content 部分一致（<code>or=(title.ilike.*kw*,content.ilike.*kw*)</code>）'
+          +'<br>・取得行は packet 511 の id + (title+createdAt±5sec) dedup で既存一覧へマージ'
+          +'<br>・<b>packet 529 のクライアント絞り込みと共存</b>（取得後に画面側で重ね絞り込み可）'
+          +'<br>・同じ条件で「📥 もっと見る（検索結果）」を押すと続き 20 件を取得'
+        +'</div>'
+        +'<div style="font-size:10px;color:#666;background:#f8fafc;border:1px solid var(--bo);border-radius:4px;padding:5px 8px;margin-top:8px;line-height:1.55">※ '
+          +'SELECT/GET のみ（POST / PATCH / PUT / DELETE / UPSERT は一切送らない）。'
+          +'token / password は console / localStorage / sessionStorage に保存しません（真偽値のみ）。'
+          +'localStorage / sessionStorage は一切使用しません。'
+        +'</div>';
+      // packet 540 直後（フォールバックは packet 539 / 538、なければ先頭）
+      const prevCard = document.getElementById('p540-loadmore-card')
+                    || document.getElementById('p539-paging-search-card')
+                    || document.getElementById('p538-mode-card');
+      if(prevCard && prevCard.parentNode === memPage){
+        if(prevCard.nextSibling) memPage.insertBefore(card, prevCard.nextSibling);
+        else memPage.appendChild(card);
+      }else{
+        const firstCard = memPage.querySelector('.card');
+        if(firstCard) memPage.insertBefore(card, firstCard);
+        else memPage.appendChild(card);
+      }
+
+      document.getElementById('p541-toggle-collapse').addEventListener('click', function(){
+        const body = document.getElementById('p541-body');
+        const btn = document.getElementById('p541-toggle-collapse');
+        if(!body || !btn) return;
+        if(body.style.display === 'none'){
+          body.style.display = '';
+          btn.textContent = '▼ 閉じる';
+          try{sessionStorage.removeItem('p541-collapsed');}catch(_){}
+        }else{
+          body.style.display = 'none';
+          btn.textContent = '▶ 開く';
+          try{sessionStorage.setItem('p541-collapsed','1');}catch(_){}
+        }
+      });
+      // 折りたたみ初期反映
+      try{
+        if(sessionStorage.getItem('p541-collapsed') === '1'){
+          document.getElementById('p541-body').style.display = 'none';
+          document.getElementById('p541-toggle-collapse').textContent = '▶ 開く';
+        }
+      }catch(_){}
+
+      _p541_renderBody();
+    }catch(e){try{console.warn('[packet 541 injectCard]', e && e.message);}catch(_){}}
+  }
+
+  function _p541_renderBody(){
+    try{
+      const body = document.getElementById('p541-body');
+      if(!body) return;
+      const f = window._p541_state.filter;
+      let html = '';
+      html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:11px">'
+        +'<div style="grid-column:1 / -1"><label style="font-weight:600;color:#475569">キーワード（title / content 部分一致）<br><input id="p541-q-keyword" type="text" value="'+E(f.keyword||'')+'" placeholder="例：内見 / クレーム" style="width:100%;padding:4px 8px;border:1px solid var(--bo);border-radius:4px;font-size:11px"></label></div>'
+        +'<div><label style="font-weight:600;color:#475569">memory_type<br><select id="p541-q-memtype" style="width:100%;padding:4px 6px;border:1px solid var(--bo);border-radius:4px;font-size:11px">'
+          +'<option value="">(任意)</option>'
+          +'<option value="failure_lesson"'+(f.memoryType==='failure_lesson'?' selected':'')+'>failure_lesson（失敗教訓）</option>'
+          +'<option value="success_pattern"'+(f.memoryType==='success_pattern'?' selected':'')+'>success_pattern（成功事例）</option>'
+          +'<option value="boss_decision"'+(f.memoryType==='boss_decision'?' selected':'')+'>boss_decision（ボス判断）</option>'
+          +'<option value="operation_rule"'+(f.memoryType==='operation_rule'?' selected':'')+'>operation_rule（業務ルール）</option>'
+          +'<option value="discussion_log"'+(f.memoryType==='discussion_log'?' selected':'')+'>discussion_log（議論ログ）</option>'
+        +'</select></label></div>'
+        +'<div><label style="font-weight:600;color:#475569">risk_level<br><select id="p541-q-risk" style="width:100%;padding:4px 6px;border:1px solid var(--bo);border-radius:4px;font-size:11px">'
+          +'<option value="">(任意)</option>'
+          +'<option value="high"'+(f.riskLevel==='high'?' selected':'')+'>high</option>'
+          +'<option value="mid"'+(f.riskLevel==='mid'?' selected':'')+'>mid</option>'
+          +'<option value="low"'+(f.riskLevel==='low'?' selected':'')+'>low</option>'
+          +'<option value="normal"'+(f.riskLevel==='normal'?' selected':'')+'>normal</option>'
+        +'</select></label></div>'
+        +'<div><label style="font-weight:600;color:#475569">is_resolved（解決済み）<br><select id="p541-q-resolved" style="width:100%;padding:4px 6px;border:1px solid var(--bo);border-radius:4px;font-size:11px">'
+          +'<option value="">(任意)</option>'
+          +'<option value="true"'+(f.isResolved==='true'?' selected':'')+'>true（解決済み）</option>'
+          +'<option value="false"'+(f.isResolved==='false'?' selected':'')+'>false（未解決）</option>'
+        +'</select></label></div>'
+        +'<div><label style="font-weight:600;color:#475569">requires_boss_check（ボス確認必要）<br><select id="p541-q-boss" style="width:100%;padding:4px 6px;border:1px solid var(--bo);border-radius:4px;font-size:11px">'
+          +'<option value="">(任意)</option>'
+          +'<option value="true"'+(f.requiresBossCheck==='true'?' selected':'')+'>true</option>'
+          +'<option value="false"'+(f.requiresBossCheck==='false'?' selected':'')+'>false</option>'
+        +'</select></label></div>'
+      +'</div>'
+      +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">'
+        +'<button type="button" id="p541-search-btn" class="dr-btn" style="background:#0891b2;color:#fff;border:0;font-weight:700;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:11px">🔍 DB 検索を実行</button>'
+        +'<button type="button" id="p541-more-btn" class="dr-btn" style="background:#fff;color:#0891b2;border:1.5px solid #06b6d4;font-weight:700;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:11px">📥 もっと見る（検索結果の続き）</button>'
+        +'<button type="button" id="p541-reset-btn" class="dr-btn" style="background:#fff;color:#64748b;border:1px solid var(--bo);font-weight:700;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:11px">🧹 検索条件をクリア</button>'
+      +'</div>'
+      +'<div id="p541-status-block" style="margin-top:8px;font-size:11px;line-height:1.55"></div>';
+
+      body.innerHTML = html;
+
+      const searchBtn = document.getElementById('p541-search-btn');
+      const moreBtn = document.getElementById('p541-more-btn');
+      const resetBtn = document.getElementById('p541-reset-btn');
+      if(searchBtn) searchBtn.addEventListener('click', function(){ _p541_runSearch().catch(function(_){}); });
+      if(moreBtn) moreBtn.addEventListener('click', function(){ _p541_loadMoreSearch().catch(function(_){}); });
+      if(resetBtn) resetBtn.addEventListener('click', _p541_resetSearch);
+
+      _p541_renderStatus();
+    }catch(e){try{console.warn('[packet 541 renderBody]', e && e.message);}catch(_){}}
+  }
+
+  function _p541_renderStatus(){
+    try{
+      const st = window._p541_state;
+      const status = document.getElementById('p541-status-block');
+      const moreBtn = document.getElementById('p541-more-btn');
+      const searchBtn = document.getElementById('p541-search-btn');
+      if(!status) return;
+
+      let badge, msg, badgeColor;
+      switch(st.status){
+        case 'loading':
+          badge = '⏳ 検索中...'; badgeColor = '#1e40af';
+          msg = 'DB に GET 中（offset=' + st.offset + ' limit=' + st.batchSize + '）';
+          break;
+        case 'success':
+          badge = '✅ ' + st.lastBatchAdded + ' 件追加'; badgeColor = '#0891b2';
+          msg = '取得 ' + st.lastBatchLoaded + ' 件 / 重複除外 ' + (st.lastBatchLoaded - st.lastBatchAdded) + ' 件 / 次の offset=' + st.offset;
+          break;
+        case 'success_last':
+          badge = '✅ ' + st.lastBatchAdded + ' 件追加（末尾到達）'; badgeColor = '#0d9488';
+          msg = '取得 ' + st.lastBatchLoaded + ' 件 / 重複除外 ' + (st.lastBatchLoaded - st.lastBatchAdded) + ' 件 / DB に残りなし';
+          break;
+        case 'empty':
+          badge = '（検索結果 0 件）'; badgeColor = '#64748b';
+          msg = '条件に一致する記憶が DB にありません。条件を緩めて再検索してください。';
+          break;
+        case 'error':
+          badge = '❌ エラー'; badgeColor = '#dc2626';
+          msg = E(st.lastError || '不明なエラー');
+          break;
+        default:
+          badge = '🟢 待機中'; badgeColor = '#10b981';
+          msg = '条件を入力して「🔍 DB 検索を実行」を押してください';
+      }
+
+      const tokenLabel = st.lastTokenUsed ? '<span style="color:#16a34a">✅ authenticated</span>' : '<span style="color:#94a3b8">anon フォールバック</span>';
+      let bodyHtml = ''
+        +'<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">'
+          +'<span style="background:'+badgeColor+';color:#fff;padding:3px 10px;border-radius:12px;font-weight:700;font-size:11px">'+badge+'</span>'
+          +'<span style="font-size:11px;color:#475569">'+msg+'</span>'
+        +'</div>'
+        +'<div style="font-size:11px;color:#475569;margin-top:4px">'
+          +'累積：取得 '+st.totalLoaded+' 件 / 追加 '+st.totalMerged+' 件 / 一覧合計 '+((window._p500_memoryStore||[]).length)+' 件'
+          +(st.lastTime ? ' / 直近 '+E(st.lastTime) : '')
+          +' / Auth：'+tokenLabel
+        +'</div>';
+      if(st.lastQueryPath){
+        bodyHtml += '<div style="font-family:ui-monospace,Consolas,monospace;font-size:10px;background:#0f172a;color:#67e8f9;padding:5px 8px;border-radius:4px;word-break:break-all;margin-top:5px;line-height:1.5">GET '+E(st.lastQueryPath)+'</div>';
+      }
+      status.innerHTML = bodyHtml;
+
+      // ボタン制御
+      if(searchBtn){
+        searchBtn.disabled = !!st.busy;
+        searchBtn.style.opacity = st.busy ? '0.55' : '1';
+        searchBtn.style.cursor = st.busy ? 'not-allowed' : 'pointer';
+      }
+      if(moreBtn){
+        const disabled = st.busy || !st.filterHash || st.status === 'empty' || st.status === 'success_last';
+        moreBtn.disabled = disabled;
+        moreBtn.style.opacity = disabled ? '0.55' : '1';
+        moreBtn.style.cursor = disabled ? 'not-allowed' : 'pointer';
+      }
+    }catch(e){try{console.warn('[packet 541 renderStatus]', e && e.message);}catch(_){}}
+  }
+  window._p541_renderStatus = _p541_renderStatus;
+
+  // packet 511 diag 更新時に packet 541 status も再描画（一覧合計件数の同期）
+  (function _p541_wrapP511Diag(){
+    try{
+      const orig = window._p511_updateDiagDisplay;
+      if(typeof orig !== 'function') return;
+      window._p511_updateDiagDisplay = function(){
+        try{ orig.apply(this, arguments); }catch(_){}
+        try{ _p541_renderStatus(); }catch(_){}
+      };
+    }catch(_){}
+  })();
+
+  (function _p541_wrapSwitchPage(){
+    try{
+      const orig = window.switchPage;
+      if(typeof orig !== 'function') return;
+      window.switchPage = function(pg){
+        try{ orig.apply(this, arguments); }catch(_){}
+        if(pg === 'memory'){
+          setTimeout(function(){ try{_p541_injectCard();}catch(_){} }, 140);
+        }
+      };
+    }catch(_){}
+  })();
+
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){ setTimeout(_p541_injectCard, 400); });
+  }else{
+    setTimeout(_p541_injectCard, 400);
+  }
+})();
+// ==== ここまで packet 541 記憶庫 クライアント検索 → DB 側フィルター GET 切替 MVP ====
 </script>
 </body>
 </html>
