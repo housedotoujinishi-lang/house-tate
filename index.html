@@ -22133,6 +22133,389 @@ function _p500_buildCandidateFromPayload(payload){
   }
 })();
 // ==== ここまで packet 541 記憶庫 クライアント検索 → DB 側フィルター GET 切替 MVP ====
+
+// ═══════════════════════════════════════
+// packet 543: jagai_memory 論理削除 deleted_at UI ベース（v0.9.294）
+// 目的：将来的に物理削除せず deleted_at / deleted_by / delete_reason で
+// 論理削除する設計の UI ベース。実 DB UPDATE / PATCH / DELETE / UPSERT は
+// 一切送らない（packet 545+ でボス承認 + RLS UPDATE policy + SQL 実行後に実装）。
+// 厳守：DB 通信 0、新規 fetch 0、UPDATE/DELETE/UPSERT 0、SQL/RLS/Auth 設定変更 0、
+//      service_role 0、本文を localStorage / sessionStorage に保存しない
+//      （pendingDeletes は window state のみ、リロードで消える明示）、
+//      既存 packet 510/511/526/527/528-542/542A を壊さない。
+// ═══════════════════════════════════════
+(function _p543_init(){
+  function E(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];});}
+  function _p543_nowShort(){
+    try{const d=new Date(); const pad=function(n){return n<10?'0'+n:''+n;}; return pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds());}catch(_){return '';}
+  }
+  function _p543_currentUserName(){
+    try{
+      if(typeof currentUser !== 'undefined' && currentUser && currentUser.name) return String(currentUser.name);
+      if(window.currentUser && window.currentUser.name) return String(window.currentUser.name);
+    }catch(_){}
+    return '(未ログイン)';
+  }
+
+  // ── State（in-memory のみ、reason 文は sessionStorage / localStorage に保存しない）
+  window._p543_state = window._p543_state || {
+    pendingDeletes: {},   // {id: {reason, addedAt, addedBy}} — リロードで消える
+    pendingOrder: [],     // 表示順保持
+    totalMarked: 0,
+    totalUnmarked: 0
+  };
+
+  // UI トグル（フラグのみ sessionStorage、本文・reason は保存しない）
+  function _p543_getHidePending(){
+    try{return sessionStorage.getItem('p543-hide-pending') === '1';}catch(_){return false;}
+  }
+  function _p543_setHidePending(v){
+    try{
+      if(v) sessionStorage.setItem('p543-hide-pending','1');
+      else sessionStorage.removeItem('p543-hide-pending');
+    }catch(_){}
+  }
+  function _p543_getOnlyPending(){
+    try{return sessionStorage.getItem('p543-only-pending') === '1';}catch(_){return false;}
+  }
+  function _p543_setOnlyPending(v){
+    try{
+      if(v) sessionStorage.setItem('p543-only-pending','1');
+      else sessionStorage.removeItem('p543-only-pending');
+    }catch(_){}
+  }
+
+  function _p543_isPending(id){
+    return !!(id && window._p543_state.pendingDeletes[String(id)]);
+  }
+  function _p543_markPending(id, reason){
+    if(!id) return false;
+    const sid = String(id);
+    const st = window._p543_state;
+    if(st.pendingDeletes[sid]){
+      // 既存：理由のみ更新
+      st.pendingDeletes[sid].reason = String(reason || '').slice(0, 500);
+      return true;
+    }
+    st.pendingDeletes[sid] = {
+      reason: String(reason || '').slice(0, 500),
+      addedAt: new Date().toISOString(),
+      addedBy: _p543_currentUserName()
+    };
+    st.pendingOrder.push(sid);
+    st.totalMarked++;
+    return true;
+  }
+  function _p543_unmarkPending(id){
+    if(!id) return false;
+    const sid = String(id);
+    const st = window._p543_state;
+    if(!st.pendingDeletes[sid]) return false;
+    delete st.pendingDeletes[sid];
+    st.pendingOrder = st.pendingOrder.filter(function(x){return x !== sid;});
+    st.totalUnmarked++;
+    return true;
+  }
+  window._p543_markPending = _p543_markPending;
+  window._p543_unmarkPending = _p543_unmarkPending;
+  window._p543_isPending = _p543_isPending;
+
+  // ── 理由入力モーダル
+  function _p543_openModal(id, title){
+    try{
+      let modal = document.getElementById('p543-modal');
+      if(!modal){
+        modal = document.createElement('div');
+        modal.id = 'p543-modal';
+        modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.55);display:flex;align-items:flex-start;justify-content:center;padding:20px 12px;overflow-y:auto';
+        document.body.appendChild(modal);
+        modal.addEventListener('click', function(ev){ if(ev.target === modal) _p543_closeModal(); });
+      }
+      const isPending = _p543_isPending(id);
+      const existing = isPending ? window._p543_state.pendingDeletes[String(id)] : null;
+      modal.innerHTML = ''
+        +'<div style="background:#fff;border-radius:12px;max-width:520px;width:100%;max-height:calc(100vh - 40px);overflow-y:auto;border-top:6px solid #b91c1c;padding:14px 16px">'
+          +'<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:8px">'
+            +'<div>'
+              +'<div style="font-size:16px;font-weight:800;color:#7f1d1d">🗑 論理削除 候補に追加（packet 543）</div>'
+              +'<div style="font-size:11px;color:var(--t3);margin-top:2px;line-height:1.5">対象：<b>'+E(String(title||'').slice(0,80))+'</b></div>'
+              +'<div style="font-size:11px;color:#b45309;margin-top:4px;background:#fef3c7;border:1px solid #fde68a;border-radius:4px;padding:5px 8px;line-height:1.55">⚠ <b>本 UI は設計モードです。DB には一切反映されません</b>。in-memory のみで候補リストに追加され、リロードで消えます。実 UPDATE は packet 545+ でボス承認 + RLS UPDATE policy + SQL 実行後に実装。</div>'
+            +'</div>'
+            +'<button type="button" id="p543-modal-close" style="background:0;border:0;font-size:22px;color:var(--t3);cursor:pointer;padding:4px 10px;line-height:1;min-width:40px;min-height:40px;border-radius:8px">✕</button>'
+          +'</div>'
+          +'<label style="display:block;font-size:11px;font-weight:700;color:#475569;margin:8px 0 4px">削除理由（任意、500 文字まで、最終的に DB の delete_reason カラム想定）</label>'
+          +'<textarea id="p543-modal-reason" rows="4" maxlength="500" placeholder="例：内容が古くなった / 個人情報を誤って書き込んだ / 重複記憶 など" style="width:100%;padding:8px 10px;border:1px solid var(--bo);border-radius:6px;font-size:12px;line-height:1.5;resize:vertical;min-height:80px">'+E(existing ? existing.reason : '')+'</textarea>'
+          +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">'
+            +'<button type="button" id="p543-modal-mark" style="background:#b91c1c;color:#fff;border:0;font-weight:700;padding:8px 14px;border-radius:6px;cursor:pointer;font-size:12px">'+(isPending ? '✏ 理由を更新（候補維持）' : '🗑 論理削除候補に追加')+'</button>'
+            +(isPending ? '<button type="button" id="p543-modal-unmark" style="background:#fff;color:#0d9e6e;border:1.5px solid #0d9e6e;font-weight:700;padding:8px 14px;border-radius:6px;cursor:pointer;font-size:12px">↩ 候補から外す</button>' : '')
+            +'<button type="button" id="p543-modal-cancel" style="background:#fff;color:#475569;border:1px solid var(--bo);font-weight:700;padding:8px 14px;border-radius:6px;cursor:pointer;font-size:12px">キャンセル</button>'
+          +'</div>'
+          +'<div style="font-size:10px;color:#666;background:#f8fafc;border:1px solid var(--bo);border-radius:4px;padding:5px 8px;margin-top:10px;line-height:1.55">※ 入力した理由は <b>in-memory のみ</b>（window._p543_state.pendingDeletes）に保管され、localStorage / sessionStorage には保存しません。リロードで消えます。'
+          +'<br>※ 候補に追加しても画面の一覧から消えません。「⚠ 論理削除候補」バッジが付くだけです。一覧上で隠したい場合は packet 543 カード上部のトグルで「削除候補を非表示」を ON にしてください（表示専用、DB 影響なし）。</div>'
+        +'</div>';
+      modal.style.display = 'flex';
+      document.getElementById('p543-modal-close').addEventListener('click', _p543_closeModal);
+      document.getElementById('p543-modal-cancel').addEventListener('click', _p543_closeModal);
+      const markBtn = document.getElementById('p543-modal-mark');
+      if(markBtn) markBtn.addEventListener('click', function(){
+        const reason = String((document.getElementById('p543-modal-reason') || {}).value || '').slice(0, 500);
+        _p543_markPending(id, reason);
+        _p543_closeModal();
+        try{ if(typeof _p500_renderList === 'function') _p500_renderList(); }catch(_){}
+        try{ _p543_renderControlCard(); }catch(_){}
+      });
+      const unmarkBtn = document.getElementById('p543-modal-unmark');
+      if(unmarkBtn) unmarkBtn.addEventListener('click', function(){
+        _p543_unmarkPending(id);
+        _p543_closeModal();
+        try{ if(typeof _p500_renderList === 'function') _p500_renderList(); }catch(_){}
+        try{ _p543_renderControlCard(); }catch(_){}
+      });
+    }catch(e){try{console.warn('[packet 543 openModal]', e && e.message);}catch(_){}}
+  }
+  function _p543_closeModal(){
+    const m = document.getElementById('p543-modal');
+    if(m) m.style.display = 'none';
+  }
+
+  // ── 各記憶カードに「🗑 論理削除準備」ボタン + バッジを追加（非破壊、append のみ）
+  function _p543_decorateCards(){
+    try{
+      const list = document.getElementById('p500-list');
+      if(!list) return;
+      const cards = list.querySelectorAll('.p500-card');
+      cards.forEach(function(card){
+        const id = card.getAttribute('data-id');
+        if(!id) return;
+        const sid = String(id);
+        const pending = window._p543_state.pendingDeletes[sid];
+
+        // 既存 p543 ボタン除去（再描画後の重複防止）
+        const oldBar = card.querySelector('[data-p543-bar="1"]');
+        if(oldBar) oldBar.remove();
+        const oldBadge = card.querySelector('[data-p543-badge="1"]');
+        if(oldBadge) oldBadge.remove();
+
+        // バッジ（pending 中のみ、カード上部ヘッダ行に追加）
+        if(pending){
+          const header = card.querySelector('div[style*="display:flex"][style*="align-items:flex-start"]');
+          if(header){
+            const badge = document.createElement('span');
+            badge.setAttribute('data-p543-badge','1');
+            badge.style.cssText = 'font-size:10px;padding:2px 7px;border-radius:10px;background:#fee2e2;color:#7f1d1d;font-weight:700;border:1px dashed #b91c1c';
+            badge.textContent = '🗑 論理削除候補（DB 未反映）';
+            // 日付 span（margin-left:auto）の前に挿入
+            const autoSpan = header.querySelector('span[style*="margin-left:auto"]');
+            if(autoSpan) header.insertBefore(badge, autoSpan);
+            else header.appendChild(badge);
+          }
+        }
+
+        // ボタン行（カード末尾）
+        const bar = document.createElement('div');
+        bar.setAttribute('data-p543-bar','1');
+        bar.style.cssText = 'display:flex;gap:4px;margin-top:6px;flex-wrap:wrap;padding-top:6px;border-top:1px dashed #fecaca';
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.style.cssText = 'font-size:10px;padding:4px 9px;border-radius:5px;border:1.5px solid #b91c1c;background:'+(pending?'#b91c1c':'#fff')+';color:'+(pending?'#fff':'#b91c1c')+';cursor:pointer;font-weight:700';
+        btn.textContent = pending ? '✏ 削除理由を編集 / 候補から外す' : '🗑 論理削除準備（DB 未反映）';
+        btn.addEventListener('click', function(){
+          // title を取得（モーダル表示用）
+          const titleEl = card.querySelector('div[style*="font-weight:800"][style*="color:#0a3d7c"]');
+          const title = titleEl ? titleEl.textContent : '';
+          _p543_openModal(id, title);
+        });
+        bar.appendChild(btn);
+
+        if(pending){
+          const meta = document.createElement('span');
+          meta.style.cssText = 'font-size:10px;color:#7f1d1d;align-self:center;line-height:1.4';
+          const reasonText = pending.reason ? '「' + (pending.reason.length > 30 ? pending.reason.slice(0,30) + '…' : pending.reason) + '」' : '（理由未入力）';
+          meta.textContent = '理由：' + reasonText + ' / 候補追加 ' + (pending.addedAt || '').slice(11,16) + ' ' + (pending.addedBy || '');
+          bar.appendChild(meta);
+        }
+        card.appendChild(bar);
+      });
+    }catch(e){try{console.warn('[packet 543 decorateCards]', e && e.message);}catch(_){}}
+  }
+
+  // ── 表示専用フィルター適用（store には触らない、display 切替のみ）
+  function _p543_applyDisplayFilter(){
+    try{
+      const list = document.getElementById('p500-list');
+      if(!list) return;
+      const hide = _p543_getHidePending();
+      const only = _p543_getOnlyPending();
+      const cards = list.querySelectorAll('.p500-card');
+      cards.forEach(function(card){
+        const id = String(card.getAttribute('data-id') || '');
+        const pending = _p543_isPending(id);
+        let show = true;
+        if(only && !pending) show = false;
+        if(hide && pending) show = false;
+        card.style.display = show ? '' : 'none';
+      });
+    }catch(_){}
+  }
+
+  // ── 上部コントロールカード
+  function _p543_renderControlCard(){
+    try{
+      const memPage = document.getElementById('page-memory');
+      if(!memPage) return;
+      let card = document.getElementById('p543-control-card');
+      if(!card){
+        card = document.createElement('div');
+        card.id = 'p543-control-card';
+        card.className = 'card';
+        card.style.cssText = 'border-top:4px solid #b91c1c;margin-bottom:10px;background:#fff1f2';
+        // packet 541 直後に配置
+        const prevCard = document.getElementById('p541-search-card')
+                      || document.getElementById('p540-loadmore-card')
+                      || document.getElementById('p539-paging-search-card')
+                      || document.getElementById('p538-mode-card');
+        if(prevCard && prevCard.parentNode === memPage){
+          if(prevCard.nextSibling) memPage.insertBefore(card, prevCard.nextSibling);
+          else memPage.appendChild(card);
+        }else{
+          const firstCard = memPage.querySelector('.card');
+          if(firstCard) memPage.insertBefore(card, firstCard);
+          else memPage.appendChild(card);
+        }
+      }
+      const st = window._p543_state;
+      const pendingIds = st.pendingOrder.filter(function(id){return !!st.pendingDeletes[id];});
+      const hide = _p543_getHidePending();
+      const only = _p543_getOnlyPending();
+
+      let html = ''
+        +'<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">'
+          +'<div style="font-weight:800;color:#7f1d1d">🗑 論理削除 準備キュー（packet 543 / 設計モード）</div>'
+          +'<div style="display:flex;gap:6px;flex-wrap:wrap">'
+            +'<button type="button" id="p543-toggle-hide" class="dr-btn" style="background:'+(hide?'#b91c1c':'#fff')+';color:'+(hide?'#fff':'#7f1d1d')+';border:1.5px solid #b91c1c;font-weight:700;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:11px">'+(hide?'✅ 削除候補を非表示中':'👁 削除候補を非表示')+'</button>'
+            +'<button type="button" id="p543-toggle-only" class="dr-btn" style="background:'+(only?'#7f1d1d':'#fff')+';color:'+(only?'#fff':'#7f1d1d')+';border:1.5px solid #7f1d1d;font-weight:700;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:11px">'+(only?'✅ 削除候補のみ表示中':'🔍 削除候補のみ表示')+'</button>'
+          +'</div>'
+        +'</div>'
+        +'<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:7px 10px;color:#7f1d1d;font-size:11px;line-height:1.55;margin-top:8px">'
+          +'⚠ <b>本機能は「論理削除の設計モード」</b>です。<b>DB には一切反映されません</b>（UPDATE / PATCH / DELETE / UPSERT 通信 0）。'
+          +'<br>・各記憶カードの「🗑 論理削除準備」ボタンで候補に追加'
+          +'<br>・候補は <b>in-memory のみ</b>（window._p543_state.pendingDeletes）、リロードで消えます'
+          +'<br>・削除理由は localStorage / sessionStorage に保存しません'
+          +'<br>・実 UPDATE は packet 545+ でボス承認 + <code>jagai_memory</code> ALTER（deleted_at / deleted_by / delete_reason カラム追加）+ RLS UPDATE policy + SQL 実行後に実装'
+        +'</div>';
+
+      if(pendingIds.length === 0){
+        html += '<div style="margin-top:8px;font-size:11px;color:var(--t3)">（候補は空です。カード末尾の「🗑 論理削除準備」ボタンで追加してください）</div>';
+      }else{
+        html += '<div style="font-size:11px;font-weight:700;color:#7f1d1d;margin:8px 0 4px">📋 候補リスト（'+pendingIds.length+' 件、累積 追加 '+st.totalMarked+' / 解除 '+st.totalUnmarked+'）</div>';
+        const max = Math.min(pendingIds.length, 20);
+        for(let i = 0; i < max; i++){
+          const id = pendingIds[i];
+          const entry = st.pendingDeletes[id];
+          const mem = (window._p500_memoryStore || []).find(function(m){return String(m.id) === id;});
+          const title = mem ? (mem.title || '(無題)') : '(store にない id)';
+          html += '<div style="border:1px solid #fecaca;background:#fff;border-radius:6px;padding:6px 8px;margin-bottom:4px;font-size:11px;line-height:1.5">'
+            +'<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">'
+              +'<span style="font-weight:700;color:#7f1d1d">'+(i+1)+'. '+E(String(title).slice(0,60))+'</span>'
+              +'<button type="button" data-p543-unmark="'+E(id)+'" style="margin-left:auto;font-size:10px;padding:3px 7px;border-radius:4px;border:1.5px solid #0d9e6e;background:#fff;color:#0d9e6e;cursor:pointer;font-weight:700">↩ 候補から外す</button>'
+            +'</div>'
+            +'<div style="color:#475569;margin-top:2px"><b>理由：</b>'+(entry.reason ? E(entry.reason) : '<span style="color:#94a3b8">（未入力）</span>')+'</div>'
+            +'<div style="font-size:10px;color:#94a3b8;margin-top:1px">追加 '+E((entry.addedAt||'').replace('T',' ').slice(0,16))+' / '+E(entry.addedBy||'')+'</div>'
+          +'</div>';
+        }
+        if(pendingIds.length > max){
+          html += '<div style="font-size:10px;color:#94a3b8">…他 '+(pendingIds.length-max)+' 件</div>';
+        }
+      }
+
+      html += '<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:6px;padding:7px 10px;color:#9a3412;font-size:11px;line-height:1.55;margin-top:8px">'
+        +'🛣 <b>将来設計（packet 544+, 545+ ボス承認後）</b>：'
+        +'<br>・packet 544（候補）：削除候補 → CSV / JSON エクスポート UI（DB UPDATE 前にボスがレビューできるよう）'
+        +'<br>・packet 545（候補、<b>ボス承認 + SQL 必須</b>）：<code>jagai_memory</code> に <code>deleted_at TIMESTAMPTZ</code> / <code>deleted_by TEXT</code> / <code>delete_reason TEXT</code> カラム追加 + RLS UPDATE policy 追加'
+        +'<br>・packet 546（候補、<b>ボス承認後</b>）：実 UPDATE 実装（候補リスト → 一括論理削除 / 取消）+ 監査ログ'
+        +'<br>・packet 547（候補）：DB GET に <code>deleted_at=is.null</code> 自動付与 + 「ゴミ箱」UI で削除済み記憶を 30 日表示・復元可能'
+      +'</div>';
+
+      html += '<div style="font-size:10px;color:#666;background:#f8fafc;border:1px solid var(--bo);border-radius:4px;padding:5px 8px;margin-top:8px;line-height:1.55">※ '
+        +'sessionStorage は表示トグル 2 つ（<code>p543-hide-pending</code> / <code>p543-only-pending</code>）のみ。'
+        +'削除理由 / id / 追加者などの本文情報は <b>一切 storage に保存しません</b>。リロードで pendingDeletes は消えます。'
+      +'</div>';
+
+      card.innerHTML = html;
+
+      const hideBtn = document.getElementById('p543-toggle-hide');
+      const onlyBtn = document.getElementById('p543-toggle-only');
+      if(hideBtn) hideBtn.addEventListener('click', function(){
+        const nv = !_p543_getHidePending();
+        _p543_setHidePending(nv);
+        if(nv) _p543_setOnlyPending(false); // 排他
+        _p543_renderControlCard();
+        _p543_applyDisplayFilter();
+      });
+      if(onlyBtn) onlyBtn.addEventListener('click', function(){
+        const nv = !_p543_getOnlyPending();
+        _p543_setOnlyPending(nv);
+        if(nv) _p543_setHidePending(false); // 排他
+        _p543_renderControlCard();
+        _p543_applyDisplayFilter();
+      });
+      card.querySelectorAll('button[data-p543-unmark]').forEach(function(b){
+        b.addEventListener('click', function(){
+          const id = b.getAttribute('data-p543-unmark');
+          _p543_unmarkPending(id);
+          try{ if(typeof _p500_renderList === 'function') _p500_renderList(); }catch(_){}
+          _p543_renderControlCard();
+        });
+      });
+    }catch(e){try{console.warn('[packet 543 renderControlCard]', e && e.message);}catch(_){}}
+  }
+  window._p543_renderControlCard = _p543_renderControlCard;
+
+  // ── _p500_renderList 非破壊 wrap（packet 528 と同パターン、chain）
+  (function _p543_wrapRender(){
+    try{
+      const orig = window._p500_renderList;
+      if(typeof orig !== 'function') return;
+      window._p500_renderList = function(){
+        try{ orig.apply(this, arguments); }catch(_){}
+        try{ _p543_decorateCards(); }catch(_){}
+        try{ _p543_applyDisplayFilter(); }catch(_){}
+      };
+    }catch(_){}
+  })();
+
+  // ── switchPage wrap
+  (function _p543_wrapSwitchPage(){
+    try{
+      const orig = window.switchPage;
+      if(typeof orig !== 'function') return;
+      window.switchPage = function(pg){
+        try{ orig.apply(this, arguments); }catch(_){}
+        if(pg === 'memory'){
+          setTimeout(function(){
+            try{ _p543_renderControlCard(); }catch(_){}
+            try{ if(typeof _p500_renderList === 'function') _p500_renderList(); }catch(_){}
+          }, 150);
+        }
+      };
+    }catch(_){}
+  })();
+
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){
+      setTimeout(function(){
+        try{ _p543_renderControlCard(); }catch(_){}
+        try{ if(typeof _p500_renderList === 'function') _p500_renderList(); }catch(_){}
+      }, 420);
+    });
+  }else{
+    setTimeout(function(){
+      try{ _p543_renderControlCard(); }catch(_){}
+      try{ if(typeof _p500_renderList === 'function') _p500_renderList(); }catch(_){}
+    }, 420);
+  }
+})();
+// ==== ここまで packet 543 jagai_memory 論理削除 deleted_at UI ベース ====
 </script>
 </body>
 </html>
