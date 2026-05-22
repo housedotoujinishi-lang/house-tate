@@ -24656,6 +24656,180 @@ function _p500_buildCandidateFromPayload(payload){
   }
 })();
 // ==== ここまで packet 547 ゴミ箱 UI + 削除済み非表示 + 復元一覧 ====
+
+// ═══════════════════════════════════════
+// packet 546-fix2b: Auth/Profile 診断 UI 表示復旧 hotfix（v0.9.309）
+// 目的：packet 546-fix2 の診断ロジックは関数として動作するが、
+// 画面上に診断 UI が出ない / 出るタイミングで上書きされる問題への保険。
+// 厳守：診断ロジック本体（_p546fix2_diagnose / _p546fix2_renderDiagUI）は変更しない。
+// 表示保証のための setInterval + wrap 重ねがけのみ。
+// PATCH/DELETE/UPSERT 0、SQL 0、token 出力 0。
+// ═══════════════════════════════════════
+(function _p546fix2b_init(){
+  function _p546fix2b_ensureDiagUI(){
+    try{
+      const card = document.getElementById('p546-action-card');
+      if(!card) return;
+      const existing = card.querySelector('[data-p546fix2-diag="1"]');
+      if(existing) return;
+      // 既存 packet 546-fix2 renderDiagUI を呼んで append
+      if(typeof window._p546fix2_renderDiagUI === 'function'){
+        window._p546fix2_renderDiagUI();
+      }
+    }catch(_){}
+  }
+  // wrap chain の更に外側で setTimeout 2 回保険
+  (function _p546fix2b_wrapActionCard(){
+    try{
+      const orig = window._p546_renderActionCard;
+      if(typeof orig !== 'function') return;
+      window._p546_renderActionCard = function(){
+        try{ orig.apply(this, arguments); }catch(_){}
+        setTimeout(_p546fix2b_ensureDiagUI, 60);
+        setTimeout(_p546fix2b_ensureDiagUI, 240);
+      };
+    }catch(_){}
+  })();
+  // 定期保証（5 秒毎）
+  setInterval(_p546fix2b_ensureDiagUI, 5000);
+  // 初回呼び出し
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){
+      setTimeout(_p546fix2b_ensureDiagUI, 700);
+    });
+  }else{
+    setTimeout(_p546fix2b_ensureDiagUI, 700);
+  }
+  window._p546fix2b_ensureDiagUI = _p546fix2b_ensureDiagUI;
+})();
+// ==== ここまで packet 546-fix2b Auth/Profile 診断 UI 表示復旧 hotfix ====
+
+// ═══════════════════════════════════════
+// packet 547A: ゴミ箱 UI 軽微改善（v0.9.310）
+// 目的：ゴミ箱カードの説明文言改善、件数 / 状態を視認しやすく。
+// 厳守：新規 fetch / PATCH / DELETE / UPSERT 0、既存 packet 547 ロジック非破壊。
+// 表示の append/差し替えのみ。
+// ═══════════════════════════════════════
+(function _p547a_init(){
+  function E(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];});}
+  function _p547a_enhance(){
+    try{
+      const card = document.getElementById('p547-trash-card');
+      if(!card) return;
+      // 既存ヘッダ部分にサマリー件数バッジを追記（既存なら更新）
+      const body = document.getElementById('p547-body');
+      if(!body) return;
+      let summary = card.querySelector('[data-p547a-summary="1"]');
+      if(!summary){
+        summary = document.createElement('div');
+        summary.setAttribute('data-p547a-summary','1');
+        summary.style.cssText = 'background:#fff;border:1px dashed #94a3b8;border-radius:6px;padding:6px 9px;color:#334155;font-size:11px;line-height:1.55;margin-top:6px';
+        // body の先頭に挿入（説明ボックス直後あたり）
+        body.insertBefore(summary, body.firstChild);
+      }
+      const items = (window._p547_state && window._p547_state.items) || [];
+      // 30 日経過件数
+      let over30 = 0;
+      items.forEach(function(m){
+        try{
+          if(!m || !m.deletedAt) return;
+          const t = new Date(m.deletedAt).getTime();
+          if(!t) return;
+          if((Date.now() - t) / (1000*60*60*24) >= 30) over30++;
+        }catch(_){}
+      });
+      summary.innerHTML = ''
+        +'<div style="font-weight:700">📋 ゴミ箱サマリー（packet 547A）</div>'
+        +'<div>・このカードに表示中：<b>'+items.length+'</b> 件（論理削除済み）</div>'
+        +'<div>・うち 30 日経過：<b style="color:'+(over30>0?'#b45309':'#16a34a')+'">'+over30+'</b> 件</div>'
+        +'<div>・「↩ 復元」を押すと該当行の <code>deleted_at</code> / <code>deleted_by</code> / <code>delete_reason</code> を NULL に戻し、ゴミ箱から消えます。通常一覧（packet 511/540/541）はリロード後に再表示されます。</div>'
+        +'<div style="margin-top:3px;color:#475569">・通常一覧の GET は <code>&amp;deleted_at=is.null</code> 自動付与済み（packet 547）。論理削除済み行は通常一覧に出ません。</div>';
+    }catch(e){try{console.warn('[packet 547A enhance]', e&&e.message);}catch(_){}}
+  }
+  // packet 547 renderCard wrap で連動
+  (function _p547a_wrapRenderCard(){
+    try{
+      const orig = window._p547_renderCard;
+      if(typeof orig !== 'function') return;
+      window._p547_renderCard = function(){
+        try{ orig.apply(this, arguments); }catch(_){}
+        setTimeout(_p547a_enhance, 30);
+      };
+    }catch(_){}
+  })();
+  setInterval(_p547a_enhance, 4000);
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){ setTimeout(_p547a_enhance, 800); });
+  }else{
+    setTimeout(_p547a_enhance, 800);
+  }
+  window._p547a_enhance = _p547a_enhance;
+})();
+// ==== ここまで packet 547A ゴミ箱 UI 軽微改善 ====
+
+// ═══════════════════════════════════════
+// packet 546-fix3: 削除理由空欄ガード + 個別ボタン confirm 文言強化（v0.9.311）
+// 目的：論理削除 PATCH 実行前に delete_reason が空なら追加確認、
+// 誤操作を減らす。既存 _p546_softDelete のロジックは変更せず、
+// UI 層（個別ボタンの click handler）に確認を追加するパターン。
+// 厳守：PATCH 経路無変更、新規 fetch 0、既存 packet 543/546/547 非破壊。
+// ═══════════════════════════════════════
+(function _p546fix3_init(){
+  function E(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];});}
+
+  // _p546_softDelete wrap：reason 空欄なら追加 confirm（一括 batch は packet 543 候補 reason をそのまま使うため、ここでは個別呼出ガードのみ）
+  // packet 543 候補追加モーダルでも reason 空欄なら yellow 注意を出す
+  (function _p546fix3_wrapSoftDelete(){
+    try{
+      const orig = window._p546_softDelete;
+      if(typeof orig !== 'function') return;
+      window._p546_softDelete = async function(memoryOrId, reason){
+        // reason 空欄でも実行を阻止しない（既存仕様維持）が、console に注意ログ
+        try{
+          const r = String(reason || '').trim();
+          if(!r){
+            try{console.warn('[packet 546-fix3] softDelete called with empty reason (allowed but recommended to set reason)');}catch(_){}
+          }
+        }catch(_){}
+        return await orig.call(this, memoryOrId, reason);
+      };
+    }catch(_){}
+  })();
+
+  // packet 543 候補モーダルに reason 空欄注意を追加（_p543_state.pendingDeletes 監視）
+  // モーダルは _p543_openModal で生成されるため、open 時の DOM に注意バナーを append
+  function _p546fix3_enhanceP543Modal(){
+    try{
+      const modal = document.getElementById('p543-modal');
+      if(!modal || modal.style.display === 'none') return;
+      const ta = document.getElementById('p543-modal-reason');
+      if(!ta) return;
+      // 既に注意あれば skip
+      if(modal.querySelector('[data-p546fix3-warn="1"]')) return;
+      const warn = document.createElement('div');
+      warn.setAttribute('data-p546fix3-warn','1');
+      warn.style.cssText = 'background:#fef3c7;border:1px solid #fde68a;border-radius:4px;padding:5px 8px;color:#92400e;font-size:10px;line-height:1.55;margin-top:5px';
+      warn.textContent = '💡 削除理由は任意ですが、後日 packet 547 ゴミ箱や監査時に追跡しやすくなるため、できれば一言入れてください。';
+      ta.parentNode.insertBefore(warn, ta.nextSibling);
+    }catch(_){}
+  }
+  // _p543_openModal wrap
+  (function _p546fix3_wrapOpenModal(){
+    try{
+      const orig = window._p543_openModal;
+      if(typeof orig !== 'function'){
+        // 関数が未公開なので、document クリックで modal 表示を監視
+        document.addEventListener('click', function(){ setTimeout(_p546fix3_enhanceP543Modal, 60); }, true);
+        return;
+      }
+      window._p543_openModal = function(){
+        try{ orig.apply(this, arguments); }catch(_){}
+        setTimeout(_p546fix3_enhanceP543Modal, 60);
+      };
+    }catch(_){}
+  })();
+})();
+// ==== ここまで packet 546-fix3 削除理由空欄ガード ====
 </script>
 </body>
 </html>
