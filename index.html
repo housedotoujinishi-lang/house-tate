@@ -27056,6 +27056,588 @@ function _p500_buildCandidateFromPayload(payload){
   }else{ setTimeout(_p567_renderCard, 1000); }
 })();
 // ==== ここまで packet 567 ボス確認キュー強化 ====
+
+// ═══════════════════════════════════════
+// packet 569: ピン留め localStorage 永続化（id only、v0.9.336）
+// 目的：packet 557 ピン留めをタブ閉じても残るよう localStorage 化。
+// 保存は id 配列のみ（本文/title/個人情報なし）、最大 50 件、壊れた id 自動除外。
+// 厳守：本文 / token / 個人情報を localStorage に保存しない、id のみ。
+// ═══════════════════════════════════════
+(function _p569_init(){
+  const KEY = 'p569-pinned-ids-v1';
+  const MAX = 50;
+  function _p569_loadFromLS(){
+    try{
+      const raw = localStorage.getItem(KEY) || '';
+      if(!raw) return [];
+      return raw.split(',').filter(Boolean).slice(0, MAX);
+    }catch(_){return [];}
+  }
+  function _p569_saveToLS(ids){
+    try{
+      if(Array.isArray(ids) && ids.length){
+        const clean = ids.map(String).filter(Boolean).slice(0, MAX).join(',');
+        localStorage.setItem(KEY, clean);
+      }else{
+        localStorage.removeItem(KEY);
+      }
+    }catch(_){}
+  }
+  // packet 557 から sessionStorage の id を読んで localStorage に merge（マイグレーション）
+  function _p569_migrate(){
+    try{
+      const ss = sessionStorage.getItem('p557-pinned-ids') || '';
+      const ls = _p569_loadFromLS();
+      const ssIds = ss ? ss.split(',').filter(Boolean) : [];
+      const merged = [];
+      const seen = new Set();
+      ls.concat(ssIds).forEach(function(id){
+        const sid = String(id);
+        if(!sid || seen.has(sid)) return;
+        seen.add(sid);
+        merged.push(sid);
+      });
+      if(merged.length){
+        _p569_saveToLS(merged);
+      }
+    }catch(_){}
+  }
+  // packet 557 の sessionStorage 操作を localStorage にミラーする wrap
+  // _p557 系の getter/setter を上書きするのではなく、storage 両方で読み書きするヘルパーを公開
+  function _p569_getPinned(){
+    return _p569_loadFromLS();
+  }
+  function _p569_setPinned(ids){
+    _p569_saveToLS(ids);
+    // packet 557 の sessionStorage 側も更新（既存 UI と互換）
+    try{
+      if(Array.isArray(ids) && ids.length){
+        sessionStorage.setItem('p557-pinned-ids', ids.map(String).filter(Boolean).slice(0, MAX).join(','));
+      }else{
+        sessionStorage.removeItem('p557-pinned-ids');
+      }
+    }catch(_){}
+  }
+  window._p569_getPinned = _p569_getPinned;
+  window._p569_setPinned = _p569_setPinned;
+
+  // _p557 のトグル関数を chain wrap：トグル後に localStorage 同期 + 壊れた id 除外
+  (function _p569_wrapToggle(){
+    try{
+      const orig = window._p557_togglePin;
+      if(typeof orig !== 'function') return;
+      window._p557_togglePin = function(id){
+        try{ orig.call(this, id); }catch(_){}
+        // packet 557 の sessionStorage 状態を読んで localStorage にミラー
+        try{
+          const ss = sessionStorage.getItem('p557-pinned-ids') || '';
+          const ids = ss ? ss.split(',').filter(Boolean) : [];
+          // 壊れた id（store にない / UUID/mem-* どちらでもないもの）は除外
+          const store = window._p500_memoryStore || [];
+          const valid = ids.filter(function(x){
+            return store.some(function(m){return m && (String(m.id||'') === String(x) || String(m.dbId||'') === String(x));});
+          }).slice(0, MAX);
+          _p569_saveToLS(valid);
+          // 戻す
+          if(valid.length){
+            sessionStorage.setItem('p557-pinned-ids', valid.join(','));
+          }else{
+            sessionStorage.removeItem('p557-pinned-ids');
+          }
+        }catch(_){}
+      };
+    }catch(_){}
+  })();
+
+  // 起動時：localStorage → sessionStorage へリストア（packet 557 既存読込経路を再利用）
+  function _p569_restore(){
+    try{
+      const ls = _p569_loadFromLS();
+      if(ls.length === 0){
+        // 起動時マイグレーション
+        _p569_migrate();
+        return;
+      }
+      const cur = sessionStorage.getItem('p557-pinned-ids') || '';
+      const curIds = cur ? cur.split(',').filter(Boolean) : [];
+      // merge（localStorage が真、sessionStorage の新規分も追加）
+      const seen = new Set();
+      const merged = [];
+      ls.concat(curIds).forEach(function(id){
+        const sid = String(id);
+        if(!sid || seen.has(sid)) return;
+        seen.add(sid);
+        merged.push(sid);
+      });
+      const limited = merged.slice(0, MAX);
+      sessionStorage.setItem('p557-pinned-ids', limited.join(','));
+      _p569_saveToLS(limited);
+      try{ if(typeof window._p557_renderCard === 'function') window._p557_renderCard(); }catch(_){}
+      try{ if(typeof _p500_renderList === 'function') _p500_renderList(); }catch(_){}
+    }catch(_){}
+  }
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){ setTimeout(_p569_restore, 400); });
+  }else{
+    setTimeout(_p569_restore, 400);
+  }
+  // 定期同期（store 読み込み完了後の壊れた id 除外用）
+  setInterval(function(){
+    try{
+      const ss = sessionStorage.getItem('p557-pinned-ids') || '';
+      const ids = ss ? ss.split(',').filter(Boolean) : [];
+      if(ids.length === 0) return;
+      const store = window._p500_memoryStore || [];
+      if(store.length === 0) return;
+      const valid = ids.filter(function(x){
+        return store.some(function(m){return m && (String(m.id||'') === String(x) || String(m.dbId||'') === String(x));});
+      }).slice(0, MAX);
+      if(valid.length !== ids.length){
+        if(valid.length) sessionStorage.setItem('p557-pinned-ids', valid.join(','));
+        else sessionStorage.removeItem('p557-pinned-ids');
+        _p569_saveToLS(valid);
+      }else{
+        _p569_saveToLS(valid);
+      }
+    }catch(_){}
+  }, 15000);
+})();
+// ==== ここまで packet 569 ピン留め localStorage 永続化 ====
+
+// ═══════════════════════════════════════
+// packet 570: 週次レビュー Markdown / CSV ダウンロード（v0.9.337）
+// 目的：packet 564 をコピーだけでなく Blob ダウンロードできるよう拡張。
+// 厳守：個人情報 / token を含めない、Blob URL 即 revoke。
+// ═══════════════════════════════════════
+(function _p570_init(){
+  function E(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];});}
+  function _p570_aggregate(days){
+    try{
+      const store = (window._p500_memoryStore || []).filter(function(m){return m && !m._isDeleted;});
+      const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+      return store.filter(function(m){ try{ return m.createdAt && new Date(m.createdAt).getTime() >= cutoff; }catch(_){return false;}});
+    }catch(_){return [];}
+  }
+  function _p570_buildMarkdown(days){
+    const items = _p570_aggregate(days);
+    let p = '# 記憶庫 直近 '+days+' 日 振り返り（packet 570 / Markdown）\n\n';
+    p += '生成日時：' + (new Date()).toISOString() + '\n\n';
+    p += '## サマリー\n';
+    p += '- 総数：' + items.length + ' 件\n';
+    p += '- 成功：' + items.filter(function(m){return m.memoryType==='success_pattern';}).length + '\n';
+    p += '- 失敗：' + items.filter(function(m){return m.memoryType==='failure_lesson';}).length + '\n';
+    p += '- ボス判断：' + items.filter(function(m){return m.memoryType==='boss_decision';}).length + '\n';
+    p += '- 未解決：' + items.filter(function(m){return m.unresolved;}).length + '\n';
+    p += '- ボス確認：' + items.filter(function(m){return m.needsManagerFollowup;}).length + '\n';
+    p += '- 高リスク：' + items.filter(function(m){return String(m.riskLevel||'').toUpperCase()==='RED';}).length + '\n\n';
+    p += '## 一覧（最大 30 件）\n';
+    items.slice(0, 30).forEach(function(m, i){
+      p += (i+1) + '. **' + (m.title || '(無題)') + '**' + (m.unresolved?' ⏳未解決':'') + (m.needsManagerFollowup?' 👀ボス確認':'') + '\n';
+      if(m.memoryType) p += '   - 種類：' + m.memoryType + '\n';
+      if(m.content) p += '   - 内容：' + String(m.content).replace(/\n/g,' ').slice(0,150) + '\n';
+      if(m.lesson) p += '   - 学び：' + String(m.lesson).replace(/\n/g,' ').slice(0,100) + '\n';
+    });
+    p += '\n## 次のアクション\n- （ここに記入：今週やること）\n';
+    return p;
+  }
+  function _p570_csvEscape(v){
+    const s = String(v==null?'':v).replace(/\r\n|\r|\n/g,' ');
+    if(s.indexOf('"')===-1 && s.indexOf(',')===-1) return '"'+s+'"';
+    return '"' + s.replace(/"/g,'""') + '"';
+  }
+  function _p570_buildCSV(days){
+    const items = _p570_aggregate(days);
+    const fields = ['title','memory_type','category','risk_level','importance','unresolved','needs_boss_check','created_at','lesson_short','content_short'];
+    let csv = fields.map(_p570_csvEscape).join(',') + '\n';
+    items.slice(0, 100).forEach(function(m){
+      csv += [
+        m.title || '',
+        m.memoryType || '',
+        m.category || '',
+        m.riskLevel || '',
+        m.importance || '',
+        m.unresolved ? 'true' : 'false',
+        m.needsManagerFollowup ? 'true' : 'false',
+        m.createdAt || '',
+        String(m.lesson||'').slice(0,200),
+        String(m.content||'').slice(0,400)
+      ].map(_p570_csvEscape).join(',') + '\n';
+    });
+    return csv;
+  }
+  function _p570_tsStr(){
+    try{ const d=new Date(); const pad=function(n){return n<10?'0'+n:''+n;}; return d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())+'-'+pad(d.getHours())+pad(d.getMinutes()); }catch(_){return 'export';}
+  }
+  function _p570_download(text, mime, suffix){
+    try{
+      const blob = new Blob([text], {type: mime});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'jagai_memory_weekly_review_' + _p570_tsStr() + suffix;
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(function(){ try{URL.revokeObjectURL(url);}catch(_){} try{a.remove();}catch(_){} }, 100);
+      return {ok:true};
+    }catch(e){return {ok:false, error:String(e&&e.message||e).slice(0,100)};}
+  }
+  function _p570_enhance(){
+    try{
+      const card = document.getElementById('p564-review-card');
+      if(!card) return;
+      const body = document.getElementById('p564-body');
+      if(!body) return;
+      if(card.querySelector('[data-p570="1"]')) return;
+      const block = document.createElement('div');
+      block.setAttribute('data-p570','1');
+      block.style.cssText = 'background:#fff;border:1px dashed #eab308;border-radius:6px;padding:7px 10px;margin-top:6px;font-size:11px;line-height:1.55';
+      block.innerHTML = ''
+        +'<div style="font-weight:700;color:#854d0e;margin-bottom:4px">💾 ダウンロード（packet 570、Markdown / CSV）</div>'
+        +'<div style="display:flex;gap:5px;flex-wrap:wrap">'
+          +'<button type="button" id="p570-md7" class="dr-btn" style="background:#eab308;color:#fff;border:0;font-weight:700;padding:5px 10px;border-radius:5px;cursor:pointer;font-size:10.5px">📝 7 日 Markdown ↓</button>'
+          +'<button type="button" id="p570-md30" class="dr-btn" style="background:#eab308;color:#fff;border:0;font-weight:700;padding:5px 10px;border-radius:5px;cursor:pointer;font-size:10.5px">📝 30 日 Markdown ↓</button>'
+          +'<button type="button" id="p570-csv7" class="dr-btn" style="background:#fff;color:#854d0e;border:1.5px solid #eab308;font-weight:700;padding:5px 10px;border-radius:5px;cursor:pointer;font-size:10.5px">📊 7 日 CSV ↓</button>'
+          +'<button type="button" id="p570-csv30" class="dr-btn" style="background:#fff;color:#854d0e;border:1.5px solid #eab308;font-weight:700;padding:5px 10px;border-radius:5px;cursor:pointer;font-size:10.5px">📊 30 日 CSV ↓</button>'
+        +'</div>'
+        +'<div id="p570-status" style="display:none;font-size:10px;color:#475569;margin-top:4px"></div>'
+        +'<div style="font-size:10px;color:#64748b;margin-top:4px">※ 顧客情報 / token を含めず、本文は CSV で 400 文字、Markdown で 150 文字に丸める。Blob URL 即 revoke。</div>';
+      body.appendChild(block);
+      function setStatus(ok, msg){ const s=document.getElementById('p570-status'); if(s){s.style.display='';s.textContent=(ok?'✅ ':'⚠ ')+msg;}}
+      document.getElementById('p570-md7').addEventListener('click', function(){ const r=_p570_download(_p570_buildMarkdown(7),'text/markdown;charset=utf-8','.md'); setStatus(r.ok, r.ok?'7 日 Markdown DL':r.error); });
+      document.getElementById('p570-md30').addEventListener('click', function(){ const r=_p570_download(_p570_buildMarkdown(30),'text/markdown;charset=utf-8','.md'); setStatus(r.ok, r.ok?'30 日 Markdown DL':r.error); });
+      document.getElementById('p570-csv7').addEventListener('click', function(){ const r=_p570_download(_p570_buildCSV(7),'text/csv;charset=utf-8','_7d.csv'); setStatus(r.ok, r.ok?'7 日 CSV DL':r.error); });
+      document.getElementById('p570-csv30').addEventListener('click', function(){ const r=_p570_download(_p570_buildCSV(30),'text/csv;charset=utf-8','_30d.csv'); setStatus(r.ok, r.ok?'30 日 CSV DL':r.error); });
+    }catch(_){}
+  }
+  (function _p570_wrap(){
+    try{
+      const orig = window._p564_renderCard;
+      if(typeof orig !== 'function') return;
+      window._p564_renderCard = function(){
+        try{ orig.apply(this, arguments); }catch(_){}
+        setTimeout(_p570_enhance, 50);
+      };
+    }catch(_){}
+  })();
+  setInterval(_p570_enhance, 7000);
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){ setTimeout(_p570_enhance, 1020); });
+  }else{ setTimeout(_p570_enhance, 1020); }
+})();
+// ==== ここまで packet 570 週次レビュー Markdown/CSV DL ====
+
+// ═══════════════════════════════════════
+// packet 571: 投稿テンプレ 日報取り込みスイッチ（v0.9.338）
+// 目的：packet 559 投稿テンプレに「日報の入力欄から取り込み」ボタンを追加。
+// 厳守：DB 直接保存 0、_p500_pendingCandidate + _p500_prefillFromCandidate のみ。
+// ═══════════════════════════════════════
+(function _p571_init(){
+  function E(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];});}
+  function _p571_readDailyReport(){
+    try{
+      const ids = ['dr-reflect','dr-trouble','dr-ask-manager','dr-tomorrow','dr-author','dr-date'];
+      const data = {};
+      ids.forEach(function(id){
+        const el = document.getElementById(id);
+        if(el) data[id] = String(el.value || el.textContent || '').trim();
+      });
+      return data;
+    }catch(_){return {};}
+  }
+  function _p571_enhance(){
+    try{
+      const card = document.getElementById('p559-templates-card');
+      if(!card) return;
+      const body = document.getElementById('p559-body');
+      if(!body) return;
+      if(card.querySelector('[data-p571="1"]')) return;
+      const block = document.createElement('div');
+      block.setAttribute('data-p571','1');
+      block.style.cssText = 'background:#fff;border:1px dashed #ec4899;border-radius:6px;padding:7px 10px;margin-top:8px;font-size:11px;line-height:1.55';
+      block.innerHTML = ''
+        +'<div style="font-weight:700;color:#9d174d;margin-bottom:4px">📥 日報の内容を取り込む（packet 571）</div>'
+        +'<div style="color:#475569;margin-bottom:6px">日報ページの入力欄（振り返り / 困りごと / ボス相談 / 明日の改善）を組み合わせて、選んだテンプレに pre-fill します。</div>'
+        +'<div style="display:flex;gap:5px;flex-wrap:wrap">'
+          +'<button type="button" id="p571-from-reflect" class="dr-btn" style="background:#ec4899;color:#fff;border:0;font-weight:700;padding:5px 10px;border-radius:5px;cursor:pointer;font-size:10.5px">✨ 振り返り → 成功パターン</button>'
+          +'<button type="button" id="p571-from-trouble" class="dr-btn" style="background:#ec4899;color:#fff;border:0;font-weight:700;padding:5px 10px;border-radius:5px;cursor:pointer;font-size:10.5px">📉 困りごと → 失敗事例</button>'
+          +'<button type="button" id="p571-from-manager" class="dr-btn" style="background:#ec4899;color:#fff;border:0;font-weight:700;padding:5px 10px;border-radius:5px;cursor:pointer;font-size:10.5px">🙋 ボス相談 → 確認依頼</button>'
+          +'<button type="button" id="p571-from-tomorrow" class="dr-btn" style="background:#ec4899;color:#fff;border:0;font-weight:700;padding:5px 10px;border-radius:5px;cursor:pointer;font-size:10.5px">🚀 明日の改善 → ルール変更</button>'
+        +'</div>'
+        +'<div id="p571-status" style="display:none;font-size:10px;color:#475569;margin-top:4px"></div>'
+        +'<div style="font-size:10px;color:#64748b;margin-top:4px">※ DB 直接保存しません。packet 507 pre-fill 経由で「📚 この内容で記憶庫に登録」で確定。</div>';
+      body.appendChild(block);
+      function fillTemplate(t){
+        try{
+          window._p500_pendingCandidate = {
+            memoryType: t.type, category: t.cat,
+            title: t.title, content: t.content,
+            riskLevel: t.risk, importance: t.importance,
+            tags: 'packet-571,'+t.key+',daily-report'
+          };
+          if(typeof _p500_prefillFromCandidate === 'function') _p500_prefillFromCandidate();
+          const s = document.getElementById('p571-status');
+          if(s){ s.style.display=''; s.textContent='✅ pre-fill 完了。「📚 この内容で記憶庫に登録」で確定してください。'; }
+        }catch(_){}
+      }
+      function buildContent(src, label){
+        const d = _p571_readDailyReport();
+        const body = d[src] || '';
+        if(!body){
+          const s = document.getElementById('p571-status');
+          if(s){ s.style.display=''; s.textContent='⚠ 日報の '+label+' 欄が空です。先に日報を入力してください。'; }
+          return null;
+        }
+        return body;
+      }
+      document.getElementById('p571-from-reflect').addEventListener('click', function(){
+        const c = buildContent('dr-reflect', '振り返り'); if(!c) return;
+        fillTemplate({key:'success', type:'success_pattern', cat:'成功ログ', risk:'GREEN', importance:'mid', title:'【日報→成功】'+(c.split('\n')[0]||'').slice(0,40), content:c.slice(0,1500)});
+      });
+      document.getElementById('p571-from-trouble').addEventListener('click', function(){
+        const c = buildContent('dr-trouble', '困りごと'); if(!c) return;
+        fillTemplate({key:'failure', type:'failure_lesson', cat:'失敗ログ', risk:'YELLOW', importance:'high', title:'【日報→失敗】'+(c.split('\n')[0]||'').slice(0,40), content:c.slice(0,1500)});
+      });
+      document.getElementById('p571-from-manager').addEventListener('click', function(){
+        const c = buildContent('dr-ask-manager', 'ボス相談'); if(!c) return;
+        fillTemplate({key:'review', type:'discussion_log', cat:'議論ログ', risk:'YELLOW', importance:'mid', title:'【日報→ボス確認】'+(c.split('\n')[0]||'').slice(0,40), content:c.slice(0,1500)});
+      });
+      document.getElementById('p571-from-tomorrow').addEventListener('click', function(){
+        const c = buildContent('dr-tomorrow', '明日の改善'); if(!c) return;
+        fillTemplate({key:'rule', type:'operation_rule', cat:'業務フロー', risk:'GREEN', importance:'mid', title:'【日報→改善】'+(c.split('\n')[0]||'').slice(0,40), content:c.slice(0,1500)});
+      });
+    }catch(_){}
+  }
+  setInterval(_p571_enhance, 5000);
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){ setTimeout(_p571_enhance, 1040); });
+  }else{ setTimeout(_p571_enhance, 1040); }
+})();
+// ==== ここまで packet 571 日報取り込みスイッチ ====
+
+// ═══════════════════════════════════════
+// packet 572: AI 会議結果 → 改善タスク化 UI（v0.9.339）
+// 目的：AI 議論ページに「改善タスク化」カードを追加、タスク文面コピー + 入力欄。
+// 厳守：DB 保存 0、既存タスク機能には触らない（コピー + pre-fill 試行のみ）。
+// ═══════════════════════════════════════
+(function _p572_init(){
+  function E(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];});}
+  window._p572_state = window._p572_state || {assignee:'', deadline:'', importance:'mid', nextAction:''};
+  function _p572_inject(){
+    try{
+      const aiPage = document.getElementById('page-ai-discussion');
+      if(!aiPage) return;
+      if(document.getElementById('p572-task-card')) return;
+      const card = document.createElement('div');
+      card.id = 'p572-task-card';
+      card.className = 'card';
+      card.style.cssText = 'border-top:4px solid #db2777;margin-bottom:10px;background:#fdf2f8';
+      const refCard = document.getElementById('p553-enhance-card') || document.getElementById('p532-hint-card');
+      if(refCard && refCard.parentNode === aiPage){
+        if(refCard.nextSibling) aiPage.insertBefore(card, refCard.nextSibling);
+        else aiPage.appendChild(card);
+      }else{
+        aiPage.appendChild(card);
+      }
+      _p572_render();
+    }catch(_){}
+  }
+  function _p572_render(){
+    try{
+      const card = document.getElementById('p572-task-card');
+      if(!card) return;
+      const s = window._p572_state;
+      card.innerHTML = ''
+        +'<div style="font-weight:800;color:#9d174d">💼 AI 会議結果 → 改善タスク化（packet 572）</div>'
+        +'<div style="background:#fff;border:1px solid #fbcfe8;border-radius:6px;padding:7px 10px;color:#9d174d;font-size:11px;line-height:1.55;margin-top:6px">'
+          +'💡 AI 会議の結論を改善タスクの候補文面にまとめます。<b>DB 保存はしません</b>、コピーまたは既存タスクボードへ pre-fill。'
+        +'</div>'
+        +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px;font-size:11px">'
+          +'<div><label style="font-weight:600;color:#475569">担当者<br><input id="p572-assignee" type="text" value="'+E(s.assignee||'')+'" placeholder="例：販売員 K" style="width:100%;padding:3px 6px;border:1px solid var(--bo);border-radius:4px;font-size:11px"></label></div>'
+          +'<div><label style="font-weight:600;color:#475569">期限<br><input id="p572-deadline" type="text" value="'+E(s.deadline||'')+'" placeholder="例：2026-06-01" style="width:100%;padding:3px 6px;border:1px solid var(--bo);border-radius:4px;font-size:11px"></label></div>'
+          +'<div><label style="font-weight:600;color:#475569">重要度<br><select id="p572-importance" style="width:100%;padding:3px 6px;border:1px solid var(--bo);border-radius:4px;font-size:11px">'
+            +'<option value="high"'+(s.importance==='high'?' selected':'')+'>高</option>'
+            +'<option value="mid"'+(s.importance==='mid'?' selected':'')+'>中</option>'
+            +'<option value="low"'+(s.importance==='low'?' selected':'')+'>低</option>'
+          +'</select></label></div>'
+          +'<div><label style="font-weight:600;color:#475569">次アクション<br><input id="p572-next" type="text" value="'+E(s.nextAction||'')+'" placeholder="例：チェックリスト改訂" style="width:100%;padding:3px 6px;border:1px solid var(--bo);border-radius:4px;font-size:11px"></label></div>'
+        +'</div>'
+        +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">'
+          +'<button type="button" id="p572-copy" class="dr-btn" style="background:#db2777;color:#fff;border:0;font-weight:700;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:11px">📋 タスク文面をコピー</button>'
+          +'<button type="button" id="p572-tomemory" class="dr-btn" style="background:#fff;color:#db2777;border:1.5px solid #db2777;font-weight:700;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:11px">🧠 記憶庫にも転記</button>'
+        +'</div>'
+        +'<div id="p572-status" style="display:none;font-size:11px;margin-top:6px;padding:5px 8px;border-radius:4px;background:#f8fafc;border:1px solid var(--bo)"></div>'
+        +'<div style="font-size:10px;color:#666;background:#fff;border:1px solid var(--bo);border-radius:4px;padding:5px 8px;margin-top:8px;line-height:1.55">※ 既存タスクボード機能は触らず、まずはコピーで運用。記憶庫転記は packet 507 pre-fill 経由（DB 直接保存 0）。</div>';
+      function build(){
+        const topic = (document.getElementById('ai-team-topic') && document.getElementById('ai-team-topic').value) || (document.getElementById('ai-topic-input') && document.getElementById('ai-topic-input').value) || '(議題未設定)';
+        const assignee = (document.getElementById('p572-assignee')||{}).value || '(未定)';
+        const deadline = (document.getElementById('p572-deadline')||{}).value || '(未定)';
+        const importance = (document.getElementById('p572-importance')||{}).value || 'mid';
+        const next = (document.getElementById('p572-next')||{}).value || '(未定)';
+        return ''
+          +'# 改善タスク（AI 会議発、packet 572 生成）\n'
+          +'\n## 議題\n' + topic
+          +'\n\n## タスク内容\n' + next
+          +'\n\n## 担当者\n' + assignee
+          +'\n\n## 期限\n' + deadline
+          +'\n\n## 重要度\n' + importance
+          +'\n\n## 完了条件\n（記入する）\n'
+          +'\n## 進捗確認\n- [ ] 着手\n- [ ] 中間確認\n- [ ] 完了 / ボス報告\n';
+      }
+      function setStatus(ok, msg){ const st=document.getElementById('p572-status'); if(st){st.style.display='';st.textContent=(ok?'✅ ':'⚠ ')+msg;}}
+      function captureState(){
+        window._p572_state = {
+          assignee: (document.getElementById('p572-assignee')||{}).value || '',
+          deadline: (document.getElementById('p572-deadline')||{}).value || '',
+          importance: (document.getElementById('p572-importance')||{}).value || 'mid',
+          nextAction: (document.getElementById('p572-next')||{}).value || ''
+        };
+      }
+      document.getElementById('p572-copy').addEventListener('click', function(){
+        captureState();
+        const text = build();
+        try{
+          if(navigator.clipboard && navigator.clipboard.writeText){
+            navigator.clipboard.writeText(text).then(function(){setStatus(true,'タスク文面をコピーしました');}).catch(function(){
+              const ta=document.createElement('textarea');ta.value=text;ta.style.cssText='position:fixed;top:-1000px;opacity:0';document.body.appendChild(ta);ta.select();const ok=document.execCommand('copy');document.body.removeChild(ta);setStatus(ok, ok?'コピー（fallback）':'失敗');
+            });
+          }else{
+            const ta=document.createElement('textarea');ta.value=text;ta.style.cssText='position:fixed;top:-1000px;opacity:0';document.body.appendChild(ta);ta.select();const ok=document.execCommand('copy');document.body.removeChild(ta);setStatus(ok, ok?'コピー（fallback）':'失敗');
+          }
+        }catch(_){setStatus(false,'コピー失敗');}
+      });
+      document.getElementById('p572-tomemory').addEventListener('click', function(){
+        captureState();
+        const text = build();
+        try{
+          window._p500_pendingCandidate = {
+            memoryType: 'operation_rule',
+            category: '業務フロー',
+            title: '【改善タスク】' + ((document.getElementById('ai-team-topic')||{}).value || (document.getElementById('ai-topic-input')||{}).value || '').slice(0,40),
+            content: text,
+            riskLevel: 'GREEN',
+            importance: (document.getElementById('p572-importance')||{}).value || 'mid',
+            tags: 'packet-572,ai-meeting-result,improvement-task'
+          };
+          if(typeof _p500_prefillFromCandidate === 'function') _p500_prefillFromCandidate();
+          if(typeof switchPage === 'function') switchPage('memory');
+          setStatus(true,'記憶庫に pre-fill しました（packet 507 で確定）');
+        }catch(_){setStatus(false,'転記失敗');}
+      });
+    }catch(_){}
+  }
+  (function _p572_wrap(){
+    try{
+      const orig = window.switchPage;
+      if(typeof orig !== 'function') return;
+      window.switchPage = function(pg){
+        try{ orig.apply(this, arguments); }catch(_){}
+        if(pg === 'ai-discussion'){ setTimeout(_p572_inject, 440); }
+      };
+    }catch(_){}
+  })();
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){ setTimeout(_p572_inject, 1060); });
+  }else{ setTimeout(_p572_inject, 1060); }
+})();
+// ==== ここまで packet 572 改善タスク化 UI ====
+
+// ═══════════════════════════════════════
+// packet 573: 監査ログ可視化 UI ベース（v0.9.340）
+// 目的：packet 549 の items を集計表示。テーブル未作成時は未接続扱い。
+// 厳守：新規 fetch 0（packet 549 既存 GET の結果を使う）、DB 書き込み 0。
+// ═══════════════════════════════════════
+(function _p573_init(){
+  function E(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];});}
+  function _p573_aggregate(){
+    try{
+      const items = (window._p549_state && window._p549_state.items) || [];
+      const byOp = {};
+      const byActor = {};
+      const now = Date.now();
+      const week = 7 * 24 * 60 * 60 * 1000;
+      const month = 30 * 24 * 60 * 60 * 1000;
+      let r7 = 0, r30 = 0;
+      items.forEach(function(r){
+        const op = String(r.operation || '?');
+        byOp[op] = (byOp[op] || 0) + 1;
+        const actor = String(r.actor_name || r.actor_id || '?').slice(0,20);
+        byActor[actor] = (byActor[actor] || 0) + 1;
+        try{
+          const t = r.created_at ? new Date(r.created_at).getTime() : 0;
+          if(t && (now - t) <= week) r7++;
+          if(t && (now - t) <= month) r30++;
+        }catch(_){}
+      });
+      return {total: items.length, byOp:byOp, byActor:byActor, r7:r7, r30:r30};
+    }catch(_){return {total:0, byOp:{}, byActor:{}, r7:0, r30:0};}
+  }
+  function _p573_enhance(){
+    try{
+      const card = document.getElementById('p549-audit-card');
+      if(!card) return;
+      const body = document.getElementById('p549-body');
+      if(!body) return;
+      let block = card.querySelector('[data-p573="1"]');
+      if(!block){
+        block = document.createElement('div');
+        block.setAttribute('data-p573','1');
+        block.style.cssText = 'background:#fff;border:1px dashed #475569;border-radius:6px;padding:7px 10px;margin-top:6px;font-size:11px;line-height:1.55';
+        body.appendChild(block);
+      }
+      const status = (window._p549_state && window._p549_state.status) || 'idle';
+      const a = _p573_aggregate();
+      if(status === 'not_connected' || status === 'idle'){
+        block.innerHTML = ''
+          +'<div style="font-weight:700;color:#334155">📊 監査ログ可視化（packet 573）</div>'
+          +'<div style="color:#475569;margin-top:2px">⏳ 監査ログ未取得 / テーブル未作成。packet 549 で読込 → 自動集計します（packet 548 SQL 実行が前提）。</div>';
+        return;
+      }
+      if(a.total === 0){
+        block.innerHTML = ''
+          +'<div style="font-weight:700;color:#334155">📊 監査ログ可視化（packet 573）</div>'
+          +'<div style="color:#475569;margin-top:2px">監査ログ 0 件（接続済みだが履歴なし）</div>';
+        return;
+      }
+      const cell = function(label, val, color){
+        return '<div style="background:#fff;border:1px solid '+color+';border-radius:6px;padding:5px 8px;text-align:center;min-width:60px;flex:1">'
+          +'<div style="font-size:10px;color:#666">'+E(label)+'</div>'
+          +'<div style="font-size:16px;font-weight:800;color:'+color+'">'+val+'</div>'
+        +'</div>';
+      };
+      const opRows = Object.keys(a.byOp).sort(function(x,y){return a.byOp[y]-a.byOp[x];}).map(function(k){
+        const color = (k==='SOFT_DELETE')?'#dc2626':(k==='RESTORE')?'#16a34a':(k==='INSERT')?'#0ea5e9':'#475569';
+        return cell(k, a.byOp[k], color);
+      }).join('');
+      const actorRows = Object.keys(a.byActor).sort(function(x,y){return a.byActor[y]-a.byActor[x];}).slice(0,5).map(function(k){
+        return '<div style="display:flex;justify-content:space-between;padding:3px 8px;background:#f8fafc;border-radius:4px;font-size:11px"><span>'+E(k)+'</span><span style="font-weight:700">'+a.byActor[k]+'</span></div>';
+      }).join('');
+      block.innerHTML = ''
+        +'<div style="font-weight:700;color:#334155">📊 監査ログ可視化（packet 573、合計 '+a.total+' 件）</div>'
+        +'<div style="font-size:11px;color:#475569;margin:4px 0">直近 7 日：<b>'+a.r7+'</b> 件 / 直近 30 日：<b>'+a.r30+'</b> 件</div>'
+        +'<div style="font-weight:700;color:#334155;font-size:11px;margin-top:6px">操作種別別</div>'
+        +'<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:4px">'+opRows+'</div>'
+        +'<div style="font-weight:700;color:#334155;font-size:11px;margin-top:8px">実行者別 TOP5</div>'
+        +'<div style="display:flex;flex-direction:column;gap:2px;margin-top:4px">'+actorRows+'</div>'
+        +'<div style="font-size:10px;color:#64748b;margin-top:6px">※ packet 549 の取得結果から集計。新規 fetch 0。</div>';
+    }catch(_){}
+  }
+  (function _p573_wrap(){
+    try{
+      const orig = window._p549_renderCard;
+      if(typeof orig !== 'function') return;
+      window._p549_renderCard = function(){
+        try{ orig.apply(this, arguments); }catch(_){}
+        setTimeout(_p573_enhance, 60);
+      };
+    }catch(_){}
+  })();
+  setInterval(_p573_enhance, 8000);
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){ setTimeout(_p573_enhance, 1080); });
+  }else{ setTimeout(_p573_enhance, 1080); }
+})();
+// ==== ここまで packet 573 監査ログ可視化 UI ベース ====
 </script>
 </body>
 </html>
