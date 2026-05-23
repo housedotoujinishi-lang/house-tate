@@ -29315,6 +29315,450 @@ function _p500_buildCandidateFromPayload(payload){
   }
 })();
 // ==== ここまで packet 589 PII スキャン履歴 詳細グラフ ====
+
+// ==== ここから packet 590 PII スキャン履歴 CSV/JSON ローカル DL ====
+// 目的：window._p586_scanHistory を Blob で CSV / JSON としてローカルダウンロード。
+// 制約：外部送信 0 / localStorage 保存 0 / Blob URL は即 revokeObjectURL。
+(function _p590_history_download(){
+  'use strict';
+  function _p590_buildCSV(list){
+    const header = 'at,total,detected,real,falsy,source';
+    const rows = [header];
+    for(let i=0;i<list.length;i++){
+      const e = list[i];
+      const real = e.real || 0;
+      const falsy = e.falsy || 0;
+      const total = e.total || 0;
+      const detected = (typeof e.detected === 'number') ? e.detected : (real + falsy);
+      const at = (typeof e.at === 'string') ? e.at : '';
+      const source = (typeof e.source === 'string') ? e.source.replace(/"/g,'""') : '';
+      rows.push([at, total, detected, real, falsy, '"' + source + '"'].join(','));
+    }
+    return rows.join('\n') + '\n';
+  }
+  function _p590_buildJSON(list){
+    const out = list.map(function(e){
+      return {
+        at: e.at || '',
+        total: e.total || 0,
+        detected: (typeof e.detected === 'number') ? e.detected : ((e.real || 0) + (e.falsy || 0)),
+        real: e.real || 0,
+        falsy: e.falsy || 0,
+        source: e.source || ''
+      };
+    });
+    return JSON.stringify(out, null, 2);
+  }
+  function _p590_downloadBlob(text, mime, filename){
+    let url = '';
+    try{
+      const blob = new Blob([text], { type: mime });
+      url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }catch(e){
+      _p590_status('ダウンロード失敗', '#7c2d12', '#fed7aa');
+      return;
+    }finally{
+      setTimeout(function(){ try{ URL.revokeObjectURL(url); }catch(_){} }, 100);
+    }
+    _p590_status(filename + ' をダウンロードしました', '#065f46', '#d1fae5');
+  }
+  function _p590_status(msg, color, bg){
+    const el = document.getElementById('p590-status');
+    if(!el) return;
+    el.textContent = msg;
+    el.style.color = color;
+    el.style.background = bg;
+    el.style.display = 'block';
+    setTimeout(function(){ if(el) el.style.display = 'none'; }, 3000);
+  }
+  function _p590_tsSlug(){
+    const d = new Date();
+    function pad(n){ return ('00'+n).slice(-2); }
+    return d.getFullYear() + pad(d.getMonth()+1) + pad(d.getDate()) + '-' + pad(d.getHours()) + pad(d.getMinutes());
+  }
+  function _p590_inject(){
+    try{
+      const memPage = document.getElementById('page-memory');
+      if(!memPage) return;
+      if(document.getElementById('p590-download-card')) return;
+      const card = document.createElement('div');
+      card.id = 'p590-download-card';
+      card.className = 'ai-team-card';
+      card.style.cssText = 'margin-top:14px;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:8px;padding:12px 14px';
+      card.innerHTML =
+        '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;margin-bottom:6px">' +
+          '<div style="font-size:14px;font-weight:800;color:#1e40af">📦 packet 590：PII スキャン履歴 CSV/JSON ローカル DL</div>' +
+          '<span style="font-size:10px;background:#dbeafe;color:#1e3a8a;border:1px solid #93c5fd;border-radius:6px;padding:2px 7px;font-weight:700">Blob のみ / 送信なし</span>' +
+        '</div>' +
+        '<div style="font-size:11px;color:var(--t2);line-height:1.65;margin-bottom:8px">' +
+          'packet 586 の <b>in-memory 履歴</b>（<code>window._p586_scanHistory</code>）を CSV / JSON でローカルダウンロードします。' +
+          '<br><b>送信なし</b>：外部 API / DB / localStorage / sessionStorage に書き込みません。Blob URL は即 revokeObjectURL。' +
+        '</div>' +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">' +
+          '<button type="button" id="p590-dl-csv" style="padding:9px 14px;border-radius:6px;border:0;background:#1e40af;color:#fff;font-size:12px;font-weight:700;cursor:pointer;min-height:38px">💾 CSV ダウンロード</button>' +
+          '<button type="button" id="p590-dl-json" style="padding:9px 14px;border-radius:6px;border:0;background:#0891b2;color:#fff;font-size:12px;font-weight:700;cursor:pointer;min-height:38px">💾 JSON ダウンロード</button>' +
+          '<button type="button" id="p590-copy-csv" style="padding:9px 14px;border-radius:6px;border:1.5px solid #1e40af;background:#fff;color:#1e40af;font-size:12px;font-weight:700;cursor:pointer;min-height:38px">📋 CSV をコピー</button>' +
+        '</div>' +
+        '<div id="p590-status" style="display:none;font-size:11px;line-height:1.55;padding:5px 9px;border-radius:4px;margin-bottom:6px;border:1px solid #cbd5e1"></div>' +
+        '<div style="margin-top:8px;font-size:10px;color:#1e3a8a;background:#dbeafe;border:1px solid #93c5fd;border-radius:6px;padding:7px 9px;line-height:1.65">' +
+          'ℹ packet 590 の制約：<br>' +
+          '・対象は packet 586 の in-memory 履歴のみ（記憶本文 / 記憶 ID は <b>含まない</b>）<br>' +
+          '・CSV 列：at,total,detected,real,falsy,source<br>' +
+          '・Blob URL は <b>即 revokeObjectURL</b>（100ms 後）<br>' +
+          '・外部 API / DB / localStorage / sessionStorage への送信・保存 0<br>' +
+          '・ファイル名：<code>jagai_pii_history_YYYYMMDD-HHMM.csv|.json</code>' +
+        '</div>';
+      memPage.appendChild(card);
+      const dlc = document.getElementById('p590-dl-csv');
+      const dlj = document.getElementById('p590-dl-json');
+      const cpc = document.getElementById('p590-copy-csv');
+      if(dlc) dlc.addEventListener('click', function(){
+        const list = (window._p586_scanHistory || []).slice();
+        if(list.length === 0){ _p590_status('履歴 0 件のためダウンロードしません', '#7c2d12', '#fed7aa'); return; }
+        const csv = _p590_buildCSV(list);
+        _p590_downloadBlob(csv, 'text/csv;charset=utf-8', 'jagai_pii_history_' + _p590_tsSlug() + '.csv');
+      });
+      if(dlj) dlj.addEventListener('click', function(){
+        const list = (window._p586_scanHistory || []).slice();
+        if(list.length === 0){ _p590_status('履歴 0 件のためダウンロードしません', '#7c2d12', '#fed7aa'); return; }
+        const json = _p590_buildJSON(list);
+        _p590_downloadBlob(json, 'application/json;charset=utf-8', 'jagai_pii_history_' + _p590_tsSlug() + '.json');
+      });
+      if(cpc) cpc.addEventListener('click', function(){
+        const list = (window._p586_scanHistory || []).slice();
+        if(list.length === 0){ _p590_status('履歴 0 件のためコピーしません', '#7c2d12', '#fed7aa'); return; }
+        const csv = _p590_buildCSV(list);
+        try{
+          if(navigator.clipboard && navigator.clipboard.writeText){
+            navigator.clipboard.writeText(csv).then(function(){
+              _p590_status('CSV をクリップボードにコピーしました', '#065f46', '#d1fae5');
+            }, function(){ _p590_status('コピー失敗', '#7c2d12', '#fed7aa'); });
+          } else {
+            const ta = document.createElement('textarea');
+            ta.value = csv;
+            ta.style.position = 'fixed'; ta.style.left = '-9999px';
+            document.body.appendChild(ta);
+            ta.select();
+            const ok = document.execCommand('copy');
+            document.body.removeChild(ta);
+            _p590_status(ok ? 'CSV をコピー（フォールバック）' : 'コピー失敗', ok ? '#065f46' : '#7c2d12', ok ? '#d1fae5' : '#fed7aa');
+          }
+        }catch(_){ _p590_status('コピー失敗', '#7c2d12', '#fed7aa'); }
+      });
+    }catch(_){}
+  }
+  (function _p590_wrap(){
+    try{
+      const orig = window.switchPage;
+      if(typeof orig !== 'function') return;
+      window.switchPage = function(pg){
+        try{ orig.apply(this, arguments); }catch(_){}
+        if(pg === 'memory'){ setTimeout(_p590_inject, 640); }
+      };
+    }catch(_){}
+  })();
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){ setTimeout(_p590_inject, 1900); });
+  } else {
+    setTimeout(_p590_inject, 1900);
+  }
+})();
+// ==== ここまで packet 590 PII スキャン履歴 CSV/JSON ローカル DL ====
+
+// ==== ここから packet 591 記憶本文 文字数統計 UI ====
+// 目的：window._p500_memoryStore の文字数を集計表示。本文は表示しない。
+// 制約：in-memory / 表示中記憶のみ、DB 送信 0、localStorage 保存 0、本文出力 0。
+(function _p591_memory_length_stats(){
+  'use strict';
+  function _p591_escapeHtml(s){
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  function _p591_collectLengths(){
+    const store = (window._p500_memoryStore && window._p500_memoryStore.slice) ? window._p500_memoryStore.slice() : [];
+    const lens = [];
+    for(let i=0;i<store.length;i++){
+      const m = store[i] || {};
+      const parts = [m.title, m.content, m.cause, m.solution, m.text, m.body, m.note].filter(function(x){return typeof x === 'string' && x;});
+      const combined = parts.join('\n');
+      lens.push(combined.length);
+    }
+    return { count: store.length, lens: lens };
+  }
+  function _p591_stats(lens){
+    if(lens.length === 0) return { count: 0, total: 0, max: 0, min: 0, avg: 0, median: 0 };
+    let total = 0, max = 0, min = Infinity;
+    for(let i=0;i<lens.length;i++){
+      total += lens[i];
+      if(lens[i] > max) max = lens[i];
+      if(lens[i] < min) min = lens[i];
+    }
+    if(min === Infinity) min = 0;
+    const avg = total / lens.length;
+    const sorted = lens.slice().sort(function(a,b){ return a-b; });
+    const mid = Math.floor(sorted.length / 2);
+    const median = (sorted.length % 2 === 0) ? Math.round((sorted[mid-1] + sorted[mid]) / 2) : sorted[mid];
+    return {
+      count: lens.length,
+      total: total,
+      max: max,
+      min: min,
+      avg: Math.round(avg * 100) / 100,
+      median: median
+    };
+  }
+  function _p591_distribution(lens){
+    // バケット：0-49 / 50-99 / 100-199 / 200-499 / 500-999 / 1000-1999 / 2000+
+    const buckets = [
+      { label: '0-49',      lo: 0,    hi: 49,    count: 0 },
+      { label: '50-99',     lo: 50,   hi: 99,    count: 0 },
+      { label: '100-199',   lo: 100,  hi: 199,   count: 0 },
+      { label: '200-499',   lo: 200,  hi: 499,   count: 0 },
+      { label: '500-999',   lo: 500,  lo2: 500, hi: 999, count: 0 },
+      { label: '1000-1999', lo: 1000, hi: 1999,  count: 0 },
+      { label: '2000+',     lo: 2000, hi: Infinity, count: 0 }
+    ];
+    for(let i=0;i<lens.length;i++){
+      const v = lens[i];
+      for(let j=0;j<buckets.length;j++){
+        if(v >= buckets[j].lo && v <= buckets[j].hi){ buckets[j].count++; break; }
+      }
+    }
+    return buckets;
+  }
+  function _p591_render(){
+    try{
+      const out = document.getElementById('p591-stats-output');
+      if(!out) return;
+      const collected = _p591_collectLengths();
+      const s = _p591_stats(collected.lens);
+      out.style.display = 'block';
+      if(s.count === 0){
+        out.innerHTML = '<div style="color:#94a3b8;font-size:11px;padding:6px 0">記憶が 0 件です。記憶を 1 件以上登録してから本ボタンを押してください。</div>';
+        return;
+      }
+      let html = '';
+      html += '<div style="font-weight:800;color:#a16207;margin-bottom:6px">📏 記憶本文 文字数統計（対象 ' + s.count + ' 件）</div>';
+      // サマリーテーブル
+      html += '<table style="width:100%;font-size:11px;border-collapse:collapse;margin-bottom:8px">';
+      html += '<tr><th style="text-align:left;color:#475569;padding:3px 6px;background:#f1f5f9;border:1px solid #cbd5e1">指標</th><th style="text-align:left;color:#475569;padding:3px 6px;background:#f1f5f9;border:1px solid #cbd5e1">値</th></tr>';
+      html += '<tr><td style="padding:3px 6px;border:1px solid #cbd5e1">件数</td><td style="padding:3px 6px;border:1px solid #cbd5e1"><b>' + s.count + '</b> 件</td></tr>';
+      html += '<tr><td style="padding:3px 6px;border:1px solid #cbd5e1">合計文字数</td><td style="padding:3px 6px;border:1px solid #cbd5e1">' + s.total.toLocaleString() + ' 文字</td></tr>';
+      html += '<tr><td style="padding:3px 6px;border:1px solid #cbd5e1">最大 / 最小</td><td style="padding:3px 6px;border:1px solid #cbd5e1">' + s.max + ' / ' + s.min + ' 文字</td></tr>';
+      html += '<tr><td style="padding:3px 6px;border:1px solid #cbd5e1">平均 / 中央値</td><td style="padding:3px 6px;border:1px solid #cbd5e1">' + s.avg + ' / ' + s.median + ' 文字</td></tr>';
+      html += '</table>';
+      // 分布
+      const dist = _p591_distribution(collected.lens);
+      let maxBucket = 1;
+      for(let i=0;i<dist.length;i++){ if(dist[i].count > maxBucket) maxBucket = dist[i].count; }
+      html += '<div style="font-weight:700;color:#a16207;margin-top:6px;margin-bottom:3px">文字数分布</div>';
+      html += '<pre style="background:#0f172a;color:#fcd34d;border-radius:4px;padding:7px 10px;margin:0;font-size:10px;line-height:1.5;white-space:pre;overflow:auto;font-family:ui-monospace,Consolas,monospace">';
+      for(let i=0;i<dist.length;i++){
+        const d = dist[i];
+        const barLen = Math.round((d.count / maxBucket) * 24);
+        const bar = new Array(Math.max(0, barLen) + 1).join('█');
+        const label = (d.label + '           ').substring(0, 11);
+        html += _p591_escapeHtml(label) + ' ' + ('   '+d.count).slice(-4) + ' ' + bar + '\n';
+      }
+      html += '</pre>';
+      html += '<div style="margin-top:8px;font-size:10px;color:#7c2d12;background:#fef3c7;border:1px solid #fcd34d;border-radius:4px;padding:6px 9px;line-height:1.6">⚠ 本 UI は <b>文字数のみ</b>表示します。記憶本文 / 記憶 ID は表示・出力・送信しません。</div>';
+      out.innerHTML = html;
+    }catch(_){
+      const o = document.getElementById('p591-stats-output');
+      if(o){ o.style.display = 'block'; o.textContent = '集計中にエラーが発生しました。'; }
+    }
+  }
+  function _p591_inject(){
+    try{
+      const memPage = document.getElementById('page-memory');
+      if(!memPage) return;
+      if(document.getElementById('p591-stats-card')) return;
+      const card = document.createElement('div');
+      card.id = 'p591-stats-card';
+      card.className = 'ai-team-card';
+      card.style.cssText = 'margin-top:14px;background:#fefce8;border:1.5px solid #fde68a;border-radius:8px;padding:12px 14px';
+      card.innerHTML =
+        '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;margin-bottom:6px">' +
+          '<div style="font-size:14px;font-weight:800;color:#a16207">📏 packet 591：記憶本文 文字数統計</div>' +
+          '<span style="font-size:10px;background:#fef3c7;color:#78350f;border:1px solid #fcd34d;border-radius:6px;padding:2px 7px;font-weight:700">本文表示なし / 送信なし</span>' +
+        '</div>' +
+        '<div style="font-size:11px;color:var(--t2);line-height:1.65;margin-bottom:8px">' +
+          'ブラウザ内の記憶（<code>window._p500_memoryStore</code>）の <b>文字数だけ</b> を集計します。' +
+          '<br>記憶本文 / 記憶 ID は <b>表示・出力・送信しません</b>。長さの分布だけを画面に出します。' +
+        '</div>' +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">' +
+          '<button type="button" id="p591-render-btn" style="padding:9px 14px;border-radius:6px;border:0;background:#a16207;color:#fff;font-size:12px;font-weight:700;cursor:pointer;min-height:38px">📏 統計を表示</button>' +
+          '<button type="button" id="p591-clear-btn" style="padding:9px 14px;border-radius:6px;border:1.5px solid #a16207;background:#fff;color:#a16207;font-size:12px;font-weight:700;cursor:pointer;min-height:38px">✖ クリア</button>' +
+        '</div>' +
+        '<div id="p591-stats-output" style="display:none;padding:8px 10px;border-radius:6px;font-size:11px;background:#fff;border:1px solid var(--bo);word-break:break-word;overflow-x:auto"></div>' +
+        '<div style="margin-top:8px;font-size:10px;color:#78350f;background:#fef3c7;border:1px solid #fde68a;border-radius:6px;padding:7px 9px;line-height:1.65">' +
+          'ℹ packet 591 の制約：<br>' +
+          '・対象フィールド：title / content / cause / solution / text / body / note を結合した長さ<br>' +
+          '・記憶本文 / 記憶 ID は <b>画面に出さない</b>（文字数のみ）<br>' +
+          '・分布バケット：0-49 / 50-99 / 100-199 / 200-499 / 500-999 / 1000-1999 / 2000+<br>' +
+          '・DB / 外部 API / localStorage / sessionStorage への送信・保存 <b>0</b>' +
+        '</div>';
+      memPage.appendChild(card);
+      const rb = document.getElementById('p591-render-btn');
+      const cb = document.getElementById('p591-clear-btn');
+      if(rb) rb.addEventListener('click', _p591_render);
+      if(cb) cb.addEventListener('click', function(){
+        const o = document.getElementById('p591-stats-output');
+        if(o){ o.innerHTML = ''; o.style.display = 'none'; }
+      });
+    }catch(_){}
+  }
+  (function _p591_wrap(){
+    try{
+      const orig = window.switchPage;
+      if(typeof orig !== 'function') return;
+      window.switchPage = function(pg){
+        try{ orig.apply(this, arguments); }catch(_){}
+        if(pg === 'memory'){ setTimeout(_p591_inject, 660); }
+      };
+    }catch(_){}
+  })();
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){ setTimeout(_p591_inject, 2000); });
+  } else {
+    setTimeout(_p591_inject, 2000);
+  }
+})();
+// ==== ここまで packet 591 記憶本文 文字数統計 UI ====
+
+// ==== ここから packet 592 STOP_GATES 現状チェック UI（read-only）====
+// 目的：.jagai-autopilot/STOP_GATES.md（別 repo）の代わりに、判定表を画面に静的表示。
+// 制約：read-only 表示のみ、編集ボタンなし、ファイル読込なし、送信なし。
+(function _p592_stop_gates_view(){
+  'use strict';
+  const STOP_GATES = [
+    { category: 'DB / SQL',            item: 'SQL 実行（CREATE / ALTER / DROP / POLICY 等）', status: '🔴 STOP', who: 'ボス手動 SQL のみ' },
+    { category: 'DB / SQL',            item: 'Supabase ダッシュボード操作',              status: '🔴 STOP', who: 'ボス手動のみ' },
+    { category: 'DB / SQL',            item: 'RLS / Auth 変更',                          status: '🔴 STOP', who: 'ボス手動のみ' },
+    { category: 'DB / データ',         item: '物理 DELETE / UPSERT',                     status: '🔴 STOP', who: '論理削除のみ可' },
+    { category: 'DB / 鍵',             item: 'service_role キー使用',                    status: '🔴 STOP', who: 'フロントには絶対置かない' },
+    { category: '外部 API',            item: 'OpenAI / Claude / 外部 API 接続',          status: '🔴 STOP', who: 'packet 700+（要承認）' },
+    { category: '外部 API',            item: 'API キー作成・保存・参照',                 status: '🔴 STOP', who: '.env / OS 環境変数（packet 580）' },
+    { category: '外部 API',            item: '.env ファイル作成・読込',                  status: '🔴 STOP', who: '本 packet では作らない' },
+    { category: 'デプロイ',            item: 'Cloud Run deploy',                         status: '🔴 STOP', who: 'packet 740+（要承認）' },
+    { category: 'デプロイ',            item: 'GitHub Actions secrets 設定',              status: '🔴 STOP', who: 'packet 730+（要承認）' },
+    { category: 'git',                 item: 'force push',                               status: '🔴 STOP', who: '通常 push のみ' },
+    { category: 'git',                 item: 'git reset / clean / rebase',               status: '🔴 STOP', who: '履歴破壊防止' },
+    { category: '管理',                item: '.claude/ への add',                        status: '🔴 STOP', who: 'untracked のまま' },
+    { category: '機密',                item: 'password / token / secret の出力・保存',   status: '🔴 STOP', who: '画面・console・log・storage いずれも禁止' },
+    { category: 'PII',                 item: 'localStorage / sessionStorage への本文保存', status: '🔴 STOP', who: 'id 配列のみ（最大 50、packet 569）' },
+    { category: 'PII',                 item: '顧客タブ復活 / 既存顧客テーブル接続',      status: '🔴 STOP', who: '別ボス承認 + PII 整理' },
+    { category: 'ループ',              item: '実 WORK_REPORT.md / COMMAND_QUEUE.md 自動書込', status: '🔴 STOP', who: '手動貼付のみ（packet 606）' },
+    { category: '通知',                item: '外部通知（Slack / mail / Discord / Webhook）', status: '🔴 STOP', who: 'packet 710+（要承認）' }
+  ];
+  function _p592_escapeHtml(s){
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  function _p592_render(){
+    try{
+      const out = document.getElementById('p592-gates-output');
+      if(!out) return;
+      out.style.display = 'block';
+      let html = '';
+      html += '<div style="font-weight:800;color:#991b1b;margin-bottom:6px">🛡 STOP_GATES 現状チェック表（read-only / 静的）</div>';
+      html += '<div style="font-size:11px;color:#7c2d12;margin-bottom:8px;line-height:1.55">以下の操作は <b>すべて自動で停止</b>される対象です。例外なくボス確認 / ボス手動のみ。</div>';
+      html += '<table style="width:100%;font-size:11px;border-collapse:collapse;margin-bottom:8px">';
+      html += '<tr>';
+      html += '<th style="text-align:left;color:#fff;background:#991b1b;padding:5px 8px;border:1px solid #7f1d1d;width:80px">カテゴリ</th>';
+      html += '<th style="text-align:left;color:#fff;background:#991b1b;padding:5px 8px;border:1px solid #7f1d1d">操作</th>';
+      html += '<th style="text-align:left;color:#fff;background:#991b1b;padding:5px 8px;border:1px solid #7f1d1d;width:70px">判定</th>';
+      html += '<th style="text-align:left;color:#fff;background:#991b1b;padding:5px 8px;border:1px solid #7f1d1d">許容</th>';
+      html += '</tr>';
+      // category 別に背景色を変える
+      const catColors = {};
+      const palette = ['#fef2f2','#fff7ed','#fefce8','#f0fdf4','#eff6ff','#fdf2f8','#f5f3ff'];
+      let palIdx = 0;
+      for(let i=0;i<STOP_GATES.length;i++){
+        const g = STOP_GATES[i];
+        if(!catColors[g.category]) { catColors[g.category] = palette[palIdx % palette.length]; palIdx++; }
+        const bg = catColors[g.category];
+        html += '<tr>';
+        html += '<td style="padding:4px 8px;border:1px solid #fca5a5;background:' + bg + ';color:#7f1d1d;font-weight:700">' + _p592_escapeHtml(g.category) + '</td>';
+        html += '<td style="padding:4px 8px;border:1px solid #fca5a5;background:' + bg + ';color:#475569">' + _p592_escapeHtml(g.item) + '</td>';
+        html += '<td style="padding:4px 8px;border:1px solid #fca5a5;background:' + bg + ';color:#991b1b;font-weight:800;text-align:center">' + _p592_escapeHtml(g.status) + '</td>';
+        html += '<td style="padding:4px 8px;border:1px solid #fca5a5;background:' + bg + ';color:#475569;font-size:10.5px">' + _p592_escapeHtml(g.who) + '</td>';
+        html += '</tr>';
+      }
+      html += '</table>';
+      html += '<div style="font-size:10.5px;color:#7c2d12;background:#fee2e2;border:1px solid #fca5a5;border-radius:4px;padding:6px 9px;line-height:1.55">';
+      html += '⚠ <b>判定の意味</b><br>';
+      html += '・🔴 <b>STOP</b>：自動で停止する対象（Worker / スクリプトが該当を検出すると即終了 + STOP_REQUESTS.md に記録）<br>';
+      html += '・上記以外の操作は「自走可」（packet 579 AUTONOMY_POLICY に従う）<br>';
+      html += '・本表は <b>静的なスナップショット</b>（packet 592）。最新は `.jagai-autopilot/STOP_GATES.md` を参照';
+      html += '</div>';
+      out.innerHTML = html;
+    }catch(_){
+      const o = document.getElementById('p592-gates-output');
+      if(o){ o.style.display = 'block'; o.textContent = '描画中にエラーが発生しました。'; }
+    }
+  }
+  function _p592_inject(){
+    try{
+      const memPage = document.getElementById('page-memory');
+      if(!memPage) return;
+      if(document.getElementById('p592-gates-card')) return;
+      const card = document.createElement('div');
+      card.id = 'p592-gates-card';
+      card.className = 'ai-team-card';
+      card.style.cssText = 'margin-top:14px;background:#fef2f2;border:1.5px solid #fca5a5;border-radius:8px;padding:12px 14px';
+      card.innerHTML =
+        '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;margin-bottom:6px">' +
+          '<div style="font-size:14px;font-weight:800;color:#991b1b">🛡 packet 592：STOP_GATES 現状チェック</div>' +
+          '<span style="font-size:10px;background:#fee2e2;color:#7f1d1d;border:1px solid #fca5a5;border-radius:6px;padding:2px 7px;font-weight:700">read-only / 静的 / 編集なし</span>' +
+        '</div>' +
+        '<div style="font-size:11px;color:var(--t2);line-height:1.65;margin-bottom:8px">' +
+          'Worker（Claude Code）が <b>絶対に自動実行しない操作</b>の判定表を画面で確認できます。' +
+          '<br>判定表は <b>静的なスナップショット</b>です（編集 / 保存 / 送信なし）。最新は <code>.jagai-autopilot/STOP_GATES.md</code> を参照。' +
+        '</div>' +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">' +
+          '<button type="button" id="p592-render-btn" style="padding:9px 14px;border-radius:6px;border:0;background:#991b1b;color:#fff;font-size:12px;font-weight:700;cursor:pointer;min-height:38px">🛡 判定表を表示</button>' +
+          '<button type="button" id="p592-clear-btn" style="padding:9px 14px;border-radius:6px;border:1.5px solid #991b1b;background:#fff;color:#991b1b;font-size:12px;font-weight:700;cursor:pointer;min-height:38px">✖ クリア</button>' +
+        '</div>' +
+        '<div id="p592-gates-output" style="display:none;padding:8px 10px;border-radius:6px;font-size:11px;background:#fff;border:1px solid var(--bo);word-break:break-word;overflow-x:auto"></div>' +
+        '<div style="margin-top:8px;font-size:10px;color:#7f1d1d;background:#fee2e2;border:1px solid #fca5a5;border-radius:6px;padding:7px 9px;line-height:1.65">' +
+          'ℹ packet 592 の制約：<br>' +
+          '・本 UI は <b>表示のみ</b>（編集 / 保存 / 送信 / API 接続なし）<br>' +
+          '・STOP_GATES の項目は <b>IIFE 内に静的に定義</b>（外部ファイル読込なし）<br>' +
+          '・最新の規約は <code>.jagai-autopilot/STOP_GATES.md</code>（別 repo / housetate-ai-company 側）を参照<br>' +
+          '・記憶本文 / 記憶 ID / 顧客情報は一切表示しません' +
+        '</div>';
+      memPage.appendChild(card);
+      const rb = document.getElementById('p592-render-btn');
+      const cb = document.getElementById('p592-clear-btn');
+      if(rb) rb.addEventListener('click', _p592_render);
+      if(cb) cb.addEventListener('click', function(){
+        const o = document.getElementById('p592-gates-output');
+        if(o){ o.innerHTML = ''; o.style.display = 'none'; }
+      });
+    }catch(_){}
+  }
+  (function _p592_wrap(){
+    try{
+      const orig = window.switchPage;
+      if(typeof orig !== 'function') return;
+      window.switchPage = function(pg){
+        try{ orig.apply(this, arguments); }catch(_){}
+        if(pg === 'memory'){ setTimeout(_p592_inject, 680); }
+      };
+    }catch(_){}
+  })();
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){ setTimeout(_p592_inject, 2100); });
+  } else {
+    setTimeout(_p592_inject, 2100);
+  }
+})();
+// ==== ここまで packet 592 STOP_GATES 現状チェック UI ====
 </script>
 </body>
 </html>
