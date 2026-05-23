@@ -28002,6 +28002,186 @@ function _p500_buildCandidateFromPayload(payload){
   }
 })();
 // ==== ここまで packet 582 + 583 記憶庫 PII スキャナー UI ====
+
+// ==== ここから packet 584 記憶庫エクスポート時 PII プレチェック ====
+// 目的：
+//   1. 記憶庫に「📤 エクスポート前 PII プレチェック」カードを追加（packet 582 PII スキャナーの下）
+//   2. packet 544（論理削除候補 CSV/JSON エクスポート）のボタン押下を capture フェーズで wrap し、
+//      PII 検出時に confirm() で続行を確認
+// 制約：
+//   - 外部 API / DB / localStorage / sessionStorage への送信・保存は 0
+//   - 記憶本体の編集・削除・転送は 0
+//   - 汎用「全件エクスポート」自体は実装しない（packet 558 設計のまま、本 packet はチェック導線のみ）
+(function _p584_export_pii_check(){
+  'use strict';
+  function _p584_runSilentScan(){
+    // 強化スキャンの内部ロジックを再利用するため _p582_runScan を呼ぶ
+    // ただし結果 DOM 描画を抑えるため、自前で簡易走査もしておく（軽量フォールバック）
+    try{
+      const store = (window._p500_memoryStore && window._p500_memoryStore.slice) ? window._p500_memoryStore.slice() : [];
+      const summary = { total: store.length, real: 0, falsy: 0 };
+      // 簡易フォールバック実装：packet 583 と同等の事前マスク + 検出
+      function maskNon(t){
+        if(!t) return t;
+        const rs = [
+          /\bpacket\s*\d+[A-Za-z]?\b/gi,
+          /\bv\d+\.\d+\.\d+\b/g,
+          /\b[0-9a-f]{40}\b/g,
+          /\b[0-9a-f]{7,12}\b/g,
+          /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/g,
+          /\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z?\b/g,
+          /\b\d{4}-\d{2}-\d{2}\b/g
+        ];
+        let c = t;
+        for(let i=0;i<rs.length;i++){ c = c.replace(rs[i], function(m){ return new Array(m.length+1).join('_'); }); }
+        return c;
+      }
+      for(let i=0;i<store.length;i++){
+        const m = store[i] || {};
+        const parts = [m.title, m.content, m.cause, m.solution, m.text, m.body, m.note].filter(function(x){return typeof x === 'string' && x;});
+        const orig = parts.join('\n');
+        if(!orig) continue;
+        const t = maskNon(orig);
+        // 電話
+        const phoneRe = /\b0[789]0[\-\s]?\d{4}[\-\s]?\d{4}\b|\b0\d{1,4}[\-\s]?\d{1,4}[\-\s]?\d{3,4}\b/g;
+        let mm;
+        while((mm = phoneRe.exec(t)) !== null){
+          const d = mm[0].replace(/\D/g,'').length;
+          if(d >= 10 && d <= 11) summary.real++;
+          else if(d >= 8) summary.falsy++;
+        }
+        // メール
+        const emailRe = /[\w.+-]+@[\w.-]+\.[a-zA-Z]{2,}/g;
+        while((mm = emailRe.exec(t)) !== null){
+          if(/example\.com|sample\.com|test\.com|noreply@/i.test(mm[0])) summary.falsy++;
+          else summary.real++;
+        }
+        // 住所
+        const addressRe = /(都|道|府|県|市|区|町|村)[^\s\n]{0,30}(?:丁目|番地|号室|号棟|マンション|ビル|アパート|ハイツ|ハウス|テラス|タワー|レジデンス|コーポ)/g;
+        while((mm = addressRe.exec(t)) !== null){
+          if(mm[0].length < 8 || /(市場|町内|町中|区分|区別|区切|区間|府内|府中|都心|村内|町外|号令|号砲|番号|町づくり|市町村|府県市|都道府県)/.test(mm[0])) summary.falsy++;
+          else summary.real++;
+        }
+        // secret
+        const secretRe = /sk-[a-zA-Z0-9]{20,}|ghp_[a-zA-Z0-9]{30,}|gho_[a-zA-Z0-9]{30,}|ghs_[a-zA-Z0-9]{30,}|AKIA[0-9A-Z]{16}|eyJ[a-zA-Z0-9_\-]{10,}\.[a-zA-Z0-9_\-]{10,}\.[a-zA-Z0-9_\-]{5,}|bearer\s+[a-zA-Z0-9_\-\.=]{20,}|(?:password|passwd|pwd|secret|access[_\-]?token|refresh[_\-]?token|api[_\-]?key|client[_\-]?secret)\s*[:=]\s*[A-Za-z0-9_\-\.=]{6,}/gi;
+        while((mm = secretRe.exec(t)) !== null){
+          if(/password|passwd|pwd|secret|token|api/i.test(mm[0]) && !/[:=]\s*\S{8,}/.test(mm[0])) summary.falsy++;
+          else summary.real++;
+        }
+      }
+      return summary;
+    }catch(_){
+      return { total: 0, real: 0, falsy: 0, error: true };
+    }
+  }
+  function _p584_inject(){
+    try{
+      const memPage = document.getElementById('page-memory');
+      if(!memPage) return;
+      if(document.getElementById('p584-export-precheck-card')) return;
+      const card = document.createElement('div');
+      card.id = 'p584-export-precheck-card';
+      card.className = 'ai-team-card';
+      card.style.cssText = 'margin-top:14px;background:#eef2ff;border:1.5px solid #c7d2fe;border-radius:8px;padding:12px 14px';
+      card.innerHTML =
+        '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;margin-bottom:6px">' +
+          '<div style="font-size:14px;font-weight:800;color:#3730a3">📤 packet 584：エクスポート前 PII プレチェック</div>' +
+          '<span style="font-size:10px;background:#c7d2fe;color:#3730a3;border:1px solid #a5b4fc;border-radius:6px;padding:2px 7px;font-weight:700">記憶庫ローカルチェック / 送信なし</span>' +
+        '</div>' +
+        '<div style="font-size:11px;color:var(--t2);line-height:1.65;margin-bottom:8px">' +
+          '記憶庫のエクスポート（packet 544 CSV/JSON 等）の <b>前</b> に PII が混入していないか自動でチェック。' +
+          '<br>検出ありなら確認ダイアログ。<b>このカードは送信なし</b>（外部 API 0 / DB 0 / localStorage 0）。' +
+        '</div>' +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">' +
+          '<button type="button" id="p584-precheck-btn" style="padding:9px 14px;border-radius:6px;border:0;background:#4338ca;color:#fff;font-size:12px;font-weight:700;cursor:pointer;min-height:38px">🔎 エクスポート前プレチェックを実行</button>' +
+          '<button type="button" id="p584-precheck-clear" style="padding:9px 14px;border-radius:6px;border:1.5px solid #4338ca;background:#fff;color:#4338ca;font-size:12px;font-weight:700;cursor:pointer;min-height:38px">✖ 結果をクリア</button>' +
+        '</div>' +
+        '<div id="p584-precheck-result" style="display:none;padding:8px 10px;border-radius:6px;font-size:11px;line-height:1.65;background:#fff;border:1px solid var(--bo);word-break:break-word"></div>' +
+        '<div style="margin-top:8px;font-size:10px;color:#3730a3;background:#e0e7ff;border:1px solid #c7d2fe;border-radius:6px;padding:7px 9px;line-height:1.65">' +
+          'ℹ packet 584 の制約：<br>' +
+          '・packet 544（論理削除候補 CSV/JSON）ボタン押下時に <b>自動 wrap</b> で PII プレチェック実行<br>' +
+          '・PII 検出時（falsy 除く）は confirm() で続行確認<br>' +
+          '・汎用「全件エクスポート」は <b>本 packet では実装しない</b>（packet 558 設計のまま）<br>' +
+          '・CSV/JSON への PII 注意メタ情報付与は <b>docs/MEMORY_EXPORT_PII_CHECK_PACKET_584.md</b> で整理' +
+        '</div>';
+      memPage.appendChild(card);
+      const btn = document.getElementById('p584-precheck-btn');
+      const clearBtn = document.getElementById('p584-precheck-clear');
+      if(btn) btn.addEventListener('click', function(){
+        const r = document.getElementById('p584-precheck-result');
+        if(!r) return;
+        const s = _p584_runSilentScan();
+        let html = '';
+        if(s.error){
+          html = '<div style="color:#9a3412">スキャン中にエラーが発生しました。</div>';
+        } else {
+          html += '<div style="font-weight:800;color:#3730a3;margin-bottom:6px">📋 プレチェック結果</div>';
+          html += '<div>対象記憶：<b>' + s.total + '</b> 件</div>';
+          html += '<div>本物らしき検出：<b>' + s.real + '</b> 件</div>';
+          html += '<div>誤検知かも：<b>' + s.falsy + '</b> 件</div>';
+          if(s.real === 0){
+            html += '<div style="margin-top:8px;font-size:11px;color:#065f46;background:#d1fae5;border:1px solid #6ee7b7;border-radius:4px;padding:6px 9px;line-height:1.6">✅ 本物らしき PII <b>0 件</b>。エクスポートしても比較的安全（ただし誤検知 ' + s.falsy + ' 件は人間判断で確認）。</div>';
+          } else {
+            html += '<div style="margin-top:8px;font-size:11px;color:#7c2d12;background:#fed7aa;border:1px solid #fdba74;border-radius:4px;padding:6px 9px;line-height:1.6">⚠ 本物らしき PII <b>' + s.real + ' 件</b> 検出。エクスポート前に記憶本体を確認し、不要な PII を削除することを推奨します。</div>';
+          }
+        }
+        r.innerHTML = html;
+        r.style.display = 'block';
+      });
+      if(clearBtn) clearBtn.addEventListener('click', function(){
+        const r = document.getElementById('p584-precheck-result');
+        if(r){ r.innerHTML = ''; r.style.display = 'none'; }
+      });
+    }catch(_){}
+  }
+  // packet 544 エクスポートボタンを capture フェーズで wrap
+  // 既存ハンドラの前に走り、PII 検出時は confirm() で続行確認
+  let _p584_wrapBound = false;
+  function _p584_bindExportWrap(){
+    if(_p584_wrapBound) return;
+    _p584_wrapBound = true;
+    document.addEventListener('click', function(e){
+      try{
+        const targetIds = ['p544-copy-csv','p544-copy-json','p544-dl-csv','p544-dl-json'];
+        const tid = e.target && e.target.id;
+        if(targetIds.indexOf(tid) < 0) return;
+        const s = _p584_runSilentScan();
+        if(s.error) return;
+        // 本物らしき 0 件なら静かに通す
+        if(s.real === 0) return;
+        const msg = '⚠ packet 584 エクスポート前 PII プレチェック\n\n' +
+                    '本物らしき PII を ' + s.real + ' 件検出しました（誤検知かも：' + s.falsy + ' 件）。\n\n' +
+                    'このままエクスポートを続行しますか？\n' +
+                    '（[OK] = 続行 / [キャンセル] = 中止して記憶を確認）';
+        const ok = window.confirm(msg);
+        if(!ok){
+          e.stopImmediatePropagation();
+          e.preventDefault();
+        }
+      }catch(_){}
+    }, true); // capture phase
+  }
+  (function _p584_wrap(){
+    try{
+      const orig = window.switchPage;
+      if(typeof orig !== 'function') return;
+      window.switchPage = function(pg){
+        try{ orig.apply(this, arguments); }catch(_){}
+        if(pg === 'memory'){ setTimeout(_p584_inject, 520); }
+      };
+    }catch(_){}
+  })();
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){
+      setTimeout(_p584_inject, 1300);
+      _p584_bindExportWrap();
+    });
+  } else {
+    setTimeout(_p584_inject, 1300);
+    _p584_bindExportWrap();
+  }
+})();
+// ==== ここまで packet 584 記憶庫エクスポート時 PII プレチェック ====
 </script>
 </body>
 </html>
