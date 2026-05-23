@@ -27775,6 +27775,147 @@ function _p500_buildCandidateFromPayload(payload){
   }else{ setTimeout(_p574_inject, 1100); }
 })();
 // ==== ここまで packet 574 社内マニュアル UI カード ====
+
+// ==== ここから packet 582 記憶庫 PII スキャナー UI（ローカル・簡易・誤検知あり） ====
+// 目的：window._p500_memoryStore の中に PII（電話/メール/住所っぽい語/password/token/secret）が混入していないかを
+//       ブラウザ内だけで簡易チェック。送信なし / DB なし / localStorage 保存なし / console 出力なし。
+(function _p582_pii_scanner(){
+  'use strict';
+  function _p582_escapeHtml(s){
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  function _p582_maskPhone(s){
+    if(!s || s.length < 6) return '***';
+    return s.substring(0,3) + '****' + s.substring(s.length-3);
+  }
+  function _p582_maskEmail(s){
+    const at = s.indexOf('@');
+    if(at < 2) return '***@' + s.substring(at + 1);
+    return s.substring(0,2) + '***' + s.substring(at);
+  }
+  function _p582_inject(){
+    try{
+      const memPage = document.getElementById('page-memory');
+      if(!memPage) return;
+      if(document.getElementById('p582-pii-scanner-card')) return;
+      const card = document.createElement('div');
+      card.id = 'p582-pii-scanner-card';
+      card.className = 'ai-team-card';
+      card.style.cssText = 'margin-top:14px;background:#fff7ed;border:1.5px solid #fdba74;border-radius:8px;padding:12px 14px';
+      card.innerHTML =
+        '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;margin-bottom:6px">' +
+          '<div style="font-size:14px;font-weight:800;color:#9a3412">🛡 packet 582：記憶庫 PII スキャナー</div>' +
+          '<span style="font-size:10px;background:#fed7aa;color:#7c2d12;border:1px solid #fdba74;border-radius:6px;padding:2px 7px;font-weight:700">ローカル簡易 / 誤検知あり / 送信なし</span>' +
+        '</div>' +
+        '<div style="font-size:11px;color:var(--t2);line-height:1.65;margin-bottom:8px">' +
+          'ブラウザ内の記憶（<code>window._p500_memoryStore</code>）に <b>個人情報（PII）・パスワード・トークン</b> が混入していないかを簡易チェックします。' +
+          '<br><b>送信なし</b>：外部 API / DB / localStorage / sessionStorage に検出結果も本文も書き込みません。表示はこの画面だけです。' +
+        '</div>' +
+        '<div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:6px;padding:7px 10px;font-size:11px;color:#78350f;line-height:1.65;margin-bottom:8px">' +
+          '<b>大原則</b>：記憶庫は<b>仕事のメモ・判断ログ・施策の理由</b>を残す場所です。' +
+          '<br>以下は <b>絶対に書かない</b>でください：' +
+          '<br>・顧客・取引先の氏名 / 電話番号 / メール / 住所' +
+          '<br>・パスワード / API キー / アクセストークン / セッション ID' +
+          '<br>・社内秘の数値（給与・原価・契約金額の生データ）' +
+        '</div>' +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">' +
+          '<button type="button" id="p582-scan-btn" style="padding:9px 14px;border-radius:6px;border:0;background:#9a3412;color:#fff;font-size:12px;font-weight:700;cursor:pointer;min-height:38px">🔎 簡易 PII スキャンを実行</button>' +
+          '<button type="button" id="p582-clear-btn" style="padding:9px 14px;border-radius:6px;border:1.5px solid #9a3412;background:#fff;color:#9a3412;font-size:12px;font-weight:700;cursor:pointer;min-height:38px">✖ 結果をクリア</button>' +
+        '</div>' +
+        '<div id="p582-result" style="display:none;padding:8px 10px;border-radius:6px;font-size:11px;line-height:1.65;background:#fff;border:1px solid var(--bo);max-height:50vh;overflow-y:auto;word-break:break-word"></div>' +
+        '<div style="margin-top:8px;font-size:10px;color:#7c2d12;background:#fed7aa;border:1px solid #fdba74;border-radius:6px;padding:7px 9px;line-height:1.65">' +
+          '⚠ 本 packet 582 の制約：<br>' +
+          '・正規表現による <b>簡易検出</b>（誤検知あり）。最終判断は人間が行う<br>' +
+          '・対象は <b>ブラウザ内の表示済み記憶のみ</b>（<code>window._p500_memoryStore</code>）<br>' +
+          '・DB / 外部 API / localStorage / sessionStorage への送信・保存は <b>0 件</b><br>' +
+          '・検出された本文は <b>console / log に出さない</b>（マスク済みサンプルのみ画面表示）<br>' +
+          '・記憶本体の編集・削除・転送は <b>しない</b>' +
+        '</div>';
+      memPage.appendChild(card);
+      const scanBtn = document.getElementById('p582-scan-btn');
+      const clearBtn = document.getElementById('p582-clear-btn');
+      if(scanBtn) scanBtn.addEventListener('click', _p582_runScan);
+      if(clearBtn) clearBtn.addEventListener('click', function(){
+        const r = document.getElementById('p582-result');
+        if(r){ r.innerHTML = ''; r.style.display = 'none'; }
+      });
+    }catch(_){}
+  }
+  function _p582_runScan(){
+    try{
+      const store = (window._p500_memoryStore && window._p500_memoryStore.slice) ? window._p500_memoryStore.slice() : [];
+      const total = store.length;
+      const hits = { phone: [], email: [], address: [], secret: [] };
+      for(let i=0; i<store.length; i++){
+        const m = store[i] || {};
+        const parts = [m.title, m.content, m.cause, m.solution, m.text, m.body, m.note].filter(function(x){return typeof x === 'string' && x;});
+        const t = parts.join('\n');
+        if(!t) continue;
+        const phoneRe = /0[789]0[\-\s]?\d{4}[\-\s]?\d{4}|0\d{1,4}[\-\s]?\d{1,4}[\-\s]?\d{3,4}/g;
+        const emailRe = /[\w.+-]+@[\w.-]+\.[a-zA-Z]{2,}/g;
+        const addressRe = /(都|道|府|県|市|区|町|村)[^\s\n]{0,20}(丁目|番地|号|町)/g;
+        const secretRe = /(password|passwd|pwd|secret|token|api[_\-]?key|sk-[a-zA-Z0-9]{10,}|ghp_[a-zA-Z0-9]{20,}|bearer\s+[a-zA-Z0-9]{10,})/gi;
+        let mm;
+        while((mm = phoneRe.exec(t)) !== null){ hits.phone.push({snippet:_p582_maskPhone(mm[0])}); }
+        while((mm = emailRe.exec(t)) !== null){ hits.email.push({snippet:_p582_maskEmail(mm[0])}); }
+        while((mm = addressRe.exec(t)) !== null){ hits.address.push({snippet:'住所っぽい語: ' + mm[0].substring(0, 8) + '...'}); }
+        while((mm = secretRe.exec(t)) !== null){ hits.secret.push({snippet:'[マスク済]'}); }
+      }
+      _p582_renderResults(total, hits);
+    }catch(_){
+      const r = document.getElementById('p582-result');
+      if(r){ r.style.display = 'block'; r.textContent = 'スキャン中にエラーが発生しました。'; }
+    }
+  }
+  function _p582_renderResults(total, hits){
+    const result = document.getElementById('p582-result');
+    if(!result) return;
+    result.style.display = 'block';
+    const totalHits = hits.phone.length + hits.email.length + hits.address.length + hits.secret.length;
+    let html = '';
+    html += '<div style="font-weight:800;color:#9a3412;margin-bottom:6px">📊 スキャン結果（簡易・誤検知あり）</div>';
+    html += '<div style="margin-bottom:4px">対象記憶：<b>' + total + '</b> 件</div>';
+    html += '<div style="margin-bottom:8px">検出件数合計：<b>' + totalHits + '</b> 件</div>';
+    html += '<ul style="margin:6px 0 0;padding-left:18px;line-height:1.8">';
+    function row(label, items){
+      let s = '<li><b>' + label + '</b>：' + items.length + ' 件';
+      if(items.length > 0){
+        const sample = items.slice(0,3).map(function(h){ return _p582_escapeHtml(h.snippet); }).join(' / ');
+        s += '<br><span style="font-size:10px;color:#7c2d12">サンプル（マスク済）: ' + sample + '</span>';
+      }
+      s += '</li>';
+      return s;
+    }
+    html += row('電話番号らしき', hits.phone);
+    html += row('メールアドレスらしき', hits.email);
+    html += row('住所らしき表現', hits.address);
+    html += row('password / token / secret らしき', hits.secret);
+    html += '</ul>';
+    if(totalHits === 0){
+      html += '<div style="margin-top:10px;font-size:11px;color:#065f46;background:#d1fae5;border:1px solid #6ee7b7;border-radius:4px;padding:6px 9px;line-height:1.6">✅ 検出 0 件。ただし<b>誤検知・見落とし</b>あり。最終判断は人間が行ってください。</div>';
+    } else {
+      html += '<div style="margin-top:10px;font-size:11px;color:#7c2d12;background:#fed7aa;border:1px solid #fdba74;border-radius:4px;padding:6px 9px;line-height:1.6">⚠ 検出があります。<b>誤検知の可能性もあります</b>が、念のため記憶本体を確認してください。<br>記憶 ID は表示せず、件数とマスク済サンプルのみを示しています。本文の特定は人間が手動で行ってください。</div>';
+    }
+    html += '<div style="margin-top:8px;font-size:9.5px;color:#94a3b8;line-height:1.55">※ 本スキャンは外部 API 送信なし / DB 送信なし / localStorage 保存なし / console 出力なし。結果はこの画面のみ。</div>';
+    result.innerHTML = html;
+  }
+  (function _p582_wrap(){
+    try{
+      const orig = window.switchPage;
+      if(typeof orig !== 'function') return;
+      window.switchPage = function(pg){
+        try{ orig.apply(this, arguments); }catch(_){}
+        if(pg === 'memory'){ setTimeout(_p582_inject, 500); }
+      };
+    }catch(_){}
+  })();
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){ setTimeout(_p582_inject, 1200); });
+  } else {
+    setTimeout(_p582_inject, 1200);
+  }
+})();
+// ==== ここまで packet 582 記憶庫 PII スキャナー UI ====
 </script>
 </body>
 </html>
