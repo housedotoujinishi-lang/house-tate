@@ -28774,6 +28774,253 @@ function _p500_buildCandidateFromPayload(payload){
   }
 })();
 // ==== ここまで packet 587 PII スキャン履歴グラフ ====
+
+// ==== ここから packet 588 PII スキャン履歴 SVG グラフ + 時系列フィルタ ====
+// 目的：
+//   packet 586 履歴を SVG 線グラフ + 棒グラフで可視化。外部 chart ライブラリは未使用。
+//   フィルタ：全件 / 直近 5 / 直近 10 / warning のみ / source 別
+// 制約：
+//   - localStorage / sessionStorage / DB / 外部 API への保存・送信 0
+//   - 外部 chart ライブラリ読み込み 0（SVG は標準 DOM のみ）
+//   - 既存 packet 582-587 のコードには触らない（独立 UI）
+(function _p588_svg_chart(){
+  'use strict';
+  function _p588_escapeHtml(s){
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  function _p588_applyFilter(list, filter){
+    if(!list || list.length === 0) return [];
+    switch(filter){
+      case 'last5':   return list.slice(0, 5);
+      case 'last10':  return list.slice(0, 10);
+      case 'warning': return list.filter(function(e){ return (e.real || 0) >= 1; });
+      case 'all':
+      default:        return list.slice();
+    }
+  }
+  function _p588_groupBySource(list){
+    const grp = {};
+    for(let i=0;i<list.length;i++){
+      const s = list[i].source || 'unknown';
+      if(!grp[s]) grp[s] = [];
+      grp[s].push(list[i]);
+    }
+    return grp;
+  }
+  function _p588_buildLineSVG(data, opts){
+    // data: array of {real, falsy} (新しい順、グラフは左→右で時系列にしたいので reverse)
+    opts = opts || {};
+    const w = opts.width  || 420;
+    const h = opts.height || 140;
+    const padL = 28, padR = 8, padT = 10, padB = 22;
+    const innerW = w - padL - padR;
+    const innerH = h - padT - padB;
+    if(!data || data.length === 0){
+      return '<svg width="' + w + '" height="' + h + '" xmlns="http://www.w3.org/2000/svg"><text x="' + (w/2) + '" y="' + (h/2) + '" text-anchor="middle" fill="#94a3b8" font-size="11">データなし</text></svg>';
+    }
+    const points = data.slice().reverse(); // 古い → 新しい
+    let maxV = 1;
+    for(let i=0;i<points.length;i++){
+      const r = points[i].real || 0;
+      const f = points[i].falsy || 0;
+      if(r > maxV) maxV = r;
+      if(f > maxV) maxV = f;
+    }
+    function x(i){
+      if(points.length <= 1) return padL + innerW / 2;
+      return padL + (i / (points.length - 1)) * innerW;
+    }
+    function y(v){
+      return padT + innerH - (v / maxV) * innerH;
+    }
+    // 軸（簡易）
+    let svg = '<svg width="' + w + '" height="' + h + '" xmlns="http://www.w3.org/2000/svg" style="background:#f8fafc;border-radius:4px">';
+    svg += '<line x1="' + padL + '" y1="' + (padT + innerH) + '" x2="' + (w - padR) + '" y2="' + (padT + innerH) + '" stroke="#cbd5e1" stroke-width="1"/>';
+    svg += '<line x1="' + padL + '" y1="' + padT + '" x2="' + padL + '" y2="' + (padT + innerH) + '" stroke="#cbd5e1" stroke-width="1"/>';
+    // y 軸ラベル（0 / max）
+    svg += '<text x="' + (padL - 4) + '" y="' + (padT + innerH + 4) + '" text-anchor="end" fill="#475569" font-size="9">0</text>';
+    svg += '<text x="' + (padL - 4) + '" y="' + (padT + 4) + '" text-anchor="end" fill="#475569" font-size="9">' + maxV + '</text>';
+    // x 軸ラベル（最古・最新）
+    svg += '<text x="' + padL + '" y="' + (padT + innerH + 14) + '" text-anchor="start" fill="#475569" font-size="9">古</text>';
+    svg += '<text x="' + (w - padR) + '" y="' + (padT + innerH + 14) + '" text-anchor="end" fill="#475569" font-size="9">新</text>';
+    // real 線（赤）
+    let realPath = '';
+    for(let i=0;i<points.length;i++){
+      const r = points[i].real || 0;
+      realPath += (i === 0 ? 'M ' : ' L ') + x(i).toFixed(1) + ' ' + y(r).toFixed(1);
+    }
+    svg += '<path d="' + realPath + '" fill="none" stroke="#dc2626" stroke-width="1.5"/>';
+    for(let i=0;i<points.length;i++){
+      svg += '<circle cx="' + x(i).toFixed(1) + '" cy="' + y(points[i].real || 0).toFixed(1) + '" r="2.5" fill="#dc2626"/>';
+    }
+    // falsy 線（青）
+    let falsyPath = '';
+    for(let i=0;i<points.length;i++){
+      const f = points[i].falsy || 0;
+      falsyPath += (i === 0 ? 'M ' : ' L ') + x(i).toFixed(1) + ' ' + y(f).toFixed(1);
+    }
+    svg += '<path d="' + falsyPath + '" fill="none" stroke="#2563eb" stroke-width="1.5" stroke-dasharray="3,2"/>';
+    for(let i=0;i<points.length;i++){
+      svg += '<circle cx="' + x(i).toFixed(1) + '" cy="' + y(points[i].falsy || 0).toFixed(1) + '" r="2.5" fill="#2563eb"/>';
+    }
+    // 凡例
+    svg += '<rect x="' + (w - padR - 110) + '" y="' + (padT + 2) + '" width="105" height="28" fill="#fff" stroke="#cbd5e1" stroke-width="0.5" rx="3"/>';
+    svg += '<line x1="' + (w - padR - 105) + '" y1="' + (padT + 9) + '" x2="' + (w - padR - 88) + '" y2="' + (padT + 9) + '" stroke="#dc2626" stroke-width="1.5"/>';
+    svg += '<text x="' + (w - padR - 84) + '" y="' + (padT + 12) + '" fill="#475569" font-size="9">real（本物らしき）</text>';
+    svg += '<line x1="' + (w - padR - 105) + '" y1="' + (padT + 22) + '" x2="' + (w - padR - 88) + '" y2="' + (padT + 22) + '" stroke="#2563eb" stroke-width="1.5" stroke-dasharray="3,2"/>';
+    svg += '<text x="' + (w - padR - 84) + '" y="' + (padT + 25) + '" fill="#475569" font-size="9">falsy（誤検知かも）</text>';
+    svg += '</svg>';
+    return svg;
+  }
+  function _p588_buildBarSVG(items, opts){
+    // items: [{label, count, color?}]
+    opts = opts || {};
+    const w = opts.width  || 420;
+    const rowH = 18;
+    const padL = 100, padR = 30, padT = 8, padB = 6;
+    const innerW = w - padL - padR;
+    const h = padT + padB + items.length * rowH;
+    if(!items || items.length === 0){
+      return '<svg width="' + w + '" height="40" xmlns="http://www.w3.org/2000/svg"><text x="' + (w/2) + '" y="20" text-anchor="middle" fill="#94a3b8" font-size="11">データなし</text></svg>';
+    }
+    let maxV = 1;
+    for(let i=0;i<items.length;i++){ if(items[i].count > maxV) maxV = items[i].count; }
+    let svg = '<svg width="' + w + '" height="' + h + '" xmlns="http://www.w3.org/2000/svg" style="background:#f8fafc;border-radius:4px">';
+    for(let i=0;i<items.length;i++){
+      const it = items[i];
+      const y = padT + i * rowH + 4;
+      const barLen = (it.count / maxV) * innerW;
+      const color = it.color || '#7e22ce';
+      svg += '<text x="' + (padL - 6) + '" y="' + (y + 10) + '" text-anchor="end" fill="#475569" font-size="10">' + _p588_escapeHtml(it.label) + '</text>';
+      svg += '<rect x="' + padL + '" y="' + y + '" width="' + Math.max(1, barLen).toFixed(1) + '" height="' + (rowH - 6) + '" fill="' + color + '" rx="2"/>';
+      svg += '<text x="' + (padL + Math.max(1, barLen) + 4) + '" y="' + (y + 10) + '" fill="#475569" font-size="10">' + it.count + '</text>';
+    }
+    svg += '</svg>';
+    return svg;
+  }
+  function _p588_render(){
+    try{
+      const sel = document.getElementById('p588-filter-select');
+      const filter = sel ? sel.value : 'all';
+      const list = (window._p586_scanHistory || []).slice();
+      const filtered = _p588_applyFilter(list, filter);
+      const out = document.getElementById('p588-svg-output');
+      if(!out) return;
+      if(list.length === 0){
+        out.style.display = 'block';
+        out.innerHTML = '<div style="color:#94a3b8;font-size:11px;padding:6px 0">まだ履歴がありません。packet 586 のスキャン履歴に 1 件以上記録してから本ボタンを押してください。</div>';
+        return;
+      }
+      // 集計
+      let levelW = 0, levelI = 0, levelN = 0;
+      const sourceCount = {};
+      for(let i=0;i<filtered.length;i++){
+        const e = filtered[i];
+        const real = e.real || 0;
+        const falsy = e.falsy || 0;
+        if(real >= 1) levelW++;
+        else if(falsy >= 1) levelI++;
+        else levelN++;
+        const s = e.source || 'unknown';
+        sourceCount[s] = (sourceCount[s] || 0) + 1;
+      }
+      let html = '';
+      html += '<div style="font-weight:800;color:#5b21b6;margin-bottom:6px">📈 packet 588：SVG 簡易グラフ（' + filtered.length + ' 件 / フィルタ：' + _p588_escapeHtml(filter) + '）</div>';
+      // line chart
+      html += '<div style="font-weight:700;color:#5b21b6;margin-top:6px;margin-bottom:3px">real / falsy 推移（左=古、右=新）</div>';
+      html += _p588_buildLineSVG(filtered, { width: 440, height: 150 });
+      // warning_level 棒グラフ
+      html += '<div style="font-weight:700;color:#5b21b6;margin-top:8px;margin-bottom:3px">warning_level 別 件数</div>';
+      html += _p588_buildBarSVG([
+        { label: 'warning', count: levelW, color: '#dc2626' },
+        { label: 'info',    count: levelI, color: '#2563eb' },
+        { label: 'none',    count: levelN, color: '#16a34a' }
+      ], { width: 440 });
+      // source 別 棒グラフ
+      html += '<div style="font-weight:700;color:#5b21b6;margin-top:8px;margin-bottom:3px">source 別 件数</div>';
+      const srcItems = [];
+      const srcKeys = Object.keys(sourceCount).sort();
+      const palette = ['#7e22ce', '#0891b2', '#c2410c', '#16a34a', '#a16207'];
+      for(let i=0;i<srcKeys.length;i++){
+        srcItems.push({ label: srcKeys[i], count: sourceCount[srcKeys[i]], color: palette[i % palette.length] });
+      }
+      html += _p588_buildBarSVG(srcItems, { width: 440 });
+      // フッタ
+      html += '<div style="margin-top:8px;font-size:9.5px;color:#94a3b8;line-height:1.55">※ SVG は標準 DOM だけで描画。外部 chart ライブラリは未使用。データソースは packet 586 の in-memory 履歴（リロードで消える）。</div>';
+      out.style.display = 'block';
+      out.innerHTML = html;
+    }catch(_){
+      const o = document.getElementById('p588-svg-output');
+      if(o){ o.style.display = 'block'; o.textContent = '描画中にエラーが発生しました。'; }
+    }
+  }
+  function _p588_inject(){
+    try{
+      const memPage = document.getElementById('page-memory');
+      if(!memPage) return;
+      if(document.getElementById('p588-svg-card')) return;
+      const card = document.createElement('div');
+      card.id = 'p588-svg-card';
+      card.className = 'ai-team-card';
+      card.style.cssText = 'margin-top:14px;background:#faf5ff;border:1.5px solid #d8b4fe;border-radius:8px;padding:12px 14px';
+      card.innerHTML =
+        '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;margin-bottom:6px">' +
+          '<div style="font-size:14px;font-weight:800;color:#5b21b6">📈 packet 588：PII スキャン履歴 SVG グラフ + 時系列フィルタ</div>' +
+          '<span style="font-size:10px;background:#f3e8ff;color:#581c87;border:1px solid #d8b4fe;border-radius:6px;padding:2px 7px;font-weight:700">SVG / 外部 lib なし / 保存なし</span>' +
+        '</div>' +
+        '<div style="font-size:11px;color:var(--t2);line-height:1.65;margin-bottom:8px">' +
+          'packet 586 in-memory 履歴を <b>SVG 線グラフ + 棒グラフ</b>で描画。' +
+          '<br>外部 chart ライブラリは未使用、純 SVG / HTML / CSS のみ。' +
+        '</div>' +
+        '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px">' +
+          '<label style="font-size:11px;color:#475569;font-weight:700">フィルタ：</label>' +
+          '<select id="p588-filter-select" style="padding:6px 8px;font-size:11px;border:1px solid #cbd5e1;border-radius:4px;background:#fff">' +
+            '<option value="all">全件</option>' +
+            '<option value="last5">直近 5 件</option>' +
+            '<option value="last10">直近 10 件</option>' +
+            '<option value="warning">warning のみ（real ≥ 1）</option>' +
+          '</select>' +
+          '<button type="button" id="p588-render-btn" style="padding:7px 12px;border-radius:6px;border:0;background:#5b21b6;color:#fff;font-size:11px;font-weight:700;cursor:pointer;min-height:36px">📈 グラフを描画 / 更新</button>' +
+          '<button type="button" id="p588-clear-btn" style="padding:7px 12px;border-radius:6px;border:1.5px solid #5b21b6;background:#fff;color:#5b21b6;font-size:11px;font-weight:700;cursor:pointer;min-height:36px">✖ クリア</button>' +
+        '</div>' +
+        '<div id="p588-svg-output" style="display:none;padding:8px 10px;border-radius:6px;font-size:11px;background:#fff;border:1px solid var(--bo);word-break:break-word;overflow-x:auto"></div>' +
+        '<div style="margin-top:8px;font-size:10px;color:#581c87;background:#f3e8ff;border:1px solid #d8b4fe;border-radius:6px;padding:7px 9px;line-height:1.65">' +
+          'ℹ packet 588 の制約：<br>' +
+          '・SVG は標準 DOM だけで描画（Chart.js / D3 / Plotly 等は使わない）<br>' +
+          '・履歴は packet 586 と同じ in-memory（<code>window._p586_scanHistory</code>）、read-only 参照のみ<br>' +
+          '・localStorage / sessionStorage / DB / 外部 API への保存・送信 <b>0</b><br>' +
+          '・既存 packet 582-587 のコードには触らない（独立 UI）<br>' +
+          '・source 別フィルタは UI 上では未提供（source は棒グラフで一覧可視化、絞り込みは select 経由で追加検討）' +
+        '</div>';
+      memPage.appendChild(card);
+      const rb = document.getElementById('p588-render-btn');
+      const cb = document.getElementById('p588-clear-btn');
+      const sel = document.getElementById('p588-filter-select');
+      if(rb) rb.addEventListener('click', _p588_render);
+      if(cb) cb.addEventListener('click', function(){
+        const o = document.getElementById('p588-svg-output');
+        if(o){ o.innerHTML = ''; o.style.display = 'none'; }
+      });
+      if(sel) sel.addEventListener('change', _p588_render);
+    }catch(_){}
+  }
+  (function _p588_wrap(){
+    try{
+      const orig = window.switchPage;
+      if(typeof orig !== 'function') return;
+      window.switchPage = function(pg){
+        try{ orig.apply(this, arguments); }catch(_){}
+        if(pg === 'memory'){ setTimeout(_p588_inject, 600); }
+      };
+    }catch(_){}
+  })();
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){ setTimeout(_p588_inject, 1700); });
+  } else {
+    setTimeout(_p588_inject, 1700);
+  }
+})();
+// ==== ここまで packet 588 PII スキャン履歴 SVG グラフ ====
 </script>
 </body>
 </html>
