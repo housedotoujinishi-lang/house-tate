@@ -28396,6 +28396,202 @@ function _p500_buildCandidateFromPayload(payload){
   }
 })();
 // ==== ここまで packet 585 CSV/JSON エクスポート PII 注意メタ付与 ====
+
+// ==== ここから packet 586 PII スキャン履歴 UI（in-memory only、リロードで消える）====
+// 目的：
+//   PII スキャンの直近結果を in-memory で履歴表示。最大 20 件、リロードで消える。
+//   表示項目：実行時刻 / 対象件数 / 検出件数 / 本物らしき / 誤検知候補。
+// 制約：
+//   - localStorage / sessionStorage / DB / 外部 API への保存・送信は 0
+//   - 履歴は window._p586_scanHistory（in-memory）のみ
+//   - 既存 packet 582-585 のコードには触らない（独立 UI + bubble wrap で連動）
+(function _p586_pii_scan_history(){
+  'use strict';
+  window._p586_scanHistory = window._p586_scanHistory || [];
+  const MAX_HISTORY = 20;
+
+  function _p586_escapeHtml(s){
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  function _p586_simpleScan(){
+    try{
+      const store = (window._p500_memoryStore && window._p500_memoryStore.slice) ? window._p500_memoryStore.slice() : [];
+      const summary = { total: store.length, real: 0, falsy: 0 };
+      function maskNon(t){
+        if(!t) return t;
+        const rs = [
+          /\bpacket\s*\d+[A-Za-z]?\b/gi,
+          /\bv\d+\.\d+\.\d+\b/g,
+          /\b[0-9a-f]{40}\b/g,
+          /\b[0-9a-f]{7,12}\b/g,
+          /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/g,
+          /\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z?\b/g,
+          /\b\d{4}-\d{2}-\d{2}\b/g
+        ];
+        let c = t;
+        for(let i=0;i<rs.length;i++){ c = c.replace(rs[i], function(m){ return new Array(m.length+1).join('_'); }); }
+        return c;
+      }
+      for(let i=0;i<store.length;i++){
+        const m = store[i] || {};
+        const parts = [m.title, m.content, m.cause, m.solution, m.text, m.body, m.note].filter(function(x){return typeof x === 'string' && x;});
+        const orig = parts.join('\n');
+        if(!orig) continue;
+        const t = maskNon(orig);
+        const phoneRe = /\b0[789]0[\-\s]?\d{4}[\-\s]?\d{4}\b|\b0\d{1,4}[\-\s]?\d{1,4}[\-\s]?\d{3,4}\b/g;
+        let mm;
+        while((mm = phoneRe.exec(t)) !== null){
+          const d = mm[0].replace(/\D/g,'').length;
+          if(d >= 10 && d <= 11) summary.real++;
+          else if(d >= 8) summary.falsy++;
+        }
+        const emailRe = /[\w.+-]+@[\w.-]+\.[a-zA-Z]{2,}/g;
+        while((mm = emailRe.exec(t)) !== null){
+          if(/example\.com|sample\.com|test\.com|noreply@/i.test(mm[0])) summary.falsy++;
+          else summary.real++;
+        }
+        const addressRe = /(都|道|府|県|市|区|町|村)[^\s\n]{0,30}(?:丁目|番地|号室|号棟|マンション|ビル|アパート|ハイツ|ハウス|テラス|タワー|レジデンス|コーポ)/g;
+        while((mm = addressRe.exec(t)) !== null){
+          if(mm[0].length < 8 || /(市場|町内|町中|区分|区別|区切|区間|府内|府中|都心|村内|町外|号令|号砲|番号|町づくり|市町村|府県市|都道府県)/.test(mm[0])) summary.falsy++;
+          else summary.real++;
+        }
+        const secretRe = /sk-[a-zA-Z0-9]{20,}|ghp_[a-zA-Z0-9]{30,}|gho_[a-zA-Z0-9]{30,}|ghs_[a-zA-Z0-9]{30,}|AKIA[0-9A-Z]{16}|eyJ[a-zA-Z0-9_\-]{10,}\.[a-zA-Z0-9_\-]{10,}\.[a-zA-Z0-9_\-]{5,}|bearer\s+[a-zA-Z0-9_\-\.=]{20,}|(?:password|passwd|pwd|secret|access[_\-]?token|refresh[_\-]?token|api[_\-]?key|client[_\-]?secret)\s*[:=]\s*[A-Za-z0-9_\-\.=]{6,}/gi;
+        while((mm = secretRe.exec(t)) !== null){
+          if(/password|passwd|pwd|secret|token|api/i.test(mm[0]) && !/[:=]\s*\S{8,}/.test(mm[0])) summary.falsy++;
+          else summary.real++;
+        }
+      }
+      return summary;
+    }catch(_){ return { total: 0, real: 0, falsy: 0, error: true }; }
+  }
+  function _p586_record(summary, source){
+    if(!summary || summary.error) return;
+    const entry = {
+      at: new Date().toISOString(),
+      total: summary.total || 0,
+      real: summary.real || 0,
+      falsy: summary.falsy || 0,
+      detected: (summary.real || 0) + (summary.falsy || 0),
+      source: source || 'manual'
+    };
+    window._p586_scanHistory.unshift(entry);
+    if(window._p586_scanHistory.length > MAX_HISTORY) window._p586_scanHistory.length = MAX_HISTORY;
+    _p586_renderHistory();
+  }
+  function _p586_renderHistory(){
+    const ul = document.getElementById('p586-history-list');
+    if(!ul) return;
+    const list = window._p586_scanHistory || [];
+    if(list.length === 0){
+      ul.innerHTML = '<li style="color:#94a3b8;font-size:11px;list-style:none;padding:6px 0">まだ履歴がありません。下のボタンか、packet 582/584 のスキャンを実行してください。</li>';
+      return;
+    }
+    let html = '';
+    for(let i=0;i<list.length;i++){
+      const e = list[i];
+      const real = e.real || 0;
+      const falsy = e.falsy || 0;
+      const level = real >= 1 ? 'warning' : (falsy >= 1 ? 'info' : 'none');
+      const color = level === 'warning' ? '#7c2d12' : (level === 'info' ? '#1e40af' : '#065f46');
+      const bg    = level === 'warning' ? '#fed7aa' : (level === 'info' ? '#dbeafe' : '#d1fae5');
+      const border= level === 'warning' ? '#fdba74' : (level === 'info' ? '#93c5fd' : '#6ee7b7');
+      html += '<li style="margin-bottom:5px;padding:6px 9px;border-radius:4px;background:' + bg + ';color:' + color + ';font-size:11px;list-style:none;border:1px solid ' + border + ';line-height:1.55">' +
+        '<div><b>[#' + (i+1) + ']</b> <span style="font-size:10px">' + _p586_escapeHtml(e.at) + '</span></div>' +
+        '<div>対象 <b>' + e.total + '</b> 件 / 検出 <b>' + e.detected + '</b> 件（本物 <b>' + real + '</b> / 誤検知かも <b>' + falsy + '</b>）</div>' +
+        '<div style="font-size:10px;color:#475569">source: ' + _p586_escapeHtml(e.source) + ' / level: ' + level + '</div>' +
+        '</li>';
+    }
+    ul.innerHTML = html;
+  }
+  function _p586_inject(){
+    try{
+      const memPage = document.getElementById('page-memory');
+      if(!memPage) return;
+      if(document.getElementById('p586-history-card')) return;
+      const card = document.createElement('div');
+      card.id = 'p586-history-card';
+      card.className = 'ai-team-card';
+      card.style.cssText = 'margin-top:14px;background:#fdf4ff;border:1.5px solid #e9d5ff;border-radius:8px;padding:12px 14px';
+      card.innerHTML =
+        '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;margin-bottom:6px">' +
+          '<div style="font-size:14px;font-weight:800;color:#7e22ce">📜 packet 586：PII スキャン履歴（in-memory only）</div>' +
+          '<span style="font-size:10px;background:#f3e8ff;color:#581c87;border:1px solid #d8b4fe;border-radius:6px;padding:2px 7px;font-weight:700">リロードで消える / 保存なし / 最大 ' + MAX_HISTORY + ' 件</span>' +
+        '</div>' +
+        '<div style="font-size:11px;color:var(--t2);line-height:1.65;margin-bottom:8px">' +
+          'PII スキャンの実行履歴を <b>ブラウザのメモリ上だけ</b> に蓄積。<b>localStorage / sessionStorage / DB に保存しません</b>のでリロードで消えます。' +
+          '<br>packet 582/583（PII スキャナー）と packet 584（エクスポート前プレチェック）の押下も自動で履歴に記録（best-effort）。' +
+        '</div>' +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">' +
+          '<button type="button" id="p586-scan-btn" style="padding:9px 14px;border-radius:6px;border:0;background:#7e22ce;color:#fff;font-size:12px;font-weight:700;cursor:pointer;min-height:38px">📊 スキャン + 履歴に記録</button>' +
+          '<button type="button" id="p586-clear-btn" style="padding:9px 14px;border-radius:6px;border:1.5px solid #7e22ce;background:#fff;color:#7e22ce;font-size:12px;font-weight:700;cursor:pointer;min-height:38px">🗑 履歴をクリア</button>' +
+        '</div>' +
+        '<div style="font-size:11px;font-weight:700;color:#7e22ce;margin-top:6px;margin-bottom:3px">履歴一覧（新しい順）</div>' +
+        '<ul id="p586-history-list" style="padding:0;margin:0;max-height:40vh;overflow-y:auto"></ul>' +
+        '<div style="margin-top:8px;font-size:10px;color:#581c87;background:#f3e8ff;border:1px solid #d8b4fe;border-radius:6px;padding:7px 9px;line-height:1.65">' +
+          'ℹ packet 586 の制約：<br>' +
+          '・履歴は <b>window._p586_scanHistory</b>（in-memory）のみ、最大 ' + MAX_HISTORY + ' 件で古いものから捨てる<br>' +
+          '・localStorage / sessionStorage / DB / 外部 API への保存・送信 0<br>' +
+          '・記憶 ID / 本文は履歴に含めない（件数とレベル / 実行時刻 / source のみ）<br>' +
+          '・既存 packet 582-585 のコードには触らない（独立 UI + bubble wrap で連動）' +
+        '</div>';
+      memPage.appendChild(card);
+      const sb = document.getElementById('p586-scan-btn');
+      const cb = document.getElementById('p586-clear-btn');
+      if(sb) sb.addEventListener('click', function(){
+        const s = _p586_simpleScan();
+        _p586_record(s, 'p586 manual');
+      });
+      if(cb) cb.addEventListener('click', function(){
+        window._p586_scanHistory = [];
+        _p586_renderHistory();
+      });
+      // 初回描画
+      _p586_renderHistory();
+    }catch(_){}
+  }
+  // packet 582 / 584 のボタン押下を bubble phase で wrap → 履歴に記録（best-effort）
+  let _p586_clickBound = false;
+  function _p586_bindClickHooks(){
+    if(_p586_clickBound) return;
+    _p586_clickBound = true;
+    document.addEventListener('click', function(e){
+      try{
+        const tid = e.target && e.target.id;
+        if(tid === 'p582-scan-btn'){
+          setTimeout(function(){
+            const s = _p586_simpleScan();
+            _p586_record(s, 'p582-583 scanner');
+          }, 80);
+        } else if(tid === 'p584-precheck-btn'){
+          setTimeout(function(){
+            const s = _p586_simpleScan();
+            _p586_record(s, 'p584 precheck');
+          }, 80);
+        }
+      }catch(_){}
+    }, false); // bubble phase（既存ハンドラの後に走る）
+  }
+  (function _p586_wrap(){
+    try{
+      const orig = window.switchPage;
+      if(typeof orig !== 'function') return;
+      window.switchPage = function(pg){
+        try{ orig.apply(this, arguments); }catch(_){}
+        if(pg === 'memory'){ setTimeout(_p586_inject, 560); }
+      };
+    }catch(_){}
+  })();
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){
+      setTimeout(_p586_inject, 1500);
+      _p586_bindClickHooks();
+    });
+  } else {
+    setTimeout(_p586_inject, 1500);
+    _p586_bindClickHooks();
+  }
+})();
+// ==== ここまで packet 586 PII スキャン履歴 UI ====
 </script>
 </body>
 </html>
