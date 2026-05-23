@@ -28592,6 +28592,188 @@ function _p500_buildCandidateFromPayload(payload){
   }
 })();
 // ==== ここまで packet 586 PII スキャン履歴 UI ====
+
+// ==== ここから packet 587 PII スキャン履歴グラフ（ASCII bar / in-memory only）====
+// 目的：
+//   packet 586 の window._p586_scanHistory を可視化。外部 chart ライブラリなし、ASCII bar のみ。
+//   スキャン回数 / real 推移 / falsy 推移 / warning_level 別 / source 別 を 1 カードにまとめる。
+// 制約：
+//   - localStorage / sessionStorage / DB / 外部 API への保存・送信 0
+//   - 外部 chart ライブラリの読み込み 0
+//   - 既存 packet 582-586 のコードには触らない（独立 UI）
+(function _p587_pii_scan_chart(){
+  'use strict';
+  function _p587_escapeHtml(s){
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  function _p587_bar(n, max, width){
+    if(!isFinite(n) || n < 0) n = 0;
+    if(!isFinite(max) || max <= 0) return '';
+    width = width || 24;
+    const len = Math.max(0, Math.min(width, Math.round((n / max) * width)));
+    return new Array(len + 1).join('█');
+  }
+  function _p587_render(){
+    try{
+      const list = (window._p586_scanHistory || []).slice();
+      const out = document.getElementById('p587-chart-output');
+      if(!out) return;
+      if(list.length === 0){
+        out.style.display = 'block';
+        out.innerHTML = '<div style="color:#94a3b8;font-size:11px;padding:6px 0">まだ履歴がありません。packet 586 のスキャン履歴に 1 件以上記録してから本ボタンを押してください。</div>';
+        return;
+      }
+      // 集計
+      const stats = {
+        total: list.length,
+        realSum: 0, realMax: 0, realMin: Infinity,
+        falsySum: 0, falsyMax: 0, falsyMin: Infinity,
+        latest: list[0],
+        oldest: list[list.length - 1],
+        levelCount: { warning: 0, info: 0, none: 0 },
+        sourceCount: {}
+      };
+      for(let i=0;i<list.length;i++){
+        const e = list[i];
+        const real = e.real || 0;
+        const falsy = e.falsy || 0;
+        stats.realSum += real;
+        stats.falsySum += falsy;
+        if(real > stats.realMax) stats.realMax = real;
+        if(real < stats.realMin) stats.realMin = real;
+        if(falsy > stats.falsyMax) stats.falsyMax = falsy;
+        if(falsy < stats.falsyMin) stats.falsyMin = falsy;
+        const level = real >= 1 ? 'warning' : (falsy >= 1 ? 'info' : 'none');
+        stats.levelCount[level]++;
+        const src = e.source || 'unknown';
+        stats.sourceCount[src] = (stats.sourceCount[src] || 0) + 1;
+      }
+      if(stats.realMin === Infinity) stats.realMin = 0;
+      if(stats.falsyMin === Infinity) stats.falsyMin = 0;
+      const realAvg  = (stats.realSum / list.length).toFixed(2);
+      const falsyAvg = (stats.falsySum / list.length).toFixed(2);
+
+      // bar 用 max（少なくとも 1）
+      const trendMax = Math.max(1, stats.realMax, stats.falsyMax);
+      const levelMax = Math.max(1, stats.levelCount.warning, stats.levelCount.info, stats.levelCount.none);
+      let sourceMax = 1;
+      for(const k in stats.sourceCount){ if(stats.sourceCount[k] > sourceMax) sourceMax = stats.sourceCount[k]; }
+
+      let html = '';
+      html += '<div style="font-weight:800;color:#0e7490;margin-bottom:6px">📊 PII スキャン履歴グラフ（packet 587 / 直近 ' + list.length + ' 件）</div>';
+
+      // サマリーテーブル
+      html += '<table style="width:100%;font-size:11px;border-collapse:collapse;margin-bottom:8px">';
+      html += '<tr><th style="text-align:left;color:#475569;padding:3px 6px;background:#f1f5f9;border:1px solid #cbd5e1">項目</th><th style="text-align:left;color:#475569;padding:3px 6px;background:#f1f5f9;border:1px solid #cbd5e1">値</th></tr>';
+      html += '<tr><td style="padding:3px 6px;border:1px solid #cbd5e1">スキャン回数</td><td style="padding:3px 6px;border:1px solid #cbd5e1"><b>' + stats.total + '</b> 件</td></tr>';
+      html += '<tr><td style="padding:3px 6px;border:1px solid #cbd5e1">real（本物らしき）</td><td style="padding:3px 6px;border:1px solid #cbd5e1">最大 ' + stats.realMax + ' / 最小 ' + stats.realMin + ' / 平均 ' + realAvg + ' / 合計 ' + stats.realSum + '</td></tr>';
+      html += '<tr><td style="padding:3px 6px;border:1px solid #cbd5e1">falsy（誤検知かも）</td><td style="padding:3px 6px;border:1px solid #cbd5e1">最大 ' + stats.falsyMax + ' / 最小 ' + stats.falsyMin + ' / 平均 ' + falsyAvg + ' / 合計 ' + stats.falsySum + '</td></tr>';
+      html += '<tr><td style="padding:3px 6px;border:1px solid #cbd5e1">最新スキャン</td><td style="padding:3px 6px;border:1px solid #cbd5e1">' + _p587_escapeHtml(stats.latest.at) + '（' + _p587_escapeHtml(stats.latest.source) + '）</td></tr>';
+      html += '<tr><td style="padding:3px 6px;border:1px solid #cbd5e1">最古スキャン</td><td style="padding:3px 6px;border:1px solid #cbd5e1">' + _p587_escapeHtml(stats.oldest.at) + '（' + _p587_escapeHtml(stats.oldest.source) + '）</td></tr>';
+      html += '</table>';
+
+      // real / falsy 推移（新しい順）
+      html += '<div style="font-weight:700;color:#0e7490;margin-top:6px;margin-bottom:3px">real / falsy 件数推移（新しい順、ASCII bar）</div>';
+      html += '<pre style="background:#0f172a;color:#a5b4fc;border-radius:4px;padding:7px 10px;margin:0 0 6px;font-size:10px;line-height:1.5;white-space:pre;overflow:auto;max-height:24vh;font-family:ui-monospace,Consolas,monospace">';
+      for(let i=0;i<list.length;i++){
+        const e = list[i];
+        const real = e.real || 0;
+        const falsy = e.falsy || 0;
+        const tsShort = (e.at || '').substring(11, 19) || '--';
+        const realBar  = _p587_bar(real, trendMax, 18);
+        const falsyBar = _p587_bar(falsy, trendMax, 18);
+        html += '[#' + (i+1).toString().padStart(2,' ') + ' ' + _p587_escapeHtml(tsShort) + '] real ' + ('  '+real).slice(-3) + ' ' + realBar + '\n';
+        html += '                       falsy ' + ('  '+falsy).slice(-3) + ' ' + falsyBar + '\n';
+      }
+      html += '</pre>';
+
+      // warning_level 別
+      html += '<div style="font-weight:700;color:#0e7490;margin-top:6px;margin-bottom:3px">warning_level 別 件数</div>';
+      html += '<pre style="background:#0f172a;color:#67e8f9;border-radius:4px;padding:7px 10px;margin:0 0 6px;font-size:10px;line-height:1.5;white-space:pre;overflow:auto;font-family:ui-monospace,Consolas,monospace">';
+      html += 'warning ' + ('   '+stats.levelCount.warning).slice(-4) + ' ' + _p587_bar(stats.levelCount.warning, levelMax, 24) + '\n';
+      html += 'info    ' + ('   '+stats.levelCount.info).slice(-4)    + ' ' + _p587_bar(stats.levelCount.info,    levelMax, 24) + '\n';
+      html += 'none    ' + ('   '+stats.levelCount.none).slice(-4)    + ' ' + _p587_bar(stats.levelCount.none,    levelMax, 24) + '\n';
+      html += '</pre>';
+
+      // source 別
+      html += '<div style="font-weight:700;color:#0e7490;margin-top:6px;margin-bottom:3px">source 別 件数</div>';
+      html += '<pre style="background:#0f172a;color:#fcd34d;border-radius:4px;padding:7px 10px;margin:0 0 6px;font-size:10px;line-height:1.5;white-space:pre;overflow:auto;font-family:ui-monospace,Consolas,monospace">';
+      const srcKeys = Object.keys(stats.sourceCount).sort();
+      const maxLabelLen = srcKeys.reduce(function(a,b){ return b.length > a ? b.length : a; }, 0);
+      for(let i=0;i<srcKeys.length;i++){
+        const k = srcKeys[i];
+        const c = stats.sourceCount[k];
+        const label = (k + new Array(Math.max(0, maxLabelLen - k.length) + 1).join(' '));
+        html += _p587_escapeHtml(label) + ' ' + ('   '+c).slice(-4) + ' ' + _p587_bar(c, sourceMax, 20) + '\n';
+      }
+      html += '</pre>';
+
+      html += '<div style="margin-top:6px;font-size:9.5px;color:#94a3b8;line-height:1.55">※ 履歴は in-memory（packet 586）。リロードで消えます。外部 chart ライブラリ未使用、外部 API 接続なし。</div>';
+
+      out.style.display = 'block';
+      out.innerHTML = html;
+    }catch(_){
+      const o = document.getElementById('p587-chart-output');
+      if(o){ o.style.display = 'block'; o.textContent = '描画中にエラーが発生しました。'; }
+    }
+  }
+  function _p587_inject(){
+    try{
+      const memPage = document.getElementById('page-memory');
+      if(!memPage) return;
+      if(document.getElementById('p587-chart-card')) return;
+      const card = document.createElement('div');
+      card.id = 'p587-chart-card';
+      card.className = 'ai-team-card';
+      card.style.cssText = 'margin-top:14px;background:#f0fdfa;border:1.5px solid #99f6e4;border-radius:8px;padding:12px 14px';
+      card.innerHTML =
+        '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;margin-bottom:6px">' +
+          '<div style="font-size:14px;font-weight:800;color:#0e7490">📊 packet 587：PII スキャン履歴グラフ（ASCII bar）</div>' +
+          '<span style="font-size:10px;background:#ccfbf1;color:#115e59;border:1px solid #5eead4;border-radius:6px;padding:2px 7px;font-weight:700">外部 lib なし / 保存なし</span>' +
+        '</div>' +
+        '<div style="font-size:11px;color:var(--t2);line-height:1.65;margin-bottom:8px">' +
+          'packet 586 の <b>in-memory 履歴</b>（<code>window._p586_scanHistory</code>）を可視化します。' +
+          '<br>外部 chart ライブラリは使わず、ASCII bar / 簡易テーブルで描画。' +
+        '</div>' +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">' +
+          '<button type="button" id="p587-render-btn" style="padding:9px 14px;border-radius:6px;border:0;background:#0e7490;color:#fff;font-size:12px;font-weight:700;cursor:pointer;min-height:38px">📊 グラフを描画 / 更新</button>' +
+          '<button type="button" id="p587-clear-btn" style="padding:9px 14px;border-radius:6px;border:1.5px solid #0e7490;background:#fff;color:#0e7490;font-size:12px;font-weight:700;cursor:pointer;min-height:38px">✖ クリア</button>' +
+        '</div>' +
+        '<div id="p587-chart-output" style="display:none;padding:8px 10px;border-radius:6px;font-size:11px;background:#fff;border:1px solid var(--bo);word-break:break-word"></div>' +
+        '<div style="margin-top:8px;font-size:10px;color:#115e59;background:#ccfbf1;border:1px solid #5eead4;border-radius:6px;padding:7px 9px;line-height:1.65">' +
+          'ℹ packet 587 の制約：<br>' +
+          '・外部 chart ライブラリの読み込み <b>0</b>（純 HTML / CSS / JS だけ）<br>' +
+          '・履歴は packet 586 と同じ in-memory（<code>window._p586_scanHistory</code>）、リロードで消える<br>' +
+          '・localStorage / sessionStorage / DB / 外部 API への保存・送信 <b>0</b><br>' +
+          '・既存 packet 582-586 のコードには触らない（独立 UI）' +
+        '</div>';
+      memPage.appendChild(card);
+      const rb = document.getElementById('p587-render-btn');
+      const cb = document.getElementById('p587-clear-btn');
+      if(rb) rb.addEventListener('click', _p587_render);
+      if(cb) cb.addEventListener('click', function(){
+        const o = document.getElementById('p587-chart-output');
+        if(o){ o.innerHTML = ''; o.style.display = 'none'; }
+      });
+    }catch(_){}
+  }
+  (function _p587_wrap(){
+    try{
+      const orig = window.switchPage;
+      if(typeof orig !== 'function') return;
+      window.switchPage = function(pg){
+        try{ orig.apply(this, arguments); }catch(_){}
+        if(pg === 'memory'){ setTimeout(_p587_inject, 580); }
+      };
+    }catch(_){}
+  })();
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){ setTimeout(_p587_inject, 1600); });
+  } else {
+    setTimeout(_p587_inject, 1600);
+  }
+})();
+// ==== ここまで packet 587 PII スキャン履歴グラフ ====
 </script>
 </body>
 </html>
