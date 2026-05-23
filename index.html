@@ -29021,6 +29021,300 @@ function _p500_buildCandidateFromPayload(payload){
   }
 })();
 // ==== ここまで packet 588 PII スキャン履歴 SVG グラフ ====
+
+// ==== ここから packet 589 PII スキャン履歴 詳細グラフ + source 別詳細 ====
+// 目的：
+//   packet 588 SVG をベースに、source 別フィルタ + 線種フィルタ（real/falsy/両方）
+//   + 時刻ベース x 軸（HH:MM:SS）を追加した詳細グラフ。
+// 制約：
+//   - localStorage / sessionStorage / DB / 外部 API への保存・送信 0
+//   - 外部 chart ライブラリ 0（純 SVG / HTML / CSS）
+//   - 既存 packet 582-588 のコードには触らない（独立 UI、read-only 参照）
+(function _p589_detail_graph(){
+  'use strict';
+  function _p589_escapeHtml(s){
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  function _p589_collectSources(list){
+    const set = {};
+    for(let i=0;i<list.length;i++){
+      const s = (list[i] && list[i].source) || 'unknown';
+      set[s] = true;
+    }
+    return Object.keys(set).sort();
+  }
+  function _p589_applyFilters(list, opts){
+    let arr = list.slice();
+    if(opts.source && opts.source !== 'all'){
+      arr = arr.filter(function(e){ return (e.source || 'unknown') === opts.source; });
+    }
+    if(opts.levelOnly === 'warning'){
+      arr = arr.filter(function(e){ return (e.real || 0) >= 1; });
+    } else if(opts.levelOnly === 'info'){
+      arr = arr.filter(function(e){ return (e.real || 0) === 0 && (e.falsy || 0) >= 1; });
+    } else if(opts.levelOnly === 'none'){
+      arr = arr.filter(function(e){ return (e.real || 0) === 0 && (e.falsy || 0) === 0; });
+    }
+    return arr;
+  }
+  function _p589_shortTime(iso){
+    if(typeof iso !== 'string') return '';
+    return iso.substring(11, 19) || '';
+  }
+  function _p589_buildLineSVG(data, opts){
+    opts = opts || {};
+    const w = opts.width  || 480;
+    const h = opts.height || 170;
+    const padL = 34, padR = 12, padT = 12, padB = 38;
+    const innerW = w - padL - padR;
+    const innerH = h - padT - padB;
+    if(!data || data.length === 0){
+      return '<svg width="' + w + '" height="' + h + '" xmlns="http://www.w3.org/2000/svg"><text x="' + (w/2) + '" y="' + (h/2) + '" text-anchor="middle" fill="#94a3b8" font-size="11">該当データなし</text></svg>';
+    }
+    const points = data.slice().reverse(); // 古→新
+    let maxV = 1;
+    for(let i=0;i<points.length;i++){
+      const r = (opts.showReal !== false) ? (points[i].real || 0) : 0;
+      const f = (opts.showFalsy !== false) ? (points[i].falsy || 0) : 0;
+      if(r > maxV) maxV = r;
+      if(f > maxV) maxV = f;
+    }
+    function x(i){
+      if(points.length <= 1) return padL + innerW / 2;
+      return padL + (i / (points.length - 1)) * innerW;
+    }
+    function y(v){ return padT + innerH - (v / maxV) * innerH; }
+    let svg = '<svg width="' + w + '" height="' + h + '" xmlns="http://www.w3.org/2000/svg" style="background:#f8fafc;border-radius:4px">';
+    // 軸
+    svg += '<line x1="' + padL + '" y1="' + (padT + innerH) + '" x2="' + (w - padR) + '" y2="' + (padT + innerH) + '" stroke="#cbd5e1" stroke-width="1"/>';
+    svg += '<line x1="' + padL + '" y1="' + padT + '" x2="' + padL + '" y2="' + (padT + innerH) + '" stroke="#cbd5e1" stroke-width="1"/>';
+    // y 軸ラベル
+    svg += '<text x="' + (padL - 4) + '" y="' + (padT + innerH + 4) + '" text-anchor="end" fill="#475569" font-size="9">0</text>';
+    svg += '<text x="' + (padL - 4) + '" y="' + (padT + 4) + '" text-anchor="end" fill="#475569" font-size="9">' + maxV + '</text>';
+    if(maxV >= 4) {
+      svg += '<text x="' + (padL - 4) + '" y="' + (y(Math.floor(maxV/2)) + 3) + '" text-anchor="end" fill="#94a3b8" font-size="8">' + Math.floor(maxV/2) + '</text>';
+      svg += '<line x1="' + padL + '" y1="' + y(Math.floor(maxV/2)) + '" x2="' + (w - padR) + '" y2="' + y(Math.floor(maxV/2)) + '" stroke="#e2e8f0" stroke-width="0.5" stroke-dasharray="2,2"/>';
+    }
+    // x 軸ラベル（時刻、最大 6 ラベル）
+    const labelStep = Math.max(1, Math.ceil(points.length / 6));
+    for(let i=0;i<points.length;i+=labelStep){
+      const t = _p589_shortTime(points[i].at);
+      const xp = x(i);
+      svg += '<text x="' + xp.toFixed(1) + '" y="' + (padT + innerH + 14) + '" text-anchor="middle" fill="#475569" font-size="8">' + _p589_escapeHtml(t) + '</text>';
+      svg += '<line x1="' + xp.toFixed(1) + '" y1="' + (padT + innerH) + '" x2="' + xp.toFixed(1) + '" y2="' + (padT + innerH + 3) + '" stroke="#94a3b8" stroke-width="0.5"/>';
+    }
+    // real 線
+    if(opts.showReal !== false){
+      let path = '';
+      for(let i=0;i<points.length;i++){
+        const r = points[i].real || 0;
+        path += (i === 0 ? 'M ' : ' L ') + x(i).toFixed(1) + ' ' + y(r).toFixed(1);
+      }
+      svg += '<path d="' + path + '" fill="none" stroke="#dc2626" stroke-width="1.5"/>';
+      for(let i=0;i<points.length;i++){
+        svg += '<circle cx="' + x(i).toFixed(1) + '" cy="' + y(points[i].real || 0).toFixed(1) + '" r="2.5" fill="#dc2626"><title>real=' + (points[i].real || 0) + ' at ' + _p589_escapeHtml(_p589_shortTime(points[i].at)) + ' source=' + _p589_escapeHtml(points[i].source || '') + '</title></circle>';
+      }
+    }
+    // falsy 線
+    if(opts.showFalsy !== false){
+      let path = '';
+      for(let i=0;i<points.length;i++){
+        const f = points[i].falsy || 0;
+        path += (i === 0 ? 'M ' : ' L ') + x(i).toFixed(1) + ' ' + y(f).toFixed(1);
+      }
+      svg += '<path d="' + path + '" fill="none" stroke="#2563eb" stroke-width="1.5" stroke-dasharray="3,2"/>';
+      for(let i=0;i<points.length;i++){
+        svg += '<circle cx="' + x(i).toFixed(1) + '" cy="' + y(points[i].falsy || 0).toFixed(1) + '" r="2.5" fill="#2563eb"><title>falsy=' + (points[i].falsy || 0) + ' at ' + _p589_escapeHtml(_p589_shortTime(points[i].at)) + ' source=' + _p589_escapeHtml(points[i].source || '') + '</title></circle>';
+      }
+    }
+    // 凡例（凡例位置を右上、表示中のみ）
+    let legendY = padT + 4;
+    if(opts.showReal !== false){
+      svg += '<line x1="' + (w - padR - 100) + '" y1="' + (legendY + 4) + '" x2="' + (w - padR - 84) + '" y2="' + (legendY + 4) + '" stroke="#dc2626" stroke-width="1.5"/>';
+      svg += '<text x="' + (w - padR - 80) + '" y="' + (legendY + 7) + '" fill="#475569" font-size="9">real</text>';
+      legendY += 12;
+    }
+    if(opts.showFalsy !== false){
+      svg += '<line x1="' + (w - padR - 100) + '" y1="' + (legendY + 4) + '" x2="' + (w - padR - 84) + '" y2="' + (legendY + 4) + '" stroke="#2563eb" stroke-width="1.5" stroke-dasharray="3,2"/>';
+      svg += '<text x="' + (w - padR - 80) + '" y="' + (legendY + 7) + '" fill="#475569" font-size="9">falsy</text>';
+    }
+    svg += '</svg>';
+    return svg;
+  }
+  function _p589_render(){
+    try{
+      const list = (window._p586_scanHistory || []).slice();
+      const sel  = document.getElementById('p589-source-select');
+      const lvl  = document.getElementById('p589-level-select');
+      const lineSel = document.getElementById('p589-line-select');
+      const source = sel ? sel.value : 'all';
+      const levelOnly = lvl ? lvl.value : 'all';
+      const lineMode  = lineSel ? lineSel.value : 'both';
+      const out  = document.getElementById('p589-detail-output');
+      if(!out) return;
+      // source select を動的に更新（履歴に出てくる source を反映）
+      if(sel){
+        const sources = _p589_collectSources(list);
+        const want = ['all'].concat(sources);
+        const currOpts = Array.from(sel.options).map(function(o){ return o.value; });
+        let needUpdate = (currOpts.length !== want.length);
+        if(!needUpdate){
+          for(let i=0;i<want.length;i++){ if(currOpts[i] !== want[i]) { needUpdate = true; break; } }
+        }
+        if(needUpdate){
+          const prevVal = sel.value;
+          sel.innerHTML = '';
+          for(let i=0;i<want.length;i++){
+            const opt = document.createElement('option');
+            opt.value = want[i];
+            opt.textContent = (want[i] === 'all') ? 'すべて' : want[i];
+            sel.appendChild(opt);
+          }
+          if(want.indexOf(prevVal) >= 0) sel.value = prevVal;
+        }
+      }
+      const filtered = _p589_applyFilters(list, { source: source, levelOnly: levelOnly });
+      if(list.length === 0){
+        out.style.display = 'block';
+        out.innerHTML = '<div style="color:#94a3b8;font-size:11px;padding:6px 0">まだ履歴がありません。packet 586 のスキャン履歴に 1 件以上記録してから本ボタンを押してください。</div>';
+        return;
+      }
+      // 集計（フィルタ後）
+      let levelW = 0, levelI = 0, levelN = 0;
+      const sourceCount = {};
+      let realSum = 0, falsySum = 0;
+      let realMax = 0, falsyMax = 0;
+      for(let i=0;i<filtered.length;i++){
+        const e = filtered[i];
+        const r = e.real || 0;
+        const f = e.falsy || 0;
+        realSum += r; falsySum += f;
+        if(r > realMax) realMax = r;
+        if(f > falsyMax) falsyMax = f;
+        if(r >= 1) levelW++;
+        else if(f >= 1) levelI++;
+        else levelN++;
+        const s = e.source || 'unknown';
+        sourceCount[s] = (sourceCount[s] || 0) + 1;
+      }
+      const showReal  = (lineMode === 'both' || lineMode === 'real');
+      const showFalsy = (lineMode === 'both' || lineMode === 'falsy');
+      let html = '';
+      html += '<div style="font-weight:800;color:#0f766e;margin-bottom:6px">📊 packet 589：詳細グラフ（' + filtered.length + ' 件 / source=' + _p589_escapeHtml(source) + ' / level=' + _p589_escapeHtml(levelOnly) + ' / line=' + _p589_escapeHtml(lineMode) + '）</div>';
+      // 統計テーブル
+      html += '<table style="width:100%;font-size:11px;border-collapse:collapse;margin-bottom:8px">';
+      html += '<tr><th style="text-align:left;color:#475569;padding:3px 6px;background:#f1f5f9;border:1px solid #cbd5e1">指標</th><th style="text-align:left;color:#475569;padding:3px 6px;background:#f1f5f9;border:1px solid #cbd5e1">値</th></tr>';
+      html += '<tr><td style="padding:3px 6px;border:1px solid #cbd5e1">フィルタ後件数</td><td style="padding:3px 6px;border:1px solid #cbd5e1"><b>' + filtered.length + '</b> 件（全 ' + list.length + ' 件中）</td></tr>';
+      html += '<tr><td style="padding:3px 6px;border:1px solid #cbd5e1">real 合計 / 最大</td><td style="padding:3px 6px;border:1px solid #cbd5e1">' + realSum + ' / ' + realMax + '</td></tr>';
+      html += '<tr><td style="padding:3px 6px;border:1px solid #cbd5e1">falsy 合計 / 最大</td><td style="padding:3px 6px;border:1px solid #cbd5e1">' + falsySum + ' / ' + falsyMax + '</td></tr>';
+      html += '<tr><td style="padding:3px 6px;border:1px solid #cbd5e1">warning / info / none</td><td style="padding:3px 6px;border:1px solid #cbd5e1">' + levelW + ' / ' + levelI + ' / ' + levelN + '</td></tr>';
+      html += '</table>';
+      // 時刻ベース x 軸の線グラフ
+      html += '<div style="font-weight:700;color:#0f766e;margin-top:6px;margin-bottom:3px">時刻ベース 線グラフ（左=古、右=新、ホバーで詳細）</div>';
+      html += _p589_buildLineSVG(filtered, { width: 480, height: 170, showReal: showReal, showFalsy: showFalsy });
+      // source 別 内訳（フィルタ後）
+      html += '<div style="font-weight:700;color:#0f766e;margin-top:8px;margin-bottom:3px">フィルタ後 source 別 内訳</div>';
+      const srcKeys = Object.keys(sourceCount).sort();
+      if(srcKeys.length === 0){
+        html += '<div style="color:#94a3b8;font-size:11px">（該当 source なし）</div>';
+      } else {
+        html += '<ul style="margin:0 0 6px;padding-left:18px;font-size:11px;line-height:1.7">';
+        for(let i=0;i<srcKeys.length;i++){
+          const k = srcKeys[i];
+          html += '<li><b>' + _p589_escapeHtml(k) + '</b>：' + sourceCount[k] + ' 件</li>';
+        }
+        html += '</ul>';
+      }
+      html += '<div style="margin-top:6px;font-size:9.5px;color:#94a3b8;line-height:1.55">※ SVG ホバーで個別データ（real/falsy/time/source）を確認できます。外部 chart ライブラリ未使用、データソースは packet 586 の in-memory 履歴（リロードで消える）。</div>';
+      out.style.display = 'block';
+      out.innerHTML = html;
+    }catch(_){
+      const o = document.getElementById('p589-detail-output');
+      if(o){ o.style.display = 'block'; o.textContent = '描画中にエラーが発生しました。'; }
+    }
+  }
+  function _p589_inject(){
+    try{
+      const memPage = document.getElementById('page-memory');
+      if(!memPage) return;
+      if(document.getElementById('p589-detail-card')) return;
+      const card = document.createElement('div');
+      card.id = 'p589-detail-card';
+      card.className = 'ai-team-card';
+      card.style.cssText = 'margin-top:14px;background:#f0fdfa;border:1.5px solid #5eead4;border-radius:8px;padding:12px 14px';
+      card.innerHTML =
+        '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;margin-bottom:6px">' +
+          '<div style="font-size:14px;font-weight:800;color:#0f766e">📊 packet 589：PII スキャン履歴 詳細グラフ + source 別詳細</div>' +
+          '<span style="font-size:10px;background:#ccfbf1;color:#115e59;border:1px solid #5eead4;border-radius:6px;padding:2px 7px;font-weight:700">SVG / 時刻軸 / 外部 lib なし</span>' +
+        '</div>' +
+        '<div style="font-size:11px;color:var(--t2);line-height:1.65;margin-bottom:8px">' +
+          'packet 586 履歴を <b>source 別 / level 別 / 線種</b>で絞り込み、<b>時刻ベース x 軸</b>で描画します。' +
+          '<br>SVG ポイントにマウスを乗せると、real/falsy/time/source の詳細が tooltip 表示されます。' +
+        '</div>' +
+        '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px">' +
+          '<label style="font-size:11px;color:#475569;font-weight:700">source：</label>' +
+          '<select id="p589-source-select" style="padding:6px 8px;font-size:11px;border:1px solid #cbd5e1;border-radius:4px;background:#fff;min-width:120px">' +
+            '<option value="all">すべて</option>' +
+          '</select>' +
+          '<label style="font-size:11px;color:#475569;font-weight:700">level：</label>' +
+          '<select id="p589-level-select" style="padding:6px 8px;font-size:11px;border:1px solid #cbd5e1;border-radius:4px;background:#fff">' +
+            '<option value="all">すべて</option>' +
+            '<option value="warning">warning のみ（real≥1）</option>' +
+            '<option value="info">info のみ（real=0, falsy≥1）</option>' +
+            '<option value="none">none のみ（検出 0）</option>' +
+          '</select>' +
+          '<label style="font-size:11px;color:#475569;font-weight:700">線種：</label>' +
+          '<select id="p589-line-select" style="padding:6px 8px;font-size:11px;border:1px solid #cbd5e1;border-radius:4px;background:#fff">' +
+            '<option value="both">両方</option>' +
+            '<option value="real">real のみ</option>' +
+            '<option value="falsy">falsy のみ</option>' +
+          '</select>' +
+        '</div>' +
+        '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">' +
+          '<button type="button" id="p589-render-btn" style="padding:7px 12px;border-radius:6px;border:0;background:#0f766e;color:#fff;font-size:11px;font-weight:700;cursor:pointer;min-height:36px">📊 詳細グラフを描画 / 更新</button>' +
+          '<button type="button" id="p589-clear-btn" style="padding:7px 12px;border-radius:6px;border:1.5px solid #0f766e;background:#fff;color:#0f766e;font-size:11px;font-weight:700;cursor:pointer;min-height:36px">✖ クリア</button>' +
+        '</div>' +
+        '<div id="p589-detail-output" style="display:none;padding:8px 10px;border-radius:6px;font-size:11px;background:#fff;border:1px solid var(--bo);word-break:break-word;overflow-x:auto"></div>' +
+        '<div style="margin-top:8px;font-size:10px;color:#115e59;background:#ccfbf1;border:1px solid #5eead4;border-radius:6px;padding:7px 9px;line-height:1.65">' +
+          'ℹ packet 589 の制約：<br>' +
+          '・外部 chart ライブラリ 0（Chart.js / D3 / Plotly / Canvas API も使わず、SVG のみ）<br>' +
+          '・履歴は packet 586 の in-memory（<code>window._p586_scanHistory</code>）、read-only 参照のみ<br>' +
+          '・source 選択肢は履歴に出てくる source から動的生成<br>' +
+          '・localStorage / sessionStorage / DB / 外部 API への保存・送信 <b>0</b><br>' +
+          '・既存 packet 582-588 のコードには触らない（独立 UI）' +
+        '</div>';
+      memPage.appendChild(card);
+      const rb = document.getElementById('p589-render-btn');
+      const cb = document.getElementById('p589-clear-btn');
+      const sels = ['p589-source-select','p589-level-select','p589-line-select'];
+      if(rb) rb.addEventListener('click', _p589_render);
+      if(cb) cb.addEventListener('click', function(){
+        const o = document.getElementById('p589-detail-output');
+        if(o){ o.innerHTML = ''; o.style.display = 'none'; }
+      });
+      for(let i=0;i<sels.length;i++){
+        const el = document.getElementById(sels[i]);
+        if(el) el.addEventListener('change', _p589_render);
+      }
+    }catch(_){}
+  }
+  (function _p589_wrap(){
+    try{
+      const orig = window.switchPage;
+      if(typeof orig !== 'function') return;
+      window.switchPage = function(pg){
+        try{ orig.apply(this, arguments); }catch(_){}
+        if(pg === 'memory'){ setTimeout(_p589_inject, 620); }
+      };
+    }catch(_){}
+  })();
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){ setTimeout(_p589_inject, 1800); });
+  } else {
+    setTimeout(_p589_inject, 1800);
+  }
+})();
+// ==== ここまで packet 589 PII スキャン履歴 詳細グラフ ====
 </script>
 </body>
 </html>
