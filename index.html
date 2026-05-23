@@ -28182,6 +28182,220 @@ function _p500_buildCandidateFromPayload(payload){
   }
 })();
 // ==== ここまで packet 584 記憶庫エクスポート時 PII プレチェック ====
+
+// ==== ここから packet 585 CSV/JSON エクスポート PII 注意メタ付与（生成 + コピー）====
+// 目的：
+//   PII チェック結果を CSV / JSON 用メタ情報として生成し、コピーボタンで取得可能にする。
+//   既存 packet 544 エクスポート内容を壊さない（独立 UI、メタは別途貼付用）。
+// 制約：
+//   - 外部 API 0 / DB 送信 0 / localStorage 保存 0 / sessionStorage 保存 0
+//   - 既存 packet 544 / 584 のコードに触らない（capture wrap も追加しない）
+(function _p585_export_pii_meta(){
+  'use strict';
+  function _p585_runSilentScan(){
+    try{
+      const store = (window._p500_memoryStore && window._p500_memoryStore.slice) ? window._p500_memoryStore.slice() : [];
+      const summary = { total: store.length, real: 0, falsy: 0 };
+      function maskNon(t){
+        if(!t) return t;
+        const rs = [
+          /\bpacket\s*\d+[A-Za-z]?\b/gi,
+          /\bv\d+\.\d+\.\d+\b/g,
+          /\b[0-9a-f]{40}\b/g,
+          /\b[0-9a-f]{7,12}\b/g,
+          /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/g,
+          /\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z?\b/g,
+          /\b\d{4}-\d{2}-\d{2}\b/g
+        ];
+        let c = t;
+        for(let i=0;i<rs.length;i++){ c = c.replace(rs[i], function(m){ return new Array(m.length+1).join('_'); }); }
+        return c;
+      }
+      for(let i=0;i<store.length;i++){
+        const m = store[i] || {};
+        const parts = [m.title, m.content, m.cause, m.solution, m.text, m.body, m.note].filter(function(x){return typeof x === 'string' && x;});
+        const orig = parts.join('\n');
+        if(!orig) continue;
+        const t = maskNon(orig);
+        const phoneRe = /\b0[789]0[\-\s]?\d{4}[\-\s]?\d{4}\b|\b0\d{1,4}[\-\s]?\d{1,4}[\-\s]?\d{3,4}\b/g;
+        let mm;
+        while((mm = phoneRe.exec(t)) !== null){
+          const d = mm[0].replace(/\D/g,'').length;
+          if(d >= 10 && d <= 11) summary.real++;
+          else if(d >= 8) summary.falsy++;
+        }
+        const emailRe = /[\w.+-]+@[\w.-]+\.[a-zA-Z]{2,}/g;
+        while((mm = emailRe.exec(t)) !== null){
+          if(/example\.com|sample\.com|test\.com|noreply@/i.test(mm[0])) summary.falsy++;
+          else summary.real++;
+        }
+        const addressRe = /(都|道|府|県|市|区|町|村)[^\s\n]{0,30}(?:丁目|番地|号室|号棟|マンション|ビル|アパート|ハイツ|ハウス|テラス|タワー|レジデンス|コーポ)/g;
+        while((mm = addressRe.exec(t)) !== null){
+          if(mm[0].length < 8 || /(市場|町内|町中|区分|区別|区切|区間|府内|府中|都心|村内|町外|号令|号砲|番号|町づくり|市町村|府県市|都道府県)/.test(mm[0])) summary.falsy++;
+          else summary.real++;
+        }
+        const secretRe = /sk-[a-zA-Z0-9]{20,}|ghp_[a-zA-Z0-9]{30,}|gho_[a-zA-Z0-9]{30,}|ghs_[a-zA-Z0-9]{30,}|AKIA[0-9A-Z]{16}|eyJ[a-zA-Z0-9_\-]{10,}\.[a-zA-Z0-9_\-]{10,}\.[a-zA-Z0-9_\-]{5,}|bearer\s+[a-zA-Z0-9_\-\.=]{20,}|(?:password|passwd|pwd|secret|access[_\-]?token|refresh[_\-]?token|api[_\-]?key|client[_\-]?secret)\s*[:=]\s*[A-Za-z0-9_\-\.=]{6,}/gi;
+        while((mm = secretRe.exec(t)) !== null){
+          if(/password|passwd|pwd|secret|token|api/i.test(mm[0]) && !/[:=]\s*\S{8,}/.test(mm[0])) summary.falsy++;
+          else summary.real++;
+        }
+      }
+      return summary;
+    }catch(_){
+      return { total: 0, real: 0, falsy: 0, error: true };
+    }
+  }
+  function _p585_buildMeta(){
+    const s = _p585_runSilentScan();
+    const now = new Date().toISOString();
+    let level = 'none';
+    if(s.real >= 1) level = 'warning';
+    else if(s.falsy >= 1) level = 'info';
+    const meta = {
+      pii_check_ran: true,
+      pii_suspect_count: s.real,
+      pii_falsy_count: s.falsy,
+      pii_warning_level: level,
+      exported_at: now,
+      exported_by_browser_only: true,
+      packet: '585',
+      scanned_total_memories: s.total
+    };
+    // CSV 用：先頭にコメント行
+    const csvMeta =
+      '# PII Check (packet 585): real=' + s.real + ', falsy=' + s.falsy + ', warning_level=' + level + '\n' +
+      '# exported_at=' + now + ', exported_by_browser_only=true, scanned_total=' + s.total + '\n' +
+      (s.real >= 1 ? '# WARNING: Possible PII detected. Review before sharing externally.\n' : '');
+    // JSON 用：_meta オブジェクト
+    const jsonMeta = JSON.stringify({ _meta: meta }, null, 2);
+    return { meta: meta, csvMeta: csvMeta, jsonMeta: jsonMeta, level: level };
+  }
+  function _p585_copyText(text, label){
+    try{
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(text).then(function(){
+          _p585_status(label + ' をコピーしました', '#065f46', '#d1fae5');
+        }, function(){
+          _p585_fallbackCopy(text, label);
+        });
+      } else {
+        _p585_fallbackCopy(text, label);
+      }
+    }catch(_){
+      _p585_fallbackCopy(text, label);
+    }
+  }
+  function _p585_fallbackCopy(text, label){
+    try{
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed'; ta.style.left = '-9999px';
+      document.body.appendChild(ta);
+      ta.select();
+      const ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      if(ok) _p585_status(label + ' をコピーしました（フォールバック）', '#065f46', '#d1fae5');
+      else _p585_status('コピーに失敗しました', '#7c2d12', '#fed7aa');
+    }catch(_){
+      _p585_status('コピーに失敗しました', '#7c2d12', '#fed7aa');
+    }
+  }
+  function _p585_status(msg, color, bg){
+    const el = document.getElementById('p585-status');
+    if(!el) return;
+    el.textContent = msg;
+    el.style.color = color;
+    el.style.background = bg;
+    el.style.display = 'block';
+    setTimeout(function(){ if(el) el.style.display = 'none'; }, 3000);
+  }
+  function _p585_escapeHtml(s){
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  function _p585_render(){
+    const out = document.getElementById('p585-meta-output');
+    if(!out) return;
+    const built = _p585_buildMeta();
+    out.style.display = 'block';
+    const levelColor = built.level === 'warning' ? '#7c2d12' : (built.level === 'info' ? '#1e40af' : '#065f46');
+    const levelBg    = built.level === 'warning' ? '#fed7aa' : (built.level === 'info' ? '#dbeafe' : '#d1fae5');
+    out.innerHTML =
+      '<div style="font-weight:800;color:#3730a3;margin-bottom:6px">📋 生成された PII メタ情報</div>' +
+      '<div style="background:' + levelBg + ';color:' + levelColor + ';border:1px solid #c7d2fe;border-radius:4px;padding:5px 9px;font-size:11px;line-height:1.55;margin-bottom:6px"><b>warning_level:</b> ' + built.level + ' / real=' + built.meta.pii_suspect_count + ' / falsy=' + built.meta.pii_falsy_count + ' / scanned=' + built.meta.scanned_total_memories + '</div>' +
+      '<div style="font-size:11px;font-weight:700;color:#3730a3;margin-top:6px;margin-bottom:3px">CSV メタ（先頭にコメント行として貼り付け）</div>' +
+      '<pre id="p585-csv-meta-pre" style="background:#0f172a;color:#a5b4fc;border-radius:4px;padding:7px 10px;margin:0 0 6px;font-size:10px;line-height:1.55;white-space:pre-wrap;word-break:break-all;font-family:ui-monospace,Consolas,monospace;max-height:18vh;overflow:auto">' + _p585_escapeHtml(built.csvMeta) + '</pre>' +
+      '<div style="font-size:11px;font-weight:700;color:#3730a3;margin-top:6px;margin-bottom:3px">JSON メタ（_meta キーとして JSON ファイルに併記）</div>' +
+      '<pre id="p585-json-meta-pre" style="background:#0f172a;color:#67e8f9;border-radius:4px;padding:7px 10px;margin:0 0 6px;font-size:10px;line-height:1.55;white-space:pre-wrap;word-break:break-all;font-family:ui-monospace,Consolas,monospace;max-height:18vh;overflow:auto">' + _p585_escapeHtml(built.jsonMeta) + '</pre>' +
+      '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">' +
+        '<button type="button" id="p585-copy-csv-meta" style="padding:7px 12px;border-radius:6px;border:0;background:#4338ca;color:#fff;font-size:11px;font-weight:700;cursor:pointer">📋 CSV メタをコピー</button>' +
+        '<button type="button" id="p585-copy-json-meta" style="padding:7px 12px;border-radius:6px;border:0;background:#0891b2;color:#fff;font-size:11px;font-weight:700;cursor:pointer">📋 JSON メタをコピー</button>' +
+      '</div>';
+    // 動的バインド
+    const c1 = document.getElementById('p585-copy-csv-meta');
+    const c2 = document.getElementById('p585-copy-json-meta');
+    if(c1) c1.addEventListener('click', function(){ _p585_copyText(built.csvMeta, 'CSV メタ'); });
+    if(c2) c2.addEventListener('click', function(){ _p585_copyText(built.jsonMeta, 'JSON メタ'); });
+  }
+  function _p585_inject(){
+    try{
+      const memPage = document.getElementById('page-memory');
+      if(!memPage) return;
+      if(document.getElementById('p585-meta-card')) return;
+      const card = document.createElement('div');
+      card.id = 'p585-meta-card';
+      card.className = 'ai-team-card';
+      card.style.cssText = 'margin-top:14px;background:#ecfeff;border:1.5px solid #a5f3fc;border-radius:8px;padding:12px 14px';
+      card.innerHTML =
+        '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;margin-bottom:6px">' +
+          '<div style="font-size:14px;font-weight:800;color:#0e7490">📋 packet 585：CSV / JSON エクスポート PII 注意メタ</div>' +
+          '<span style="font-size:10px;background:#cffafe;color:#155e75;border:1px solid #67e8f9;border-radius:6px;padding:2px 7px;font-weight:700">独立 UI / 既存エクスポート非破壊 / 送信なし</span>' +
+        '</div>' +
+        '<div style="font-size:11px;color:var(--t2);line-height:1.65;margin-bottom:8px">' +
+          'エクスポート（packet 544 等）に <b>後付け</b>できる PII チェック結果メタ情報を生成します。' +
+          '<br>既存エクスポート機能には触らず、メタ情報を <b>別途貼付用</b>として提供します。' +
+          '<br><b>送信なし</b>：外部 API / DB / localStorage / sessionStorage に書き込みません。' +
+        '</div>' +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">' +
+          '<button type="button" id="p585-build-btn" style="padding:9px 14px;border-radius:6px;border:0;background:#0e7490;color:#fff;font-size:12px;font-weight:700;cursor:pointer;min-height:38px">🔎 PII メタを生成</button>' +
+          '<button type="button" id="p585-clear-btn" style="padding:9px 14px;border-radius:6px;border:1.5px solid #0e7490;background:#fff;color:#0e7490;font-size:12px;font-weight:700;cursor:pointer;min-height:38px">✖ クリア</button>' +
+        '</div>' +
+        '<div id="p585-status" style="display:none;font-size:11px;line-height:1.55;padding:5px 9px;border-radius:4px;margin-bottom:6px;border:1px solid #cbd5e1"></div>' +
+        '<div id="p585-meta-output" style="display:none;padding:8px 10px;border-radius:6px;font-size:11px;background:#fff;border:1px solid var(--bo);word-break:break-word"></div>' +
+        '<div style="margin-top:8px;font-size:10px;color:#155e75;background:#cffafe;border:1px solid #67e8f9;border-radius:6px;padding:7px 9px;line-height:1.65">' +
+          'ℹ packet 585 の制約：<br>' +
+          '・既存 packet 544 / 584 のコードには <b>触らない</b>（独立 UI）<br>' +
+          '・CSV メタは <b>先頭コメント行</b>（`# PII Check (packet 585): ...`）として貼付用<br>' +
+          '・JSON メタは <b>`_meta` オブジェクト</b>として JSON にラップ可能<br>' +
+          '・メタの中身：pii_check_ran / pii_suspect_count / pii_falsy_count / pii_warning_level / exported_at / exported_by_browser_only / packet / scanned_total_memories<br>' +
+          '・DB / 外部 API への送信 0、localStorage / sessionStorage への保存 0' +
+        '</div>';
+      memPage.appendChild(card);
+      const b = document.getElementById('p585-build-btn');
+      const c = document.getElementById('p585-clear-btn');
+      if(b) b.addEventListener('click', _p585_render);
+      if(c) c.addEventListener('click', function(){
+        const out = document.getElementById('p585-meta-output');
+        if(out){ out.innerHTML = ''; out.style.display = 'none'; }
+      });
+    }catch(_){}
+  }
+  (function _p585_wrap(){
+    try{
+      const orig = window.switchPage;
+      if(typeof orig !== 'function') return;
+      window.switchPage = function(pg){
+        try{ orig.apply(this, arguments); }catch(_){}
+        if(pg === 'memory'){ setTimeout(_p585_inject, 540); }
+      };
+    }catch(_){}
+  })();
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){ setTimeout(_p585_inject, 1400); });
+  } else {
+    setTimeout(_p585_inject, 1400);
+  }
+})();
+// ==== ここまで packet 585 CSV/JSON エクスポート PII 注意メタ付与 ====
 </script>
 </body>
 </html>
