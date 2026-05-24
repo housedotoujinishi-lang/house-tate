@@ -1221,34 +1221,35 @@ body.task-dragging [data-id]:not(.dragging-this){opacity:1!important}
         </div>
         <!-- packet 1000: Phase 3 UI quick-win #1：role/time-aware home greeting card -->
         <div id="p1000-home-greet" class="p1000-home-greet" style="display:none"></div>
-        <!-- packet 1003: 管理者専用ショートカット mini panel（admin/owner のみ表示、CUSTOMER 系参照なし）-->
-        <div id="p1003-admin-shortcuts" class="p1003-admin-shortcuts" style="display:none"></div>
+        <!-- packet 1029: HTML mount 順を「最重要 → 次重要 → 補助 → 振り返り」の階層に再配置（role 別 hide が自動で機能）-->
+        <!-- packet 1016: 朝/昼/夜 stats summary（時間帯 + 今日の予定/未完了/完了 件数）-->
+        <div id="p1016-home-stats" class="p1016-home-stats" style="display:none"></div>
         <!-- packet 1010: 未完了タスク alert mini card（期限切れ/今日/明日が 1 件以上ある時のみ）-->
         <div id="p1010-task-alert" class="p1010-task-alert" style="display:none"></div>
-        <!-- packet 1011: 過去 7 日サマリー mini card（タスク完了率）-->
-        <div id="p1011-week-summary" class="p1011-week-summary" style="display:none"></div>
-        <!-- packet 1012: KPI mini stats card（個人 KPI 上位 3 件の達成率）-->
+        <!-- packet 1021: 店長向け「今日見るべき 3 つ」 card（店長 role のみ）-->
+        <div id="p1021-manager-top3" class="p1021-manager-top3" style="display:none"></div>
+        <!-- packet 1020: 次にやる 1 件 mini（staff/店長 中心、最重要 task 1 つ）-->
+        <div id="p1020-next-one" class="p1020-next-one" style="display:none"></div>
+        <!-- packet 1018: 今日やること 3 件 mini -->
+        <div id="p1018-today-top3" class="p1018-today-top3" style="display:none"></div>
+        <!-- packet 1003: 管理者専用ショートカット mini panel（admin/owner のみ表示、CUSTOMER 系参照なし）-->
+        <div id="p1003-admin-shortcuts" class="p1003-admin-shortcuts" style="display:none"></div>
+        <!-- packet 1014: 店長 dashboard quick-win（店長 role のみ、メンバー出勤状況 mini）-->
+        <div id="p1014-manager-team" class="p1014-manager-team" style="display:none"></div>
+        <!-- packet 1017: 店舗売上 progress mini card（admin/owner のみ）-->
+        <div id="p1017-store-sales" class="p1017-store-sales" style="display:none"></div>
+        <!-- packet 1012: KPI mini stats card（個人 KPI 上位 3 件の達成率、staff のみ）-->
         <div id="p1012-kpi-mini" class="p1012-kpi-mini" style="display:none"></div>
         <!-- packet 1013: 日報未提出 reminder（平日 17-22 時、time-based reminder）-->
         <div id="p1013-dr-reminder" class="p1013-dr-reminder" style="display:none"></div>
-        <!-- packet 1014: 店長 dashboard quick-win（店長 role のみ、メンバー出勤状況 mini）-->
-        <div id="p1014-manager-team" class="p1014-manager-team" style="display:none"></div>
-        <!-- packet 1015: AI 会議 quick-link mini card -->
-        <div id="p1015-ai-meeting" class="p1015-ai-meeting" style="display:none"></div>
-        <!-- packet 1016: 朝/昼/夜 stats summary（今日の予定 / 未完了 / 完了 件数）-->
-        <div id="p1016-home-stats" class="p1016-home-stats" style="display:none"></div>
-        <!-- packet 1017: 店舗売上 progress mini card（admin/owner のみ）-->
-        <div id="p1017-store-sales" class="p1017-store-sales" style="display:none"></div>
-        <!-- packet 1018: 今日やること 3 件 mini -->
-        <div id="p1018-today-top3" class="p1018-today-top3" style="display:none"></div>
-        <!-- packet 1020: 次にやる 1 件 mini（staff/店長 中心、最重要 task 1 つ）-->
-        <div id="p1020-next-one" class="p1020-next-one" style="display:none"></div>
-        <!-- packet 1024: 記憶庫 quick-link mini -->
-        <div id="p1024-memory-link" class="p1024-memory-link" style="display:none"></div>
-        <!-- packet 1021: 店長向け「今日見るべき 3 つ」 card -->
-        <div id="p1021-manager-top3" class="p1021-manager-top3" style="display:none"></div>
         <!-- packet 1022: AI 相談テーマ例 3 件 -->
         <div id="p1022-ai-themes" class="p1022-ai-themes" style="display:none"></div>
+        <!-- packet 1015: AI 会議 quick-link mini card -->
+        <div id="p1015-ai-meeting" class="p1015-ai-meeting" style="display:none"></div>
+        <!-- packet 1024: 記憶庫 quick-link mini -->
+        <div id="p1024-memory-link" class="p1024-memory-link" style="display:none"></div>
+        <!-- packet 1011: 過去 7 日サマリー mini card（タスク完了率、振り返り）-->
+        <div id="p1011-week-summary" class="p1011-week-summary" style="display:none"></div>
         <div id="dash-content"></div>
       </div>
   <div class="page" id="page-accounts">
