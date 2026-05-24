@@ -821,6 +821,14 @@ button,a{-webkit-tap-highlight-color:rgba(10,61,124,.12)}
   #bottom-nav{display:flex!important}
   .page.on{padding-bottom:70px}
   #dash-content>[style]{padding-left:14px!important;padding-right:14px!important}
+  /* packet 1000: home greeting card */
+  .p1000-home-greet{margin:10px 14px 6px;padding:11px 14px;background:linear-gradient(135deg,var(--navy-lt),var(--navy-lt2));border:1.5px solid var(--bo);border-radius:var(--r2);display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .p1000-greet-emoji{font-size:24px;line-height:1}
+  .p1000-greet-main{flex:1;min-width:0}
+  .p1000-greet-hello{font-size:13px;font-weight:800;color:var(--navy);margin-bottom:2px}
+  .p1000-greet-sub{font-size:10px;color:var(--t2)}
+  .p1000-greet-role{display:inline-block;padding:1px 7px;border-radius:9px;font-size:9px;font-weight:800;background:var(--gold);color:var(--navy);margin-left:5px}
+  body.dark .p1000-home-greet{background:linear-gradient(135deg,var(--navy-lt),var(--navy-lt2));border-color:var(--bo)}
   #dash-content [style*="grid-template-columns:1fr 1fr"]{grid-template-columns:1fr!important}
   #dash-content [style*="repeat(4,1fr)"]{grid-template-columns:repeat(2,1fr)!important}
   .sp{padding:8px 10px}
@@ -983,6 +991,8 @@ body.task-dragging [data-id]:not(.dragging-this){opacity:1!important}
             <span class="mob-cmd-body" id="mob-cmd-memo-body">気づきを残す</span>
           </button>
         </div>
+        <!-- packet 1000: Phase 3 UI quick-win #1：role/time-aware home greeting card -->
+        <div id="p1000-home-greet" class="p1000-home-greet" style="display:none"></div>
         <div id="dash-content"></div>
       </div>
   <div class="page" id="page-accounts">
@@ -3301,7 +3311,27 @@ bindEvForm();
   try{if(typeof window._p490_flushPostLogin==='function')window._p490_flushPostLogin();}catch(_p490_flushErr){try{console.warn('[packet 490 showMainApp flush]',_p490_flushErr&&_p490_flushErr.message);}catch(_){}}
 }
 
-function switchPage(pg){if(pg==='crm'){pg='dash';/* packet 322: 顧客タブ強制無効化、dash に強制リダイレクト */}document.querySelectorAll('.ntab').forEach(b=>b.classList.toggle('on',b.dataset.pg===pg));document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));const pgEl=document.getElementById(`page-${pg}`);if(pgEl)pgEl.classList.add('on');if(pg==='dash')renderDash();if(pg==='accounts'){renderAccList();/* packet 490: accounts ページ表示時 packet 480/481 UI を bind */try{if(typeof window._p490_flushPostLogin==='function')window._p490_flushPostLogin();}catch(_){}}if(pg==='kintai'){ktViewUid=currentUser.perm==='admin'?null:currentUser.uid;renderKintaiPage();/* packet 490: kintai ページ表示時 packet 485 export UI を bind */try{if(typeof window._p485_initOnKintai==='function')window._p485_initOnKintai();}catch(_){}}if(pg==='cal')render();if(pg==='shift')renderShift();if(pg==='goal'){initGoalData();renderGoalPage();}if(pg==='report')renderReportPage();if(pg==='ai-status'){try{renderAIStatusPage();}catch(_p502_e){try{console.warn('[packet 502 switchPage]',_p502_e&&_p502_e.message);}catch(_){}}}if(pg==='aiteam')renderAITeamPage();if(pg==='memory'){try{renderMemoryPage();}catch(_p500_e){try{console.warn('[packet 500 switchPage]',_p500_e&&_p500_e.message);}catch(_){}}}if(pg==='member-workload')renderMemberWorkloadPage();if(pg==='ai-members')renderAIMembersPage();if(pg==='ai-org')renderAIOrgChartPage();if(pg==='realestate-knowledge')renderRealEstateKnowledgePage();if(pg==='routine')renderRoutinePage();if(pg==='sales-psy')renderSalesPsychologyPage();if(pg==='knowledge-portal')renderKnowledgePortalPage();if(pg==='role-knowledge')renderRoleKnowledgePage();if(pg==='knowledge-candidate-box'){try{renderKnowledgeCandidateBox();}catch(e){const r=document.getElementById('kc-cards');if(r)r.innerHTML='<div style="color:#b91c1c;padding:14px;background:#fef2f2;border-radius:6px;">AI 事典追加候補箱の読み込みに失敗しました。Console を確認してください。<br><code style="font-size:11px;">'+String(e&&e.message||e)+'</code></div>';}}}
+function switchPage(pg){if(pg==='crm'){pg='dash';/* packet 322: 顧客タブ強制無効化、dash に強制リダイレクト */}document.querySelectorAll('.ntab').forEach(b=>b.classList.toggle('on',b.dataset.pg===pg));document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));const pgEl=document.getElementById(`page-${pg}`);if(pgEl)pgEl.classList.add('on');if(pg==='dash'){renderDash();try{_p1000_renderHomeGreeting();}catch(_p1000e){try{console.warn('[packet 1000 greet]',_p1000e&&_p1000e.message);}catch(_){}}}if(pg==='accounts'){renderAccList();/* packet 490: accounts ページ表示時 packet 480/481 UI を bind */try{if(typeof window._p490_flushPostLogin==='function')window._p490_flushPostLogin();}catch(_){}}if(pg==='kintai'){ktViewUid=currentUser.perm==='admin'?null:currentUser.uid;renderKintaiPage();/* packet 490: kintai ページ表示時 packet 485 export UI を bind */try{if(typeof window._p485_initOnKintai==='function')window._p485_initOnKintai();}catch(_){}}if(pg==='cal')render();if(pg==='shift')renderShift();if(pg==='goal'){initGoalData();renderGoalPage();}if(pg==='report')renderReportPage();if(pg==='ai-status'){try{renderAIStatusPage();}catch(_p502_e){try{console.warn('[packet 502 switchPage]',_p502_e&&_p502_e.message);}catch(_){}}}if(pg==='aiteam')renderAITeamPage();if(pg==='memory'){try{renderMemoryPage();}catch(_p500_e){try{console.warn('[packet 500 switchPage]',_p500_e&&_p500_e.message);}catch(_){}}}if(pg==='member-workload')renderMemberWorkloadPage();if(pg==='ai-members')renderAIMembersPage();if(pg==='ai-org')renderAIOrgChartPage();if(pg==='realestate-knowledge')renderRealEstateKnowledgePage();if(pg==='routine')renderRoutinePage();if(pg==='sales-psy')renderSalesPsychologyPage();if(pg==='knowledge-portal')renderKnowledgePortalPage();if(pg==='role-knowledge')renderRoleKnowledgePage();if(pg==='knowledge-candidate-box'){try{renderKnowledgeCandidateBox();}catch(e){const r=document.getElementById('kc-cards');if(r)r.innerHTML='<div style="color:#b91c1c;padding:14px;background:#fef2f2;border-radius:6px;">AI 事典追加候補箱の読み込みに失敗しました。Console を確認してください。<br><code style="font-size:11px;">'+String(e&&e.message||e)+'</code></div>';}}}
+// packet 1000: Phase 3 UI quick-win #1：role/time-aware home greeting card（純粋 UI 追加、SQL/API/Auth/DB 接続なし、CUSTOMER 系参照なし、本文書込なし）
+function _p1000_renderHomeGreeting(){
+  const el=document.getElementById('p1000-home-greet');
+  if(!el)return;
+  if(typeof currentUser==='undefined' || !currentUser){el.style.display='none';return;}
+  const h=new Date().getHours();
+  let emoji='👋', hello='こんにちは', sub='今日もよろしくお願いします';
+  if(h>=5 && h<11){emoji='☀️';hello='おはようございます';sub='今日の優先タスクを確認しましょう';}
+  else if(h>=11 && h<17){emoji='☕';hello='こんにちは';sub='午後の進捗を確認しましょう';}
+  else if(h>=17 && h<22){emoji='🌆';hello='お疲れさまです';sub='日報入力 / 翌日の準備を';}
+  else {emoji='🌙';hello='夜遅くまでお疲れさまです';sub='ゆっくり休んでください';}
+  const isAdmin=currentUser.perm==='admin';
+  const isOwner=currentUser.perm==='owner';
+  const isHighPerm=isAdmin||isOwner;
+  const roleByRole=(currentUser.role||'').indexOf('店長')>=0?'店長':null;
+  const roleLabel=roleByRole||(isHighPerm?'管理者':'スタッフ');
+  const safeName=(currentUser.name||'').replace(/[<>&"']/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c]||c));
+  el.innerHTML=`<div class="p1000-greet-emoji">${emoji}</div><div class="p1000-greet-main"><div class="p1000-greet-hello">${hello}、${safeName} さん<span class="p1000-greet-role">${roleLabel}</span></div><div class="p1000-greet-sub">${sub}</div></div>`;
+  el.style.display='';
+}
 function mkModal(id,barColor,title){const ex=document.getElementById(id);if(ex)ex.remove();const bg=document.createElement('div');bg.className='mbg';bg.id=id;bg.innerHTML=`<div class="modal"><div class="mbar" style="background:${barColor}"></div><button class="mclose" id="${id}-c">✕</button><div class="mttl">${title}</div><div class="macts"></div></div>`;document.body.appendChild(bg);document.getElementById(`${id}-c`).onclick=()=>bg.remove();bg.onclick=e=>{if(e.target===bg)bg.remove();};return bg;}
 function mttlAfter(bg,html){bg.querySelector('.mttl').insertAdjacentHTML('afterend',html);}
 function macts(bg,html){bg.querySelector('.macts').innerHTML=html;}
