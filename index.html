@@ -833,6 +833,13 @@ button,a{-webkit-tap-highlight-color:rgba(10,61,124,.12)}
   .p1001-greet-cta{padding:7px 13px;background:var(--navy);color:#fff;border:0;border-radius:var(--r);font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0}
   .p1001-greet-cta:hover{background:var(--navy2)}
   body.dark .p1001-greet-cta{background:var(--navy);color:#fff}
+  /* packet 1003: admin shortcuts mini panel */
+  .p1003-admin-shortcuts{margin:0 14px 8px;padding:9px 12px;background:var(--s2);border:1.5px solid var(--bo);border-radius:var(--r2);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .p1003-admin-label{font-size:10px;font-weight:800;color:var(--gold2);letter-spacing:.3px;margin-right:4px}
+  .p1003-admin-btn{padding:5px 11px;background:var(--s1);color:var(--navy);border:1.5px solid var(--navy-lt2);border-radius:var(--r);font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap}
+  .p1003-admin-btn:hover{background:var(--navy-lt)}
+  body.dark .p1003-admin-shortcuts{background:var(--s2);border-color:var(--bo)}
+  body.dark .p1003-admin-btn{background:var(--s1);color:var(--navy);border-color:var(--bo)}
   #dash-content [style*="grid-template-columns:1fr 1fr"]{grid-template-columns:1fr!important}
   #dash-content [style*="repeat(4,1fr)"]{grid-template-columns:repeat(2,1fr)!important}
   .sp{padding:8px 10px}
@@ -997,6 +1004,8 @@ body.task-dragging [data-id]:not(.dragging-this){opacity:1!important}
         </div>
         <!-- packet 1000: Phase 3 UI quick-win #1：role/time-aware home greeting card -->
         <div id="p1000-home-greet" class="p1000-home-greet" style="display:none"></div>
+        <!-- packet 1003: 管理者専用ショートカット mini panel（admin/owner のみ表示、CUSTOMER 系参照なし）-->
+        <div id="p1003-admin-shortcuts" class="p1003-admin-shortcuts" style="display:none"></div>
         <div id="dash-content"></div>
       </div>
   <div class="page" id="page-accounts">
@@ -3315,7 +3324,7 @@ bindEvForm();
   try{if(typeof window._p490_flushPostLogin==='function')window._p490_flushPostLogin();}catch(_p490_flushErr){try{console.warn('[packet 490 showMainApp flush]',_p490_flushErr&&_p490_flushErr.message);}catch(_){}}
 }
 
-function switchPage(pg){if(pg==='crm'){pg='dash';/* packet 322: 顧客タブ強制無効化、dash に強制リダイレクト */}document.querySelectorAll('.ntab').forEach(b=>b.classList.toggle('on',b.dataset.pg===pg));document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));const pgEl=document.getElementById(`page-${pg}`);if(pgEl)pgEl.classList.add('on');if(pg==='dash'){renderDash();try{_p1000_renderHomeGreeting();}catch(_p1000e){try{console.warn('[packet 1000 greet]',_p1000e&&_p1000e.message);}catch(_){}}}if(pg==='accounts'){renderAccList();/* packet 490: accounts ページ表示時 packet 480/481 UI を bind */try{if(typeof window._p490_flushPostLogin==='function')window._p490_flushPostLogin();}catch(_){}}if(pg==='kintai'){ktViewUid=currentUser.perm==='admin'?null:currentUser.uid;renderKintaiPage();/* packet 490: kintai ページ表示時 packet 485 export UI を bind */try{if(typeof window._p485_initOnKintai==='function')window._p485_initOnKintai();}catch(_){}}if(pg==='cal')render();if(pg==='shift')renderShift();if(pg==='goal'){initGoalData();renderGoalPage();}if(pg==='report')renderReportPage();if(pg==='ai-status'){try{renderAIStatusPage();}catch(_p502_e){try{console.warn('[packet 502 switchPage]',_p502_e&&_p502_e.message);}catch(_){}}}if(pg==='aiteam')renderAITeamPage();if(pg==='memory'){try{renderMemoryPage();}catch(_p500_e){try{console.warn('[packet 500 switchPage]',_p500_e&&_p500_e.message);}catch(_){}}}if(pg==='member-workload')renderMemberWorkloadPage();if(pg==='ai-members')renderAIMembersPage();if(pg==='ai-org')renderAIOrgChartPage();if(pg==='realestate-knowledge')renderRealEstateKnowledgePage();if(pg==='routine')renderRoutinePage();if(pg==='sales-psy')renderSalesPsychologyPage();if(pg==='knowledge-portal')renderKnowledgePortalPage();if(pg==='role-knowledge')renderRoleKnowledgePage();if(pg==='knowledge-candidate-box'){try{renderKnowledgeCandidateBox();}catch(e){const r=document.getElementById('kc-cards');if(r)r.innerHTML='<div style="color:#b91c1c;padding:14px;background:#fef2f2;border-radius:6px;">AI 事典追加候補箱の読み込みに失敗しました。Console を確認してください。<br><code style="font-size:11px;">'+String(e&&e.message||e)+'</code></div>';}}}
+function switchPage(pg){if(pg==='crm'){pg='dash';/* packet 322: 顧客タブ強制無効化、dash に強制リダイレクト */}document.querySelectorAll('.ntab').forEach(b=>b.classList.toggle('on',b.dataset.pg===pg));document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));const pgEl=document.getElementById(`page-${pg}`);if(pgEl)pgEl.classList.add('on');if(pg==='dash'){renderDash();try{_p1000_renderHomeGreeting();}catch(_p1000e){try{console.warn('[packet 1000 greet]',_p1000e&&_p1000e.message);}catch(_){}}try{_p1003_renderAdminShortcuts();}catch(_p1003e){try{console.warn('[packet 1003 admin sc]',_p1003e&&_p1003e.message);}catch(_){}}}if(pg==='accounts'){renderAccList();/* packet 490: accounts ページ表示時 packet 480/481 UI を bind */try{if(typeof window._p490_flushPostLogin==='function')window._p490_flushPostLogin();}catch(_){}}if(pg==='kintai'){ktViewUid=currentUser.perm==='admin'?null:currentUser.uid;renderKintaiPage();/* packet 490: kintai ページ表示時 packet 485 export UI を bind */try{if(typeof window._p485_initOnKintai==='function')window._p485_initOnKintai();}catch(_){}}if(pg==='cal')render();if(pg==='shift')renderShift();if(pg==='goal'){initGoalData();renderGoalPage();}if(pg==='report')renderReportPage();if(pg==='ai-status'){try{renderAIStatusPage();}catch(_p502_e){try{console.warn('[packet 502 switchPage]',_p502_e&&_p502_e.message);}catch(_){}}}if(pg==='aiteam')renderAITeamPage();if(pg==='memory'){try{renderMemoryPage();}catch(_p500_e){try{console.warn('[packet 500 switchPage]',_p500_e&&_p500_e.message);}catch(_){}}}if(pg==='member-workload')renderMemberWorkloadPage();if(pg==='ai-members')renderAIMembersPage();if(pg==='ai-org')renderAIOrgChartPage();if(pg==='realestate-knowledge')renderRealEstateKnowledgePage();if(pg==='routine')renderRoutinePage();if(pg==='sales-psy')renderSalesPsychologyPage();if(pg==='knowledge-portal')renderKnowledgePortalPage();if(pg==='role-knowledge')renderRoleKnowledgePage();if(pg==='knowledge-candidate-box'){try{renderKnowledgeCandidateBox();}catch(e){const r=document.getElementById('kc-cards');if(r)r.innerHTML='<div style="color:#b91c1c;padding:14px;background:#fef2f2;border-radius:6px;">AI 事典追加候補箱の読み込みに失敗しました。Console を確認してください。<br><code style="font-size:11px;">'+String(e&&e.message||e)+'</code></div>';}}}
 // packet 1000: Phase 3 UI quick-win #1：role/time-aware home greeting card（純粋 UI 追加、SQL/API/Auth/DB 接続なし、CUSTOMER 系参照なし、本文書込なし）
 // packet 1001: 時間帯別 CTA ボタンを greeting カードに追加（タスク/日報/メモ 1 タップ）
 function _p1000_renderHomeGreeting(){
@@ -3347,6 +3356,25 @@ function _p1000_renderHomeGreeting(){
   // packet 1001: CTA bind
   const btn=el.querySelector('.p1001-greet-cta');
   if(btn){btn.onclick=()=>{try{if(typeof switchPage==='function')switchPage(btn.dataset.p1001Cta);}catch(_p1001e){try{console.warn('[packet 1001 cta]',_p1001e&&_p1001e.message);}catch(_){}}};}
+}
+// packet 1003: 管理者専用ショートカット mini panel（admin/owner のみ。CUSTOMER 系参照なし、純粋 switchPage 起動のみ）
+function _p1003_renderAdminShortcuts(){
+  const el=document.getElementById('p1003-admin-shortcuts');
+  if(!el)return;
+  if(typeof currentUser==='undefined' || !currentUser){el.style.display='none';return;}
+  const isAdmin=currentUser.perm==='admin'||currentUser.perm==='owner';
+  if(!isAdmin){el.style.display='none';return;}
+  const items=[
+    ['accounts','👑 アカウント管理'],
+    ['report','📊 月次レポート'],
+    ['manager-undone','🚨 未完了つぶし'],
+    ['member-workload','👥 メンバー稼働']
+  ];
+  el.innerHTML='<span class="p1003-admin-label">管理者ショートカット</span>'+items.map(([pg,lbl])=>`<button type="button" class="p1003-admin-btn" data-p1003-pg="${pg}">${lbl}</button>`).join('');
+  el.style.display='';
+  el.querySelectorAll('.p1003-admin-btn').forEach(b=>{
+    b.onclick=()=>{try{if(typeof switchPage==='function')switchPage(b.dataset.p1003Pg);}catch(_p1003e){try{console.warn('[packet 1003 sc click]',_p1003e&&_p1003e.message);}catch(_){}}};
+  });
 }
 function mkModal(id,barColor,title){const ex=document.getElementById(id);if(ex)ex.remove();const bg=document.createElement('div');bg.className='mbg';bg.id=id;bg.innerHTML=`<div class="modal"><div class="mbar" style="background:${barColor}"></div><button class="mclose" id="${id}-c">✕</button><div class="mttl">${title}</div><div class="macts"></div></div>`;document.body.appendChild(bg);document.getElementById(`${id}-c`).onclick=()=>bg.remove();bg.onclick=e=>{if(e.target===bg)bg.remove();};return bg;}
 function mttlAfter(bg,html){bg.querySelector('.mttl').insertAdjacentHTML('afterend',html);}
