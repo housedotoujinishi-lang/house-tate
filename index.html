@@ -1064,6 +1064,44 @@ button,a{-webkit-tap-highlight-color:rgba(10,61,124,.12)}
     ::-webkit-scrollbar-thumb{background:rgba(0,0,0,.15);border-radius:3px}
     body.dark ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.18)}
   }
+  /* packet 1090-1109: 店長 OS polish（CSS / 既存 p1014/p1021 を補強）*/
+  .p1014-manager-team{position:relative}
+  .p1014-manager-team::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:linear-gradient(180deg,#a78bfa,#7c3aed);border-radius:3px 0 0 3px}
+  .p1021-manager-top3{position:relative}
+  .p1021-manager-top3::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:linear-gradient(180deg,#60a5fa,#a78bfa);border-radius:3px 0 0 3px}
+  /* packet 1110-1129: staff OS polish（KPI / next-one 視認強化）*/
+  .p1012-kpi-mini{position:relative}
+  .p1012-kpi-mini::after{content:"";position:absolute;right:-2px;top:8px;bottom:8px;width:3px;background:linear-gradient(180deg,#34d399,#10b981);border-radius:3px}
+  .p1020-next-one{position:relative;overflow:hidden}
+  .p1020-next-one::after{content:"⭐";position:absolute;right:-6px;top:-6px;font-size:32px;opacity:.18;transform:rotate(-12deg);pointer-events:none}
+  /* packet 1130-1149: admin OS polish（admin-shortcuts / store-sales 強化）*/
+  .p1003-admin-shortcuts{position:relative}
+  .p1003-admin-shortcuts::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:linear-gradient(180deg,#fb7185,#e11d48);border-radius:3px 0 0 3px}
+  .p1017-store-sales{position:relative}
+  .p1017-store-sales::after{content:"💰";position:absolute;right:8px;top:6px;font-size:22px;opacity:.15;pointer-events:none}
+  /* packet 1150-1169: AI 導線 polish（AI consul / themes 連携）*/
+  .p1015-ai-meeting{position:relative;overflow:hidden}
+  .p1015-ai-meeting::before{content:"";position:absolute;inset:0;background:linear-gradient(120deg,transparent 40%,rgba(255,255,255,.08) 50%,transparent 60%);pointer-events:none}
+  .p1022-ai-themes .p1022-ai-theme-chip{transition:transform .12s ease}
+  .p1022-ai-themes .p1022-ai-theme-chip:hover{transform:translateY(-1px)}
+  .p1022-ai-themes .p1022-ai-theme-chip:active{transform:scale(.96)}
+  /* packet 1170-1189: 日報/記憶庫 polish */
+  .p1013-dr-reminder{position:relative}
+  .p1013-dr-reminder::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:linear-gradient(180deg,#fdba74,#ea580c);border-radius:3px 0 0 3px}
+  .p1024-memory-link{position:relative;overflow:hidden}
+  .p1024-memory-link::after{content:"📚";position:absolute;right:8px;bottom:4px;font-size:26px;opacity:.14;pointer-events:none}
+  /* packet 1190-1209: KPI / 数字 polish（progress bar 共通 transition）*/
+  .p1017-store-fill,.p1012-kpi-bar-fill,.p1011-week-bar-fill,.p1032-routine-bar-fill{transition:width .5s cubic-bezier(.4,0,.2,1)}
+  /* packet 1210-1229: Phase 3 安定化（focus visible / motion 配慮）*/
+  .p1000-home-greet:focus-visible,.p1003-admin-shortcuts:focus-visible,.p1010-task-alert:focus-visible,
+  .p1013-dr-reminder:focus-visible,.p1014-manager-team:focus-visible,.p1015-ai-meeting:focus-visible,
+  .p1017-store-sales:focus-visible,.p1020-next-one:focus-visible,.p1024-memory-link:focus-visible,
+  .p1032-routine-prog:focus-visible,.p1033-morning-rep:focus-visible{outline:2px solid var(--navy);outline-offset:2px}
+  @media(prefers-reduced-motion:reduce){
+    .tbbody.grid .kcard[data-deadline-state="overdue"]{animation:none}
+    .p1000-home-greet,.p1010-task-alert,.p1013-dr-reminder,.p1014-manager-team,.p1015-ai-meeting,
+    .p1017-store-sales,.p1020-next-one,.p1024-memory-link,.p1032-routine-prog,.p1033-morning-rep{transition:none}
+  }
   /* packet 1027: 完了列 empty state 改善（css :empty + ::after で placeholder）*/
   .tbbody.grid .kanban-col[data-col="done"] .kanban-col-body:empty::after{content:"まだ完了タスクがありません　🎯";display:block;text-align:center;color:var(--t4);font-size:10px;padding:18px 6px;font-weight:600}
   .tbbody.grid .kanban-col[data-col="todo"] .kanban-col-body:has(>.kboard-add-btn:only-child)::before{content:"未着手タスクなし　✨";display:block;text-align:center;color:var(--t4);font-size:10px;padding:10px 6px 6px;font-weight:600}
