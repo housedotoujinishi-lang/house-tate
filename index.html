@@ -887,6 +887,24 @@ button,a{-webkit-tap-highlight-color:rgba(10,61,124,.12)}
   .p1001-greet-cta{padding:7px 13px;background:var(--navy);color:#fff;border:0;border-radius:var(--r);font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0}
   .p1001-greet-cta:hover{background:var(--navy2)}
   body.dark .p1001-greet-cta{background:var(--navy);color:#fff}
+  /* packet 1010: 未完了タスク alert mini card */
+  .p1010-task-alert{margin:0 14px 8px;padding:9px 12px;background:linear-gradient(135deg,#fef2f2,#fff5f5);border:1.5px solid #fecaca;border-radius:var(--r2);display:flex;align-items:center;gap:10px;cursor:pointer;flex-wrap:wrap}
+  .p1010-task-alert:hover{background:linear-gradient(135deg,#fee2e2,#fef2f2)}
+  .p1010-alert-emoji{font-size:20px;line-height:1}
+  .p1010-alert-main{flex:1;min-width:0}
+  .p1010-alert-title{font-size:11px;font-weight:800;color:#b91c1c;margin-bottom:2px}
+  .p1010-alert-sub{font-size:10px;color:var(--t2)}
+  .p1010-alert-cnt{display:inline-block;padding:1px 7px;border-radius:9px;font-size:9px;font-weight:800;background:#dc2626;color:#fff;margin-left:3px;line-height:1.5}
+  body.dark .p1010-task-alert{background:linear-gradient(135deg,#3d1515,#2d1010);border-color:#5a1f1f}
+  body.dark .p1010-alert-title{color:#fca5a5}
+  /* packet 1011: 過去 7 日サマリー mini card */
+  .p1011-week-summary{margin:0 14px 8px;padding:9px 12px;background:var(--s1);border:1.5px solid var(--bo);border-radius:var(--r2);display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .p1011-week-emoji{font-size:18px;line-height:1}
+  .p1011-week-main{flex:1;min-width:0}
+  .p1011-week-title{font-size:11px;font-weight:800;color:var(--navy);margin-bottom:2px}
+  .p1011-week-sub{font-size:10px;color:var(--t2)}
+  .p1011-week-bar{height:5px;background:var(--s3);border-radius:3px;overflow:hidden;margin-top:5px}
+  .p1011-week-fill{height:100%;background:linear-gradient(90deg,var(--gr),#0d9e6e);border-radius:3px;transition:width .3s}
   /* packet 1003: admin shortcuts mini panel */
   .p1003-admin-shortcuts{margin:0 14px 8px;padding:9px 12px;background:var(--s2);border:1.5px solid var(--bo);border-radius:var(--r2);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
   .p1003-admin-label{font-size:10px;font-weight:800;color:var(--gold2);letter-spacing:.3px;margin-right:4px}
@@ -1066,6 +1084,10 @@ body.task-dragging [data-id]:not(.dragging-this){opacity:1!important}
         <div id="p1000-home-greet" class="p1000-home-greet" style="display:none"></div>
         <!-- packet 1003: 管理者専用ショートカット mini panel（admin/owner のみ表示、CUSTOMER 系参照なし）-->
         <div id="p1003-admin-shortcuts" class="p1003-admin-shortcuts" style="display:none"></div>
+        <!-- packet 1010: 未完了タスク alert mini card（期限切れ/今日/明日が 1 件以上ある時のみ）-->
+        <div id="p1010-task-alert" class="p1010-task-alert" style="display:none"></div>
+        <!-- packet 1011: 過去 7 日サマリー mini card（タスク完了率）-->
+        <div id="p1011-week-summary" class="p1011-week-summary" style="display:none"></div>
         <div id="dash-content"></div>
       </div>
   <div class="page" id="page-accounts">
@@ -3384,7 +3406,7 @@ bindEvForm();
   try{if(typeof window._p490_flushPostLogin==='function')window._p490_flushPostLogin();}catch(_p490_flushErr){try{console.warn('[packet 490 showMainApp flush]',_p490_flushErr&&_p490_flushErr.message);}catch(_){}}
 }
 
-function switchPage(pg){if(pg==='crm'){pg='dash';/* packet 322: 顧客タブ強制無効化、dash に強制リダイレクト */}document.querySelectorAll('.ntab').forEach(b=>b.classList.toggle('on',b.dataset.pg===pg));document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));const pgEl=document.getElementById(`page-${pg}`);if(pgEl)pgEl.classList.add('on');if(pg==='dash'){renderDash();try{_p1000_renderHomeGreeting();}catch(_p1000e){try{console.warn('[packet 1000 greet]',_p1000e&&_p1000e.message);}catch(_){}}try{_p1003_renderAdminShortcuts();}catch(_p1003e){try{console.warn('[packet 1003 admin sc]',_p1003e&&_p1003e.message);}catch(_){}}try{_p1006_personalizeAIConsul();}catch(_p1006e){try{console.warn('[packet 1006 ai consul]',_p1006e&&_p1006e.message);}catch(_){}}}if(pg==='accounts'){renderAccList();/* packet 490: accounts ページ表示時 packet 480/481 UI を bind */try{if(typeof window._p490_flushPostLogin==='function')window._p490_flushPostLogin();}catch(_){}}if(pg==='kintai'){ktViewUid=currentUser.perm==='admin'?null:currentUser.uid;renderKintaiPage();/* packet 490: kintai ページ表示時 packet 485 export UI を bind */try{if(typeof window._p485_initOnKintai==='function')window._p485_initOnKintai();}catch(_){}}if(pg==='cal')render();if(pg==='shift')renderShift();if(pg==='goal'){initGoalData();renderGoalPage();}if(pg==='report')renderReportPage();if(pg==='ai-status'){try{renderAIStatusPage();}catch(_p502_e){try{console.warn('[packet 502 switchPage]',_p502_e&&_p502_e.message);}catch(_){}}}if(pg==='aiteam')renderAITeamPage();if(pg==='memory'){try{renderMemoryPage();}catch(_p500_e){try{console.warn('[packet 500 switchPage]',_p500_e&&_p500_e.message);}catch(_){}}}if(pg==='member-workload')renderMemberWorkloadPage();if(pg==='ai-members')renderAIMembersPage();if(pg==='ai-org')renderAIOrgChartPage();if(pg==='realestate-knowledge')renderRealEstateKnowledgePage();if(pg==='routine')renderRoutinePage();if(pg==='sales-psy')renderSalesPsychologyPage();if(pg==='knowledge-portal')renderKnowledgePortalPage();if(pg==='role-knowledge')renderRoleKnowledgePage();if(pg==='knowledge-candidate-box'){try{renderKnowledgeCandidateBox();}catch(e){const r=document.getElementById('kc-cards');if(r)r.innerHTML='<div style="color:#b91c1c;padding:14px;background:#fef2f2;border-radius:6px;">AI 事典追加候補箱の読み込みに失敗しました。Console を確認してください。<br><code style="font-size:11px;">'+String(e&&e.message||e)+'</code></div>';}}}
+function switchPage(pg){if(pg==='crm'){pg='dash';/* packet 322: 顧客タブ強制無効化、dash に強制リダイレクト */}document.querySelectorAll('.ntab').forEach(b=>b.classList.toggle('on',b.dataset.pg===pg));document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));const pgEl=document.getElementById(`page-${pg}`);if(pgEl)pgEl.classList.add('on');if(pg==='dash'){renderDash();try{_p1000_renderHomeGreeting();}catch(_p1000e){try{console.warn('[packet 1000 greet]',_p1000e&&_p1000e.message);}catch(_){}}try{_p1003_renderAdminShortcuts();}catch(_p1003e){try{console.warn('[packet 1003 admin sc]',_p1003e&&_p1003e.message);}catch(_){}}try{_p1006_personalizeAIConsul();}catch(_p1006e){try{console.warn('[packet 1006 ai consul]',_p1006e&&_p1006e.message);}catch(_){}}try{_p1010_renderTaskAlert();}catch(_p1010e){try{console.warn('[packet 1010 task alert]',_p1010e&&_p1010e.message);}catch(_){}}try{_p1011_render7DaySummary();}catch(_p1011e){try{console.warn('[packet 1011 7day]',_p1011e&&_p1011e.message);}catch(_){}}}if(pg==='accounts'){renderAccList();/* packet 490: accounts ページ表示時 packet 480/481 UI を bind */try{if(typeof window._p490_flushPostLogin==='function')window._p490_flushPostLogin();}catch(_){}}if(pg==='kintai'){ktViewUid=currentUser.perm==='admin'?null:currentUser.uid;renderKintaiPage();/* packet 490: kintai ページ表示時 packet 485 export UI を bind */try{if(typeof window._p485_initOnKintai==='function')window._p485_initOnKintai();}catch(_){}}if(pg==='cal')render();if(pg==='shift')renderShift();if(pg==='goal'){initGoalData();renderGoalPage();}if(pg==='report')renderReportPage();if(pg==='ai-status'){try{renderAIStatusPage();}catch(_p502_e){try{console.warn('[packet 502 switchPage]',_p502_e&&_p502_e.message);}catch(_){}}}if(pg==='aiteam')renderAITeamPage();if(pg==='memory'){try{renderMemoryPage();}catch(_p500_e){try{console.warn('[packet 500 switchPage]',_p500_e&&_p500_e.message);}catch(_){}}}if(pg==='member-workload')renderMemberWorkloadPage();if(pg==='ai-members')renderAIMembersPage();if(pg==='ai-org')renderAIOrgChartPage();if(pg==='realestate-knowledge')renderRealEstateKnowledgePage();if(pg==='routine')renderRoutinePage();if(pg==='sales-psy')renderSalesPsychologyPage();if(pg==='knowledge-portal')renderKnowledgePortalPage();if(pg==='role-knowledge')renderRoleKnowledgePage();if(pg==='knowledge-candidate-box'){try{renderKnowledgeCandidateBox();}catch(e){const r=document.getElementById('kc-cards');if(r)r.innerHTML='<div style="color:#b91c1c;padding:14px;background:#fef2f2;border-radius:6px;">AI 事典追加候補箱の読み込みに失敗しました。Console を確認してください。<br><code style="font-size:11px;">'+String(e&&e.message||e)+'</code></div>';}}}
 // packet 1000: Phase 3 UI quick-win #1：role/time-aware home greeting card（純粋 UI 追加、SQL/API/Auth/DB 接続なし、CUSTOMER 系参照なし、本文書込なし）
 // packet 1001: 時間帯別 CTA ボタンを greeting カードに追加（タスク/日報/メモ 1 タップ）
 function _p1000_renderHomeGreeting(){
@@ -3416,6 +3438,51 @@ function _p1000_renderHomeGreeting(){
   // packet 1001: CTA bind
   const btn=el.querySelector('.p1001-greet-cta');
   if(btn){btn.onclick=()=>{try{if(typeof switchPage==='function')switchPage(btn.dataset.p1001Cta);}catch(_p1001e){try{console.warn('[packet 1001 cta]',_p1001e&&_p1001e.message);}catch(_){}}};}
+}
+// packet 1010: 未完了タスク alert mini card（state.tasks read-only、期限切れ/今日/明日 が 1 件以上なら表示、click でタスクボードへ）
+function _p1010_renderTaskAlert(){
+  const el=document.getElementById('p1010-task-alert');
+  if(!el)return;
+  if(typeof currentUser==='undefined' || !currentUser){el.style.display='none';return;}
+  if(typeof state==='undefined' || !state || !Array.isArray(state.tasks)){el.style.display='none';return;}
+  const isAdmin=currentUser.perm==='admin'||currentUser.perm==='owner';
+  const mi=members.findIndex(m=>m.uid===currentUser.uid);
+  const myTasks=isAdmin?state.tasks.filter(t=>!t.done):state.tasks.filter(t=>!t.done&&(t.toIdx===mi||t.toIdx===null));
+  const ts=(typeof todayStr!=='undefined')?todayStr:'';
+  const tms=(typeof tomorrowStr!=='undefined')?tomorrowStr:'';
+  const overdue=myTasks.filter(t=>t.deadline&&t.deadline<ts).length;
+  const dueToday=myTasks.filter(t=>t.deadline===ts).length;
+  const dueTomorrow=myTasks.filter(t=>t.deadline===tms).length;
+  if(overdue===0 && dueToday===0 && dueTomorrow===0){el.style.display='none';return;}
+  let parts=[];
+  if(overdue>0)parts.push(`期限切れ <span class="p1010-alert-cnt">${overdue}</span>`);
+  if(dueToday>0)parts.push(`今日 <span class="p1010-alert-cnt" style="background:#ea580c">${dueToday}</span>`);
+  if(dueTomorrow>0)parts.push(`明日 <span class="p1010-alert-cnt" style="background:#f59e0b">${dueTomorrow}</span>`);
+  el.innerHTML=`<span class="p1010-alert-emoji">⚠️</span><div class="p1010-alert-main"><div class="p1010-alert-title">未完了タスク</div><div class="p1010-alert-sub">${parts.join('　')}　― クリックでタスクボードへ</div></div>`;
+  el.style.display='';
+  el.onclick=()=>{try{if(typeof switchPage==='function')switchPage('cal');}catch(_p1010ec){try{console.warn('[packet 1010 click]',_p1010ec&&_p1010ec.message);}catch(_){}}};
+}
+// packet 1011: 過去 7 日サマリー mini card（deadline 範囲のタスク完了率、tasks 0 件なら非表示）
+function _p1011_render7DaySummary(){
+  const el=document.getElementById('p1011-week-summary');
+  if(!el)return;
+  if(typeof currentUser==='undefined' || !currentUser){el.style.display='none';return;}
+  if(typeof state==='undefined' || !state || !Array.isArray(state.tasks)){el.style.display='none';return;}
+  const isAdmin=currentUser.perm==='admin'||currentUser.perm==='owner';
+  const mi=members.findIndex(m=>m.uid===currentUser.uid);
+  const tasks=isAdmin?state.tasks:state.tasks.filter(t=>t.toIdx===mi||t.toIdx===null);
+  // 過去 7 日 (今日含む) の日付範囲
+  const d=new Date();d.setDate(d.getDate()-6);
+  const past7=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const ts=(typeof todayStr!=='undefined')?todayStr:'';
+  const inRange=tasks.filter(t=>t.deadline&&t.deadline>=past7&&t.deadline<=ts);
+  const doneCnt=inRange.filter(t=>t.done||t.status==='done').length;
+  const total=inRange.length;
+  if(total===0){el.style.display='none';return;}
+  const pct=Math.round(doneCnt/total*100);
+  const emoji=pct>=80?'🎉':pct>=50?'📈':'💪';
+  el.innerHTML=`<span class="p1011-week-emoji">${emoji}</span><div class="p1011-week-main"><div class="p1011-week-title">過去 7 日のタスク：${doneCnt} / ${total} 完了（${pct}%）</div><div class="p1011-week-sub">deadline 基準、${past7} 〜 ${ts}</div><div class="p1011-week-bar"><div class="p1011-week-fill" style="width:${pct}%"></div></div></div>`;
+  el.style.display='';
 }
 // packet 1006: AI 相談カードの sub テキストを role 別に最適化（純粋 textContent 更新、データ依存なし、CUSTOMER 系参照なし）
 function _p1006_personalizeAIConsul(){
