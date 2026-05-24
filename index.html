@@ -942,6 +942,14 @@ button,a{-webkit-tap-highlight-color:rgba(10,61,124,.12)}
   .p1015-ai-sub{font-size:10px;color:var(--t2)}
   body.dark .p1015-ai-meeting{background:linear-gradient(135deg,#2a1f4a,#1a153a);border-color:#5a3da8}
   body.dark .p1015-ai-title{color:#c4b5fd}
+  /* packet 1016: 朝/昼/夜 stats summary */
+  .p1016-home-stats{margin:0 14px 8px;padding:9px 12px;background:var(--s1);border:1.5px solid var(--bo);border-radius:var(--r2);display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .p1016-stats-period{font-size:10px;font-weight:800;color:var(--t3);letter-spacing:.3px;flex-shrink:0}
+  .p1016-stats-grid{display:flex;gap:8px;flex-wrap:wrap;flex:1;min-width:0}
+  .p1016-stat-chip{display:flex;align-items:center;gap:4px;padding:3px 9px;background:var(--s2);border-radius:10px;font-size:10px;font-weight:700;color:var(--t1);border:1px solid var(--bo)}
+  .p1016-stat-emoji{font-size:11px}
+  .p1016-stat-num{font-weight:800;color:var(--navy);margin-left:1px}
+  body.dark .p1016-stat-chip{background:var(--s2);border-color:var(--bo);color:var(--t1)}
   /* packet 1003: admin shortcuts mini panel */
   .p1003-admin-shortcuts{margin:0 14px 8px;padding:9px 12px;background:var(--s2);border:1.5px solid var(--bo);border-radius:var(--r2);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
   .p1003-admin-label{font-size:10px;font-weight:800;color:var(--gold2);letter-spacing:.3px;margin-right:4px}
@@ -1133,6 +1141,8 @@ body.task-dragging [data-id]:not(.dragging-this){opacity:1!important}
         <div id="p1014-manager-team" class="p1014-manager-team" style="display:none"></div>
         <!-- packet 1015: AI 会議 quick-link mini card -->
         <div id="p1015-ai-meeting" class="p1015-ai-meeting" style="display:none"></div>
+        <!-- packet 1016: 朝/昼/夜 stats summary（今日の予定 / 未完了 / 完了 件数）-->
+        <div id="p1016-home-stats" class="p1016-home-stats" style="display:none"></div>
         <div id="dash-content"></div>
       </div>
   <div class="page" id="page-accounts">
@@ -3451,7 +3461,7 @@ bindEvForm();
   try{if(typeof window._p490_flushPostLogin==='function')window._p490_flushPostLogin();}catch(_p490_flushErr){try{console.warn('[packet 490 showMainApp flush]',_p490_flushErr&&_p490_flushErr.message);}catch(_){}}
 }
 
-function switchPage(pg){if(pg==='crm'){pg='dash';/* packet 322: 顧客タブ強制無効化、dash に強制リダイレクト */}document.querySelectorAll('.ntab').forEach(b=>b.classList.toggle('on',b.dataset.pg===pg));document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));const pgEl=document.getElementById(`page-${pg}`);if(pgEl)pgEl.classList.add('on');if(pg==='dash'){renderDash();try{_p1000_renderHomeGreeting();}catch(_p1000e){try{console.warn('[packet 1000 greet]',_p1000e&&_p1000e.message);}catch(_){}}try{_p1003_renderAdminShortcuts();}catch(_p1003e){try{console.warn('[packet 1003 admin sc]',_p1003e&&_p1003e.message);}catch(_){}}try{_p1006_personalizeAIConsul();}catch(_p1006e){try{console.warn('[packet 1006 ai consul]',_p1006e&&_p1006e.message);}catch(_){}}try{_p1010_renderTaskAlert();}catch(_p1010e){try{console.warn('[packet 1010 task alert]',_p1010e&&_p1010e.message);}catch(_){}}try{_p1011_render7DaySummary();}catch(_p1011e){try{console.warn('[packet 1011 7day]',_p1011e&&_p1011e.message);}catch(_){}}try{_p1012_renderKPIMini();}catch(_p1012e){try{console.warn('[packet 1012 kpi mini]',_p1012e&&_p1012e.message);}catch(_){}}try{_p1013_renderDRReminder();}catch(_p1013e){try{console.warn('[packet 1013 dr reminder]',_p1013e&&_p1013e.message);}catch(_){}}try{_p1014_renderManagerTeam();}catch(_p1014e){try{console.warn('[packet 1014 mgr team]',_p1014e&&_p1014e.message);}catch(_){}}try{_p1015_renderAIMeetingLink();}catch(_p1015e){try{console.warn('[packet 1015 ai mtg]',_p1015e&&_p1015e.message);}catch(_){}}}if(pg==='accounts'){renderAccList();/* packet 490: accounts ページ表示時 packet 480/481 UI を bind */try{if(typeof window._p490_flushPostLogin==='function')window._p490_flushPostLogin();}catch(_){}}if(pg==='kintai'){ktViewUid=currentUser.perm==='admin'?null:currentUser.uid;renderKintaiPage();/* packet 490: kintai ページ表示時 packet 485 export UI を bind */try{if(typeof window._p485_initOnKintai==='function')window._p485_initOnKintai();}catch(_){}}if(pg==='cal')render();if(pg==='shift')renderShift();if(pg==='goal'){initGoalData();renderGoalPage();}if(pg==='report')renderReportPage();if(pg==='ai-status'){try{renderAIStatusPage();}catch(_p502_e){try{console.warn('[packet 502 switchPage]',_p502_e&&_p502_e.message);}catch(_){}}}if(pg==='aiteam')renderAITeamPage();if(pg==='memory'){try{renderMemoryPage();}catch(_p500_e){try{console.warn('[packet 500 switchPage]',_p500_e&&_p500_e.message);}catch(_){}}}if(pg==='member-workload')renderMemberWorkloadPage();if(pg==='ai-members')renderAIMembersPage();if(pg==='ai-org')renderAIOrgChartPage();if(pg==='realestate-knowledge')renderRealEstateKnowledgePage();if(pg==='routine')renderRoutinePage();if(pg==='sales-psy')renderSalesPsychologyPage();if(pg==='knowledge-portal')renderKnowledgePortalPage();if(pg==='role-knowledge')renderRoleKnowledgePage();if(pg==='knowledge-candidate-box'){try{renderKnowledgeCandidateBox();}catch(e){const r=document.getElementById('kc-cards');if(r)r.innerHTML='<div style="color:#b91c1c;padding:14px;background:#fef2f2;border-radius:6px;">AI 事典追加候補箱の読み込みに失敗しました。Console を確認してください。<br><code style="font-size:11px;">'+String(e&&e.message||e)+'</code></div>';}}}
+function switchPage(pg){if(pg==='crm'){pg='dash';/* packet 322: 顧客タブ強制無効化、dash に強制リダイレクト */}document.querySelectorAll('.ntab').forEach(b=>b.classList.toggle('on',b.dataset.pg===pg));document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));const pgEl=document.getElementById(`page-${pg}`);if(pgEl)pgEl.classList.add('on');if(pg==='dash'){renderDash();try{_p1000_renderHomeGreeting();}catch(_p1000e){try{console.warn('[packet 1000 greet]',_p1000e&&_p1000e.message);}catch(_){}}try{_p1003_renderAdminShortcuts();}catch(_p1003e){try{console.warn('[packet 1003 admin sc]',_p1003e&&_p1003e.message);}catch(_){}}try{_p1006_personalizeAIConsul();}catch(_p1006e){try{console.warn('[packet 1006 ai consul]',_p1006e&&_p1006e.message);}catch(_){}}try{_p1010_renderTaskAlert();}catch(_p1010e){try{console.warn('[packet 1010 task alert]',_p1010e&&_p1010e.message);}catch(_){}}try{_p1011_render7DaySummary();}catch(_p1011e){try{console.warn('[packet 1011 7day]',_p1011e&&_p1011e.message);}catch(_){}}try{_p1012_renderKPIMini();}catch(_p1012e){try{console.warn('[packet 1012 kpi mini]',_p1012e&&_p1012e.message);}catch(_){}}try{_p1013_renderDRReminder();}catch(_p1013e){try{console.warn('[packet 1013 dr reminder]',_p1013e&&_p1013e.message);}catch(_){}}try{_p1014_renderManagerTeam();}catch(_p1014e){try{console.warn('[packet 1014 mgr team]',_p1014e&&_p1014e.message);}catch(_){}}try{_p1015_renderAIMeetingLink();}catch(_p1015e){try{console.warn('[packet 1015 ai mtg]',_p1015e&&_p1015e.message);}catch(_){}}try{_p1016_renderHomeStats();}catch(_p1016e){try{console.warn('[packet 1016 home stats]',_p1016e&&_p1016e.message);}catch(_){}}}if(pg==='accounts'){renderAccList();/* packet 490: accounts ページ表示時 packet 480/481 UI を bind */try{if(typeof window._p490_flushPostLogin==='function')window._p490_flushPostLogin();}catch(_){}}if(pg==='kintai'){ktViewUid=currentUser.perm==='admin'?null:currentUser.uid;renderKintaiPage();/* packet 490: kintai ページ表示時 packet 485 export UI を bind */try{if(typeof window._p485_initOnKintai==='function')window._p485_initOnKintai();}catch(_){}}if(pg==='cal')render();if(pg==='shift')renderShift();if(pg==='goal'){initGoalData();renderGoalPage();}if(pg==='report')renderReportPage();if(pg==='ai-status'){try{renderAIStatusPage();}catch(_p502_e){try{console.warn('[packet 502 switchPage]',_p502_e&&_p502_e.message);}catch(_){}}}if(pg==='aiteam')renderAITeamPage();if(pg==='memory'){try{renderMemoryPage();}catch(_p500_e){try{console.warn('[packet 500 switchPage]',_p500_e&&_p500_e.message);}catch(_){}}}if(pg==='member-workload')renderMemberWorkloadPage();if(pg==='ai-members')renderAIMembersPage();if(pg==='ai-org')renderAIOrgChartPage();if(pg==='realestate-knowledge')renderRealEstateKnowledgePage();if(pg==='routine')renderRoutinePage();if(pg==='sales-psy')renderSalesPsychologyPage();if(pg==='knowledge-portal')renderKnowledgePortalPage();if(pg==='role-knowledge')renderRoleKnowledgePage();if(pg==='knowledge-candidate-box'){try{renderKnowledgeCandidateBox();}catch(e){const r=document.getElementById('kc-cards');if(r)r.innerHTML='<div style="color:#b91c1c;padding:14px;background:#fef2f2;border-radius:6px;">AI 事典追加候補箱の読み込みに失敗しました。Console を確認してください。<br><code style="font-size:11px;">'+String(e&&e.message||e)+'</code></div>';}}}
 // packet 1000: Phase 3 UI quick-win #1：role/time-aware home greeting card（純粋 UI 追加、SQL/API/Auth/DB 接続なし、CUSTOMER 系参照なし、本文書込なし）
 // packet 1001: 時間帯別 CTA ボタンを greeting カードに追加（タスク/日報/メモ 1 タップ）
 function _p1000_renderHomeGreeting(){
@@ -3605,6 +3615,43 @@ function _p1015_renderAIMeetingLink(){
   el.innerHTML=`<span class="p1015-ai-emoji">🧠</span><div class="p1015-ai-main"><div class="p1015-ai-title">AI 会議へ</div><div class="p1015-ai-sub">朝会・議論・複数視点 ― クリックで AI 会議ページへ</div></div>`;
   el.style.display='';
   el.onclick=()=>{try{if(typeof switchPage==='function')switchPage('aiteam');}catch(_p1015ec){try{console.warn('[packet 1015 click]',_p1015ec&&_p1015ec.message);}catch(_){}}};
+}
+// packet 1016: 朝/昼/夜 stats summary（今日の予定 / 未完了 / 完了 件数を時間帯別ラベル付で表示、staff/manager/admin 全 role 対応）
+function _p1016_renderHomeStats(){
+  const el=document.getElementById('p1016-home-stats');
+  if(!el)return;
+  if(typeof currentUser==='undefined' || !currentUser){el.style.display='none';return;}
+  if(typeof state==='undefined' || !state || !Array.isArray(state.tasks)){el.style.display='none';return;}
+  const isAdmin=currentUser.perm==='admin'||currentUser.perm==='owner';
+  const mi=members.findIndex(m=>m.uid===currentUser.uid);
+  const myTasks=isAdmin?state.tasks:state.tasks.filter(t=>t.toIdx===mi||t.toIdx===null);
+  const ts=(typeof todayStr!=='undefined')?todayStr:'';
+  const todayDeadline=myTasks.filter(t=>t.deadline===ts);
+  const todayPending=todayDeadline.filter(t=>!t.done&&t.status!=='done').length;
+  const todayDone=todayDeadline.filter(t=>t.done||t.status==='done').length;
+  // 今日のイベント数（自分の events）
+  let todayEvCnt=0;
+  try{
+    if(mi>=0 && state.events && state.events[mi]){
+      todayEvCnt=state.events[mi].filter(e=>e.date===ts).length;
+    }
+  }catch(_){}
+  // 時間帯ラベル
+  const h=new Date().getHours();
+  let period='今日のスニーク';
+  if(h>=5 && h<11) period='☀️ 朝のスニーク';
+  else if(h>=11 && h<17) period='☕ 昼のスニーク';
+  else if(h>=17 && h<22) period='🌆 夕のスニーク';
+  else period='🌙 夜のスニーク';
+  // 何も表示するものがない場合は非表示（全ゼロ）
+  if(todayDeadline.length===0 && todayEvCnt===0){el.style.display='none';return;}
+  let chips=[];
+  if(todayEvCnt>0)chips.push(`<span class="p1016-stat-chip"><span class="p1016-stat-emoji">📅</span>予定<span class="p1016-stat-num">${todayEvCnt}</span></span>`);
+  if(todayPending>0)chips.push(`<span class="p1016-stat-chip"><span class="p1016-stat-emoji">📋</span>未完了<span class="p1016-stat-num" style="color:#dc2626">${todayPending}</span></span>`);
+  if(todayDone>0)chips.push(`<span class="p1016-stat-chip"><span class="p1016-stat-emoji">✅</span>完了<span class="p1016-stat-num" style="color:#0d9e6e">${todayDone}</span></span>`);
+  if(chips.length===0){el.style.display='none';return;}
+  el.innerHTML=`<span class="p1016-stats-period">${period}</span><div class="p1016-stats-grid">${chips.join('')}</div>`;
+  el.style.display='';
 }
 // packet 1006: AI 相談カードの sub テキストを role 別に最適化（純粋 textContent 更新、データ依存なし、CUSTOMER 系参照なし）
 function _p1006_personalizeAIConsul(){
