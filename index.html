@@ -1064,6 +1064,39 @@ button,a{-webkit-tap-highlight-color:rgba(10,61,124,.12)}
     ::-webkit-scrollbar-thumb{background:rgba(0,0,0,.15);border-radius:3px}
     body.dark ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.18)}
   }
+  /* packet 1401-1499: Phase 3 仕上げ — accounts / kintai / shift / member-workload / routine final polish
+     1401-1419 home final （CSS は packet 1361-1370 で適用済、docs のみ）
+     1420-1430 Kanban final （CSS は packet 1371-1380 で適用済、docs のみ）
+     1431-1448 report / AI meeting （CSS は packet 1321-1340 で適用済、docs のみ）
+     1449-1467 memory / KPI （CSS は packet 1341-1360 で適用済、docs のみ）
+     1468-1487 accounts/kintai/shift/member-workload/routine/portal/AI 系（本 CSS で適用）
+     1488-1499 全ページ docs */
+  #page-accounts .card,#page-kintai .card,#page-shift .card,#page-member-workload .card,#page-routine .card{transition:box-shadow .12s ease}
+  #page-accounts .card:hover,#page-kintai .card:hover,#page-shift .card:hover,#page-member-workload .card:hover,#page-routine .card:hover{box-shadow:0 2px 6px rgba(0,0,0,.06)}
+  @media(max-width:700px){
+    #page-accounts .sp,#page-kintai .sp,#page-shift .sp,#page-member-workload .sp,#page-routine .sp{padding:10px 12px}
+    #page-accounts .pgh,#page-kintai .pgh,#page-shift .pgh,#page-member-workload .pgh,#page-routine .pgh{flex-direction:column;align-items:flex-start;gap:6px}
+    #page-accounts input,#page-kintai input,#page-shift input,#page-member-workload input,#page-routine input,
+    #page-accounts select,#page-kintai select,#page-shift select,#page-member-workload select,#page-routine select{font-size:16px;min-height:38px}
+    #page-accounts button,#page-kintai button,#page-shift button,#page-member-workload button,#page-routine button{min-height:36px}
+  }
+  #page-accounts .pbadge,#page-kintai .pbadge,#page-shift .pbadge,#page-member-workload .pbadge{font-weight:700}
+  #page-accounts .acc-row,#page-accounts .account-item{transition:background .12s}
+  #page-accounts .acc-row:hover,#page-accounts .account-item:hover{background:var(--s2)}
+  body.dark #page-accounts .card:hover,body.dark #page-kintai .card:hover,body.dark #page-shift .card:hover,
+  body.dark #page-member-workload .card:hover,body.dark #page-routine .card:hover{box-shadow:0 2px 6px rgba(0,0,0,.4)}
+  /* packet 1480-1487: knowledge portal / AI 系ページ共通 polish */
+  #page-knowledge-portal .card,#page-ai-status .card,#page-ai-members .card,#page-ai-org .card,
+  #page-realestate-knowledge .card,#page-sales-psy .card,#page-role-knowledge .card,
+  #page-knowledge-candidate-box .card{transition:box-shadow .12s}
+  #page-knowledge-portal .card:hover,#page-ai-status .card:hover,#page-ai-members .card:hover,#page-ai-org .card:hover,
+  #page-realestate-knowledge .card:hover,#page-sales-psy .card:hover,#page-role-knowledge .card:hover,
+  #page-knowledge-candidate-box .card:hover{box-shadow:0 2px 6px rgba(0,0,0,.06)}
+  @media(max-width:700px){
+    #page-knowledge-portal .sp,#page-ai-status .sp,#page-ai-members .sp,#page-ai-org .sp,
+    #page-realestate-knowledge .sp,#page-sales-psy .sp,#page-role-knowledge .sp,
+    #page-knowledge-candidate-box .sp{padding:10px 12px}
+  }
   /* packet 1321-1330: 日報 role 別 summary + empty + mobile + CTA polish（CSS only）*/
   #page-report .role-summary,#page-report .dr-summary-card{padding:10px 12px;border-radius:var(--r2);border:1px solid var(--bo);background:var(--s1);margin-bottom:10px}
   #page-report .role-summary[data-role="staff"]{border-left:3px solid #10b981}
