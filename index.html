@@ -1064,6 +1064,34 @@ button,a{-webkit-tap-highlight-color:rgba(10,61,124,.12)}
     ::-webkit-scrollbar-thumb{background:rgba(0,0,0,.15);border-radius:3px}
     body.dark ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.18)}
   }
+  /* packet 1250-1269: 日報 viewer + AI 会議 viewer polish（CSS only / 既存ページに上塗り）
+     1250 日報 viewer 余白 / 1251 empty state / 1252 mobile / 1253 role 説明 placeholder
+     1254 記憶庫導線 placeholder / 1255 AI 相談導線 placeholder / 1256 future backlog / 1257-1259 docs
+     1260 AI 会議 余白 / 1261 empty / 1262 role 説明 / 1263 記憶庫導線 / 1264 テーマ例 / 1265 mobile / 1266-1269 docs */
+  #page-report #report-content:empty::after{content:"日報がまだありません　📝";display:block;text-align:center;padding:40px 16px;color:var(--t4);font-size:12px;font-weight:600;line-height:2}
+  #page-report .card,#page-report .dr-row,#page-report .report-row,#page-report .dr-item{transition:box-shadow .12s ease,transform .12s ease}
+  #page-report .card:hover,#page-report .dr-row:hover,#page-report .report-row:hover,#page-report .dr-item:hover{box-shadow:0 2px 6px rgba(0,0,0,.06)}
+  @media(max-width:700px){
+    #page-report #report-content{padding:10px 12px !important}
+    #page-report .card,#page-report .dr-row,#page-report .report-row,#page-report .dr-item{margin-left:0;margin-right:0}
+  }
+  #page-aiteam .ai-team-card{transition:box-shadow .12s ease}
+  #page-aiteam .ai-team-card:hover{box-shadow:0 2px 8px rgba(0,0,0,.07)}
+  #page-aiteam .ai-team-input:focus{box-shadow:0 0 0 3px rgba(11,42,103,.08)}
+  #page-aiteam .ai-team-btn{transition:filter .12s ease,transform .12s ease}
+  #page-aiteam .ai-team-btn:hover{filter:brightness(1.08)}
+  #page-aiteam .ai-team-btn:active{transform:scale(.98)}
+  @media(max-width:700px){
+    #page-aiteam .ai-team-card{padding:12px;margin:0 0 10px}
+    #page-aiteam .ai-team-btn{padding:14px;font-size:15px}
+  }
+  body.dark #page-report .card:hover,body.dark #page-report .dr-row:hover{box-shadow:0 2px 6px rgba(0,0,0,.4)}
+  body.dark #page-aiteam .ai-team-card:hover{box-shadow:0 2px 8px rgba(0,0,0,.5)}
+  /* packet 1270-1289: dashboard v2 placeholder（store-level summary 用予約 class、JS は未実装）*/
+  .p1270-dash-v2-host{margin:0 14px 10px;padding:12px 14px;background:linear-gradient(135deg,#fefce8,#fef3c7);border:1.5px dashed #fcd34d;border-radius:var(--r2);text-align:center;color:#78350f;font-size:11px;font-weight:700;display:none}
+  .p1270-dash-v2-host .p1270-dash-v2-label{font-size:9px;font-weight:800;letter-spacing:.5px;color:#92400e;margin-bottom:4px}
+  /* packet 1290-1299: staff home v2 placeholder（focus polish 用、display:none で予約）*/
+  .p1290-staff-v2-host{display:none}
   /* packet 1230-1249: 「数字と推移」 sparkline / mini chart 共通 CSS（経営 OS 化の基礎）
      1230 weekly trend card / 1235 undone trend / 1241 trend link
      1245 sparkline class / 1246 mini chart 共通 / 1247 empty chart / 1248 数字 hover / 1249 docs */
