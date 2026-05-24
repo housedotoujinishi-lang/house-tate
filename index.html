@@ -3606,7 +3606,17 @@ function _p1000_renderHomeGreeting(){
   // packet 1002: 日付 + 曜日 + 営業日表示を sub に統合
   const wd=['日','月','火','水','木','金','土'];
   const isWeekend=now.getDay()===0||now.getDay()===6;
-  const dateStr=`${now.getMonth()+1}/${now.getDate()}（${wd[now.getDay()]}）`+(isWeekend?' 休日':' 営業日');
+  // packet 1034: 今月残り営業日 (土日除外、祝日は未考慮で平日 ≈ 営業日)
+  let bizRemaining=0;
+  try{
+    const lastDay=new Date(now.getFullYear(),now.getMonth()+1,0).getDate();
+    for(let d=now.getDate(); d<=lastDay; d++){
+      const dd=new Date(now.getFullYear(),now.getMonth(),d);
+      const dw=dd.getDay();
+      if(dw!==0 && dw!==6) bizRemaining++;
+    }
+  }catch(_){}
+  const dateStr=`${now.getMonth()+1}/${now.getDate()}（${wd[now.getDay()]}）`+(isWeekend?' 休日':' 営業日')+(bizRemaining>0?`　│　今月残り ${bizRemaining} 営業日`:'');
   let emoji='👋', hello='こんにちは', sub='今日もよろしくお願いします';
   let ctaPg='cal', ctaLbl='📋 タスクボード';
   if(h>=5 && h<11){emoji='☀️';hello='おはようございます';sub='今日の優先タスクを確認しましょう';ctaPg='cal';ctaLbl='📋 タスクを確認';}
