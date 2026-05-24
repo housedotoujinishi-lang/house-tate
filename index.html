@@ -331,6 +331,10 @@ details[open] .muc-mgr-summary::before{transform:rotate(90deg)}
   .mob-cmd-todo{background:linear-gradient(135deg,#15803d 0%,#22c55e 100%);border-color:#15803d;color:#fff}
   .mob-cmd-todo .mob-cmd-t{color:#fff}
   .mob-cmd-todo .mob-cmd-body{color:rgba(255,255,255,.88)}
+  /* packet 1005: 日報 card は奇数番目で 2 col span（モバイル 5 枚配置のバランス）*/
+  .mob-cmd-daily-report{grid-column:span 2;background:linear-gradient(135deg,#7c2d12 0%,#c2410c 100%);border-color:#7c2d12;color:#fff}
+  .mob-cmd-daily-report .mob-cmd-t{color:#fff}
+  .mob-cmd-daily-report .mob-cmd-body{color:rgba(255,255,255,.88)}
 }
 /* packet 409: AI 相談窓口（ホームカード + モーダル）*/
 .ai-consul-home-card{margin:12px;padding:0;background:linear-gradient(135deg,#0a3d7c 0%,#1e5fa8 100%);border-radius:14px;cursor:pointer;box-shadow:0 3px 10px rgba(10,61,124,.18);transition:transform .15s,box-shadow .15s;color:#fff;overflow:hidden;border:0}
