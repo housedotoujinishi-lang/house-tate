@@ -399,6 +399,19 @@ button,a{-webkit-tap-highlight-color:rgba(10,61,124,.12)}
 .bsv{padding:4px 11px;border-radius:10px;border:none;background:var(--navy);color:#fff;font-size:9px;font-weight:700;cursor:pointer}
 .tbbody{flex:1;overflow-y:auto;padding:6px 8px;max-height:calc(100vh - 260px)}
 .tbbody.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;align-items:start}
+/* packet 1007 hotfix: 対応中ボードの「✔完了」が押せない + ルーティン行が重なる問題
+   原因：#tb-body の max-height が .kanban-board の height より小さく overflow、routine section が
+   対応中カラム末尾に被る。kcard-done-btn の z-index 未指定で routine card が click を吸収。
+   修正：#tb-body は内容に合わせて伸ばす（max-height 解除）/ routine section に clear + relative + z-index 1
+   / kcard-done-btn を pointer-events:auto + position:relative + z-index 5 で確実に押せるように */
+#tb-body{max-height:none;overflow:visible}
+.tb-routine-section{position:relative;z-index:1;clear:both;margin-top:18px}
+.kcard-done-btn{pointer-events:auto;position:relative;z-index:5}
+.kcard{position:relative;z-index:0}
+@media(max-width:700px){
+  .tb-routine-section{margin-top:14px}
+  .kanban-col{position:relative;z-index:0}
+}
 .tsec{margin-bottom:9px}
 .tsech{font-size:9px;font-weight:800;color:var(--t3);letter-spacing:.5px;margin-bottom:4px;display:flex;align-items:center;gap:4px;padding:4px 7px;background:var(--s2);border-radius:5px;border:1px solid var(--bo)}
 .tsd{width:6px;height:6px;border-radius:50%;flex-shrink:0}
