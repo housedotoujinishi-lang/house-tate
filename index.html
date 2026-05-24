@@ -419,17 +419,35 @@ button,a{-webkit-tap-highlight-color:rgba(10,61,124,.12)}
    親 board の固定 height に強制 stretch される。
    修正方針：
    - .tbbody.grid に grid-auto-rows:max-content（行高さを内容にfit、stretch しない）
-   - .tb-routine-section を独立 row へ（grid-column:1 / -1 で 1 行占有、kanban-board と別 row）
    - .kanban-board の固定 height を min-height に降格（内容で伸びる、内部 col 強制 stretch 解除）
    - .kanban-col に align-self:start + height:auto（grid stretch を明示的に解除、内容量で高さ決定）
-   - 不要な height:100% は元から無し（確認済） */
+   - 不要な height:100% は元から無し（確認済）
+   - packet 1009 で 4 col Kanban 化、routine の grid-column:1/-1 は撤回（routine を 3 番目 col に）*/
 .tbbody.grid{grid-auto-rows:max-content;align-items:start}
-.tb-routine-section{grid-column:1 / -1;align-self:start;width:100%}
+.tb-routine-section{align-self:start;width:100%}
 .kanban-board{height:auto;min-height:240px;align-items:start}
 .kanban-col{align-self:start;height:auto}
 @media(max-width:700px){
   .kanban-board{min-height:0}
   .kanban-col{max-height:none}
+}
+/* packet 1009 hotfix: PC で 4 列 Kanban 表示（未着手 / 対応中 / ルーティン / 完了）
+   現象：完了ボードが右端で隠れる、routine の独立 row 化で 4 列構成が崩れる
+   修正方針：board mode (.tbbody.grid) を 4 col minmax(0,1fr) grid に変更、.kanban-board に display:contents
+   を当てて 3 子 col (todo/doing/done) を親 grid に flatten。order property で 未着手→対応中→routine→完了 に並替。
+   routine は 3 番目セルに収める。完了 col は order:4 で右端固定。
+   各 col に max-height + overflow:auto で内部スクロール、画面外はみ出し防止。
+   mobile (max-width:700px) は単列縦積み（既存維持）。
+   既存 drag/drop、kcard-done-btn、tasks 追加ボタン、routine click 全て維持。 */
+@media(min-width:701px){
+  .tbbody.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;align-items:start;grid-auto-rows:max-content;overflow-x:hidden}
+  .tbbody.grid .kanban-board{display:contents}
+  .tbbody.grid .kanban-col{align-self:start;min-width:0;max-height:calc(100vh - 200px);overflow:hidden;display:flex;flex-direction:column;background:var(--s2);border-radius:12px}
+  .tbbody.grid .kanban-col-body{flex:1;overflow-y:auto;min-height:0}
+  .tbbody.grid .kanban-col[data-col="todo"]{order:1}
+  .tbbody.grid .kanban-col[data-col="doing"]{order:2}
+  .tbbody.grid .tb-routine-section{order:3;grid-column:auto;width:auto;margin:0;align-self:start;max-height:calc(100vh - 200px);overflow-y:auto;min-width:0}
+  .tbbody.grid .kanban-col[data-col="done"]{order:4}
 }
 .tsec{margin-bottom:9px}
 .tsech{font-size:9px;font-weight:800;color:var(--t3);letter-spacing:.5px;margin-bottom:4px;display:flex;align-items:center;gap:4px;padding:4px 7px;background:var(--s2);border-radius:5px;border:1px solid var(--bo)}
