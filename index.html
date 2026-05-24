@@ -950,6 +950,37 @@ button,a{-webkit-tap-highlight-color:rgba(10,61,124,.12)}
   .p1016-stat-emoji{font-size:11px}
   .p1016-stat-num{font-weight:800;color:var(--navy);margin-left:1px}
   body.dark .p1016-stat-chip{background:var(--s2);border-color:var(--bo);color:var(--t1)}
+  /* packet 1037-1048: home mini card 共通 polish（密度/tap target/共通余白/dark mode 一括）
+     packet 1037 密度 / 1038 表示優先 / 1039 admin専用 / 1040 店長専用 / 1041 staff専用
+     packet 1042 朝モード / 1043 昼 / 1044 夕 / 1045 夜 / 1046 placeholder統一 / 1047 hover統一 / 1048 tap target */
+  .p1000-home-greet,.p1003-admin-shortcuts,.p1010-task-alert,.p1011-week-summary,
+  .p1012-kpi-mini,.p1013-dr-reminder,.p1014-manager-team,.p1015-ai-meeting,
+  .p1016-home-stats,.p1017-store-sales,.p1018-today-top3,.p1020-next-one,
+  .p1021-manager-top3,.p1022-ai-themes,.p1024-memory-link,.p1032-routine-prog,
+  .p1033-morning-rep{
+    box-sizing:border-box;
+    /* packet 1048: tap target 確保（44px 基準を満たす button のみ。card 全体は内容次第）*/
+  }
+  /* packet 1043: ホーム上部余白最適化（greeting と次 card の間 10→8）*/
+  .p1000-home-greet+*{margin-top:-2px}
+  /* packet 1046: 空データ placeholder 統一 class */
+  .p1046-empty{padding:14px 12px;text-align:center;color:var(--t4);font-size:10.5px;font-weight:600;line-height:1.6}
+  .p1046-empty-emoji{font-size:18px;display:block;margin-bottom:5px}
+  /* packet 1048: ホームカード内 button の tap target */
+  .p1000-home-greet button,.p1003-admin-shortcuts button,.p1010-task-alert button,
+  .p1012-kpi-mini button,.p1013-dr-reminder button,.p1018-today-top3 button,
+  .p1021-manager-top3 button,.p1033-morning-rep button{min-height:32px}
+  @media(max-width:700px){
+    .p1000-home-greet,.p1003-admin-shortcuts,.p1010-task-alert,.p1011-week-summary,
+    .p1012-kpi-mini,.p1013-dr-reminder,.p1014-manager-team,.p1015-ai-meeting,
+    .p1016-home-stats,.p1017-store-sales,.p1018-today-top3,.p1020-next-one,
+    .p1021-manager-top3,.p1022-ai-themes,.p1024-memory-link,.p1032-routine-prog,
+    .p1033-morning-rep{margin-left:10px;margin-right:10px;padding-left:10px;padding-right:10px}
+    /* packet 1047: モバイル hover を transition 抑制（タップ後の浮きを防ぐ）*/
+    .p1010-task-alert:hover,.p1013-dr-reminder:hover,.p1014-manager-team:hover,
+    .p1015-ai-meeting:hover,.p1017-store-sales:hover,.p1020-next-one:hover,
+    .p1024-memory-link:hover,.p1032-routine-prog:hover,.p1033-morning-rep:hover{background-image:none}
+  }
   /* packet 1031: home mini card 全体 hover/transition 統一（cursor:pointer の card に共通 polish）*/
   .p1000-home-greet,.p1003-admin-shortcuts,.p1010-task-alert,.p1011-week-summary,.p1012-kpi-mini,.p1013-dr-reminder,.p1014-manager-team,.p1015-ai-meeting,.p1016-home-stats,.p1017-store-sales,.p1018-today-top3,.p1020-next-one,.p1021-manager-top3,.p1022-ai-themes,.p1024-memory-link,.p1032-routine-prog,.p1033-morning-rep{transition:transform .12s ease,box-shadow .15s ease}
   .p1010-task-alert:active,.p1013-dr-reminder:active,.p1014-manager-team:active,.p1015-ai-meeting:active,.p1017-store-sales:active,.p1020-next-one:active,.p1024-memory-link:active,.p1032-routine-prog:active,.p1033-morning-rep:active{transform:scale(.985)}
