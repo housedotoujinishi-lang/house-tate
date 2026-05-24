@@ -3900,6 +3900,7 @@ function _p1024_renderMemoryLink(){
   el.onclick=()=>{try{if(typeof switchPage==='function')switchPage('memory');}catch(_p1024ec){try{console.warn('[packet 1024 click]',_p1024ec&&_p1024ec.message);}catch(_){}}};
 }
 // packet 1032: 今日のルーティン進捗 mini（getTodayRoutinesForUser + getRoutineDoneIds 読込、0 件は非表示、click で routine ページへ）
+// packet 1036: 残ルーティン上位 1 件の title をインライン表示
 function _p1032_renderRoutineProg(){
   const el=document.getElementById('p1032-routine-prog');
   if(!el)return;
@@ -3916,7 +3917,19 @@ function _p1032_renderRoutineProg(){
   let titleText;
   if(remaining===0)titleText=`✓ 今日のルーティン全て完了（${done}/${total}）`;
   else titleText=`📋 今日のルーティン ${done}/${total}（残 ${remaining} 件）`;
-  el.innerHTML=`<span class="p1032-routine-emoji">${remaining===0?'🎉':'📋'}</span><div class="p1032-routine-main"><div class="p1032-routine-title">${titleText}</div><div class="p1032-routine-bar"><div class="p1032-routine-fill" style="width:${pct}%"></div></div></div>`;
+  // packet 1036: 残 1 件以上ある時、未完了で priority が high の最初の 1 件を inline 表示
+  const esc=s=>String(s||'').replace(/[<>&"']/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c]||c));
+  const undoneList=list.filter(r=>!(doneIds||[]).includes(r.id));
+  const priW={high:0,mid:1,low:2};
+  const next=undoneList.sort((a,b)=>(priW[a.priority]??1)-(priW[b.priority]??1))[0];
+  let nextLine='';
+  if(next){
+    const priIcon=next.priority==='high'?'🔴 高':next.priority==='mid'?'🟡 中':'⚪';
+    nextLine=`<div style="font-size:10px;color:var(--t2);margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">次：${priIcon} ${esc(next.title)}${next.time?'　⏰ '+esc(next.time):''}</div>`;
+  }
+  el.setAttribute('role','button');
+  el.setAttribute('aria-label','今日のルーティン進捗、クリックでルーティンページへ');
+  el.innerHTML=`<span class="p1032-routine-emoji">${remaining===0?'🎉':'📋'}</span><div class="p1032-routine-main"><div class="p1032-routine-title">${titleText}</div><div class="p1032-routine-bar"><div class="p1032-routine-fill" style="width:${pct}%"></div></div>${nextLine}</div>`;
   el.style.display='';
   el.onclick=()=>{try{if(typeof switchPage==='function')switchPage('routine');}catch(_p1032ec){try{console.warn('[packet 1032 click]',_p1032ec&&_p1032ec.message);}catch(_){}}};
 }
@@ -3934,6 +3947,9 @@ function _p1033_renderMorningRep(){
   // 平日 (月-金) 7-10 時のみ
   if(dow===0||dow===6){el.style.display='none';return;}
   if(h<7||h>=10){el.style.display='none';return;}
+  // packet 1035: accessibility
+  el.setAttribute('role','button');
+  el.setAttribute('aria-label','朝の確認タイム、クリックで AI 会議ページへ');
   el.innerHTML=`<span class="p1033-morning-emoji">☀️</span><div class="p1033-morning-main"><div class="p1033-morning-title">朝の確認タイム</div><div class="p1033-morning-sub">今日のメンバー出勤・タスク・朝会議題を 5 分で整理 ― クリックで AI 会議へ</div></div><button type="button" style="padding:6px 12px;background:#c2410c;color:#fff;border:0;border-radius:var(--r);font-size:11px;font-weight:800;cursor:pointer;flex-shrink:0">朝会 →</button>`;
   el.style.display='';
   el.onclick=()=>{try{if(typeof switchPage==='function')switchPage('aiteam');}catch(_p1033ec){try{console.warn('[packet 1033 click]',_p1033ec&&_p1033ec.message);}catch(_){}}};
