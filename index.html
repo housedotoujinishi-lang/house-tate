@@ -1064,7 +1064,54 @@ button,a{-webkit-tap-highlight-color:rgba(10,61,124,.12)}
     ::-webkit-scrollbar-thumb{background:rgba(0,0,0,.15);border-radius:3px}
     body.dark ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.18)}
   }
-  /* packet 1310-1320: 数字 mini batch 強化（経営 OS / 店長 daily check-in / staff weekly chart）
+  /* packet 1321-1330: 日報 role 別 summary + empty + mobile + CTA polish（CSS only）*/
+  #page-report .role-summary,#page-report .dr-summary-card{padding:10px 12px;border-radius:var(--r2);border:1px solid var(--bo);background:var(--s1);margin-bottom:10px}
+  #page-report .role-summary[data-role="staff"]{border-left:3px solid #10b981}
+  #page-report .role-summary[data-role="manager"]{border-left:3px solid #7c3aed}
+  #page-report .role-summary[data-role="admin"]{border-left:3px solid #e11d48}
+  #page-report .dr-cta-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+  #page-report .dr-cta-row .pbtn,#page-report .dr-cta-row .gbtn{flex:1;min-width:120px}
+  @media(max-width:700px){#page-report .dr-cta-row{flex-direction:column}#page-report .dr-cta-row .pbtn,#page-report .dr-cta-row .gbtn{width:100%}}
+  /* packet 1331-1340: AI 会議 履歴 + role 別 + テーマ + mobile polish 第二弾 */
+  #page-aiteam .ai-team-history,#page-aiteam .ai-team-recent{padding:10px 12px;background:var(--s1);border:1px solid var(--bo);border-radius:var(--r2);margin-bottom:10px}
+  #page-aiteam .ai-team-history-row,#page-aiteam .ai-team-recent-row{padding:6px 8px;border-bottom:1px solid var(--bo);font-size:11px;display:flex;justify-content:space-between;gap:8px}
+  #page-aiteam .ai-team-history-row:last-child,#page-aiteam .ai-team-recent-row:last-child{border-bottom:none}
+  #page-aiteam .ai-team-history-row:hover,#page-aiteam .ai-team-recent-row:hover{background:var(--s2)}
+  #page-aiteam .ai-team-empty{padding:30px 14px;text-align:center;color:var(--t4);font-size:11px;font-weight:600}
+  /* packet 1341-1350: 記憶庫 search + filter + category chip polish */
+  #page-memory .memo-search,#page-memory input[type="search"],#page-memory input[placeholder*="検索"]{padding:8px 12px;border:1.5px solid var(--bo);border-radius:8px;font-size:13px;width:100%;box-sizing:border-box;transition:border-color .12s,box-shadow .12s}
+  #page-memory .memo-search:focus,#page-memory input[type="search"]:focus,#page-memory input[placeholder*="検索"]:focus{border-color:var(--navy);box-shadow:0 0 0 3px rgba(11,42,103,.08);outline:none}
+  #page-memory .memo-filter-chips,#page-memory .filter-chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+  #page-memory .memo-chip,#page-memory .filter-chip{padding:4px 10px;border:1px solid var(--bo);background:var(--s2);border-radius:14px;font-size:11px;font-weight:700;cursor:pointer;transition:all .12s}
+  #page-memory .memo-chip:hover,#page-memory .filter-chip:hover{background:var(--navy-lt);border-color:var(--navy)}
+  #page-memory .memo-chip.active,#page-memory .filter-chip.active{background:var(--navy);color:#fff;border-color:var(--navy)}
+  #page-memory .memo-empty{padding:30px 14px;text-align:center;color:var(--t4);font-size:11px;font-weight:600}
+  @media(max-width:700px){#page-memory .memo-filter-chips{margin:6px 0}#page-memory .memo-chip,#page-memory .filter-chip{padding:5px 9px}}
+  /* packet 1351-1360: KPI goal page polish（progress / warning / good / empty）*/
+  #page-goal .progress-bar,#page-goal .pbar,#page-goal .kpi-progress{height:8px;border-radius:4px;background:var(--s2);overflow:hidden;position:relative}
+  #page-goal .progress-bar-fill,#page-goal .pbar-fill,#page-goal .kpi-progress-fill{height:100%;border-radius:4px;transition:width .5s cubic-bezier(.4,0,.2,1)}
+  #page-goal .kpi-warning{background:#fef2f2;border-left:3px solid #dc2626;padding:8px 10px;border-radius:6px;font-size:11px;font-weight:700;color:#7f1d1d}
+  #page-goal .kpi-good{background:#ecfdf5;border-left:3px solid #10b981;padding:8px 10px;border-radius:6px;font-size:11px;font-weight:700;color:#064e3b}
+  #page-goal .kpi-empty{padding:24px 14px;text-align:center;color:var(--t4);font-size:11px;font-weight:600}
+  body.dark #page-goal .kpi-warning{background:#3d1515;color:#fca5a5}
+  body.dark #page-goal .kpi-good{background:#0f2a1f;color:#86efac}
+  @media(max-width:700px){#page-goal .pgh{flex-direction:column;align-items:flex-start;gap:6px}}
+  /* packet 1361-1370: home 最終 polish（role order / 密度 / mobile / dark / empty / focus-visible / reduced-motion / no-h-scroll）*/
+  #page-dash{overflow-x:hidden}
+  #page-dash .sp{max-width:100%;overflow-x:hidden}
+  @media(max-width:700px){#page-dash .pgh{padding-left:10px;padding-right:10px}}
+  /* packet 1371-1380: Kanban 最終 polish（mobile / empty / deadline / done btn / routine / 4col proof）*/
+  @media(max-width:700px){
+    .tbbody.grid{grid-template-columns:1fr !important;display:grid !important}
+    .tbbody.grid .kanban-board{display:contents}
+    .tbbody.grid .kanban-col{border-top-width:2px;margin-bottom:6px}
+    .tbbody.grid .kanban-col-hdr{padding:7px 10px 5px;font-size:11px;position:sticky;top:0;background:var(--s1);z-index:2}
+    .tbbody.grid .tb-routine-section{padding:8px 10px;font-size:11px}
+    .tbbody.grid .kcard-done-btn{min-height:34px}
+  }
+  .tbbody.grid .kanban-col[data-col="done"] .kcard-done-btn{opacity:.6}
+  .tbbody.grid .kcard{position:relative}
+  /* packet 1310-1320: 数字 mini batch 強化（経営 OS / 店長 daily check-in / staff weekly chart）*/
      1310 daily-checkin card / 1311 staff weekly chart（p1245 共通 host 再利用）
      1312-1319 placeholder（admin 月次 / weekly summary 系、各 backlog）
      1320 batch docs */
