@@ -3322,13 +3322,20 @@ function _p1000_renderHomeGreeting(){
   const el=document.getElementById('p1000-home-greet');
   if(!el)return;
   if(typeof currentUser==='undefined' || !currentUser){el.style.display='none';return;}
-  const h=new Date().getHours();
+  const now=new Date();
+  const h=now.getHours();
+  // packet 1002: 日付 + 曜日 + 営業日表示を sub に統合
+  const wd=['日','月','火','水','木','金','土'];
+  const isWeekend=now.getDay()===0||now.getDay()===6;
+  const dateStr=`${now.getMonth()+1}/${now.getDate()}（${wd[now.getDay()]}）`+(isWeekend?' 休日':' 営業日');
   let emoji='👋', hello='こんにちは', sub='今日もよろしくお願いします';
   let ctaPg='cal', ctaLbl='📋 タスクボード';
   if(h>=5 && h<11){emoji='☀️';hello='おはようございます';sub='今日の優先タスクを確認しましょう';ctaPg='cal';ctaLbl='📋 タスクを確認';}
   else if(h>=11 && h<17){emoji='☕';hello='こんにちは';sub='午後の進捗を確認しましょう';ctaPg='cal';ctaLbl='📋 タスクボード';}
   else if(h>=17 && h<22){emoji='🌆';hello='お疲れさまです';sub='日報入力 / 翌日の準備を';ctaPg='daily-report';ctaLbl='📝 日報を書く';}
   else {emoji='🌙';hello='夜遅くまでお疲れさまです';sub='ゆっくり休んでください';ctaPg='memo';ctaLbl='📒 メモを残す';}
+  if(isWeekend){sub='休日です。お疲れさまでした';}
+  sub=`${dateStr}　│　${sub}`;
   const isAdmin=currentUser.perm==='admin';
   const isOwner=currentUser.perm==='owner';
   const isHighPerm=isAdmin||isOwner;
