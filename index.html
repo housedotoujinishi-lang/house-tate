@@ -30366,6 +30366,418 @@ function _p500_buildCandidateFromPayload(payload){
   }
 })();
 // ==== ここまで packet 596 記憶庫 タグ統計 UI ====
+
+// ==== ここから packet 597 記憶庫 priority 別件数 UI ====
+(function _p597_priority_stats(){
+  'use strict';
+  function _p597_escapeHtml(s){
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  function _p597_aggregate(){
+    const store = (window._p500_memoryStore && window._p500_memoryStore.slice) ? window._p500_memoryStore.slice() : [];
+    const counts = {};
+    for(let i=0;i<store.length;i++){
+      const m = store[i] || {};
+      const p = (typeof m.priority === 'string' && m.priority) ? m.priority
+              : (typeof m.importance_level === 'string' && m.importance_level) ? m.importance_level
+              : '(未設定)';
+      counts[p] = (counts[p] || 0) + 1;
+    }
+    // 並び順：high → mid → low → 未設定 → 他はアルファベット順
+    const order = ['high','mid','low','medium','urgent','critical','(未設定)'];
+    const rows = [];
+    for(let i=0;i<order.length;i++){
+      const k = order[i];
+      if(typeof counts[k] === 'number'){ rows.push({ priority: k, count: counts[k] }); delete counts[k]; }
+    }
+    const rest = Object.keys(counts).sort();
+    for(let i=0;i<rest.length;i++){ rows.push({ priority: rest[i], count: counts[rest[i]] }); }
+    return { total: store.length, rows: rows };
+  }
+  function _p597_color(p){
+    if(p === 'high' || p === 'urgent' || p === 'critical') return '#dc2626';
+    if(p === 'mid' || p === 'medium') return '#d97706';
+    if(p === 'low') return '#16a34a';
+    if(p === '(未設定)') return '#94a3b8';
+    return '#7c3aed';
+  }
+  function _p597_render(){
+    try{
+      const out = document.getElementById('p597-output');
+      if(!out) return;
+      const agg = _p597_aggregate();
+      out.style.display = 'block';
+      if(agg.total === 0){
+        out.innerHTML = '<div style="color:#94a3b8;font-size:11px;padding:6px 0">記憶が 0 件です。</div>';
+        return;
+      }
+      let maxCount = 1;
+      for(let i=0;i<agg.rows.length;i++){ if(agg.rows[i].count > maxCount) maxCount = agg.rows[i].count; }
+      let html = '';
+      html += '<div style="font-weight:800;color:#7c2d12;margin-bottom:6px">🚦 packet 597：priority 別件数（対象 ' + agg.total + ' 件 / ' + agg.rows.length + ' レベル）</div>';
+      html += '<table style="width:100%;font-size:11px;border-collapse:collapse;margin-bottom:8px">';
+      html += '<tr><th style="text-align:left;padding:3px 6px;background:#fed7aa;color:#7c2d12;border:1px solid #fdba74">priority</th><th style="text-align:right;padding:3px 6px;background:#fed7aa;color:#7c2d12;border:1px solid #fdba74">件数</th><th style="text-align:left;padding:3px 6px;background:#fed7aa;color:#7c2d12;border:1px solid #fdba74">比率</th></tr>';
+      for(let i=0;i<agg.rows.length;i++){
+        const r = agg.rows[i];
+        const barLen = Math.round((r.count / maxCount) * 20);
+        const bar = new Array(Math.max(0, barLen) + 1).join('█');
+        const col = _p597_color(r.priority);
+        html += '<tr>';
+        html += '<td style="padding:3px 6px;border:1px solid #fdba74"><b style="color:' + col + '">' + _p597_escapeHtml(r.priority) + '</b></td>';
+        html += '<td style="padding:3px 6px;border:1px solid #fdba74;text-align:right">' + r.count + '</td>';
+        html += '<td style="padding:3px 6px;border:1px solid #fdba74;font-family:ui-monospace,Consolas,monospace;color:' + col + '">' + bar + '</td>';
+        html += '</tr>';
+      }
+      html += '</table>';
+      html += '<div style="margin-top:8px;font-size:10px;color:#7c2d12;background:#fed7aa;border:1px solid #fdba74;border-radius:4px;padding:6px 9px;line-height:1.6">⚠ 本 UI は priority 値と件数のみ。本文 / 記憶 ID は表示・出力・送信しません。</div>';
+      out.innerHTML = html;
+    }catch(_){
+      const o = document.getElementById('p597-output');
+      if(o){ o.style.display = 'block'; o.textContent = '集計中にエラーが発生しました。'; }
+    }
+  }
+  function _p597_inject(){
+    try{
+      const memPage = document.getElementById('page-memory');
+      if(!memPage) return;
+      if(document.getElementById('p597-priority-card')) return;
+      const card = document.createElement('div');
+      card.id = 'p597-priority-card';
+      card.className = 'ai-team-card';
+      card.style.cssText = 'margin-top:14px;background:#fff7ed;border:1.5px solid #fed7aa;border-radius:8px;padding:12px 14px';
+      card.innerHTML =
+        '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;margin-bottom:6px">' +
+          '<div style="font-size:14px;font-weight:800;color:#7c2d12">🚦 packet 597：priority 別件数</div>' +
+          '<span style="font-size:10px;background:#fed7aa;color:#7c2d12;border:1px solid #fdba74;border-radius:6px;padding:2px 7px;font-weight:700">本文表示なし / 送信なし</span>' +
+        '</div>' +
+        '<div style="font-size:11px;color:var(--t2);line-height:1.65;margin-bottom:8px">' +
+          '<code>m.priority</code>（無ければ <code>m.importance_level</code>）を集計。high / mid / low / 未設定 → その他 の順で表示。' +
+        '</div>' +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">' +
+          '<button type="button" id="p597-render-btn" style="padding:9px 14px;border-radius:6px;border:0;background:#7c2d12;color:#fff;font-size:12px;font-weight:700;cursor:pointer;min-height:38px">🚦 priority 統計を表示</button>' +
+          '<button type="button" id="p597-clear-btn" style="padding:9px 14px;border-radius:6px;border:1.5px solid #7c2d12;background:#fff;color:#7c2d12;font-size:12px;font-weight:700;cursor:pointer;min-height:38px">✖ クリア</button>' +
+        '</div>' +
+        '<div id="p597-output" style="display:none;padding:8px 10px;border-radius:6px;font-size:11px;background:#fff;border:1px solid var(--bo);word-break:break-word;overflow-x:auto"></div>' +
+        '<div style="margin-top:8px;font-size:10px;color:#7c2d12;background:#fed7aa;border:1px solid #fdba74;border-radius:6px;padding:7px 9px;line-height:1.65">' +
+          'ℹ packet 597 の制約：本文 / 記憶 ID 表示 0 / DB 送信 0 / localStorage 0 / 既存 packet 変更 0' +
+        '</div>';
+      memPage.appendChild(card);
+      const rb = document.getElementById('p597-render-btn');
+      const cb = document.getElementById('p597-clear-btn');
+      if(rb) rb.addEventListener('click', _p597_render);
+      if(cb) cb.addEventListener('click', function(){
+        const o = document.getElementById('p597-output');
+        if(o){ o.innerHTML = ''; o.style.display = 'none'; }
+      });
+    }catch(_){}
+  }
+  (function _p597_wrap(){
+    try{
+      const orig = window.switchPage;
+      if(typeof orig !== 'function') return;
+      window.switchPage = function(pg){
+        try{ orig.apply(this, arguments); }catch(_){}
+        if(pg === 'memory'){ setTimeout(_p597_inject, 780); }
+      };
+    }catch(_){}
+  })();
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){ setTimeout(_p597_inject, 2600); });
+  } else {
+    setTimeout(_p597_inject, 2600);
+  }
+})();
+// ==== ここまで packet 597 記憶庫 priority 別件数 UI ====
+
+// ==== ここから packet 598 記憶庫 author 別件数 UI ====
+// 制約：UID は出さず、displayName / author ラベル / 担当者名のみ表示。
+(function _p598_author_stats(){
+  'use strict';
+  function _p598_escapeHtml(s){
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  function _p598_extractAuthor(m){
+    if(!m) return '(不明)';
+    const c = (typeof m.created_by_name === 'string' && m.created_by_name) ? m.created_by_name
+            : (typeof m.createdByName === 'string' && m.createdByName) ? m.createdByName
+            : (typeof m.author === 'string' && m.author) ? m.author
+            : (typeof m.created_by === 'string' && m.created_by && !/^[0-9a-f]{8}-/.test(m.created_by)) ? m.created_by
+            : '';
+    if(c) return c.trim();
+    // UID らしき値は出さない、'(担当者)' として束ねる
+    if(m.created_by_uid || m.createdByUid || m.user_id) return '(UID 登録者)';
+    return '(不明)';
+  }
+  function _p598_extractRelated(m){
+    if(!m) return [];
+    const r = m.related_staff;
+    if(Array.isArray(r)) return r.filter(function(x){ return typeof x === 'string' && x; });
+    if(typeof r === 'string' && r) return r.split(/[,\s、　]+/).filter(function(x){ return x; });
+    return [];
+  }
+  function _p598_aggregate(){
+    const store = (window._p500_memoryStore && window._p500_memoryStore.slice) ? window._p500_memoryStore.slice() : [];
+    const authorCounts = {};
+    const relatedCounts = {};
+    for(let i=0;i<store.length;i++){
+      const a = _p598_extractAuthor(store[i]);
+      authorCounts[a] = (authorCounts[a] || 0) + 1;
+      const rel = _p598_extractRelated(store[i]);
+      for(let j=0;j<rel.length;j++){
+        relatedCounts[rel[j]] = (relatedCounts[rel[j]] || 0) + 1;
+      }
+    }
+    function toRows(c){
+      const rows = [];
+      const keys = Object.keys(c);
+      for(let i=0;i<keys.length;i++){ rows.push({ name: keys[i], count: c[keys[i]] }); }
+      rows.sort(function(a,b){ return b.count - a.count; });
+      return rows;
+    }
+    return { total: store.length, authors: toRows(authorCounts), related: toRows(relatedCounts) };
+  }
+  function _p598_renderTable(rows, label, color){
+    if(rows.length === 0) return '<div style="color:#94a3b8;font-size:11px;padding:6px 0">' + label + ' なし</div>';
+    let maxCount = 1;
+    for(let i=0;i<rows.length;i++){ if(rows[i].count > maxCount) maxCount = rows[i].count; }
+    let html = '<table style="width:100%;font-size:11px;border-collapse:collapse;margin-bottom:8px">';
+    html += '<tr><th style="text-align:left;padding:3px 6px;background:#e0e7ff;color:#3730a3;border:1px solid #a5b4fc">' + label + '</th><th style="text-align:right;padding:3px 6px;background:#e0e7ff;color:#3730a3;border:1px solid #a5b4fc">件数</th><th style="text-align:left;padding:3px 6px;background:#e0e7ff;color:#3730a3;border:1px solid #a5b4fc">比率</th></tr>';
+    for(let i=0;i<rows.length;i++){
+      const r = rows[i];
+      const barLen = Math.round((r.count / maxCount) * 20);
+      const bar = new Array(Math.max(0, barLen) + 1).join('█');
+      html += '<tr>';
+      html += '<td style="padding:3px 6px;border:1px solid #c7d2fe"><b>' + _p598_escapeHtml(r.name) + '</b></td>';
+      html += '<td style="padding:3px 6px;border:1px solid #c7d2fe;text-align:right">' + r.count + '</td>';
+      html += '<td style="padding:3px 6px;border:1px solid #c7d2fe;font-family:ui-monospace,Consolas,monospace;color:' + color + '">' + bar + '</td>';
+      html += '</tr>';
+    }
+    html += '</table>';
+    return html;
+  }
+  function _p598_render(){
+    try{
+      const out = document.getElementById('p598-output');
+      if(!out) return;
+      const agg = _p598_aggregate();
+      out.style.display = 'block';
+      if(agg.total === 0){
+        out.innerHTML = '<div style="color:#94a3b8;font-size:11px;padding:6px 0">記憶が 0 件です。</div>';
+        return;
+      }
+      let html = '';
+      html += '<div style="font-weight:800;color:#3730a3;margin-bottom:6px">👤 packet 598：登録者 / 関係者 別件数（対象 ' + agg.total + ' 件）</div>';
+      html += '<div style="font-weight:700;color:#3730a3;margin-top:6px;margin-bottom:3px">登録者（author / created_by_name）</div>';
+      html += _p598_renderTable(agg.authors, '登録者', '#3730a3');
+      html += '<div style="font-weight:700;color:#3730a3;margin-top:6px;margin-bottom:3px">関係者（related_staff）</div>';
+      html += _p598_renderTable(agg.related, '関係者', '#7c3aed');
+      html += '<div style="margin-top:8px;font-size:10px;color:#3730a3;background:#e0e7ff;border:1px solid #a5b4fc;border-radius:4px;padding:6px 9px;line-height:1.6">⚠ 個人情報配慮：UID 値は表示しません（UID で識別される登録者は <b>(UID 登録者)</b> としてまとめます）。本文 / 記憶 ID 表示 0。</div>';
+      out.innerHTML = html;
+    }catch(_){
+      const o = document.getElementById('p598-output');
+      if(o){ o.style.display = 'block'; o.textContent = '集計中にエラーが発生しました。'; }
+    }
+  }
+  function _p598_inject(){
+    try{
+      const memPage = document.getElementById('page-memory');
+      if(!memPage) return;
+      if(document.getElementById('p598-author-card')) return;
+      const card = document.createElement('div');
+      card.id = 'p598-author-card';
+      card.className = 'ai-team-card';
+      card.style.cssText = 'margin-top:14px;background:#eef2ff;border:1.5px solid #c7d2fe;border-radius:8px;padding:12px 14px';
+      card.innerHTML =
+        '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;margin-bottom:6px">' +
+          '<div style="font-size:14px;font-weight:800;color:#3730a3">👤 packet 598：登録者 / 関係者 別件数</div>' +
+          '<span style="font-size:10px;background:#dbeafe;color:#1e3a8a;border:1px solid #a5b4fc;border-radius:6px;padding:2px 7px;font-weight:700">UID 非表示 / 本文表示なし</span>' +
+        '</div>' +
+        '<div style="font-size:11px;color:var(--t2);line-height:1.65;margin-bottom:8px">' +
+          '<code>created_by_name / author / created_by</code>（UID 形式以外）と <code>related_staff</code> を集計。' +
+          '<br>UID らしき値は <b>(UID 登録者)</b> として束ねます。本文 / 記憶 ID は表示しません。' +
+        '</div>' +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">' +
+          '<button type="button" id="p598-render-btn" style="padding:9px 14px;border-radius:6px;border:0;background:#3730a3;color:#fff;font-size:12px;font-weight:700;cursor:pointer;min-height:38px">👤 登録者 / 関係者 統計を表示</button>' +
+          '<button type="button" id="p598-clear-btn" style="padding:9px 14px;border-radius:6px;border:1.5px solid #3730a3;background:#fff;color:#3730a3;font-size:12px;font-weight:700;cursor:pointer;min-height:38px">✖ クリア</button>' +
+        '</div>' +
+        '<div id="p598-output" style="display:none;padding:8px 10px;border-radius:6px;font-size:11px;background:#fff;border:1px solid var(--bo);word-break:break-word;overflow-x:auto"></div>' +
+        '<div style="margin-top:8px;font-size:10px;color:#3730a3;background:#e0e7ff;border:1px solid #c7d2fe;border-radius:6px;padding:7px 9px;line-height:1.65">' +
+          'ℹ packet 598 の制約：UID 値 表示 0 / 本文 表示 0 / 記憶 ID 表示 0 / DB 送信 0 / localStorage 0 / 既存 packet 変更 0' +
+        '</div>';
+      memPage.appendChild(card);
+      const rb = document.getElementById('p598-render-btn');
+      const cb = document.getElementById('p598-clear-btn');
+      if(rb) rb.addEventListener('click', _p598_render);
+      if(cb) cb.addEventListener('click', function(){
+        const o = document.getElementById('p598-output');
+        if(o){ o.innerHTML = ''; o.style.display = 'none'; }
+      });
+    }catch(_){}
+  }
+  (function _p598_wrap(){
+    try{
+      const orig = window.switchPage;
+      if(typeof orig !== 'function') return;
+      window.switchPage = function(pg){
+        try{ orig.apply(this, arguments); }catch(_){}
+        if(pg === 'memory'){ setTimeout(_p598_inject, 800); }
+      };
+    }catch(_){}
+  })();
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){ setTimeout(_p598_inject, 2700); });
+  } else {
+    setTimeout(_p598_inject, 2700);
+  }
+})();
+// ==== ここまで packet 598 記憶庫 author 別件数 UI ====
+
+// ==== ここから packet 599 記憶庫 最近 7 日 / 30 日 アクティビティ UI ====
+(function _p599_recent_activity(){
+  'use strict';
+  function _p599_escapeHtml(s){
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  function _p599_daysAgo(n){
+    const d = new Date();
+    d.setDate(d.getDate() - n);
+    return d;
+  }
+  function _p599_extractTags(m){
+    if(!m) return [];
+    const t = m.tags;
+    if(Array.isArray(t)) return t.filter(function(x){ return typeof x === 'string' && x; });
+    if(typeof t === 'string' && t) return t.split(/[,\s、　]+/).filter(function(x){ return x; });
+    return [];
+  }
+  function _p599_summarize(items){
+    const s = { count: items.length, byCategory: {}, byPriority: {}, byTag: {}, byRisk: {} };
+    for(let i=0;i<items.length;i++){
+      const m = items[i] || {};
+      const cat = (typeof m.category === 'string' && m.category) ? m.category : '(未分類)';
+      s.byCategory[cat] = (s.byCategory[cat] || 0) + 1;
+      const pri = (typeof m.priority === 'string' && m.priority) ? m.priority : '(未設定)';
+      s.byPriority[pri] = (s.byPriority[pri] || 0) + 1;
+      const tags = _p599_extractTags(m);
+      for(let j=0;j<tags.length;j++){ s.byTag[tags[j]] = (s.byTag[tags[j]] || 0) + 1; }
+      const risk = (typeof m.risk === 'string' && m.risk) ? m.risk
+                 : (typeof m.risk_level === 'string' && m.risk_level) ? m.risk_level
+                 : '(未設定)';
+      s.byRisk[risk] = (s.byRisk[risk] || 0) + 1;
+    }
+    return s;
+  }
+  function _p599_topN(obj, n){
+    const arr = [];
+    const keys = Object.keys(obj);
+    for(let i=0;i<keys.length;i++){ arr.push({ key: keys[i], count: obj[keys[i]] }); }
+    arr.sort(function(a,b){ return b.count - a.count; });
+    return arr.slice(0, n || 5);
+  }
+  function _p599_renderSubTable(label, rows){
+    if(!rows || rows.length === 0) return '';
+    let html = '<div style="font-weight:700;color:#0f766e;margin-top:6px;margin-bottom:3px">' + _p599_escapeHtml(label) + '（上位 ' + rows.length + '）</div>';
+    html += '<ul style="margin:0 0 6px;padding-left:18px;font-size:11px;line-height:1.7">';
+    for(let i=0;i<rows.length;i++){
+      html += '<li><b>' + _p599_escapeHtml(rows[i].key) + '</b>：' + rows[i].count + ' 件</li>';
+    }
+    html += '</ul>';
+    return html;
+  }
+  function _p599_renderWindow(label, days, items){
+    let html = '<div style="margin-top:10px;padding:6px 9px;border-radius:4px;background:#ccfbf1;border-left:3px solid #0d9488;color:#0f766e;font-size:11px;font-weight:700">' + _p599_escapeHtml(label) + '（過去 ' + days + ' 日 / ' + items.length + ' 件）</div>';
+    if(items.length === 0){
+      html += '<div style="color:#94a3b8;font-size:11px;padding:4px 0 8px">該当期間に新規記憶はありません。</div>';
+      return html;
+    }
+    const s = _p599_summarize(items);
+    html += _p599_renderSubTable('category 上位', _p599_topN(s.byCategory, 5));
+    html += _p599_renderSubTable('priority 内訳', _p599_topN(s.byPriority, 5));
+    html += _p599_renderSubTable('tag 上位', _p599_topN(s.byTag, 5));
+    html += _p599_renderSubTable('risk 内訳', _p599_topN(s.byRisk, 5));
+    return html;
+  }
+  function _p599_render(){
+    try{
+      const out = document.getElementById('p599-output');
+      if(!out) return;
+      const store = (window._p500_memoryStore && window._p500_memoryStore.slice) ? window._p500_memoryStore.slice() : [];
+      out.style.display = 'block';
+      if(store.length === 0){
+        out.innerHTML = '<div style="color:#94a3b8;font-size:11px;padding:6px 0">記憶が 0 件です。</div>';
+        return;
+      }
+      const cut7  = _p599_daysAgo(7).toISOString();
+      const cut30 = _p599_daysAgo(30).toISOString();
+      const since7  = store.filter(function(m){ return typeof m.createdAt === 'string' && m.createdAt >= cut7; });
+      const since30 = store.filter(function(m){ return typeof m.createdAt === 'string' && m.createdAt >= cut30; });
+      let html = '';
+      html += '<div style="font-weight:800;color:#0f766e;margin-bottom:6px">📈 packet 599：直近アクティビティ（全 ' + store.length + ' 件 / 7 日 ' + since7.length + ' / 30 日 ' + since30.length + '）</div>';
+      html += _p599_renderWindow('🔥 過去 7 日', 7, since7);
+      html += _p599_renderWindow('📊 過去 30 日', 30, since30);
+      html += '<div style="margin-top:8px;font-size:10px;color:#115e59;background:#ccfbf1;border:1px solid #5eead4;border-radius:4px;padding:6px 9px;line-height:1.6">⚠ 本 UI は集計値のみ。本文 / 記憶 ID は表示・出力・送信しません。createdAt は ISO 8601 想定（文字列比較）。</div>';
+      out.innerHTML = html;
+    }catch(_){
+      const o = document.getElementById('p599-output');
+      if(o){ o.style.display = 'block'; o.textContent = '集計中にエラーが発生しました。'; }
+    }
+  }
+  function _p599_inject(){
+    try{
+      const memPage = document.getElementById('page-memory');
+      if(!memPage) return;
+      if(document.getElementById('p599-recent-card')) return;
+      const card = document.createElement('div');
+      card.id = 'p599-recent-card';
+      card.className = 'ai-team-card';
+      card.style.cssText = 'margin-top:14px;background:#f0fdfa;border:1.5px solid #5eead4;border-radius:8px;padding:12px 14px';
+      card.innerHTML =
+        '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;margin-bottom:6px">' +
+          '<div style="font-size:14px;font-weight:800;color:#0f766e">📈 packet 599：直近 7 日 / 30 日 アクティビティ</div>' +
+          '<span style="font-size:10px;background:#ccfbf1;color:#115e59;border:1px solid #5eead4;border-radius:6px;padding:2px 7px;font-weight:700">本文表示なし / 送信なし</span>' +
+        '</div>' +
+        '<div style="font-size:11px;color:var(--t2);line-height:1.65;margin-bottom:8px">' +
+          '直近 7 日 / 30 日の新規記憶を集計：件数 / category 上位 / priority 内訳 / tag 上位 / risk 内訳。' +
+          '<br>本文 / 記憶 ID は表示しません。' +
+        '</div>' +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">' +
+          '<button type="button" id="p599-render-btn" style="padding:9px 14px;border-radius:6px;border:0;background:#0f766e;color:#fff;font-size:12px;font-weight:700;cursor:pointer;min-height:38px">📈 アクティビティを表示</button>' +
+          '<button type="button" id="p599-clear-btn" style="padding:9px 14px;border-radius:6px;border:1.5px solid #0f766e;background:#fff;color:#0f766e;font-size:12px;font-weight:700;cursor:pointer;min-height:38px">✖ クリア</button>' +
+        '</div>' +
+        '<div id="p599-output" style="display:none;padding:8px 10px;border-radius:6px;font-size:11px;background:#fff;border:1px solid var(--bo);word-break:break-word;overflow-x:auto;max-height:60vh;overflow-y:auto"></div>' +
+        '<div style="margin-top:8px;font-size:10px;color:#115e59;background:#ccfbf1;border:1px solid #5eead4;border-radius:6px;padding:7px 9px;line-height:1.65">' +
+          'ℹ packet 599 の制約：<br>' +
+          '・期間：今から 7 日前 / 30 日前を切れ目に createdAt 文字列比較<br>' +
+          '・上位 5 件まで表示（category / priority / tag / risk）<br>' +
+          '・本文 / 記憶 ID 表示 0 / DB 送信 0 / localStorage 0' +
+        '</div>';
+      memPage.appendChild(card);
+      const rb = document.getElementById('p599-render-btn');
+      const cb = document.getElementById('p599-clear-btn');
+      if(rb) rb.addEventListener('click', _p599_render);
+      if(cb) cb.addEventListener('click', function(){
+        const o = document.getElementById('p599-output');
+        if(o){ o.innerHTML = ''; o.style.display = 'none'; }
+      });
+    }catch(_){}
+  }
+  (function _p599_wrap(){
+    try{
+      const orig = window.switchPage;
+      if(typeof orig !== 'function') return;
+      window.switchPage = function(pg){
+        try{ orig.apply(this, arguments); }catch(_){}
+        if(pg === 'memory'){ setTimeout(_p599_inject, 820); }
+      };
+    }catch(_){}
+  })();
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){ setTimeout(_p599_inject, 2800); });
+  } else {
+    setTimeout(_p599_inject, 2800);
+  }
+})();
+// ==== ここまで packet 599 記憶庫 直近アクティビティ UI ====
 </script>
 </body>
 </html>
