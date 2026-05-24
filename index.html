@@ -1064,6 +1064,46 @@ button,a{-webkit-tap-highlight-color:rgba(10,61,124,.12)}
     ::-webkit-scrollbar-thumb{background:rgba(0,0,0,.15);border-radius:3px}
     body.dark ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.18)}
   }
+  /* packet 1230-1249: 「数字と推移」 sparkline / mini chart 共通 CSS（経営 OS 化の基礎）
+     1230 weekly trend card / 1235 undone trend / 1241 trend link
+     1245 sparkline class / 1246 mini chart 共通 / 1247 empty chart / 1248 数字 hover / 1249 docs */
+  .p1245-spark-host{margin:0 14px 8px;padding:10px 12px;background:var(--s1);border:1.5px solid var(--bo);border-radius:var(--r2)}
+  .p1245-spark-h{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:800;color:var(--navy);margin-bottom:5px}
+  .p1245-spark-h .p1245-spark-emoji{font-size:14px}
+  .p1245-spark-h .p1245-spark-val{margin-left:auto;font-size:14px;font-weight:900;color:var(--navy)}
+  .p1245-spark-svg{display:block;width:100%;height:36px;overflow:visible}
+  .p1245-spark-svg .p1245-spark-area{fill:rgba(11,42,103,.10);stroke:none}
+  .p1245-spark-svg .p1245-spark-line{fill:none;stroke:var(--navy);stroke-width:1.8;stroke-linejoin:round;stroke-linecap:round}
+  .p1245-spark-svg .p1245-spark-dot{fill:var(--navy)}
+  .p1245-spark-svg .p1245-spark-dot.last{fill:#dc2626;r:3}
+  .p1245-spark-axis{display:flex;justify-content:space-between;font-size:8.5px;color:var(--t4);margin-top:2px;font-weight:600;letter-spacing:.3px}
+  .p1247-chart-empty{padding:14px 6px;text-align:center;color:var(--t4);font-size:10.5px;font-weight:600}
+  .p1247-chart-empty .p1247-chart-empty-emoji{font-size:18px;display:block;margin-bottom:4px}
+  .p1235-undone-trend .p1235-bars{display:flex;align-items:flex-end;gap:6px;height:38px;margin-top:4px}
+  .p1235-undone-trend .p1235-bar{flex:1;background:var(--s2);border-radius:3px;position:relative;min-height:4px;transition:filter .12s}
+  .p1235-undone-trend .p1235-bar:hover{filter:brightness(1.08)}
+  .p1235-undone-trend .p1235-bar.overdue{background:linear-gradient(180deg,#fca5a5,#dc2626)}
+  .p1235-undone-trend .p1235-bar.today{background:linear-gradient(180deg,#fdba74,#ea580c)}
+  .p1235-undone-trend .p1235-bar.tomorrow{background:linear-gradient(180deg,#fcd34d,#b45309)}
+  .p1235-undone-trend .p1235-bar.later{background:linear-gradient(180deg,#86efac,#10b981)}
+  .p1235-undone-trend .p1235-bar-label{position:absolute;bottom:-14px;left:0;right:0;text-align:center;font-size:8px;font-weight:700;color:var(--t3)}
+  .p1235-undone-trend .p1235-axis{margin-top:18px;display:flex;justify-content:space-between;font-size:8.5px;color:var(--t4);font-weight:600}
+  .p1241-trend-link{margin:0 14px 8px;padding:9px 12px;background:linear-gradient(135deg,#f0f9ff,#dbeafe);border:1.5px solid #93c5fd;border-radius:var(--r2);display:flex;align-items:center;gap:10px;cursor:pointer;transition:filter .12s,transform .12s}
+  .p1241-trend-link:hover{filter:brightness(1.03)}
+  .p1241-trend-link:active{transform:scale(.99)}
+  .p1241-trend-emoji{font-size:20px;line-height:1}
+  .p1241-trend-main{flex:1;min-width:0}
+  .p1241-trend-title{font-size:11px;font-weight:800;color:#0c4a6e;margin-bottom:2px}
+  .p1241-trend-sub{font-size:10px;color:var(--t2)}
+  body.dark .p1241-trend-link{background:linear-gradient(135deg,#0a1828,#0f2440);border-color:#1e3a5f}
+  body.dark .p1241-trend-title{color:#93c5fd}
+  body.dark .p1245-spark-svg .p1245-spark-line{stroke:#93c5fd}
+  body.dark .p1245-spark-svg .p1245-spark-dot{fill:#93c5fd}
+  body.dark .p1245-spark-svg .p1245-spark-area{fill:rgba(147,197,253,.12)}
+  body.dark .p1245-spark-h .p1245-spark-val{color:#93c5fd}
+  /* packet 1248: 数字カード hover 統一（spark host を 1031 polish に合わせる）*/
+  .p1245-spark-host{transition:filter .12s,transform .12s}
+  .p1245-spark-host:hover{filter:brightness(1.02)}
   /* packet 1090-1109: 店長 OS polish（CSS / 既存 p1014/p1021 を補強）*/
   .p1014-manager-team{position:relative}
   .p1014-manager-team::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:linear-gradient(180deg,#a78bfa,#7c3aed);border-radius:3px 0 0 3px}
@@ -1387,6 +1427,12 @@ body.task-dragging [data-id]:not(.dragging-this){opacity:1!important}
         <div id="p1024-memory-link" class="p1024-memory-link" style="display:none"></div>
         <!-- packet 1011: 過去 7 日サマリー mini card（タスク完了率、振り返り）-->
         <div id="p1011-week-summary" class="p1011-week-summary" style="display:none"></div>
+        <!-- packet 1230: 店長 weekly trend mini（last 7 days 完了 task sparkline、店長/admin）-->
+        <div id="p1230-weekly-trend" class="p1230-weekly-trend p1245-spark-host" style="display:none"></div>
+        <!-- packet 1235: 未完了推移 mini（今日時点の未完了 task を期限切れ/今日/明日/それ以降で分布）-->
+        <div id="p1235-undone-trend" class="p1235-undone-trend p1245-spark-host" style="display:none"></div>
+        <!-- packet 1241: 推移を見る quick link（KPI/goal ページへの誘導）-->
+        <div id="p1241-trend-link" class="p1241-trend-link" style="display:none"></div>
         <div id="dash-content"></div>
       </div>
   <div class="page" id="page-accounts">
@@ -3705,7 +3751,65 @@ bindEvForm();
   try{if(typeof window._p490_flushPostLogin==='function')window._p490_flushPostLogin();}catch(_p490_flushErr){try{console.warn('[packet 490 showMainApp flush]',_p490_flushErr&&_p490_flushErr.message);}catch(_){}}
 }
 
-function switchPage(pg){if(pg==='crm'){pg='dash';/* packet 322: 顧客タブ強制無効化、dash に強制リダイレクト */}document.querySelectorAll('.ntab').forEach(b=>b.classList.toggle('on',b.dataset.pg===pg));document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));const pgEl=document.getElementById(`page-${pg}`);if(pgEl)pgEl.classList.add('on');if(pg==='dash'){renderDash();try{_p1000_renderHomeGreeting();}catch(_p1000e){try{console.warn('[packet 1000 greet]',_p1000e&&_p1000e.message);}catch(_){}}try{_p1003_renderAdminShortcuts();}catch(_p1003e){try{console.warn('[packet 1003 admin sc]',_p1003e&&_p1003e.message);}catch(_){}}try{_p1006_personalizeAIConsul();}catch(_p1006e){try{console.warn('[packet 1006 ai consul]',_p1006e&&_p1006e.message);}catch(_){}}try{_p1010_renderTaskAlert();}catch(_p1010e){try{console.warn('[packet 1010 task alert]',_p1010e&&_p1010e.message);}catch(_){}}try{_p1011_render7DaySummary();}catch(_p1011e){try{console.warn('[packet 1011 7day]',_p1011e&&_p1011e.message);}catch(_){}}try{_p1012_renderKPIMini();}catch(_p1012e){try{console.warn('[packet 1012 kpi mini]',_p1012e&&_p1012e.message);}catch(_){}}try{_p1013_renderDRReminder();}catch(_p1013e){try{console.warn('[packet 1013 dr reminder]',_p1013e&&_p1013e.message);}catch(_){}}try{_p1014_renderManagerTeam();}catch(_p1014e){try{console.warn('[packet 1014 mgr team]',_p1014e&&_p1014e.message);}catch(_){}}try{_p1015_renderAIMeetingLink();}catch(_p1015e){try{console.warn('[packet 1015 ai mtg]',_p1015e&&_p1015e.message);}catch(_){}}try{_p1016_renderHomeStats();}catch(_p1016e){try{console.warn('[packet 1016 home stats]',_p1016e&&_p1016e.message);}catch(_){}}try{_p1017_renderStoreSales();}catch(_p1017e){try{console.warn('[packet 1017 store sales]',_p1017e&&_p1017e.message);}catch(_){}}try{_p1018_renderTodayTop3();}catch(_p1018e){try{console.warn('[packet 1018 top3]',_p1018e&&_p1018e.message);}catch(_){}}try{_p1020_renderNextOne();}catch(_p1020e){try{console.warn('[packet 1020 next]',_p1020e&&_p1020e.message);}catch(_){}}try{_p1024_renderMemoryLink();}catch(_p1024e){try{console.warn('[packet 1024 mem link]',_p1024e&&_p1024e.message);}catch(_){}}try{_p1021_renderManagerTop3();}catch(_p1021e){try{console.warn('[packet 1021 mgr top3]',_p1021e&&_p1021e.message);}catch(_){}}try{_p1022_renderAIThemes();}catch(_p1022e){try{console.warn('[packet 1022 ai themes]',_p1022e&&_p1022e.message);}catch(_){}}try{_p1032_renderRoutineProg();}catch(_p1032e){try{console.warn('[packet 1032 routine prog]',_p1032e&&_p1032e.message);}catch(_){}}try{_p1033_renderMorningRep();}catch(_p1033e){try{console.warn('[packet 1033 morning rep]',_p1033e&&_p1033e.message);}catch(_){}}}if(pg==='accounts'){renderAccList();/* packet 490: accounts ページ表示時 packet 480/481 UI を bind */try{if(typeof window._p490_flushPostLogin==='function')window._p490_flushPostLogin();}catch(_){}}if(pg==='kintai'){ktViewUid=currentUser.perm==='admin'?null:currentUser.uid;renderKintaiPage();/* packet 490: kintai ページ表示時 packet 485 export UI を bind */try{if(typeof window._p485_initOnKintai==='function')window._p485_initOnKintai();}catch(_){}}if(pg==='cal')render();if(pg==='shift')renderShift();if(pg==='goal'){initGoalData();renderGoalPage();}if(pg==='report')renderReportPage();if(pg==='ai-status'){try{renderAIStatusPage();}catch(_p502_e){try{console.warn('[packet 502 switchPage]',_p502_e&&_p502_e.message);}catch(_){}}}if(pg==='aiteam')renderAITeamPage();if(pg==='memory'){try{renderMemoryPage();}catch(_p500_e){try{console.warn('[packet 500 switchPage]',_p500_e&&_p500_e.message);}catch(_){}}}if(pg==='member-workload')renderMemberWorkloadPage();if(pg==='ai-members')renderAIMembersPage();if(pg==='ai-org')renderAIOrgChartPage();if(pg==='realestate-knowledge')renderRealEstateKnowledgePage();if(pg==='routine')renderRoutinePage();if(pg==='sales-psy')renderSalesPsychologyPage();if(pg==='knowledge-portal')renderKnowledgePortalPage();if(pg==='role-knowledge')renderRoleKnowledgePage();if(pg==='knowledge-candidate-box'){try{renderKnowledgeCandidateBox();}catch(e){const r=document.getElementById('kc-cards');if(r)r.innerHTML='<div style="color:#b91c1c;padding:14px;background:#fef2f2;border-radius:6px;">AI 事典追加候補箱の読み込みに失敗しました。Console を確認してください。<br><code style="font-size:11px;">'+String(e&&e.message||e)+'</code></div>';}}}
+// packet 1230: 店長 weekly trend mini（last 7 days で deadline 日に done=true の task 件数を sparkline 化、店長/admin/owner のみ）
+function _p1230_renderWeeklyTrend(){
+  const el=document.getElementById('p1230-weekly-trend');
+  if(!el)return;
+  if(typeof currentUser==='undefined' || !currentUser){el.style.display='none';return;}
+  const isAdmin=currentUser.perm==='admin'||currentUser.perm==='owner';
+  const isManager=(currentUser.role||'').indexOf('店長')>=0;
+  if(!(isAdmin||isManager)){el.style.display='none';return;}
+  if(typeof state==='undefined' || !state || !Array.isArray(state.tasks)){el.style.display='none';return;}
+  const today=new Date();
+  const days=[];
+  for(let i=6;i>=0;i--){const d=new Date(today);d.setDate(today.getDate()-i);const k=d.toISOString().slice(0,10);days.push({k,lbl:`${d.getMonth()+1}/${d.getDate()}`});}
+  const counts=days.map(d=>state.tasks.filter(t=>t&&t.done&&t.deadline===d.k).length);
+  const max=Math.max(1,...counts);
+  const total=counts.reduce((a,b)=>a+b,0);
+  if(total===0){el.innerHTML=`<div class="p1245-spark-h"><span class="p1245-spark-emoji">📈</span>過去 7 日 完了 task 推移<span class="p1245-spark-val">0</span></div><div class="p1247-chart-empty"><span class="p1247-chart-empty-emoji">📊</span>直近 7 日に完了 task の記録がありません</div>`;el.style.display='';return;}
+  const W=100,H=36,stepX=W/(days.length-1);
+  const pts=counts.map((c,i)=>`${(i*stepX).toFixed(2)},${(H-(c/max)*(H-4)-2).toFixed(2)}`);
+  const linePath=`M${pts.join(' L')}`;
+  const areaPath=`M0,${H} L${pts.join(' L')} L${W},${H} Z`;
+  const dots=counts.map((c,i)=>`<circle class="p1245-spark-dot${i===counts.length-1?' last':''}" cx="${(i*stepX).toFixed(2)}" cy="${(H-(c/max)*(H-4)-2).toFixed(2)}" r="${i===counts.length-1?3:2}" />`).join('');
+  const axis=`<div class="p1245-spark-axis"><span>${days[0].lbl}</span><span>${days[Math.floor(days.length/2)].lbl}</span><span>${days[days.length-1].lbl}</span></div>`;
+  el.innerHTML=`<div class="p1245-spark-h"><span class="p1245-spark-emoji">📈</span>過去 7 日 完了 task 推移<span class="p1245-spark-val">${total}</span></div><svg class="p1245-spark-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><path class="p1245-spark-area" d="${areaPath}" /><path class="p1245-spark-line" d="${linePath}" />${dots}</svg>${axis}`;
+  el.style.display='';
+}
+// packet 1235: 未完了推移 mini（現時点の未完了 task を 期限切れ / 今日 / 明日 / それ以降 の 4 bar に分布）
+function _p1235_renderUndoneTrend(){
+  const el=document.getElementById('p1235-undone-trend');
+  if(!el)return;
+  if(typeof currentUser==='undefined' || !currentUser){el.style.display='none';return;}
+  if(typeof state==='undefined' || !state || !Array.isArray(state.tasks)){el.style.display='none';return;}
+  const ts=(typeof todayStr!=='undefined')?todayStr:'';
+  const tom=(typeof tomorrowStr!=='undefined')?tomorrowStr:'';
+  const isAdmin=currentUser.perm==='admin'||currentUser.perm==='owner';
+  const mi=(typeof members!=='undefined' && Array.isArray(members))?members.findIndex(m=>m&&m.uid===currentUser.uid):-1;
+  const list=state.tasks.filter(t=>t&&!t.done&&(isAdmin || t.toIdx===mi || t.toIdx===null || t.toIdx===undefined));
+  if(list.length===0){el.style.display='none';return;}
+  let overdue=0,today=0,tomorrow=0,later=0,nodate=0;
+  list.forEach(t=>{const d=t.deadline||'';if(!d){nodate++;}else if(d<ts){overdue++;}else if(d===ts){today++;}else if(d===tom){tomorrow++;}else{later++;}});
+  const max=Math.max(1,overdue,today,tomorrow,later);
+  const bars=[{k:'overdue',n:overdue,lbl:'切れ'},{k:'today',n:today,lbl:'今日'},{k:'tomorrow',n:tomorrow,lbl:'明日'},{k:'later',n:later,lbl:'以降'}];
+  const total=overdue+today+tomorrow+later+nodate;
+  const barsHtml=bars.map(b=>{const h=Math.max(4,Math.round(b.n/max*36));return `<div class="p1235-bar ${b.k}" style="height:${h}px"><div class="p1235-bar-label">${b.n}</div></div>`;}).join('');
+  el.innerHTML=`<div class="p1245-spark-h"><span class="p1245-spark-emoji">📊</span>未完了 task 分布${isAdmin?'（全体）':'（個人）'}<span class="p1245-spark-val">${total}</span></div><div class="p1235-bars">${barsHtml}</div><div class="p1235-axis"><span>期限切れ</span><span>今日</span><span>明日</span><span>それ以降</span></div>`;
+  el.style.display='';
+}
+// packet 1241: 推移を見る quick link（KPI / 目標ページへの誘導、全 role 共通）
+function _p1241_renderTrendLink(){
+  const el=document.getElementById('p1241-trend-link');
+  if(!el)return;
+  if(typeof currentUser==='undefined' || !currentUser){el.style.display='none';return;}
+  el.innerHTML=`<div class="p1241-trend-emoji">📊</div><div class="p1241-trend-main"><div class="p1241-trend-title">数字と推移を見る</div><div class="p1241-trend-sub">KPI / 目標 / 過去達成率の詳細へ →</div></div>`;
+  el.style.display='';
+  el.setAttribute('role','button');
+  el.setAttribute('tabindex','0');
+  el.setAttribute('aria-label','数字と推移を見る - KPI/目標ページへ');
+  el.onclick=()=>{try{if(typeof switchPage==='function')switchPage('goal');}catch(_p1241ec){try{console.warn('[packet 1241 click]',_p1241ec&&_p1241ec.message);}catch(_){}}};
+}
+function switchPage(pg){if(pg==='crm'){pg='dash';/* packet 322: 顧客タブ強制無効化、dash に強制リダイレクト */}document.querySelectorAll('.ntab').forEach(b=>b.classList.toggle('on',b.dataset.pg===pg));document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));const pgEl=document.getElementById(`page-${pg}`);if(pgEl)pgEl.classList.add('on');if(pg==='dash'){renderDash();try{_p1000_renderHomeGreeting();}catch(_p1000e){try{console.warn('[packet 1000 greet]',_p1000e&&_p1000e.message);}catch(_){}}try{_p1003_renderAdminShortcuts();}catch(_p1003e){try{console.warn('[packet 1003 admin sc]',_p1003e&&_p1003e.message);}catch(_){}}try{_p1006_personalizeAIConsul();}catch(_p1006e){try{console.warn('[packet 1006 ai consul]',_p1006e&&_p1006e.message);}catch(_){}}try{_p1010_renderTaskAlert();}catch(_p1010e){try{console.warn('[packet 1010 task alert]',_p1010e&&_p1010e.message);}catch(_){}}try{_p1011_render7DaySummary();}catch(_p1011e){try{console.warn('[packet 1011 7day]',_p1011e&&_p1011e.message);}catch(_){}}try{_p1012_renderKPIMini();}catch(_p1012e){try{console.warn('[packet 1012 kpi mini]',_p1012e&&_p1012e.message);}catch(_){}}try{_p1013_renderDRReminder();}catch(_p1013e){try{console.warn('[packet 1013 dr reminder]',_p1013e&&_p1013e.message);}catch(_){}}try{_p1014_renderManagerTeam();}catch(_p1014e){try{console.warn('[packet 1014 mgr team]',_p1014e&&_p1014e.message);}catch(_){}}try{_p1015_renderAIMeetingLink();}catch(_p1015e){try{console.warn('[packet 1015 ai mtg]',_p1015e&&_p1015e.message);}catch(_){}}try{_p1016_renderHomeStats();}catch(_p1016e){try{console.warn('[packet 1016 home stats]',_p1016e&&_p1016e.message);}catch(_){}}try{_p1017_renderStoreSales();}catch(_p1017e){try{console.warn('[packet 1017 store sales]',_p1017e&&_p1017e.message);}catch(_){}}try{_p1018_renderTodayTop3();}catch(_p1018e){try{console.warn('[packet 1018 top3]',_p1018e&&_p1018e.message);}catch(_){}}try{_p1020_renderNextOne();}catch(_p1020e){try{console.warn('[packet 1020 next]',_p1020e&&_p1020e.message);}catch(_){}}try{_p1024_renderMemoryLink();}catch(_p1024e){try{console.warn('[packet 1024 mem link]',_p1024e&&_p1024e.message);}catch(_){}}try{_p1021_renderManagerTop3();}catch(_p1021e){try{console.warn('[packet 1021 mgr top3]',_p1021e&&_p1021e.message);}catch(_){}}try{_p1022_renderAIThemes();}catch(_p1022e){try{console.warn('[packet 1022 ai themes]',_p1022e&&_p1022e.message);}catch(_){}}try{_p1032_renderRoutineProg();}catch(_p1032e){try{console.warn('[packet 1032 routine prog]',_p1032e&&_p1032e.message);}catch(_){}}try{_p1033_renderMorningRep();}catch(_p1033e){try{console.warn('[packet 1033 morning rep]',_p1033e&&_p1033e.message);}catch(_){}}try{_p1230_renderWeeklyTrend();}catch(_p1230e){try{console.warn('[packet 1230 weekly trend]',_p1230e&&_p1230e.message);}catch(_){}}try{_p1235_renderUndoneTrend();}catch(_p1235e){try{console.warn('[packet 1235 undone trend]',_p1235e&&_p1235e.message);}catch(_){}}try{_p1241_renderTrendLink();}catch(_p1241e){try{console.warn('[packet 1241 trend link]',_p1241e&&_p1241e.message);}catch(_){}}}if(pg==='accounts'){renderAccList();/* packet 490: accounts ページ表示時 packet 480/481 UI を bind */try{if(typeof window._p490_flushPostLogin==='function')window._p490_flushPostLogin();}catch(_){}}if(pg==='kintai'){ktViewUid=currentUser.perm==='admin'?null:currentUser.uid;renderKintaiPage();/* packet 490: kintai ページ表示時 packet 485 export UI を bind */try{if(typeof window._p485_initOnKintai==='function')window._p485_initOnKintai();}catch(_){}}if(pg==='cal')render();if(pg==='shift')renderShift();if(pg==='goal'){initGoalData();renderGoalPage();}if(pg==='report')renderReportPage();if(pg==='ai-status'){try{renderAIStatusPage();}catch(_p502_e){try{console.warn('[packet 502 switchPage]',_p502_e&&_p502_e.message);}catch(_){}}}if(pg==='aiteam')renderAITeamPage();if(pg==='memory'){try{renderMemoryPage();}catch(_p500_e){try{console.warn('[packet 500 switchPage]',_p500_e&&_p500_e.message);}catch(_){}}}if(pg==='member-workload')renderMemberWorkloadPage();if(pg==='ai-members')renderAIMembersPage();if(pg==='ai-org')renderAIOrgChartPage();if(pg==='realestate-knowledge')renderRealEstateKnowledgePage();if(pg==='routine')renderRoutinePage();if(pg==='sales-psy')renderSalesPsychologyPage();if(pg==='knowledge-portal')renderKnowledgePortalPage();if(pg==='role-knowledge')renderRoleKnowledgePage();if(pg==='knowledge-candidate-box'){try{renderKnowledgeCandidateBox();}catch(e){const r=document.getElementById('kc-cards');if(r)r.innerHTML='<div style="color:#b91c1c;padding:14px;background:#fef2f2;border-radius:6px;">AI 事典追加候補箱の読み込みに失敗しました。Console を確認してください。<br><code style="font-size:11px;">'+String(e&&e.message||e)+'</code></div>';}}}
 // packet 1000: Phase 3 UI quick-win #1：role/time-aware home greeting card（純粋 UI 追加、SQL/API/Auth/DB 接続なし、CUSTOMER 系参照なし、本文書込なし）
 // packet 1001: 時間帯別 CTA ボタンを greeting カードに追加（タスク/日報/メモ 1 タップ）
 function _p1000_renderHomeGreeting(){
