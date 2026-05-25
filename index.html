@@ -4335,7 +4335,13 @@ function _p1018_renderTodayTop3(){
     else if(dt)badge=`<span class="p1018-today-badge" style="background:#ea580c;color:#fff">今日</span>`;
     else if(t.deadline)badge=`<span class="p1018-today-badge" style="background:var(--bo);color:var(--t2)">${esc(t.deadline.substr(5))}</span>`;
     else badge=`<span class="p1018-today-badge" style="background:var(--bo);color:var(--t3)">期限なし</span>`;
-    return `<div class="p1018-today-row ${cls}" data-tid="${t.id}"><span class="p1018-today-title">${esc(t.title)}</span>${badge}</div>`;
+    // packet 1910: admin/owner には担当者名を tooltip で（helper 経由、未割当 fallback）
+    let _asg='';
+    if(isAdmin){
+      const _nm=(typeof _p1901_resolveMemberName==='function')?_p1901_resolveMemberName({toIdx:t.toIdx,fallback:'未割当'}):'未割当';
+      _asg=` ／ 担当：${_nm}`;
+    }
+    return `<div class="p1018-today-row ${cls}" data-tid="${t.id}" title="${esc(t.title)}${esc(_asg)}"><span class="p1018-today-title">${esc(t.title)}</span>${badge}</div>`;
   }).join('');
   el.innerHTML=`<div class="p1018-today-h">🎯 今日やること（上位 ${ranked.length}）<button type="button" style="margin-left:auto;font-size:9px;padding:2px 7px;border-radius:5px;border:1.5px solid var(--bo);background:transparent;color:var(--navy);cursor:pointer;font-weight:700" onclick="try{switchPage('cal')}catch(_){}">全部見る →</button></div><div class="p1018-today-list">${rowsHtml}</div>`;
   el.style.display='';
