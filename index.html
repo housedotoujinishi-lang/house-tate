@@ -3937,6 +3937,76 @@ function _p1241_renderTrendLink(){
   el.setAttribute('aria-label','数字と推移を見る - KPI/目標ページへ');
   el.onclick=()=>{try{if(typeof switchPage==='function')switchPage('goal');}catch(_p1241ec){try{console.warn('[packet 1241 click]',_p1241ec&&_p1241ec.message);}catch(_){}}};
 }
+// packet 1901: 担当者名解決 helper（uid 優先 → accounts → members → toIdx fallback、純粋追加 / 既存無変更 / read-only）
+// admin = 「管理者」維持、冨永 = name そのまま「冨永」維持、見つからない = 「未設定」
+function _p1901_resolveMemberName(opts){
+  try{
+    if(!opts)return '未設定';
+    var uid = opts.uid || null;
+    var toIdx = (typeof opts.toIdx === 'number' && opts.toIdx >= 0) ? opts.toIdx : -1;
+    var fallback = opts.fallback || '未設定';
+    // 1) uid → accounts.name（最優先、disabled でも name は解決する）
+    if(uid && typeof accounts !== 'undefined' && Array.isArray(accounts)){
+      for(var i=0;i<accounts.length;i++){
+        var a=accounts[i];
+        if(a && a.uid === uid){
+          var nm = a.name || a.uid;
+          if(nm)return nm;
+        }
+      }
+    }
+    // 2) uid → members.n（accounts に無くても members で見つかる場合）
+    if(uid && typeof members !== 'undefined' && Array.isArray(members)){
+      for(var j=0;j<members.length;j++){
+        var m=members[j];
+        if(m && m.uid === uid){
+          var mn = m.n || m.name || m.uid;
+          if(mn)return mn;
+        }
+      }
+    }
+    // 3) toIdx → members[toIdx].n
+    if(toIdx >= 0 && typeof members !== 'undefined' && Array.isArray(members) && members[toIdx]){
+      var mi = members[toIdx];
+      var min = mi.n || mi.name || mi.uid;
+      if(min)return min;
+    }
+    return fallback;
+  }catch(_p1901e){
+    try{console.warn('[packet 1901 resolveMemberName]', _p1901e && _p1901e.message);}catch(_){}
+    return (opts && opts.fallback) || '未設定';
+  }
+}
+// packet 1901: 担当者 role/perm label 解決 helper（admin/owner は「管理者」維持、店長は「店長」、それ以外は role そのまま）
+function _p1901_resolveRoleLabel(opts){
+  try{
+    if(!opts)return '';
+    var uid = opts.uid || null;
+    var a = null;
+    if(uid && typeof accounts !== 'undefined' && Array.isArray(accounts)){
+      for(var i=0;i<accounts.length;i++){if(accounts[i] && accounts[i].uid === uid){a=accounts[i];break;}}
+    }
+    if(!a && opts.account)a = opts.account;
+    if(!a)return opts.fallback || '';
+    var perm = a.perm || '';
+    var role = a.role || '';
+    // packet 304 維持：admin / owner は「管理者」
+    if(perm === 'admin' || perm === 'owner')return '管理者';
+    // 店長 role は「店長」優先
+    if(role && role.indexOf('店長') >= 0)return role;
+    return role || (opts.fallback || '');
+  }catch(_p1901re){
+    try{console.warn('[packet 1901 resolveRoleLabel]', _p1901re && _p1901re.message);}catch(_){}
+    return (opts && opts.fallback) || '';
+  }
+}
+// packet 1901: window で公開、既存 / 新規 mini card / docs から呼び出し可能
+try{
+  if(typeof window !== 'undefined'){
+    window._p1901_resolveMemberName = _p1901_resolveMemberName;
+    window._p1901_resolveRoleLabel = _p1901_resolveRoleLabel;
+  }
+}catch(_p1901we){try{console.warn('[packet 1901 window expose]', _p1901we && _p1901we.message);}catch(_){}}
 // packet 1311: staff 個人 weekly chart（過去 7 日 個人完了 task sparkline、staff 表示、店長/admin は p1230 で代替）
 function _p1311_renderStaffWeeklyChart(){
   const el=document.getElementById('p1311-staff-weekly');
@@ -3976,11 +4046,20 @@ function _p1310_renderDailyCheckin(){
   const ts=(typeof todayStr!=='undefined')?todayStr:'';
   // 出勤
   let working=0,brk=0,before=0,total=0;
+  // packet 1903: 出勤メンバー名を helper 経由で集めて tooltip 化
+  const _wn=[],_bn=[],_bfn=[];
   try{
     if(typeof accounts!=='undefined' && Array.isArray(accounts) && typeof getKT==='function'){
       const list=(typeof _getActiveAccountsSorted==='function')?_getActiveAccountsSorted():accounts.filter(a=>a&&!a.disabled);
       total=list.length;
-      list.forEach(a=>{try{const k=getKT(a.uid,ts);const s=(k&&k.status)||'before';if(s==='working')working++;else if(s==='break')brk++;else if(s==='before')before++;}catch(_){}});
+      list.forEach(a=>{try{
+        const k=getKT(a.uid,ts);
+        const s=(k&&k.status)||'before';
+        const nm=(typeof _p1901_resolveMemberName==='function')?_p1901_resolveMemberName({uid:a.uid,fallback:a.name||a.uid||'未設定'}):(a.name||a.uid||'未設定');
+        if(s==='working'){working++;_wn.push(nm);}
+        else if(s==='break'){brk++;_bn.push(nm);}
+        else if(s==='before'){before++;_bfn.push(nm);}
+      }catch(_){}});
     }
   }catch(_){}
   // 今日タスク
@@ -3994,7 +4073,10 @@ function _p1310_renderDailyCheckin(){
     }
   }catch(_){}
   const routinePct=routineTotal>0?Math.round(routineDone/routineTotal*100):0;
-  el.innerHTML=`<div class="p1310-daily-h">✅ 店長：今日のチェックイン</div><div class="p1310-daily-grid"><div class="p1310-daily-cell"><div class="p1310-daily-cell-lbl">出勤</div><div class="p1310-daily-cell-val">${working}</div><div class="p1310-daily-cell-sub">/${total} 名</div></div><div class="p1310-daily-cell"><div class="p1310-daily-cell-lbl">今日タスク</div><div class="p1310-daily-cell-val">${todayTasks.length}</div><div class="p1310-daily-cell-sub">完了 ${todayDone}</div></div><div class="p1310-daily-cell"><div class="p1310-daily-cell-lbl">ルーティン</div><div class="p1310-daily-cell-val">${routinePct}%</div><div class="p1310-daily-cell-sub">${routineDone}/${routineTotal}</div></div></div>`;
+  const _e=s=>String(s).replace(/[<>&"']/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c]||c));
+  const _t=arr=>arr.length?_e(arr.join('、')):'なし';
+  const _ttl=`出勤中：${_t(_wn)}\n休憩中：${_t(_bn)}\n未出勤：${_t(_bfn)}`;
+  el.innerHTML=`<div class="p1310-daily-h">✅ 店長：今日のチェックイン</div><div class="p1310-daily-grid"><div class="p1310-daily-cell" title="${_ttl}"><div class="p1310-daily-cell-lbl">出勤</div><div class="p1310-daily-cell-val">${working}</div><div class="p1310-daily-cell-sub">/${total} 名</div></div><div class="p1310-daily-cell"><div class="p1310-daily-cell-lbl">今日タスク</div><div class="p1310-daily-cell-val">${todayTasks.length}</div><div class="p1310-daily-cell-sub">完了 ${todayDone}</div></div><div class="p1310-daily-cell"><div class="p1310-daily-cell-lbl">ルーティン</div><div class="p1310-daily-cell-val">${routinePct}%</div><div class="p1310-daily-cell-sub">${routineDone}/${routineTotal}</div></div></div>`;
   el.style.display='';
 }
 function switchPage(pg){if(pg==='crm'){pg='dash';/* packet 322: 顧客タブ強制無効化、dash に強制リダイレクト */}document.querySelectorAll('.ntab').forEach(b=>b.classList.toggle('on',b.dataset.pg===pg));document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));const pgEl=document.getElementById(`page-${pg}`);if(pgEl)pgEl.classList.add('on');if(pg==='dash'){renderDash();try{_p1000_renderHomeGreeting();}catch(_p1000e){try{console.warn('[packet 1000 greet]',_p1000e&&_p1000e.message);}catch(_){}}try{_p1003_renderAdminShortcuts();}catch(_p1003e){try{console.warn('[packet 1003 admin sc]',_p1003e&&_p1003e.message);}catch(_){}}try{_p1006_personalizeAIConsul();}catch(_p1006e){try{console.warn('[packet 1006 ai consul]',_p1006e&&_p1006e.message);}catch(_){}}try{_p1010_renderTaskAlert();}catch(_p1010e){try{console.warn('[packet 1010 task alert]',_p1010e&&_p1010e.message);}catch(_){}}try{_p1011_render7DaySummary();}catch(_p1011e){try{console.warn('[packet 1011 7day]',_p1011e&&_p1011e.message);}catch(_){}}try{_p1012_renderKPIMini();}catch(_p1012e){try{console.warn('[packet 1012 kpi mini]',_p1012e&&_p1012e.message);}catch(_){}}try{_p1013_renderDRReminder();}catch(_p1013e){try{console.warn('[packet 1013 dr reminder]',_p1013e&&_p1013e.message);}catch(_){}}try{_p1014_renderManagerTeam();}catch(_p1014e){try{console.warn('[packet 1014 mgr team]',_p1014e&&_p1014e.message);}catch(_){}}try{_p1015_renderAIMeetingLink();}catch(_p1015e){try{console.warn('[packet 1015 ai mtg]',_p1015e&&_p1015e.message);}catch(_){}}try{_p1016_renderHomeStats();}catch(_p1016e){try{console.warn('[packet 1016 home stats]',_p1016e&&_p1016e.message);}catch(_){}}try{_p1017_renderStoreSales();}catch(_p1017e){try{console.warn('[packet 1017 store sales]',_p1017e&&_p1017e.message);}catch(_){}}try{_p1018_renderTodayTop3();}catch(_p1018e){try{console.warn('[packet 1018 top3]',_p1018e&&_p1018e.message);}catch(_){}}try{_p1020_renderNextOne();}catch(_p1020e){try{console.warn('[packet 1020 next]',_p1020e&&_p1020e.message);}catch(_){}}try{_p1024_renderMemoryLink();}catch(_p1024e){try{console.warn('[packet 1024 mem link]',_p1024e&&_p1024e.message);}catch(_){}}try{_p1021_renderManagerTop3();}catch(_p1021e){try{console.warn('[packet 1021 mgr top3]',_p1021e&&_p1021e.message);}catch(_){}}try{_p1022_renderAIThemes();}catch(_p1022e){try{console.warn('[packet 1022 ai themes]',_p1022e&&_p1022e.message);}catch(_){}}try{_p1032_renderRoutineProg();}catch(_p1032e){try{console.warn('[packet 1032 routine prog]',_p1032e&&_p1032e.message);}catch(_){}}try{_p1033_renderMorningRep();}catch(_p1033e){try{console.warn('[packet 1033 morning rep]',_p1033e&&_p1033e.message);}catch(_){}}try{_p1230_renderWeeklyTrend();}catch(_p1230e){try{console.warn('[packet 1230 weekly trend]',_p1230e&&_p1230e.message);}catch(_){}}try{_p1235_renderUndoneTrend();}catch(_p1235e){try{console.warn('[packet 1235 undone trend]',_p1235e&&_p1235e.message);}catch(_){}}try{_p1241_renderTrendLink();}catch(_p1241e){try{console.warn('[packet 1241 trend link]',_p1241e&&_p1241e.message);}catch(_){}}try{_p1311_renderStaffWeeklyChart();}catch(_p1311e){try{console.warn('[packet 1311 staff weekly]',_p1311e&&_p1311e.message);}catch(_){}}try{_p1310_renderDailyCheckin();}catch(_p1310e){try{console.warn('[packet 1310 daily checkin]',_p1310e&&_p1310e.message);}catch(_){}}}if(pg==='accounts'){renderAccList();/* packet 490: accounts ページ表示時 packet 480/481 UI を bind */try{if(typeof window._p490_flushPostLogin==='function')window._p490_flushPostLogin();}catch(_){}}if(pg==='kintai'){ktViewUid=currentUser.perm==='admin'?null:currentUser.uid;renderKintaiPage();/* packet 490: kintai ページ表示時 packet 485 export UI を bind */try{if(typeof window._p485_initOnKintai==='function')window._p485_initOnKintai();}catch(_){}}if(pg==='cal')render();if(pg==='shift')renderShift();if(pg==='goal'){initGoalData();renderGoalPage();}if(pg==='report')renderReportPage();if(pg==='ai-status'){try{renderAIStatusPage();}catch(_p502_e){try{console.warn('[packet 502 switchPage]',_p502_e&&_p502_e.message);}catch(_){}}}if(pg==='aiteam')renderAITeamPage();if(pg==='memory'){try{renderMemoryPage();}catch(_p500_e){try{console.warn('[packet 500 switchPage]',_p500_e&&_p500_e.message);}catch(_){}}}if(pg==='member-workload')renderMemberWorkloadPage();if(pg==='ai-members')renderAIMembersPage();if(pg==='ai-org')renderAIOrgChartPage();if(pg==='realestate-knowledge')renderRealEstateKnowledgePage();if(pg==='routine')renderRoutinePage();if(pg==='sales-psy')renderSalesPsychologyPage();if(pg==='knowledge-portal')renderKnowledgePortalPage();if(pg==='role-knowledge')renderRoleKnowledgePage();if(pg==='knowledge-candidate-box'){try{renderKnowledgeCandidateBox();}catch(e){const r=document.getElementById('kc-cards');if(r)r.innerHTML='<div style="color:#b91c1c;padding:14px;background:#fef2f2;border-radius:6px;">AI 事典追加候補箱の読み込みに失敗しました。Console を確認してください。<br><code style="font-size:11px;">'+String(e&&e.message||e)+'</code></div>';}}}
@@ -4153,14 +4235,22 @@ function _p1014_renderManagerTeam(){
   const list=(typeof _getActiveAccountsSorted==='function')?_getActiveAccountsSorted():accounts.filter(a=>a&&!a.disabled);
   if(list.length===0){el.style.display='none';return;}
   let cnt={before:0,working:0,break:0,done:0};
+  // packet 1903: メンバー名を status 別に集めて tooltip 化（helper _p1901 経由で確実に name 解決）
+  const names={before:[],working:[],break:[],done:[]};
   list.forEach(a=>{
     try{
       const k=getKT(a.uid,ts);
       const s=(k&&k.status)||'before';
       if(cnt[s]!==undefined)cnt[s]++;
+      if(names[s]!==undefined){
+        const nm=(typeof _p1901_resolveMemberName==='function')?_p1901_resolveMemberName({uid:a.uid,fallback:a.name||a.uid||'未設定'}):(a.name||a.uid||'未設定');
+        names[s].push(nm);
+      }
     }catch(_){}
   });
-  el.innerHTML=`<div class="p1014-team-h">👥 メンバー出勤状況（店長 view）<span style="margin-left:auto;font-size:9px;color:var(--t3)">クリックで詳細 →</span></div><div class="p1014-team-rows"><span class="p1014-team-stat"><span class="p1014-team-dot" style="background:#0d9e6e"></span>出勤中 ${cnt.working}</span><span class="p1014-team-stat"><span class="p1014-team-dot" style="background:#e6b800"></span>休憩中 ${cnt.break}</span><span class="p1014-team-stat"><span class="p1014-team-dot" style="background:#378add"></span>退勤済 ${cnt.done}</span><span class="p1014-team-stat"><span class="p1014-team-dot" style="background:#cbd5e1"></span>未出勤 ${cnt.before}</span></div>`;
+  const _esc=s=>String(s).replace(/[<>&"']/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c]||c));
+  const _tip=arr=>arr.length?_esc(arr.join('、')):'なし';
+  el.innerHTML=`<div class="p1014-team-h">👥 メンバー出勤状況（店長 view）<span style="margin-left:auto;font-size:9px;color:var(--t3)">クリックで詳細 →</span></div><div class="p1014-team-rows"><span class="p1014-team-stat" title="出勤中：${_tip(names.working)}"><span class="p1014-team-dot" style="background:#0d9e6e"></span>出勤中 ${cnt.working}</span><span class="p1014-team-stat" title="休憩中：${_tip(names.break)}"><span class="p1014-team-dot" style="background:#e6b800"></span>休憩中 ${cnt.break}</span><span class="p1014-team-stat" title="退勤済：${_tip(names.done)}"><span class="p1014-team-dot" style="background:#378add"></span>退勤済 ${cnt.done}</span><span class="p1014-team-stat" title="未出勤：${_tip(names.before)}"><span class="p1014-team-dot" style="background:#cbd5e1"></span>未出勤 ${cnt.before}</span></div>`;
   el.style.display='';
   el.onclick=()=>{try{if(typeof switchPage==='function')switchPage('kintai');}catch(_p1014ec){try{console.warn('[packet 1014 click]',_p1014ec&&_p1014ec.message);}catch(_){}}};
 }
