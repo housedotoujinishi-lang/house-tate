@@ -1,5 +1,12 @@
 # CHANGELOG — ハウステイト じゃがいAI会社OS
 
+## packet 2003 — 🎓 ハウステイトアカデミー統合設計（docsのみ・未実装） / 2026-06-02
+### Added (docs only)
+- `docs/ACADEMY_2003_INTEGRATION_DESIGN.md`：営業トレーニング/宅建大学/実務クイズ/店長レビュー/昇格試験/ランキングの統合設計
+- 統合案A/B/C/D を 教育効果・開発コスト・運用コスト・継続率・売上貢献 で採点（A16/B19/C18/D18）
+- Lv4自己採点ループ記録、最終推奨＝段階統合（A+B→C→D）
+- 実装なし・コード変更なし・DB/外部接続なし
+
 ## packet 2002 — 📚 宅建大学 設計分析パケット（docsのみ・未実装） / 2026-06-02
 ### Added (docs only)
 - `docs/TAKKEN_UNIVERSITY_DESIGN_PACKET_20260602.md` を起票
