@@ -32060,5 +32060,639 @@ function _p500_buildCandidateFromPayload(payload){
 })();
 // ==== ここまで packet 599 記憶庫 直近アクティビティ UI ====
 </script>
+
+<script>
+// ════════════════════════════════════════════════════════════════════
+// packet 2001：🎭 営業トレーニング（ロープレ）標準版MVP
+// 出典：Googleスプレッドシート「ロープレ」購入データ + 分析パケット売却骨子
+// 方針：AI/外部API/Supabase不使用・localStorage保存なし（セッション内のみ）
+// 既存機能・顧客タブには一切触れない（generic page追加のみ）
+// ════════════════════════════════════════════════════════════════════
+(function(){
+  'use strict';
+  if(window.__ht_roleplay_loaded)return; window.__ht_roleplay_loaded=true;
+
+  // ─── 採点軸（評価シート④ + ボスKPIに整合）───
+  // 共通の隠し情報4タイプ：資金 / 家族 / 期限・行動 / 出口
+  // 各choice：good(◎)=+20 / mid(△)=+8 / landmine(×)=-10
+  var PT={good:20,mid:8,bad:-10};
+
+  // ─── シナリオ定義 ───────────────────────────────
+  // side: 'buy'(購入) | 'sell'(売却)
+  // hidden: そのシナリオで開示させたい隠し情報のラベル
+  // turns[].choices[]: {t:選択肢, r:顧客反応, s:スコア種別, reveal:[隠しkey], lm:地雷?, cl:クロージング到達?}
+  var SCN=[
+    // ───────── 購入編（スプレッドシート購入データ由来）─────────
+    {id:'B01',side:'buy',star:4,name:'大谷 鉄平 様（C01）',
+      tags:['住み替え','親援助','配偶者反対'],
+      profile:'37歳・製造業／夫婦＋子1（3歳）。表向き「老後に備え段差の少ない住まいへ」。予算2800万・希望中古戸建4LDK。SUUMO反響、探し始め3ヶ月。',
+      hidden:['本音:親援助は"中古不可（新築なら援助）"の条件付き','本音:配偶者が購入に半分反対','本音:奨学金/分割/キャッシング返済中（審査に影響）'],
+      turns:[
+        {phase:'① 初回5分',q:'着席直後。大谷様はやや警戒気味。最初の一手は？',
+          choices:[
+            {t:'「ご予算2800万ですと、こちらの戸建が…」と物件提案から入る',r:'「いや、まだそこまでは…」と表情が固くなった。',s:'bad',lm:true},
+            {t:'「今日は売り込みません。条件整理だけで大丈夫です」と宣言',r:'「あ、そうなんですね」と肩の力が抜けた。',s:'good'},
+            {t:'天気や交通の世間話で場を温める',r:'場は和むが、本題が進まない。',s:'mid'}]},
+        {phase:'② ヒアリング(Why2段階)',q:'購入動機を深掘りする。どう聞く？',
+          choices:[
+            {t:'「ご予算と間取りは決まってますか？」と条件から確認',r:'条件は埋まるが、動機の背景が見えない。',s:'mid'},
+            {t:'「今のお住まいの不満→理想→いつまでに、を順番に教えてください」',r:'「実は結露がひどくて…時期も気にしていて」と期限の本音が出た。',s:'good',reveal:['本音:配偶者が購入に半分反対']},
+            {t:'「老後に備えてとのことですね、良い心がけです」で受け流す',r:'共感止まりで深掘りできず。',s:'bad',lm:true}]},
+        {phase:'③ 資金・隠し情報',q:'資金の話に入る。リスクの確認は？',
+          choices:[
+            {t:'「頭金300万あればローンは問題ないですね」と決めつける',r:'「…まあ、はい」奥歯に物が挟まった様子。返済中の借入を見落とした。',s:'bad',lm:true},
+            {t:'「ご年収以外に、お車・奨学金・カードのお支払いはありますか？」と丁寧に確認',r:'「奨学金とカード分割が少し…」と返済中の事実を開示。',s:'good',reveal:['本音:奨学金/分割/キャッシング返済中（審査に影響）']},
+            {t:'「ご資金は後で大丈夫です」と先送り',r:'今は流れるが後で審査リスクが残る。',s:'mid'}]},
+        {phase:'④ 条件整理・親援助',q:'親援助の話題が出た。確認の仕方は？',
+          choices:[
+            {t:'「ご両親の援助があるなら予算を上げられますね」と前向きに進める',r:'「それが…新築じゃないと出さないと言われていて」後出しで条件判明。',s:'bad',lm:true},
+            {t:'「ご援助には何か条件はありますか？金額・物件種別など」と確認',r:'「中古不可で、新築なら援助、と」重要条件を先に把握できた。',s:'good',reveal:['本音:親援助は"中古不可（新築なら援助）"の条件付き']},
+            {t:'援助には触れず希望の中古戸建で提案を組む',r:'後で親の条件と衝突する可能性を残した。',s:'mid'}]},
+        {phase:'⑤ クロージング',q:'本日の締め。次の一手は？',
+          choices:[
+            {t:'「ではご検討よろしくお願いします」と資料を渡して終了',r:'「はい、検討します」＝ほぼ進展なし。',s:'bad',lm:true},
+            {t:'「奥様も一緒に、まず1件だけ内覧しませんか？土日でご都合は？」',r:'「土曜なら…妻にも聞いてみます」内覧アポの芽が出た。',s:'good',cl:true},
+            {t:'「今決めていただければ値引き交渉します」と押す',r:'「いや、今日は…」警戒が戻った。',s:'mid'}]}]},
+
+    {id:'B02',side:'buy',star:3,name:'山本 恒一 様（精緻版C01）',
+      tags:['子育て','予算超過','出口(転勤)'],
+      profile:'33歳・メーカー営業／夫婦＋子1（2歳）。表向き「家賃がもったいない／子が走り回れる家」。予算3000万・中古戸建3LDK以上。慎重・不安が強い。',
+      hidden:['本音:月々は"9万以内"が理想（表向き予算より低い）','本音:妻が"新築が良い"寄りで説得が必要','本音:転勤の可能性があり5年以内に売却の可能性'],
+      turns:[
+        {phase:'① 初回5分',q:'不安が強いお客様。入りは？',
+          choices:[
+            {t:'「人気エリアなので早めに決めないと無くなりますよ」と煽る',r:'「うーん…」不安を刺激し逆効果。',s:'bad',lm:true},
+            {t:'「今日は条件整理だけでOKです。決める必要はありません」',r:'「それなら安心です」緊張がほぐれた。',s:'good'},
+            {t:'すぐ物件資料を広げて説明開始',r:'情報過多で表情が曇る。',s:'mid'}]},
+        {phase:'② ヒアリング',q:'動機の背景を聞く。',
+          choices:[
+            {t:'「ご予算は3000万でよろしいですね」と額面確認のみ',r:'「はい…」本音の月々とのズレに気づけない。',s:'mid'},
+            {t:'「毎月の支払いは、無理なくだといくらが理想ですか？」',r:'「正直、月9万くらいが本音です」表向き予算との差が判明。',s:'good',reveal:['本音:月々は"9万以内"が理想（表向き予算より低い）']},
+            {t:'「3000万なら選択肢多いですよ」と提案へ急ぐ',r:'本音予算を取り逃した。',s:'bad',lm:true}]},
+        {phase:'③ 家族の合意',q:'奥様の意向を確認する。',
+          choices:[
+            {t:'「ご主人が良ければ進めましょう」と単独で進行',r:'決裁者を読み違え、後で覆るリスク。',s:'bad',lm:true},
+            {t:'「奥様はどんな住まいをご希望ですか？温度感も含めて」',r:'「妻は新築寄りで…そこは説得が要ります」合意形成の論点が見えた。',s:'good',reveal:['本音:妻が"新築が良い"寄りで説得が必要']},
+            {t:'「ご家族でよく話してみてください」で流す',r:'論点は不明のまま。',s:'mid'}]},
+        {phase:'④ 出口・資金',q:'将来の見通しを確認する。',
+          choices:[
+            {t:'「一生住む前提で考えましょう」と決めつける',r:'「実は転勤があるかも…」と引き出せず。',s:'bad',lm:true},
+            {t:'「お仕事の都合で住み替えの可能性はありますか？」',r:'「5年以内に転勤で売るかも…」出口の本音を開示。',s:'good',reveal:['本音:転勤の可能性があり5年以内に売却の可能性']},
+            {t:'資産性の一般論だけ説明',r:'個別事情に踏み込めず。',s:'mid'}]},
+        {phase:'⑤ クロージング',q:'締めの提案。',
+          choices:[
+            {t:'「また良いの出たら連絡します」で終了',r:'進展なく終了。',s:'bad',lm:true},
+            {t:'「月9万で届く中古を2件に絞ってお持ちします。来週どうですか」',r:'「それは助かります」次回アポの合意。',s:'good',cl:true},
+            {t:'「とりあえず仮審査だけ今日出しましょう」と急かす',r:'「まだ早いかな…」温度感とズレた。',s:'mid'}]}]},
+
+    {id:'B03',side:'buy',star:3,name:'田中 恒一郎 様（精緻版C03）',
+      tags:['新婚','ローン不安','家族条件'],
+      profile:'30歳・公務員／新婚（妻は看護師）。表向き「結婚を機に新居・妻の希望が強い」。予算3000万・新築戸建3LDK・3ヶ月以内。スピード重視・表面は強気。',
+      hidden:['本音:リボが少しあり審査が不安','本音:妻が"義実家近く"を外せない','本音:親援助は期待できない（見栄で言わない）'],
+      turns:[
+        {phase:'① 初回5分',q:'強気でスピード重視のお客様。',
+          choices:[
+            {t:'勢いに合わせ「すぐ決めましょう！」と煽り返す',r:'盛り上がるが審査リスクを見落としやすい。',s:'mid'},
+            {t:'「最短で動けるよう、まず条件と資金を正確に整えましょう」',r:'「お、頼れますね」信頼の入口を作れた。',s:'good'},
+            {t:'「新婚さんおめでとうございます」だけで本題に入らない',r:'場は和むが前進せず。',s:'mid'}]},
+        {phase:'② 資金・隠し情報',q:'審査前提を確認する。',
+          choices:[
+            {t:'「公務員なら審査は楽勝です」と太鼓判',r:'「…実はリボが少し」言い出せず不安が残った。',s:'bad',lm:true},
+            {t:'「カードのリボ・分割など、少額でも先に共有いただけると安全です」',r:'「リボが少しあって…」審査の地雷を事前に把握。',s:'good',reveal:['本音:リボが少しあり審査が不安']},
+            {t:'「資金は奥様と後で」と先送り',r:'今は流れるが不安は未解消。',s:'mid'}]},
+        {phase:'③ 家族の必須条件',q:'妻の希望を掘る。',
+          choices:[
+            {t:'「エリアは追って詰めましょう」と曖昧に',r:'譲れない条件を取り逃す。',s:'mid'},
+            {t:'「奥様が"これだけは外せない"条件はありますか？」',r:'「義実家の近くは外せないと」核心条件を把握。',s:'good',reveal:['本音:妻が"義実家近く"を外せない']},
+            {t:'「ご主人の希望優先で探しましょう」',r:'後で妻の条件と衝突。',s:'bad',lm:true}]},
+        {phase:'④ 資金計画',q:'頭金・援助の確認。',
+          choices:[
+            {t:'「ご両親の援助は当然ありますよね？」と決めつけ',r:'「まあ…ええ」見栄を張らせてしまった。',s:'bad',lm:true},
+            {t:'「頭金や援助は無理に前提にせず、自己資金ベースで設計しますね」',r:'「正直、親の援助は当てにできなくて」本音を引き出せた。',s:'good',reveal:['本音:親援助は期待できない（見栄で言わない）']},
+            {t:'援助前提で上限予算を引き上げる',r:'実態と乖離した計画に。',s:'mid'}]},
+        {phase:'⑤ クロージング',q:'締め。',
+          choices:[
+            {t:'「では物件出たら連絡します」で終了',r:'進展なし。',s:'bad',lm:true},
+            {t:'「義実家近くの新築候補で、まず仮審査と内覧を同時に進めましょう」',r:'「お願いします！」具体行動に合意。',s:'good',cl:true},
+            {t:'「今日申込みまでいきましょう」と一気に押す',r:'「さすがに今日は」ややブレーキ。',s:'mid'}]}]},
+
+    {id:'B04',side:'buy',star:4,name:'田中 宏介 様（C08）',
+      tags:['住み替え','学区','行動制約'],
+      profile:'45歳・飲食業／夫婦＋子1（2歳）。表向き「新築の安心感／早めに住み替え」。予算2600万・新築戸建3LDK・学区必須（現学区内）。',
+      hidden:['本音:親援助は"学区指定"が条件','本音:内見は土曜午前しか動けない','本音:多重分割（合計月25,000）の返済あり','本音:配偶者が購入に半分反対'],
+      turns:[
+        {phase:'① 初回5分',q:'多忙で時間が取りにくいお客様。',
+          choices:[
+            {t:'「物件たくさんあるので見て回りましょう」',r:'時間制約を無視し負担に。',s:'bad',lm:true},
+            {t:'「お忙しいと思うので、今日は要点だけ。決めなくてOKです」',r:'「助かります」信頼の入口。',s:'good'},
+            {t:'世間話中心で進める',r:'限られた時間を消費。',s:'mid'}]},
+        {phase:'② ヒアリング・学区',q:'学区条件を確認する。',
+          choices:[
+            {t:'「学区はだいたいこの辺ですね」と曖昧に',r:'必須条件の精度が低い。',s:'mid'},
+            {t:'「現学区内が必須ですね。通学路や対象校も具体に確認しましょう」',r:'「そこは絶対です」最優先条件を固定できた。',s:'good'},
+            {t:'「学区は後で良いので予算から」',r:'譲れない条件を軽視。',s:'bad',lm:true}]},
+        {phase:'③ 行動制約',q:'内見の段取りを詰める。',
+          choices:[
+            {t:'「平日夜にご案内しますね」と勝手に決める',r:'「いや、土曜午前しか…」調整が振り出しに。',s:'bad',lm:true},
+            {t:'「ご内見はいつなら動けますか？ご都合の良い曜日・時間を」',r:'「土曜の午前だけです」段取りの前提を確保。',s:'good',reveal:['本音:内見は土曜午前しか動けない']},
+            {t:'「都合つく時で大丈夫です」と曖昧に',r:'後でアポ調整が難航。',s:'mid'}]},
+        {phase:'④ 資金・家族',q:'援助と家族の確認。',
+          choices:[
+            {t:'「援助あるなら学区内の新築いけますね」と先走り',r:'「学区指定が条件で…妻も乗り気じゃなくて」後出しで二重の壁。',s:'bad',lm:true},
+            {t:'「ご援助の条件と、奥様のご意向もうかがえますか」',r:'「援助は学区指定が条件、妻は半分反対で」二つの本音を把握。',s:'good',reveal:['本音:親援助は"学区指定"が条件','本音:配偶者が購入に半分反対']},
+            {t:'分割返済の有無だけ確認して家族は飛ばす',r:'返済は拾えたが合意形成の論点を欠く。',s:'mid',reveal:['本音:多重分割（合計月25,000）の返済あり']}]},
+        {phase:'⑤ クロージング',q:'締め。',
+          choices:[
+            {t:'「検討お願いします」で終了',r:'進展なし。',s:'bad',lm:true},
+            {t:'「学区内の新築を2件に絞り、次の土曜午前に奥様とご一緒に内覧を」',r:'「それなら行けます」内覧アポ成立。',s:'good',cl:true},
+            {t:'「仮審査だけ今日出しましょう」',r:'返済状況の整理が先で時期尚早。',s:'mid'}]}]},
+
+    {id:'B05',side:'buy',star:5,name:'山本 達哉 様（C03）',
+      tags:['店舗併用','事業融資','契約社員'],
+      profile:'45歳・メーカー営業（契約社員）／夫婦＋子2。表向き「店舗併用（サロン・事務所）をやりたい／家賃を投資に（※投資物件ではない）」。予算2200万・店舗付き住宅。不安強め・優柔不断。',
+      hidden:['本音:事業計画が未完成で融資が弱い','本音:車ローン残債280万（完済7年）','本音:賃貸更新が2〜3ヶ月後で焦っている'],
+      turns:[
+        {phase:'① 初回5分',q:'融資が複雑な店舗併用案件。',
+          choices:[
+            {t:'「店舗付きは難しいので普通の戸建にしては」と否定から入る',r:'目的を否定され心を閉ざした。',s:'bad',lm:true},
+            {t:'「店舗併用は段取りが肝心です。今日は全体像を一緒に整理しましょう」',r:'「お願いしたいです」専門性に期待が生まれた。',s:'good'},
+            {t:'「とりあえず物件から見ましょう」',r:'融資設計を後回しにし不安定。',s:'mid'}]},
+        {phase:'② 必須質問対応',q:'お客様が「店舗付きの住宅ローンの扱いは？」と質問。',
+          choices:[
+            {t:'「普通の住宅ローンで大丈夫です」と即答',r:'不正確な回答で後に齟齬。',s:'bad',lm:true},
+            {t:'「居住部分と事業部分で扱いが分かれます。用途地域・営業可否も併せて確認しますね」',r:'「詳しいですね」信頼が深まった。',s:'good'},
+            {t:'「金融機関に聞いておきます」と保留',r:'その場の不安は残る。',s:'mid'}]},
+        {phase:'③ 事業の実態',q:'事業性を掘る。',
+          choices:[
+            {t:'「開業されるんですね、素敵です」で済ます',r:'融資の弱点を把握できず。',s:'bad',lm:true},
+            {t:'「事業計画書や売上見込みはどの程度お持ちですか？」',r:'「実はまだ固まっていなくて…」融資の弱点を事前に把握。',s:'good',reveal:['本音:事業計画が未完成で融資が弱い']},
+            {t:'自己資金の額だけ確認',r:'一部は拾えたが事業性は不明。',s:'mid'}]},
+        {phase:'④ 資金・期限',q:'返済と時期の確認。',
+          choices:[
+            {t:'「お時間あるのでゆっくりいきましょう」',r:'「いや、更新が近くて…」焦りを見落とす。',s:'bad',lm:true},
+            {t:'「他のお借入と、引っ越し時期の希望をうかがえますか」',r:'「車ローンが残280万、更新が2〜3ヶ月後で焦ってます」資金と期限を把握。',s:'good',reveal:['本音:車ローン残債280万（完済7年）','本音:賃貸更新が2〜3ヶ月後で焦っている']},
+            {t:'予算2200万の範囲だけ確認',r:'返済と期限を取り逃す。',s:'mid'}]},
+        {phase:'⑤ クロージング',q:'締め。',
+          choices:[
+            {t:'「事業計画できたらまた来てください」で突き放す',r:'機会を失いかける。',s:'bad',lm:true},
+            {t:'「まず事業計画づくりと金融機関の事前相談を一緒に。更新前に動けるよう日程を組みましょう」',r:'「ぜひお願いします」伴走の合意。',s:'good',cl:true},
+            {t:'「物件だけ先に押さえましょう」',r:'融資設計が後手に。',s:'mid'}]}]},
+
+    {id:'B06',side:'buy',star:5,name:'木村 恒一 様（精緻版C05）',
+      tags:['店舗併用','自己資金見栄','配偶者反対'],
+      profile:'40歳・美容師（独立予定）／夫婦＋子1（小2）。表向き「小さな美容室を店舗併用でやりたい」。予算3000万・店舗付き住宅・幹線道路沿い希望。',
+      hidden:['本音:自己資金は実は少なく見栄を張っている','本音:独立に妻が半分反対（収入不安）','本音:駅近より幹線沿いが本音（集客優先）'],
+      turns:[
+        {phase:'① 初回5分',q:'独立を控えた美容師。',
+          choices:[
+            {t:'いきなり予算3000万の物件を提案',r:'資金実態を確認せず空回り。',s:'bad',lm:true},
+            {t:'「独立とお住まいを一度に。今日は無理に決めず設計を整理しましょう」',r:'「そうしてもらえると」安心して話し始めた。',s:'good'},
+            {t:'「美容室いいですね」と雑談中心',r:'前進せず。',s:'mid'}]},
+        {phase:'② 集客の本音',q:'立地条件を掘る。',
+          choices:[
+            {t:'「駅近が資産性高いですよ」と一般論で誘導',r:'「いや、集客的には…」本音とズレた。',s:'bad',lm:true},
+            {t:'「お店の集客で、立地に譲れない条件はありますか？」',r:'「駅近より幹線沿いが本音です」事業優先の条件を把握。',s:'good',reveal:['本音:駅近より幹線沿いが本音（集客優先）']},
+            {t:'希望どおり幹線沿いで物件を探すと約束',r:'条件は合うが理由の確認が浅い。',s:'mid'}]},
+        {phase:'③ 資金の実態',q:'自己資金を確認する。',
+          choices:[
+            {t:'「自己資金100万、十分ですね」と額面を信じる',r:'「ええ、まあ…」見栄を見抜けず。',s:'bad',lm:true},
+            {t:'「開業資金と住宅で資金が重なります。実際に動かせる額を正直に整理しましょう」',r:'「正直、見栄を張ってました。実は少なくて」実態を開示。',s:'good',reveal:['本音:自己資金は実は少なく見栄を張っている']},
+            {t:'住宅ローンの上限だけ説明',r:'事業資金との重複を見落とす。',s:'mid'}]},
+        {phase:'④ 家族の合意',q:'妻の意向を確認する。',
+          choices:[
+            {t:'「奥様も応援されてますよね」と決めつけ',r:'「実は半分反対で…」温度差を見落とす。',s:'bad',lm:true},
+            {t:'「奥様は独立についてどうお考えですか？収入面のご不安も含めて」',r:'「収入が不安で半分反対なんです」合意形成の論点が明確に。',s:'good',reveal:['本音:独立に妻が半分反対（収入不安）']},
+            {t:'家族は触れず物件提案を優先',r:'後で反対が表面化。',s:'mid'}]},
+        {phase:'⑤ クロージング',q:'締め。',
+          choices:[
+            {t:'「資金貯めてからまた」で突き放す',r:'機会を失いかける。',s:'bad',lm:true},
+            {t:'「事業計画と資金を一緒に整え、奥様の不安も解消する段取りを。幹線沿い候補も並行で集めます」',r:'「心強いです」伴走に合意。',s:'good',cl:true},
+            {t:'「幹線沿いの物件だけ先に押さえましょう」',r:'資金・家族の整理が後手。',s:'mid'}]}]},
+
+    // ───────── 売却編（ハウステイト実務に即した新規設計：元データなし）─────────
+    // 各6問。dim=売却の重点採点軸。mgrFeedback=店長コメント。goal導線=訪問査定/専任媒介。
+    {id:'S01',side:'sell',star:3,name:'【売却・相続】佐々木 様（実家戸建）',
+      tags:['相続','査定だけ','現金化','共有名義'],
+      profile:'亡父から相続した実家（京都市南区・築40年戸建）について「とりあえず査定だけ」と来店。情報収集の体だが、表情は少し焦り気味。',
+      hidden:['本音:兄弟3人で売る/残すで揉めている','本音:相続税の納付（10ヶ月以内）に充てたく早く現金化したい','権利:兄弟3人の共有名義で相続登記が未了','価格期待:亡父が「3000万はする」と言っていた（過大期待）','競合:大手にも査定を依頼済み'],
+      mgrFeedback:'相続案件は「金額」より先に〈相続人全員の同意〉と〈登記・期限〉を押さえるのが鉄則。査定額の数字勝負に乗らず、司法書士連携と合意形成支援を武器に専任を取りにいけ。机上査定書だけ渡して帰る＝失注、と肝に銘じること。',
+      turns:[
+        {phase:'① 信頼構築',dim:'信頼構築',q:'「査定だけでいい」と来店。最初の一手は？',
+          choices:[
+            {t:'「では査定書をお作りしますね」と数字の話から入る',r:'事務的で、背景の焦りに踏み込めない。',s:'mid'},
+            {t:'「もちろん査定だけでOKです。差し支えなければ、ご相続の経緯だけ伺えますか」',r:'「実は相続で兄弟と…」と少し心を開いた。',s:'good'},
+            {t:'「今売らないと相続税で損しますよ」と煽る',r:'「まだそこまでは」と警戒され口が重くなった。',s:'bad',lm:true}]},
+        {phase:'② 売却理由の深掘り',dim:'売却理由の深掘り',q:'売る理由とご家族の方針を掘る。',
+          choices:[
+            {t:'「ご相続なんですね」で受け流し査定へ',r:'本音の事情を取り逃す。',s:'bad',lm:true},
+            {t:'「失礼ですが、なぜ今ご売却を？ご兄弟での方針は揃っていますか」',r:'「兄弟で意見が割れていて…早く現金化したい」核心が出た。',s:'good',reveal:['本音:兄弟3人で売る/残すで揉めている','本音:相続税の納付（10ヶ月以内）に充てたく早く現金化したい']},
+            {t:'「ゆっくり考えて大丈夫ですよ」と急かさない',r:'丁寧だが、急ぎの本音に届かない。',s:'mid'}]},
+        {phase:'③ 所有者・相続人の確認',dim:'所有者・相続人確認',q:'売却の可否に直結する権利関係を確認する。',
+          choices:[
+            {t:'名義や相続人は確認せず査定額の話を進める',r:'「実は登記がまだで…」後で売却が止まるリスク。',s:'bad',lm:true},
+            {t:'「ご名義（相続登記）の状況と、相続人が何名いらっしゃるか確認させてください」',r:'「兄弟3人の共有で、登記はこれからです」最大の障害を先に把握。',s:'good',reveal:['権利:兄弟3人の共有名義で相続登記が未了']},
+            {t:'「司法書士は後でご紹介します」と先送り',r:'論点は残るが、一応認識はした。',s:'mid'}]},
+        {phase:'④ 売却期限の確認',dim:'売却期限の確認',q:'いつまでに売りたいかを確認する。',
+          choices:[
+            {t:'期限は聞かず「じっくりいきましょう」',r:'「いや、税金の期限があって」焦りを見落とす。',s:'bad',lm:true},
+            {t:'「相続税の申告・納付期限（10ヶ月）から逆算しましょう。いつまでに現金化が必要ですか」',r:'「あと数ヶ月で…」逆算スケジュールの合意ができた。',s:'good',reveal:['本音:相続税の納付（10ヶ月以内）に充てたく早く現金化したい']},
+            {t:'「相場が良いので急がなくても」と楽観',r:'期限リスクを軽視。',s:'mid'}]},
+        {phase:'⑤ 価格期待値の調整・競合',dim:'価格期待値調整・他社競合',q:'「父は3000万と言っていた」。大手にも査定中と判明。',
+          choices:[
+            {t:'大手より高い数字を根拠なく提示して気を引く',r:'一瞬喜ぶが、売れ残り値下げ→信頼喪失の地雷。',s:'bad',lm:true},
+            {t:'「近隣の成約事例で根拠をお見せします。高い査定額より"実際に売れる価格"でご判断を」',r:'「根拠があると安心。大手は数字だけだった」差別化できた。',s:'good',reveal:['価格期待:亡父が「3000万はする」と言っていた（過大期待）','競合:大手にも査定を依頼済み']},
+            {t:'「相場どおりです」とだけ伝える',r:'差別化できず印象は普通。',s:'mid'}]},
+        {phase:'⑥ クロージング（訪問査定→専任媒介）',dim:'訪問査定提案・媒介取得力',q:'締め。次の一手は？',
+          choices:[
+            {t:'机上査定書を渡して「ご検討を」で終了',r:'媒介に繋がらず終了。典型的な失注。',s:'bad',lm:true},
+            {t:'「正確な額は現地を拝見してから。訪問査定に伺い、ご兄弟の合意づくりと司法書士連携までお手伝いします」',r:'「ぜひお願いします」訪問査定アポ＋専任の芽。',s:'good',cl:true},
+            {t:'「では今日、専任媒介を結びましょう」と急ぐ',r:'「まだ兄弟と話してから」時期尚早で持ち帰りに。',s:'mid'}]}]},
+
+    {id:'S02',side:'sell',star:4,name:'【売却・離婚／財産分与】橋本 様（自宅マンション）',
+      tags:['離婚','財産分与','残債','秘匿'],
+      profile:'自宅マンションについて「住み替えを検討中」と来店。表向きは前向きな住み替え相談だが、言葉を選んでいる様子。',
+      hidden:['本音:離婚に伴う売却で、財産分与（協議）の期限がシビア','本音:近所・知人に知られず売りたい','権利:夫婦の共有名義（持分1/2）＋住宅ローンは夫名義で妻が連帯保証','価格期待:「ローンを完済できる額」が最低ライン（オーバーローン懸念）','競合:ネットで一括査定し他社からも連絡が来ている'],
+      mgrFeedback:'離婚案件は〈共有名義の双方同意〉と〈残債（連帯保証含む）〉を外すと契約直前で全部ひっくり返る。秘匿希望が強いので一括査定の高値合戦に乗らず、非公開販売＋手残り試算で安心させて専任を取る。スピードと配慮の両立が腕の見せ所。',
+      turns:[
+        {phase:'① 信頼構築',dim:'信頼構築',q:'「住み替えを考えていて」と来店。',
+          choices:[
+            {t:'「良い住み替え先を一緒に探しましょう！」と購入前提で進む',r:'前提を読み違え、本音に届かない。',s:'mid'},
+            {t:'「まずは今のお住まいの状況から。ご相談内容は外部に出しませんのでご安心を」',r:'守秘に触れたことで少し肩の力が抜けた。',s:'good'},
+            {t:'「今は売り時ですよ、すぐ出しましょう」と即・売却誘導',r:'事情を聞かず一方的で警戒された。',s:'bad',lm:true}]},
+        {phase:'② 売却理由の深掘り',dim:'売却理由の深掘り',q:'住み替えの背景を丁寧に掘る。',
+          choices:[
+            {t:'「住み替えの理由は？」とだけ軽く聞く',r:'「まあ色々あって」と本音は出ない。',s:'mid'},
+            {t:'「立ち入った話で恐縮ですが、ご売却の時期に何かご事情はありますか」',r:'「実は離婚で…分与の期限があるんです」核心が出た。',s:'good',reveal:['本音:離婚に伴う売却で、財産分与（協議）の期限がシビア']},
+            {t:'背景は聞かずに物件査定だけ進める',r:'時期のシビアさを見落とす地雷。',s:'bad',lm:true}]},
+        {phase:'③ 所有者・権利関係の確認',dim:'所有者・相続人確認',q:'名義とローンの権利関係を確認する。',
+          choices:[
+            {t:'名義もローンも聞かず査定額だけ伝える',r:'「名義が夫婦共有で…私も保証人で」後で同意・残債が壁に。',s:'bad',lm:true},
+            {t:'「ご名義（共有か）と、住宅ローンの名義・連帯保証の有無を確認させてください」',r:'「共有名義で、私が夫の連帯保証人です」契約の前提条件を把握。',s:'good',reveal:['権利:夫婦の共有名義（持分1/2）＋住宅ローンは夫名義で妻が連帯保証']},
+            {t:'「名義は後で書類で確認しますね」と先送り',r:'論点は残るが一応認識。',s:'mid'}]},
+        {phase:'④ 売却期限＋残債の確認',dim:'売却期限の確認',q:'期限と手残りを確認する。',
+          choices:[
+            {t:'残債は聞かず「ゆっくりで大丈夫」',r:'「売っても足りないかも、しかも急ぎで」二重に見落とす。',s:'bad',lm:true},
+            {t:'「分与協議の期限から逆算しつつ、ローン残債と売却額の差（手残り）を一緒に試算しましょう」',r:'「残債が多くて不安。でも期限は決まっていて」期限と資金を同時把握。',s:'good',reveal:['価格期待:「ローンを完済できる額」が最低ライン（オーバーローン懸念）']},
+            {t:'「だいたい大丈夫でしょう」と楽観',r:'オーバーローンの可能性を軽視。',s:'mid'}]},
+        {phase:'⑤ 価格期待・競合・秘匿配慮',dim:'価格期待値調整・他社競合',q:'一括査定の他社高値と、秘匿希望にどう応える？',
+          choices:[
+            {t:'他社の高値に合わせ「広く大々的に売り出しましょう」',r:'「近所に知られたくないのに…」配慮を欠き不信に。',s:'bad',lm:true},
+            {t:'「ご希望に沿い、非公開・限定での販売も可能です。残債を割らない価格設定の根拠もお見せします」',r:'「知られず、かつ完済できるなら」最有力候補になった。',s:'good',reveal:['本音:近所・知人に知られず売りたい','競合:ネットで一括査定し他社からも連絡が来ている']},
+            {t:'販売方法は後回しで価格交渉に進む',r:'秘匿の希望を取りこぼす。',s:'mid'}]},
+        {phase:'⑥ クロージング（訪問査定→専任媒介）',dim:'訪問査定提案・媒介取得力',q:'締め。',
+          choices:[
+            {t:'「ご検討ください」と査定書だけ渡す',r:'進展なく、他社に流れるリスク。',s:'bad',lm:true},
+            {t:'「期限に間に合うよう、訪問査定→残債整理→非公開販売を当社一括で。専任でお任せいただければ責任を持ちます」',r:'「お願いします」訪問査定＋専任の合意。',s:'good',cl:true},
+            {t:'「とにかく安くして早く売りましょう」',r:'手残りを軽視した提案で不安が残る。',s:'mid'}]}]},
+
+    {id:'S03',side:'sell',star:2,name:'【売却・空き家】中川 様（遠方相続の空き家）',
+      tags:['空き家','温度感','維持限界','遠方'],
+      profile:'相続し空き家になった戸建（南区・旧耐震）について「いつか売れればいい」と温度感低めで来店。実は内心、持て余している。',
+      hidden:['本音:固定資産税と管理の手間が限界で、本当は早く手放したい','権利:単独名義だが増築部分が未登記／旧耐震','本音:遠方在住で現地に行けず、家財も残ったまま','価格期待:「築古でボロいから二束三文だろう」と過小評価（土地値の認識なし）','競合:近所の地元業者にも声をかけている'],
+      mgrFeedback:'空き家は温度感が低く見えても〈税負担・特定空家リスク〉で実は急いでいることが多い。来店時に温度を上げ切れず「また今度」で帰すのが一番の失注。遠方・残置・未登記は"こちらが代行で解決"と提示すれば一気に専任に近づく。買取と仲介の比較提示で逃さないこと。',
+      turns:[
+        {phase:'① 信頼構築',dim:'信頼構築',q:'温度感が低いお客様。最初の一手は？',
+          choices:[
+            {t:'「では今は様子見ですね」とこちらから引く',r:'温度を上げる機会を逃す。',s:'mid'},
+            {t:'「"いつか"で大丈夫です。維持の面で、今お困りごとはありませんか」',r:'「管理が正直しんどくて」と本音の入口が見えた。',s:'good'},
+            {t:'「空き家は放置すると行政代執行で大変ですよ！」と不安を煽る',r:'押しが強く引かれた。',s:'bad',lm:true}]},
+        {phase:'② 売却理由の深掘り',dim:'売却理由の深掘り',q:'本当の温度感を測る。',
+          choices:[
+            {t:'「気が向いたらご連絡を」で終わらせかける',r:'急ぎの本音に届かず失注寸前。',s:'bad',lm:true},
+            {t:'「固定資産税や管理のご負担はいかがですか。持ち続けるコストも一緒に整理しましょう」',r:'「税金と管理が限界で、本当は早く手放したい」実は急ぎと判明。',s:'good',reveal:['本音:固定資産税と管理の手間が限界で、本当は早く手放したい']},
+            {t:'「では年明けにでも改めて」と先送り',r:'機会を逃す。',s:'mid'}]},
+        {phase:'③ 所有者・権利関係の確認',dim:'所有者・相続人確認',q:'登記・建物の状態を確認する。',
+          choices:[
+            {t:'名義や建物の状態は確認せず話を進める',r:'「増築が登記されてなくて、旧耐震で」後で価格・手続きが揺れる。',s:'bad',lm:true},
+            {t:'「ご名義と、増改築や未登記部分・建築時期（耐震）を確認させてください」',r:'「単独名義だけど増築が未登記、旧耐震です」価格・手続きの前提を把握。',s:'good',reveal:['権利:単独名義だが増築部分が未登記／旧耐震']},
+            {t:'「権利関係は後で書類で」と先送り',r:'論点は残るが認識した。',s:'mid'}]},
+        {phase:'④ 物理的制約＋期限',dim:'売却期限の確認',q:'現地・残置物と、いつまでにを確認する。',
+          choices:[
+            {t:'「では現地で待ち合わせましょう」と来訪前提で話す',r:'「遠方で行けなくて、家財も残ってて」段取りが崩れる。',s:'bad',lm:true},
+            {t:'「ご遠方ですか？現地確認・家財整理は当方で代行します。来年度の固定資産税までに動きますか」',r:'「遠方で家財も残っていて。税金が上がる前に動きたい」障害を解決策化し期限も把握。',s:'good',reveal:['本音:遠方在住で現地に行けず、家財も残ったまま']},
+            {t:'残置物・期限には触れず査定を進める',r:'後で手続きが滞る。',s:'mid'}]},
+        {phase:'⑤ 価格期待・出口・競合',dim:'価格期待値調整・他社競合',q:'「ボロいから二束三文でしょ」。地元業者にも相談中。',
+          choices:[
+            {t:'「そうですね、建物は値段つかないですね」と同調',r:'土地値を伝えず過小評価のまま機会損失。',s:'bad',lm:true},
+            {t:'「建物が古くても土地に価値があります。仲介と買取の比較で、手残りが多い出口をお見せします」',r:'「土地で見てくれるのか。両方比べられるなら安心」現実的な出口を提示。',s:'good',reveal:['価格期待:「築古でボロいから二束三文だろう」と過小評価（土地値の認識なし）','競合:近所の地元業者にも声をかけている']},
+            {t:'相場だけ伝えて判断は委ねる',r:'後押しが弱い。',s:'mid'}]},
+        {phase:'⑥ クロージング（現地訪問査定→媒介/買取）',dim:'訪問査定提案・媒介取得力',q:'締め。',
+          choices:[
+            {t:'「ご検討ください」で終了',r:'温度が下がり失注。',s:'bad',lm:true},
+            {t:'「まず当方が現地と家財を確認する訪問査定を。仲介・買取の比較もご用意し、ご負担を最短で減らします」',r:'「お願いします」訪問査定に合意。',s:'good',cl:true},
+            {t:'「今日、媒介契約だけ先に」と急ぐ',r:'温度感に対し性急で持ち帰りに。',s:'mid'}]}]},
+
+    {id:'S04',side:'sell',star:4,name:'【売却・住み替え】田所 様（買い替え）',
+      tags:['住み替え','残債','売り先行/買い先行','夫婦温度差'],
+      profile:'戸建の住み替えで「良い物件があれば買いたい」と来店。気持ちは新居（購入）に向いており、売却は後回しの認識。',
+      hidden:['本音:今の家のローンが残っており、売れないと次が買えない（資金繋ぎ不安）','権利:現自宅は夫の単独名義、住宅ローン残債あり','本音:妻は今すぐ新居に移りたい／夫は慎重で温度差がある','価格期待:「買った値段くらいで売れるはず」と過大期待','競合:購入を大手で進めており、売却もその流れで取られそう'],
+      mgrFeedback:'住み替えは"買い"に気が向いていて売却が軽視されがち。だが残債がある以上〈売却の段取りと資金計画〉が全体の生命線。購入を進めている他社に売却まで持っていかれる前に、売り先行/買い先行の資金繋ぎを整理し「売却は当社で一体管理」を提案して専任を取る。夫婦の温度差の橋渡しも忘れずに。',
+      turns:[
+        {phase:'① 信頼構築',dim:'信頼構築',q:'購入意欲が高いお客様。最初の一手は？',
+          choices:[
+            {t:'「では新居の物件をどんどんご紹介しますね」と購入だけ進める',r:'売却の段取りが抜け、資金で行き詰まる。',s:'bad',lm:true},
+            {t:'「住み替えは"今の家の売却"と"新居"を同時に設計するのが成功の鍵です。両方一緒に整えましょう」',r:'「言われてみればそうですね」専門性に信頼が生まれた。',s:'good'},
+            {t:'「新築は良いですよね」と雑談中心',r:'場は和むが前進せず。',s:'mid'}]},
+        {phase:'② 売却理由・順序の深掘り',dim:'売却理由の深掘り',q:'住み替えの理由と資金の順序を掘る。',
+          choices:[
+            {t:'「予算内の新居を探しましょう」と購入条件だけ確認',r:'「実は今の家を売らないと…」資金繋ぎの不安を取り逃す。',s:'bad',lm:true},
+            {t:'「新居のご資金は、今のお住まいの売却金を充てるご予定ですか？順序を整理しましょう」',r:'「そうです、売れないと買えなくて」資金繋ぎの核心が出た。',s:'good',reveal:['本音:今の家のローンが残っており、売れないと次が買えない（資金繋ぎ不安）']},
+            {t:'「良い物件は早い者勝ちですよ」と購入を急かす',r:'売却未着手のまま焦らせる地雷。',s:'bad',lm:true}]},
+        {phase:'③ 所有者・権利＋家族',dim:'所有者・相続人確認',q:'現自宅の名義・残債と、ご夫婦の意向を確認する。',
+          choices:[
+            {t:'名義・残債・夫婦の温度は聞かず物件案内へ',r:'「名義は私だけ、ローンも残ってて。妻は急いでて」後で噛み合わなくなる。',s:'bad',lm:true},
+            {t:'「現自宅のご名義と住宅ローン残債、そして奥様のご希望(時期)も伺えますか」',r:'「私の単独名義で残債あり。妻は今すぐ移りたいんです」前提と温度差を把握。',s:'good',reveal:['権利:現自宅は夫の単独名義、住宅ローン残債あり','本音:妻は今すぐ新居に移りたい／夫は慎重で温度差がある']},
+            {t:'残債だけ確認して家族の温度は飛ばす',r:'資金は拾えたが合意形成の論点を欠く。',s:'mid'}]},
+        {phase:'④ 売却期限の確認',dim:'売却期限の確認',q:'いつまでに住み替えたいかを確認する。',
+          choices:[
+            {t:'「良い新居が出たタイミングで」と曖昧にする',r:'「子の進学があって実は期限が」逆算できず後手に。',s:'bad',lm:true},
+            {t:'「お引っ越しの希望時期はありますか？お子様の進学やお勤めの都合など」',r:'「進学に間に合わせたくて」実質的な期限から逆算できた。',s:'good',reveal:['本音:今の家のローンが残っており、売れないと次が買えない（資金繋ぎ不安）']},
+            {t:'「焦らずいきましょう」と期限を確認しない',r:'実質期限を見落とす。',s:'mid'}]},
+        {phase:'⑤ 価格期待・競合対策',dim:'価格期待値調整・他社競合',q:'「買った値段で売れるはず」。購入は大手で進行中。',
+          choices:[
+            {t:'「たぶん買値くらいで売れますよ」と期待に同調',r:'過大期待のまま資金計画が崩れる地雷。',s:'bad',lm:true},
+            {t:'「現在の相場で売却見込み額を出し、新居予算と繋ぎ資金まで一枚で設計します。売却もぜひ当社に一本化を」',r:'「他社は購入だけで売却の話が無かった。一括は安心」競合から主導権を奪取。',s:'good',reveal:['価格期待:「買った値段くらいで売れるはず」と過大期待','競合:購入を大手で進めており、売却もその流れで取られそう']},
+            {t:'売却査定の数字だけ渡す',r:'資金計画と繋がらず弱い。',s:'mid'}]},
+        {phase:'⑥ クロージング（訪問査定→専任媒介）',dim:'訪問査定提案・媒介取得力',q:'締め。',
+          choices:[
+            {t:'「新居が決まったら売却も考えましょう」と先送り',r:'売却を他社に取られ、資金計画も宙に。',s:'bad',lm:true},
+            {t:'「まず現自宅の訪問査定で正確な売却見込みを出し、資金計画を確定させましょう。売却は専任でお任せください」',r:'「それでお願いします」訪問査定＋専任で一体管理に合意。',s:'good',cl:true},
+            {t:'「とりあえず売り出してみましょう」と価格未確定で進める',r:'根拠が薄く不安が残る。',s:'mid'}]}]},
+
+    {id:'S05',side:'sell',star:4,name:'【売却・査定だけ／他社競合】西田 様（相見積もり中）',
+      tags:['査定だけ','他社競合','高値誤解','媒介取得'],
+      profile:'自宅戸建の売却で「査定だけ、他社にも頼んでいる」と来店。3社の査定額を比較中で、一番高い会社に頼むつもりでいる。',
+      hidden:['本音:一番高い査定額を出した会社＝一番良い会社だと思っている','本音:本当は売る気があり、住み替え/資金で期限がある','権利:単独名義だが、配偶者には売却を最終確認できていない','価格期待:他社の高値（強気査定）に引っ張られ過大','競合:大手2社と相見積もり、数字だけで決めかけている'],
+      mgrFeedback:'これぞ媒介取得力が問われる王道ケース。"高い査定額=良い会社"の誤解を、感情を害さずデータで解くのが勝負。値引きで釣るのは最悪手（安く見られる）。売る気と期限を引き出し、配偶者同意も確認した上で、販売戦略の根拠資料＋専任媒介を堂々と提案して取り切れ。',
+      turns:[
+        {phase:'① 信頼構築',dim:'信頼構築',q:'相見積もり中で身構えているお客様。',
+          choices:[
+            {t:'「うちは他社より高く売れます」と即・高値アピール',r:'根拠なき高値合戦に乗り信頼を損ねる。',s:'bad',lm:true},
+            {t:'「相見積もりは賢明です。当社は"実際に売れる価格"の根拠でご判断いただきます」',r:'「根拠ね、それは聞きたい」土俵を作れた。',s:'good'},
+            {t:'「うちは大手で安心ですよ」と曖昧アピール',r:'差別化できず印象は普通。',s:'mid'}]},
+        {phase:'② 売却理由・本気度の深掘り',dim:'売却理由の深掘り',q:'「査定だけ」の裏の本気度と理由を掘る。',
+          choices:[
+            {t:'「査定だけですね、ではお作りします」と額面どおり受ける',r:'売る気と期限を取り逃し、ただの数字提供者に。',s:'bad',lm:true},
+            {t:'「差し支えなければ、ご売却を考えた理由とご希望の時期を教えてください」',r:'「住み替えで、実は期限があって」本気度と期限を把握。',s:'good',reveal:['本音:本当は売る気があり、住み替え/資金で期限がある']},
+            {t:'「いつか売れたらで良いですか」と軽く流す',r:'温度を読み違える。',s:'mid'}]},
+        {phase:'③ 所有者・配偶者同意の確認',dim:'所有者・相続人確認',q:'契約に向けた権利・同意を確認する。',
+          choices:[
+            {t:'名義・同意は確認せず価格の話だけ進める',r:'「名義は私だけど妻にまだ言ってなくて」契約直前で止まるリスク。',s:'bad',lm:true},
+            {t:'「ご名義のご確認と、ご家族（配偶者）のご売却への同意状況も伺えますか」',r:'「私の名義。妻にはこれから話します」契約の前提を先に把握。',s:'good',reveal:['権利:単独名義だが、配偶者には売却を最終確認できていない']},
+            {t:'「ご家族の話は後で大丈夫です」と先送り',r:'論点は残るが認識した。',s:'mid'}]},
+        {phase:'④ 価格期待値の調整',dim:'価格期待値調整・他社競合',q:'「一番高い会社に頼む」という誤解に切り込む。',
+          choices:[
+            {t:'他社の高値に合わせて査定額を引き上げる',r:'売れ残り→値下げの未来を助長する地雷。',s:'bad',lm:true},
+            {t:'「高い査定額ほど売れ残り値下げになりがちです。成約事例で"売れる価格"の根拠をお見せします」',r:'「高い＝良い、ではないのか。その視点は無かった」誤解を解けた。',s:'good',reveal:['本音:一番高い査定額を出した会社＝一番良い会社だと思っている','価格期待:他社の高値（強気査定）に引っ張られ過大']},
+            {t:'価格の話は避け会社の実績だけ語る',r:'核心の誤解が残る。',s:'mid'}]},
+        {phase:'⑤ 他社競合対策・価格説明の配慮',dim:'価格期待値調整・他社競合',q:'大手2社と数字勝負の中、どう差別化する？',
+          choices:[
+            {t:'「この価格まで下げないと売れません」と単刀直入に下げ話',r:'「最初から下げる前提か」と不信に。',s:'bad',lm:true},
+            {t:'「まず強気の価格で出し、反響データを見て計画的に調整する戦略を、資料でご提案します」',r:'「順序立てて説明されると納得できる」不信を回避し優位に。',s:'good',reveal:['競合:大手2社と相見積もり、数字だけで決めかけている']},
+            {t:'他社の数字には触れず自社の話だけする',r:'比較軸が弱く埋もれる。',s:'mid'}]},
+        {phase:'⑥ クロージング（専任媒介取得）',dim:'訪問査定提案・媒介取得力',q:'締め。媒介を取りにいく。',
+          choices:[
+            {t:'「他社と比べてまたご連絡ください」で終了',r:'競合に流れる典型的失注。',s:'bad',lm:true},
+            {t:'「販売戦略と価格根拠を資料化し、訪問査定で現地も確認します。専任媒介で責任を持って売り切らせてください」',r:'「その提案なら前向きに考えます」訪問査定＋専任媒介の提案まで到達。',s:'good',cl:true},
+            {t:'「今日お決めいただければ手数料を割引します」と値引きで釣る',r:'根拠より値引きで、かえって安く見られた。',s:'mid'}]}]}
+  ];
+
+  // ─── 店長モード：社員別スコア（静的MVP・デモ集計／永続化なし）───
+  var DEMO_STAFF=[
+    {n:'研修生A',plays:8,avg:78,hid:0.72,lm:0.88,close:0.75},
+    {n:'研修生B',plays:5,avg:64,hid:0.55,lm:0.70,close:0.60},
+    {n:'研修生C',plays:12,avg:85,hid:0.81,lm:0.92,close:0.83},
+    {n:'研修生D',plays:3,avg:52,hid:0.40,lm:0.55,close:0.33}
+  ];
+
+  // ─── セッション状態（メモリのみ）───
+  var S={view:'home',filterSide:'all',scn:null,turn:0,score:0,max:0,hits:0,reveals:{},closing:false,history:[]};
+
+  function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+  function el(){return document.getElementById('page-roleplay');}
+  function isMgr(){try{var u=window.currentUser;return !!(u&&(u.perm==='admin'||u.perm==='owner'||String(u.role||'').indexOf('店長')>=0));}catch(e){return false;}}
+
+  function scnMax(scn){var m=0;scn.turns.forEach(function(t){var best=Math.max.apply(null,t.choices.map(function(c){return PT[c.s];}));m+=best;});return m;}
+
+  // ─── レンダリング ───
+  function render(){var root=el();if(!root)return;
+    if(S.view==='home')root.innerHTML=tplHome();
+    else if(S.view==='play')root.innerHTML=tplPlay();
+    else if(S.view==='result')root.innerHTML=tplResult();
+    else if(S.view==='mgr')root.innerHTML=tplMgr();
+    bind();
+  }
+
+  function head(sub){
+    return '<div style="background:linear-gradient(135deg,#071e3d,#0a3d7c 60%,#1a6abf);border-radius:14px;padding:16px 18px;color:#fff;margin-bottom:12px">'
+      +'<div style="font-size:17px;font-weight:800">🎭 営業トレーニング（ロープレ）</div>'
+      +'<div style="font-size:11px;opacity:.85;margin-top:3px">'+esc(sub)+'</div></div>';
+  }
+
+  function tplHome(){
+    var list=SCN.filter(function(s){return S.filterSide==='all'||s.side===S.filterSide;});
+    var fbtn=function(k,l){return '<button class="rp-f" data-side="'+k+'" style="padding:6px 13px;border-radius:18px;border:1px solid #cbd5e1;font-size:11px;font-weight:700;cursor:pointer;background:'+(S.filterSide===k?'#0a3d7c':'#fff')+';color:'+(S.filterSide===k?'#fff':'#475569')+'">'+l+'</button>';};
+    var cards=list.map(function(s){
+      var badge=s.side==='buy'?'<span style="background:#dbeafe;color:#1e40af;font-size:9px;font-weight:800;padding:2px 7px;border-radius:8px">購入</span>':'<span style="background:#fce7f3;color:#9d174d;font-size:9px;font-weight:800;padding:2px 7px;border-radius:8px">売却</span>';
+      var tags=s.tags.map(function(t){return '<span style="background:#f1f5f9;color:#475569;font-size:9px;padding:2px 6px;border-radius:6px;margin-right:3px">#'+esc(t)+'</span>';}).join('');
+      return '<div class="rp-card" data-id="'+s.id+'" style="border:1px solid #e2e8f0;border-radius:11px;padding:13px;background:#fff;cursor:pointer;transition:.15s" onmouseover="this.style.borderColor=\'#0a3d7c\'" onmouseout="this.style.borderColor=\'#e2e8f0\'">'
+        +'<div style="display:flex;align-items:center;gap:7px;margin-bottom:5px">'+badge+'<span style="color:#f59e0b;font-size:11px">'+'★'.repeat(s.star)+'<span style="color:#e2e8f0">'+'★'.repeat(5-s.star)+'</span></span></div>'
+        +'<div style="font-size:13px;font-weight:800;color:#0a3d7c;margin-bottom:4px">'+esc(s.name)+'</div>'
+        +'<div style="font-size:11px;color:#475569;line-height:1.5;margin-bottom:6px">'+esc(s.profile)+'</div>'
+        +'<div style="margin-bottom:8px">'+tags+'</div>'
+        +'<div style="font-size:10px;color:#64748b">隠し情報 '+s.hidden.length+' 件 ・ 全'+s.turns.length+'問</div>'
+        +'<button class="rp-start" data-id="'+s.id+'" style="margin-top:9px;width:100%;padding:8px;border:none;border-radius:8px;background:#f5c400;color:#0a3d7c;font-weight:800;font-size:12px;cursor:pointer">▶ ロープレ開始</button></div>';
+    }).join('');
+    var mgr=isMgr()?'<button id="rp-mgr" style="padding:8px 14px;border:none;border-radius:8px;background:#0a3d7c;color:#fff;font-weight:700;font-size:12px;cursor:pointer">👑 店長モード（社員別スコア）</button>':'';
+    return head('スプレッドシート「ロープレ」の実データ＋売却シナリオで、隠し情報回収・地雷回避・クロージングを訓練。')
+      +'<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px">'+fbtn('all','すべて')+fbtn('buy','購入編')+fbtn('sell','売却編')+'<span style="flex:1"></span>'+mgr+'</div>'
+      +'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:11px">'+cards+'</div>'
+      +'<div style="margin-top:14px;font-size:10px;color:#94a3b8;line-height:1.6">※ スコアはこのセッション内のみ保持（保存なし）。本文・個人情報の永続化は行いません。売却編は分析パケットの骨子に基づく新規シナリオです。</div>';
+  }
+
+  function tplPlay(){
+    var s=S.scn,t=s.turns[S.turn];
+    var pct=Math.round((S.turn)/s.turns.length*100);
+    var choices=t.choices.map(function(c,i){
+      return '<button class="rp-ch" data-i="'+i+'" style="display:block;width:100%;text-align:left;margin-bottom:9px;padding:12px 14px;border:1.5px solid #e2e8f0;border-radius:10px;background:#fff;cursor:pointer;font-size:12px;line-height:1.5;color:#1e293b;transition:.15s" onmouseover="this.style.borderColor=\'#0a3d7c\';this.style.background=\'#f8fafc\'" onmouseout="this.style.borderColor=\'#e2e8f0\';this.style.background=\'#fff\'">'
+        +'<span style="display:inline-block;width:22px;height:22px;line-height:22px;text-align:center;background:#0a3d7c;color:#fff;border-radius:6px;font-weight:800;margin-right:8px">'+['A','B','C'][i]+'</span>'+esc(c.t)+'</button>';
+    }).join('');
+    return head(esc(s.name)+'　'+'★'.repeat(s.star))
+      +'<div style="background:#fff;border:1px solid #e2e8f0;border-radius:11px;padding:13px;margin-bottom:12px">'
+        +'<div style="font-size:10px;color:#64748b;margin-bottom:4px">👤 お客様プロフィール</div>'
+        +'<div style="font-size:11px;color:#334155;line-height:1.6">'+esc(s.profile)+'</div></div>'
+      +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">'
+        +'<div style="flex:1;height:6px;background:#e2e8f0;border-radius:3px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:#0a3d7c"></div></div>'
+        +'<div style="font-size:11px;font-weight:800;color:#0a3d7c">'+(S.turn+1)+' / '+s.turns.length+'</div></div>'
+      +'<div style="background:#0a3d7c;color:#fff;border-radius:10px;padding:12px 14px;margin-bottom:12px">'
+        +'<div style="font-size:10px;color:#f5c400;font-weight:800;margin-bottom:3px">'+esc(t.phase)+'</div>'
+        +'<div style="font-size:13px;line-height:1.6">'+esc(t.q)+'</div></div>'
+      +'<div id="rp-react" style="display:none;margin-bottom:12px"></div>'
+      +'<div id="rp-choices">'+choices+'</div>'
+      +'<div style="margin-top:8px;font-size:10px;color:#94a3b8">現在スコア：'+S.score+' 点 ／ 隠し情報 '+Object.keys(S.reveals).length+'/'+s.hidden.length+' 回収</div>';
+  }
+
+  function tplResult(){
+    var s=S.scn,max=S.max||scnMax(s);
+    var raw=Math.max(0,S.score),pct=max>0?Math.round(raw/max*100):0;
+    var hidRate=s.hidden.length?Object.keys(S.reveals).length/s.hidden.length:1;
+    var lmRate=s.turns.length?1-(S.hits/s.turns.length):1;
+    // 総合ランク：得点率を主に、回収率・回避率・クロージングで補正
+    var comp=pct*0.5+hidRate*100*0.25+lmRate*100*0.15+(S.closing?100:0)*0.10;
+    var rank=comp>=85?'S':comp>=70?'A':comp>=50?'B':'C';
+    var rc={S:'#16a34a',A:'#0a3d7c',B:'#f59e0b',C:'#dc2626'}[rank];
+    var bar=function(l,v,c){return '<div style="margin-bottom:9px"><div style="display:flex;justify-content:space-between;font-size:11px;color:#475569;margin-bottom:3px"><span>'+l+'</span><span style="font-weight:800">'+Math.round(v*100)+'%</span></div><div style="height:8px;background:#e2e8f0;border-radius:4px;overflow:hidden"><div style="height:100%;width:'+Math.round(v*100)+'%;background:'+c+'"></div></div></div>';};
+    var missed=s.hidden.filter(function(h){return !S.reveals[h];});
+    var missHtml=missed.length?'<ul style="margin:6px 0 0;padding-left:18px;font-size:11px;color:#b91c1c;line-height:1.7">'+missed.map(function(m){return '<li>'+esc(m)+'</li>';}).join('')+'</ul>':'<div style="font-size:11px;color:#16a34a;font-weight:700;margin-top:4px">✅ 隠し情報をすべて回収できました</div>';
+    var lmHtml=S.history.filter(function(h){return h.lm;});
+    var lmList=lmHtml.length?'<ul style="margin:6px 0 0;padding-left:18px;font-size:11px;color:#b91c1c;line-height:1.7">'+lmHtml.map(function(h){return '<li>'+esc(h.phase)+'：'+esc(h.t)+'</li>';}).join('')+'</ul>':'<div style="font-size:11px;color:#16a34a;font-weight:700;margin-top:4px">✅ 地雷を踏みませんでした</div>';
+    var advice=[];
+    if(hidRate<1)advice.push('「言わない情報」は<b>質問されるまで出ません</b>。資金・家族・期限・出口の4観点を必ず確認しましょう。');
+    if(lmRate<1)advice.push('物件・価格の話に先に飛ぶと地雷です。<b>不満→理想→期限</b>の順でWhyを2段階深掘りを。');
+    if(!S.closing)advice.push('最後に<b>次アクション（内覧／訪問査定／仮審査）</b>を必ず提示してクロージングを。');
+    if(!advice.length)advice.push('完璧です。この型（初回宣言→ヒアリング→隠し情報→提案→クロージング）を体に定着させましょう。');
+    var isSell=s.side==='sell';
+    if(isSell){
+      if(Object.keys(S.reveals).length<s.hidden.length)advice.unshift('売却は<b>売却理由・所有者/相続人・期限</b>の3点を外すと契約直前で崩れます。質問で必ず開示させましょう。');
+      if(!S.closing)advice.push('クロージングは<b>訪問査定アポ→専任媒介</b>へ。机上査定書だけ渡して帰る＝失注です。');
+    }
+    var outcome='',oc='';
+    if(isSell){
+      if(!S.closing){outcome=comp>=50?'再追客（次回アポで継続）':'失注';oc=comp>=50?'#f59e0b':'#dc2626';}
+      else{outcome=comp>=80?'専任媒介 取得':comp>=62?'訪問査定アポ 取得':'店長同行・相談へ';oc=comp>=80?'#16a34a':comp>=62?'#0a3d7c':'#7c3aed';}
+    }
+    var outcomeBox=isSell?('<div style="background:'+oc+';color:#fff;border-radius:12px;padding:14px 16px;margin-bottom:12px;text-align:center"><div style="font-size:10px;opacity:.88">この商談の着地（売却ゴール判定）</div><div style="font-size:21px;font-weight:900;margin-top:2px">'+esc(outcome)+'</div></div>'):'';
+    var mgrBox=s.mgrFeedback?('<div style="background:#0a3d7c;color:#fff;border-radius:11px;padding:14px;margin-bottom:14px"><div style="font-size:12px;font-weight:800;color:#f5c400;margin-bottom:5px">👑 店長フィードバック</div><div style="font-size:11px;line-height:1.7">'+esc(s.mgrFeedback)+'</div></div>'):'';
+    var skillBox='';
+    if(isSell){var srows=S.history.map(function(h){var mk=h.good?'<span style="color:#16a34a;font-weight:800">◎</span>':h.mid?'<span style="color:#f59e0b;font-weight:800">△</span>':'<span style="color:#dc2626;font-weight:800">×</span>';return '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 2px;border-bottom:1px solid #f1f5f9;font-size:11px"><span style="color:#334155">'+esc(h.dim||h.phase)+'</span>'+mk+'</div>';}).join('');skillBox='<div style="background:#fff;border:1px solid #e2e8f0;border-radius:11px;padding:14px;margin-bottom:12px"><div style="font-size:12px;font-weight:800;color:#0a3d7c;margin-bottom:6px">📋 売却スキル別 評価（◎好手／△及第／×地雷）</div>'+srows+'</div>';}
+    return head(isSell?'結果発表（売却ロープレ）':'結果発表（購入ロープレ）')
+      +outcomeBox
+      +'<div style="text-align:center;background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:20px;margin-bottom:12px">'
+        +'<div style="font-size:11px;color:#64748b">'+esc(s.name)+'</div>'
+        +'<div style="font-size:54px;font-weight:900;color:'+rc+';line-height:1.1;margin:4px 0">'+rank+'</div>'
+        +'<div style="font-size:13px;color:#0a3d7c;font-weight:800">'+raw+' / '+max+' 点（達成率 '+pct+'%）</div></div>'
+      +'<div style="background:#fff;border:1px solid #e2e8f0;border-radius:11px;padding:14px;margin-bottom:12px">'
+        +'<div style="font-size:12px;font-weight:800;color:#0a3d7c;margin-bottom:10px">📊 KPI連動スコア</div>'
+        +bar('隠し情報 回収率',hidRate,'#0a3d7c')+bar('地雷 回避率',lmRate,'#16a34a')+bar('クロージング到達',S.closing?1:0,'#f59e0b')+'</div>'
+      +'<div style="background:#fff;border:1px solid #e2e8f0;border-radius:11px;padding:14px;margin-bottom:12px">'
+        +'<div style="font-size:12px;font-weight:800;color:#b91c1c;margin-bottom:4px">🕵️ 取り逃した隠し情報</div>'+missHtml+'</div>'
+      +'<div style="background:#fff;border:1px solid #e2e8f0;border-radius:11px;padding:14px;margin-bottom:12px">'
+        +'<div style="font-size:12px;font-weight:800;color:#b91c1c;margin-bottom:4px">💣 踏んだ地雷</div>'+lmList+'</div>'
+      +skillBox
+      +'<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:11px;padding:14px;margin-bottom:14px">'
+        +'<div style="font-size:12px;font-weight:800;color:#92400e;margin-bottom:6px">💡 フィードバック</div>'
+        +'<ul style="margin:0;padding-left:18px;font-size:11px;color:#78350f;line-height:1.8">'+advice.map(function(a){return '<li>'+a+'</li>';}).join('')+'</ul></div>'
+      +mgrBox
+      +'<div style="display:flex;gap:9px">'
+        +'<button id="rp-retry" style="flex:1;padding:11px;border:1.5px solid #0a3d7c;border-radius:9px;background:#fff;color:#0a3d7c;font-weight:800;font-size:12px;cursor:pointer">↻ もう一度</button>'
+        +'<button id="rp-back" style="flex:1;padding:11px;border:none;border-radius:9px;background:#0a3d7c;color:#fff;font-weight:800;font-size:12px;cursor:pointer">≡ 一覧へ戻る</button></div>';
+  }
+
+  function tplMgr(){
+    var rows=DEMO_STAFF.map(function(m){
+      var rk=m.avg>=80?'S':m.avg>=70?'A':m.avg>=50?'B':'C';
+      var rc={S:'#16a34a',A:'#0a3d7c',B:'#f59e0b',C:'#dc2626'}[rk];
+      return '<tr style="border-bottom:1px solid #f1f5f9">'
+        +'<td style="padding:9px 8px;font-weight:700;color:#1e293b">'+esc(m.n)+'</td>'
+        +'<td style="padding:9px 8px;text-align:center">'+m.plays+'</td>'
+        +'<td style="padding:9px 8px;text-align:center;font-weight:800;color:'+rc+'">'+m.avg+'（'+rk+'）</td>'
+        +'<td style="padding:9px 8px;text-align:center">'+Math.round(m.hid*100)+'%</td>'
+        +'<td style="padding:9px 8px;text-align:center">'+Math.round(m.lm*100)+'%</td>'
+        +'<td style="padding:9px 8px;text-align:center">'+Math.round(m.close*100)+'%</td></tr>';
+    }).join('');
+    var avg=Math.round(DEMO_STAFF.reduce(function(a,m){return a+m.avg;},0)/DEMO_STAFF.length);
+    return head('店長モード（静的MVP・デモ集計）')
+      +'<button id="rp-back" style="margin-bottom:12px;padding:6px 12px;border:1px solid #cbd5e1;border-radius:7px;background:#fff;color:#475569;font-size:11px;font-weight:700;cursor:pointer">← ロープレ一覧へ</button>'
+      +'<div style="display:flex;gap:9px;margin-bottom:12px;flex-wrap:wrap">'
+        +'<div style="flex:1;min-width:120px;background:#0a3d7c;color:#fff;border-radius:11px;padding:13px;text-align:center"><div style="font-size:10px;opacity:.85">クラス平均点</div><div style="font-size:26px;font-weight:900">'+avg+'</div></div>'
+        +'<div style="flex:1;min-width:120px;background:#fff;border:1px solid #e2e8f0;border-radius:11px;padding:13px;text-align:center"><div style="font-size:10px;color:#64748b">受講者数</div><div style="font-size:26px;font-weight:900;color:#0a3d7c">'+DEMO_STAFF.length+'</div></div>'
+        +'<div style="flex:1;min-width:120px;background:#fff;border:1px solid #e2e8f0;border-radius:11px;padding:13px;text-align:center"><div style="font-size:10px;color:#64748b">総ロープレ回数</div><div style="font-size:26px;font-weight:900;color:#0a3d7c">'+DEMO_STAFF.reduce(function(a,m){return a+m.plays;},0)+'</div></div></div>'
+      +'<div style="background:#fff;border:1px solid #e2e8f0;border-radius:11px;overflow:hidden">'
+        +'<table style="width:100%;border-collapse:collapse;font-size:11px">'
+        +'<thead><tr style="background:#0a3d7c;color:#fff"><th style="padding:9px 8px;text-align:left">社員</th><th style="padding:9px 8px">回数</th><th style="padding:9px 8px">平均点</th><th style="padding:9px 8px">隠し回収</th><th style="padding:9px 8px">地雷回避</th><th style="padding:9px 8px">クロージング</th></tr></thead>'
+        +'<tbody>'+rows+'</tbody></table></div>'
+      +'<div style="margin-top:12px;font-size:10px;color:#94a3b8;line-height:1.6">※ 本表はデモ用のダミー集計です（個人情報・保存なし）。本番版では各社員の実ロープレ結果を集計表示する想定です。</div>';
+  }
+
+  // ─── イベント ───
+  function bind(){var root=el();if(!root)return;
+    root.querySelectorAll('.rp-f').forEach(function(b){b.onclick=function(){S.filterSide=b.dataset.side;render();};});
+    root.querySelectorAll('.rp-start').forEach(function(b){b.onclick=function(e){e.stopPropagation();start(b.dataset.id);};});
+    root.querySelectorAll('.rp-card').forEach(function(c){c.onclick=function(){start(c.dataset.id);};});
+    var mg=root.querySelector('#rp-mgr');if(mg)mg.onclick=function(){S.view='mgr';render();};
+    var bk=root.querySelector('#rp-back');if(bk)bk.onclick=function(){S.view='home';render();};
+    var rt=root.querySelector('#rp-retry');if(rt)rt.onclick=function(){start(S.scn.id);};
+    root.querySelectorAll('.rp-ch').forEach(function(b){b.onclick=function(){answer(parseInt(b.dataset.i,10));};});
+  }
+
+  function start(id){var s=SCN.filter(function(x){return x.id===id;})[0];if(!s)return;
+    S.scn=s;S.turn=0;S.score=0;S.max=scnMax(s);S.hits=0;S.reveals={};S.closing=false;S.history=[];S.view='play';render();}
+
+  function answer(i){var s=S.scn,t=s.turns[S.turn],c=t.choices[i];
+    S.score+=PT[c.s];
+    if(c.lm)S.hits++;
+    if(c.cl)S.closing=true;
+    if(c.reveal)c.reveal.forEach(function(k){S.reveals[k]=true;});
+    S.history.push({phase:t.phase,t:c.t,lm:!!c.lm,good:c.s==='good',mid:c.s==='mid',dim:t.dim||t.phase});
+    // 反応を表示してから次へ
+    var react=el().querySelector('#rp-react');
+    var tone=c.s==='good'?{bg:'#dcfce7',bd:'#86efac',tx:'#14532d',ic:'◎ 好手'}:c.s==='bad'?{bg:'#fee2e2',bd:'#fca5a5',tx:'#7f1d1d',ic:'× 地雷'}:{bg:'#fef9c3',bd:'#fde047',tx:'#713f12',ic:'△ 及第'};
+    var revTxt=(c.reveal&&c.reveal.length)?'<div style="margin-top:7px;font-size:11px;color:#0a3d7c;font-weight:700">🕵️ 隠し情報を開示：'+c.reveal.map(esc).join(' / ')+'</div>':'';
+    if(react){
+      react.style.display='block';
+      react.innerHTML='<div style="background:'+tone.bg+';border:1px solid '+tone.bd+';border-radius:10px;padding:12px 14px">'
+        +'<div style="font-size:11px;font-weight:800;color:'+tone.tx+';margin-bottom:4px">'+tone.ic+'　スコア '+(PT[c.s]>=0?'+':'')+PT[c.s]+'</div>'
+        +'<div style="font-size:12px;color:#334155;line-height:1.6">💬 '+esc(c.r)+'</div>'+revTxt
+        +'<button id="rp-next" style="margin-top:10px;width:100%;padding:9px;border:none;border-radius:8px;background:'+tone.tx+';color:#fff;font-weight:800;font-size:12px;cursor:pointer">'+(S.turn+1>=s.turns.length?'結果を見る →':'次へ →')+'</button></div>';
+      var ch=el().querySelector('#rp-choices');if(ch)ch.style.display='none';
+      react.scrollIntoView({behavior:'smooth',block:'center'});
+      var nx=react.querySelector('#rp-next');if(nx)nx.onclick=function(){S.turn++;if(S.turn>=s.turns.length){S.view='result';}render();};
+    }
+  }
+
+  // ─── ページ＆ナビ注入 ───
+  function injectPage(){
+    if(document.getElementById('page-roleplay'))return;
+    var ref=document.getElementById('page-dash');if(!ref||!ref.parentNode)return;
+    var d=document.createElement('div');d.className='page';d.id='page-roleplay';
+    d.style.cssText='padding:14px 14px 90px';
+    ref.parentNode.appendChild(d);
+  }
+  function injectBottomNav(){
+    var nav=document.getElementById('bottom-nav');if(!nav)return;
+    if(nav.querySelector('[data-bnpg="roleplay"]'))return;
+    var w=document.createElement('div');w.className='bn-tab-wrap';w.setAttribute('onclick',"switchPage('roleplay')");
+    w.innerHTML='<button class="bn-tab" data-bnpg="roleplay"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>ロープレ</button>';
+    var crm=nav.querySelector('[data-disabled]');
+    if(crm)nav.insertBefore(w,crm);else nav.appendChild(w);
+  }
+  function injectTopNav(){
+    var nav=document.getElementById('nav-tabs');if(!nav)return;
+    if(nav.querySelector('[data-pg="roleplay"]'))return;
+    var b=document.createElement('button');b.className='ntab';b.dataset.pg='roleplay';b.textContent='🎭 ロープレ';
+    b.onclick=function(){if(typeof switchPage==='function')switchPage('roleplay');};
+    nav.appendChild(b);
+  }
+
+  // 初期注入
+  injectPage();injectBottomNav();
+
+  // showMainApp をラップ：ログイン毎に再構築される topnav に自タブを追加
+  if(typeof window.showMainApp==='function'){
+    var _oSMA=window.showMainApp;
+    window.showMainApp=function(){var r=_oSMA.apply(this,arguments);try{injectTopNav();}catch(e){try{console.warn('[packet2001 topnav]',e&&e.message);}catch(_){}}return r;};
+  }
+  // switchPage をラップ：roleplay 表示時にレンダリング
+  if(typeof window.switchPage==='function'){
+    var _oSP=window.switchPage;
+    window.switchPage=function(pg){var r=_oSP.apply(this,arguments);if(pg==='roleplay'){try{render();}catch(e){try{console.warn('[packet2001 render]',e&&e.message);}catch(_){}}}return r;};
+  }
+  // すでにログイン済みで topnav が存在する場合の保険
+  try{if(document.getElementById('nav-tabs')&&document.getElementById('nav-tabs').children.length)injectTopNav();}catch(e){}
+
+  window.__ht_roleplay={SCN:SCN,state:S};
+})();
+
+</script>
 </body>
 </html>
