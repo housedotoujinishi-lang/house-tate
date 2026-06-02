@@ -35262,7 +35262,22 @@ function _p500_buildCandidateFromPayload(payload){
   if(typeof renderDay!=='function')return;
 
   var MODE='staff';
-  var START_H=8, END_H=18, HOURW=64, NAMEW=104, UNSETW=92, BLOCKH=24, GAP=3;
+  var START_H=8, END_H=18, HOURW=64, NAMEW=112, UNSETW=92, BLOCKH=38, GAP=3, MINW=64;/* packet 2028: 2段ブロック・最小幅64・空き率 */
+  function catIcon(cat,title,routine){
+    if(routine)return '📋';var t=title||'';
+    if(/内見|内覧/.test(t))return '🏠';
+    if(/資料|物件|チラシ|マイソク/.test(t))return '📄';
+    switch(cat){case '架電':return '📞';case '追客':return '🤝';case '査定':case '訪問':return '🔍';case '契約':case '事務':return '📄';case '社内MTG':return '👥';}
+    if(/MTG|打合|会議|朝礼/.test(t))return '👥';
+    return '▫';
+  }
+  function availBadge(r){
+    if(r.mi<0)return '';
+    var occ=0;(r.timed||[]).forEach(function(it){var s=Math.min(Math.max(it.s,START_H*60),END_H*60),e=Math.min(Math.max(it.e,START_H*60),END_H*60);if(e>s)occ+=(e-s);});
+    var total=(END_H-START_H)*60;var avail=Math.max(0,Math.min(100,Math.round((1-occ/total)*100)));
+    var c=avail>=50?'#16a34a':avail>=20?'#f59e0b':'#dc2626';
+    return '<div style="margin-top:3px"><div style="font-size:8px;color:'+c+';font-weight:800">空き '+avail+'%</div><div style="height:3px;background:#eef2f7;border-radius:2px;overflow:hidden;margin-top:1px"><div style="height:100%;width:'+(100-avail)+'%;background:'+c+'"></div></div></div>';
+  }
 
   var B_BLUE={bg:'#dbeafe',tx:'#1e40af',bd:'#3b82f6',l:'架電'},
       B_PINK={bg:'#fce7f3',tx:'#9d174d',bd:'#ec4899',l:'追客'},
@@ -35354,9 +35369,9 @@ function _p500_buildCandidateFromPayload(payload){
       var blocks=r.timed.map(function(it){
         var col=bucket(it.cat,it.title,it.routine);
         var s=Math.min(Math.max(it.s,START_H*60),END_H*60), e=Math.min(Math.max(it.e,START_H*60),END_H*60);
-        var left=(s-START_H*60)/60*HOURW, w=Math.max((e-s)/60*HOURW-2,18), top=4+it.lane*(BLOCKH+GAP);
+        var left=(s-START_H*60)/60*HOURW, w=Math.max((e-s)/60*HOURW-2,MINW), top=4+it.lane*(BLOCKH+GAP);
         var hm=it.kind==='ev'?fmtt(it.raw.sh,it.raw.sm):fmtt(it.raw.sh,it.raw.sm||0);
-        return '<div class="stl-blk" data-kind="'+it.kind+'" style="position:absolute;left:'+left+'px;top:'+top+'px;width:'+w+'px;height:'+BLOCKH+'px;background:'+col.bg+';color:'+col.tx+';border-left:3px solid '+col.bd+';border-radius:5px;padding:2px 5px;overflow:hidden;cursor:pointer;font-size:10px;line-height:1.15;white-space:nowrap;opacity:'+(it.done?'.5':'1')+'" title="'+esc(hm)+' '+esc(it.title)+'（'+esc(it.cat||'')+'｜'+esc(r.mem.n)+'）">'+(it.routine?'📋':'')+'<b style="font-size:9px">'+esc(hm)+'</b> '+esc(it.title)+'</div>';
+        return '<div class="stl-blk" data-kind="'+it.kind+'" style="position:absolute;left:'+left+'px;top:'+top+'px;width:'+w+'px;height:'+BLOCKH+'px;background:'+col.bg+';color:'+col.tx+';border-left:3px solid '+col.bd+';border-radius:5px;padding:3px 6px;overflow:hidden;cursor:pointer;line-height:1.2;opacity:'+(it.done?'.55':'1')+'" title="'+esc(hm)+'〜'+esc(fmtt(Math.floor(it.e/60),it.e%60))+' ／ '+esc(it.title)+' ／ 種別:'+esc(it.cat||'')+' ／ 担当:'+esc(r.mem.n)+'"><div style="font-size:9px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+catIcon(it.cat,it.title,it.routine)+' '+esc(hm)+'</div><div style="font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(it.title)+'</div></div>';
       }).join('');
       var unsetChips=r.unset.map(function(it){
         var col=bucket(it.cat,it.title,it.routine);
@@ -35366,7 +35381,7 @@ function _p500_buildCandidateFromPayload(payload){
       return '<div class="stl-row" data-mi="'+r.mi+'"'+dropAttr+' style="display:flex;border-top:1px solid #eef2f7;min-height:'+rowH+'px">'
         +'<div class="stl-name" style="position:sticky;left:0;z-index:2;flex:0 0 '+NAMEW+'px;width:'+NAMEW+'px;background:#fff;border-right:1px solid #e2e8f0;padding:6px 8px;box-sizing:border-box">'
           +'<div style="display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:50%;background:'+(r.mem.c||'#94a3b8')+'"></span><span style="font-size:12px;font-weight:700;color:#1e293b">'+esc(r.mem.n)+'</span></div>'
-          +'<div style="font-size:10px;color:#64748b;margin-top:2px">'+r.count+'件</div></div>'
+          +'<div style="font-size:10px;color:#64748b;margin-top:2px">'+r.count+'件</div>'+availBadge(r)+'</div>'
         +'<div class="stl-unset" style="flex:0 0 '+UNSETW+'px;width:'+UNSETW+'px;border-right:1px dashed #e2e8f0;padding:5px 4px;box-sizing:border-box;background:#fcfcfd">'+(unsetChips||(r.count===0?'':''))+'</div>'
         +'<div class="stl-track" data-mi="'+r.mi+'" style="position:relative;flex:0 0 '+timeW+'px;width:'+timeW+'px;min-height:'+rowH+'px">'+gridlines+blocks+(r.count===0?'<div style="position:absolute;left:8px;top:8px;font-size:10px;color:#cbd5e1">予定なし</div>':'')+'</div>'
       +'</div>';

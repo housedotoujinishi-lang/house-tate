@@ -1,5 +1,15 @@
 # CHANGELOG — ハウステイト じゃがいAI会社OS
 
+## packet 2028 — 🔎 スケジュールブロック可読性強化（実装） / 2026-06-02
+### Improved（buildTimeline共有改修＝日表示＋タスクボード両方に反映）
+- 【S】2段ブロック化（1段目=種別アイコン＋開始時刻/2段目=予定名ellipsis）・高さ24→38・最小幅18→64px・ルーティン名称表示
+- 【A】hover詳細（title強化：開始〜終了/予定名/種別/担当者）・種別アイコン色強化（📞🤝🔍📄🏠👥📋）・担当者ごと空き率バッジ＋稼働バー（緑/橙/赤）
+- 可読性優先（最小幅64px・重なりは縦レーン）。色/データ/D&D/採点/件数は不変
+- `docs/STAFF_SCHEDULE_BLOCK_READABILITY_PACKET_2028.md`
+### 検証・遵守
+- node --check（packet2014ブロック）PASS・<script>7/7・禁止APIトークン0件・CRM無傷・月/週/日/既存D&D無改変
+- 空き率単体：3h→60%/0→100%/満→0%。Supabase/外部API/Sheets/CloudRun不使用・localStorage本文保存なし・顧客タブ復活なし
+
 ## packet 2027 — 👥 タスクボード常設・担当者別スケジュールボード（静的MVP・実装） / 2026-06-02
 ### Added
 - タスクボードに**常設**の担当者別スケジュール（`renderTaskBoard`非破壊ラップ→`#tb-body`直前に`#staff-schedule-board`挿入）
