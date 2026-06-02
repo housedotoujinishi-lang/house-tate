@@ -34977,11 +34977,15 @@ function _p500_buildCandidateFromPayload(payload){
         +'<button class="ac-free-sell" style="flex:1;min-width:140px;padding:11px;border:1px solid #9d174d;border-radius:9px;background:#fff;color:#9d174d;font-weight:800;font-size:12px;cursor:pointer">🏷 売却を自由入力</button>'
         +'<button class="ac-free-buy" style="flex:1;min-width:140px;padding:11px;border:1px solid #1e40af;border-radius:9px;background:#fff;color:#1e40af;font-weight:800;font-size:12px;cursor:pointer">🏠 購入を自由入力</button>'
       +'</div>'
+      +'<div style="font-size:12px;font-weight:800;color:#9d174d;margin:4px 0 7px">🏠 訪問査定ロープレ（→ 媒介取得）</div>'
+      +'<div style="margin-bottom:14px"><button class="ac-visit" style="width:100%;padding:12px;border:none;border-radius:9px;background:#9d174d;color:#fff;font-weight:800;font-size:12px;cursor:pointer">🏠 訪問査定を開始（会話→ 媒介取得判定 ❌/△/⭕/🏆）</button></div>'
       +'<div style="font-size:10px;color:#94a3b8;line-height:1.6">※ 売主35×購入35テンプレ×顧客性格×変数で毎回変化。自由入力はキーワード/NGワード/法務リスクのローカル採点（外部API不使用）。スコアはセッション内のみ（保存なし）。</div>';
   }
 
-  function startGen(side){A.scn=generateScenario(pick(rngFrom(todayStr()+'|man'+side+(A._c=(A._c||0)+1)),side==='sell'?SELL:BUY),todayStr()+'-m'+(A._c),A.diff);beginPlay();}
-  function startToday(side){A.scn=A.today[side];A._todayPlaying=side;beginPlay();}
+  function startGen(side){A.visitMode=false;A.scn=generateScenario(pick(rngFrom(todayStr()+'|man'+side+(A._c=(A._c||0)+1)),side==='sell'?SELL:BUY),todayStr()+'-m'+(A._c),A.diff);beginPlay();}
+  function startToday(side){A.visitMode=false;A.scn=A.today[side];A._todayPlaying=side;beginPlay();}
+  /* packet 2024: 訪問査定ロープレ特化（売却シナリオを会話＋媒介取得判定）*/
+  function startVisit(){A.visitMode=true;A.scn=generateScenario(pick(rngFrom(todayStr()+'|visit'+(A._vc=(A._vc||0)+1)),SELL),todayStr()+'-v'+(A._vc),A.diff);beginPlay();}
   function beginPlay(){A.turn=0;A.score=0;A.max=scnMaxP(A.scn);A.hits=0;A.reveals={};A.closing=false;A.history=[];A.meters=initMeters(A.scn);A.emotion=emotionFor(A.meters);if(A.coachFreq==null)A.coachFreq=2;A.view='play';render();}
   /* packet 2021/2023: 会話反応 + 店長リアルタイム指導 */
   function reactionFlavor(p,m,c){
@@ -35066,14 +35070,26 @@ function _p500_buildCandidateFromPayload(payload){
     var outcome='',oc='';
     if(isSell){if(!A.closing){outcome=comp>=50?'再追客（次回アポ）':'失注';oc=comp>=50?'#f59e0b':'#dc2626';}else{outcome=comp>=80?'専任媒介 取得':comp>=62?'訪問査定アポ 取得':'店長同行・相談へ';oc=comp>=80?'#16a34a':comp>=62?'#0a3d7c':'#7c3aed';}}
     else{if(!A.closing){outcome=comp>=50?'再追客（次回アポ）':'失注';oc=comp>=50?'#f59e0b':'#dc2626';}else{outcome=comp>=80?'買付 取得':comp>=62?'内覧予約／事前審査':'店長同行・相談へ';oc=comp>=80?'#16a34a':comp>=62?'#0a3d7c':'#7c3aed';}}
+    var visitReason='';
+    if(A.visitMode&&isSell){
+      var mg=(!A.closing)?['❌ 媒介失敗','#dc2626']:(comp>=85?['🏆 専属専任媒介','#16a34a']:comp>=70?['⭕ 専任媒介','#0a3d7c']:comp>=52?['△ 一般媒介','#f59e0b']:['❌ 媒介失敗','#dc2626']);
+      outcome=mg[0];oc=mg[1];
+      var rdim={};A.history.forEach(function(h){var sc=h.good?2:h.mid?1:-1;rdim[h.dim]=(rdim[h.dim]||0)+sc;});
+      var weakR=Object.keys(rdim).filter(function(d){return rdim[d]<=0;}).slice(0,2);
+      if(!A.closing)visitReason='媒介提案（次アクション）に至らず。訪問査定アポ→媒介の導線を作れ。';
+      else if(comp>=85)visitReason='信頼・売却理由・競合・価格調整が揃い専属専任を獲得。';
+      else if(comp>=70)visitReason='要点を押さえ専任を獲得。'+(weakR.length?'弱点: '+weakR.join('・'):'');
+      else if(comp>=52)visitReason='一般媒介止まり。'+(weakR.length?'不足: '+weakR.join('・'):'競合確認・価格調整・不安解消を強化');
+      else visitReason='媒介に至らず。'+(weakR.length?'弱点: '+weakR.join('・'):'売却理由の深掘り・信頼構築から');
+    }
     var bar=function(l,v,c){return '<div style="margin-bottom:9px"><div style="display:flex;justify-content:space-between;font-size:11px;color:#475569;margin-bottom:3px"><span>'+l+'</span><span style="font-weight:800">'+Math.round(v*100)+'%</span></div><div style="height:8px;background:#e2e8f0;border-radius:4px;overflow:hidden"><div style="height:100%;width:'+Math.round(v*100)+'%;background:'+c+'"></div></div></div>';};
     // 杤岡AI店長レビュー：弱点dim抽出
     var dimAgg={};A.history.forEach(function(h){var sc=h.good?2:h.mid?1:-1;dimAgg[h.dim]=(dimAgg[h.dim]||0)+sc;});
     var weak=Object.keys(dimAgg).filter(function(d){return dimAgg[d]<=0;}).sort(function(a,b){return dimAgg[a]-dimAgg[b];}).slice(0,2);
     var reviewLines=weak.length?weak.map(function(d){return '<li>'+esc(REVIEW[d]||(d+'を強化せよ。'))+'</li>';}).join(''):'<li>'+'全項目で及第以上。型が身についている。この調子で難易度を上げよ。'+'</li>';
     var skill=A.history.map(function(h){var mk=h.good?'<span style="color:#16a34a;font-weight:800">◎</span>':h.mid?'<span style="color:#f59e0b;font-weight:800">△</span>':'<span style="color:#dc2626;font-weight:800">×</span>';return '<div style="display:flex;justify-content:space-between;padding:6px 2px;border-bottom:1px solid #f1f5f9;font-size:11px"><span style="color:#334155">'+esc(h.dim)+'</span>'+mk+'</div>';}).join('');
-    return head(isSell?'結果（売却ロープレ）':'結果（購入ロープレ）')
-      +'<div style="background:'+oc+';color:#fff;border-radius:12px;padding:14px 16px;margin-bottom:12px;text-align:center"><div style="font-size:10px;opacity:.88">この商談の着地</div><div style="font-size:21px;font-weight:900;margin-top:2px">'+esc(outcome)+'</div></div>'
+    return head(A.visitMode?'結果（🏠 訪問査定ロープレ）':isSell?'結果（売却ロープレ）':'結果（購入ロープレ）')
+      +'<div style="background:'+oc+';color:#fff;border-radius:12px;padding:14px 16px;margin-bottom:12px;text-align:center"><div style="font-size:10px;opacity:.88">'+(A.visitMode?'🏠 訪問査定 → 媒介取得 判定':'この商談の着地')+'</div><div style="font-size:21px;font-weight:900;margin-top:2px">'+esc(outcome)+'</div>'+(A.visitMode&&visitReason?'<div style="font-size:10px;opacity:.95;margin-top:5px;line-height:1.5">'+esc(visitReason)+'</div>':'')+'</div>'
       +'<div style="text-align:center;background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:18px;margin-bottom:12px"><div style="font-size:11px;color:#64748b">'+esc(s.name)+'</div><div style="font-size:50px;font-weight:900;color:'+rc+';line-height:1.1;margin:4px 0">'+rank+'</div><div style="font-size:13px;color:#0a3d7c;font-weight:800">'+raw+' / '+max+'（達成率 '+pct+'%）</div></div>'
       +'<div style="background:#fff;border:1px solid #e2e8f0;border-radius:11px;padding:14px;margin-bottom:12px"><div style="font-size:12px;font-weight:800;color:#0a3d7c;margin-bottom:10px">📊 KPIスコア</div>'+bar('隠し情報 回収率',hid,'#3b0764')+bar('地雷 回避率',lm,'#16a34a')+bar('クロージング到達',A.closing?1:0,'#f59e0b')+'</div>'
       +'<div style="background:#fff;border:1px solid #e2e8f0;border-radius:11px;padding:14px;margin-bottom:12px"><div style="font-size:12px;font-weight:800;color:#0a3d7c;margin-bottom:6px">📋 スキル別評価（◎好手／△及第／×地雷）</div>'+skill+'</div>'
@@ -35215,6 +35231,7 @@ function _p500_buildCandidateFromPayload(payload){
     var frt=q('.ac-free-retry');if(frt)frt.onclick=function(){A.freeRes=null;render();};
     var fnx=q('.ac-free-next');if(fnx)fnx.onclick=function(){freeNext();};
     qa('.ac-coach').forEach(function(b){b.onclick=function(){A.coachFreq=parseInt(b.dataset.f,10);render();};});
+    var vst=q('.ac-visit');if(vst)vst.onclick=function(){startVisit();};
   }
 
   // ─── ページ＆ナビ注入（非破壊） ───
