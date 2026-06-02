@@ -1,5 +1,19 @@
 # CHANGELOG — ハウステイト じゃがいAI会社OS
 
+## packet 2014 — 📅 担当者別 日間タイムライン + ルーティンD&D割当（実装） / 2026-06-02
+### Added（日表示のみ・renderDay 非破壊ラップ）
+- 担当者別 横タイムライン（左=担当者名/件数 sticky・上=時間目盛8〜18・行=予定/タスクを時間配置・自動レーン分け）
+- 時間未設定タスク列・完了薄表示・担当者フィルター連動・未担当行（表示専用）・合計件数・色分け凡例
+- 「🕓 時間軸表示に切替」で既存縦グリッドへ復帰（既存表示は破棄せず display 切替）
+- 本日のルーティンをD&Dで担当者の時間帯へ割当（PC）＋スマホ用「割当」ボタンfallback（担当者/時刻ピッカー）
+- `createTaskFromRoutine`：state.tasks へ追加→既存`_persistTasks`保存→再描画→トースト。重複防止・ルーティン本体は不変
+- 公開関数: appendStaffTimelineToDayCalendar / renderStaffTimelineDay / createTaskFromRoutine / getStaffFromDropTarget / getTimeFromDropPosition
+- `docs/CALENDAR_DAY_STAFF_TIMELINE_ROUTINE_DND_PACKET_2014.md`
+### 非破壊・遵守
+- 月/週（renderMonth/renderWeek）・予定追加/タスク追加/ルーティン完了 未改変。新規localStorageキーなし・本文保存なし
+- Supabase/SQL/RLS/Auth/外部API/Sheets/AI/CloudRun 不使用・顧客タブ復活なし
+- node --check PASS（単体＋埋込）、<script>5/5、CRM非表示マーカー無傷、禁止APIトークン0件
+
 ## packet 2013 — 📡 アカデミー公開反映記録（記録のみ・実装なし） / 2026-06-02
 ### Record
 - `git push origin main`（通常push・force無し）で `2edc444..7b3f19d` を反映（13コミット：packet 2001〜2012）
