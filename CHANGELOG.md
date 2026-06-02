@@ -1,5 +1,18 @@
 # CHANGELOG — ハウステイト じゃがいAI会社OS
 
+## packet 2012 — 🎓 生成型ロープレエンジンMVP（実装） / 2026-06-02
+### Added
+- `index.html` 末尾に packet 2012 を非破壊追記（既存 packet 2001 無改変・顧客タブ無改変）
+- 新タブ「🎓 アカデミー」＋新ページ `#page-academy`（switchPage/showMainApp はラップのみ）
+- 生成型ロープレ：売却10テンプレ・購入10テンプレ × 変数（性格/温度感/競合/家族/予算/相続人数/期限）
+- `generateScenario(tpl,seed,diffIdx)`（packet 2001と同形式を出力・選択肢シャッフル）／`window.generateScenario` 公開
+- 難易度6段（新人〜地獄級・★動的算出）、今日の3本（売却1/購入1/実務クイズ1・当日seedで固定）
+- 採点（隠し回収/地雷回避/クロージング/着地判定）＋👑杤岡AI店長レビュー（定型・AI不使用）＋🏆ランキング（デモ）＋実務クイズ12問プール
+- `docs/ACADEMY_2012_GENERATIVE_ENGINE_IMPL.md`
+### 非破壊・遵守
+- 状態は in-memory のみ（localStorage/sessionStorage不使用）・外部API/Supabase/Sheets/AI/fetch/XHR不使用
+- `node --check` PASS（単体＋埋込抽出）、`<script>`タグ4/4一致、CRM非表示マーカー無傷
+
 ## packet 2011 — 🎭 営業トレーニング 生成型シナリオ設計（docsのみ・未実装） / 2026-06-02
 ### Added (docs only)
 - `docs/ACADEMY_2011_GENERATIVE_ROLEPLAY_DESIGN.md`：テンプレ×変数×難易度×本音×地雷で実質1000+パターンを生成する設計
