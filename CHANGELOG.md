@@ -1,5 +1,13 @@
 # CHANGELOG — ハウステイト じゃがいAI会社OS
 
+## packet 2025 — 📡 アカデミー/ロープレ/タイムライン 公開反映記録（記録のみ・実装なし） / 2026-06-02
+### Record
+- `git push origin main`（通常push・force無し）で `7b3f19d..f5f3609` を反映（9コミット：packet 2013記録〜2024）
+- push後 origin/main と完全同期（HEAD f5f3609）・`.claude` 未追跡維持
+- 公開URL: https://housedotoujinishi-lang.github.io/house-tate/ （GitHub Pages・ライブ確認・404なし）
+- `docs/HOUSE_TATE_SOURCE_ACADEMY_ROLEPLAY_TIMELINE_PUBLIC_PUSH_RECORD_PACKET_2025.md` に検証チェックリスト（ログイン/ホーム/顧客タブ非復活=✅、タイムライン/ルーティンD&D/ロープレ各モード=🟡コード確認済・実機確認推奨）
+- 新規実装なし・コード変更なし。本記録はcommitまでで以降push停止
+
 ## packet 2024 — 🏠 訪問査定ロープレ 特化モード（実装） / 2026-06-02
 ### Added
 - ホームに「🏠 訪問査定ロープレ（→媒介取得）」を追加（選択式/自由入力とは別枠）。売主35テンプレを会話型で（20+ケース全網羅）
