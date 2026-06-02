@@ -1,5 +1,15 @@
 # CHANGELOG — ハウステイト じゃがいAI会社OS
 
+## packet 2027 — 👥 タスクボード常設・担当者別スケジュールボード（静的MVP・実装） / 2026-06-02
+### Added
+- タスクボードに**常設**の担当者別スケジュール（`renderTaskBoard`非破壊ラップ→`#tb-body`直前に`#staff-schedule-board`挿入）
+- 予定（state.events）＋タスク（state.tasks）を同一時間軸8-18で表示・担当者フィルタ連動・PC横並び/スマホ横スクロール（氏名列sticky）
+- packet2014の`renderStaffTimelineDay()`流用（id衝突回避・トグル除去）＋本日ルーティンD&D/割当ボタン（自前`assignRoutine`→state.tasks→`_persistTasks`→`renderTaskBoard`再描画）
+- カレンダー日表示タイムライン（packet2014）は維持（両方で表示）・`docs/TASKBOARD_STAFF_SCHEDULE_BOARD_PACKET_2027.md`
+### 検証・遵守
+- node --check（単体＋埋込）PASS・<script>7/7・禁止APIトークン0件・月/週/日/CRM無傷
+- Supabase/SQL/RLS/Auth/外部API/Sheets/CloudRun不使用・localStorage本文保存なし・顧客タブ復活なし・既存破壊なし
+
 ## packet 2026 — 🛠 担当者別タイムライン re-inject safety net（hotfix） / 2026-06-02
 ### 調査結論
 - 公開HTMLに packet2014 含む最新コードは全て載っている（curl確認・Last-Modified=本日）。タイムラインは**カレンダー日表示専用**で、`render()`は`layoutMode==='both'`かつ`renderCal()`は`curV==='day'`の時だけ`renderDay()`→inject。既定は月表示のため未遷移だと出ない＋inject例外が握りつぶされる可能性

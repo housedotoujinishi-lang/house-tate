@@ -35589,5 +35589,101 @@ function _p500_buildCandidateFromPayload(payload){
 })();
 
 </script>
+
+<script>
+// ════════════════════════════════════════════════════════════════════
+// packet 2027：タスクボード常設・担当者別スケジュールボード（静的MVP）
+// renderTaskBoard を非破壊ラップし、#tb-body 直前に常設パネルを挿入。
+// 既存 packet2014 の buildTimeline(window.renderStaffTimelineDay) を流用（id衝突回避）。
+// ルーティンD&D/割当は自前実装（state.tasks 追加→_persistTasks→renderTaskBoard）。
+// 月/週/日カレンダー・既存タスクボードは無改変。外部接続/本文保存なし。
+// ════════════════════════════════════════════════════════════════════
+(function(){
+  'use strict';
+  if(window.__ht_taskboard_schedule)return; window.__ht_taskboard_schedule=true;
+  var START_H=8,END_H=18,HOURW=64;
+  function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+  function routines(){try{if(typeof getTodayRoutinesForUser!=='function')return {list:[],done:[]};return {list:getTodayRoutinesForUser(typeof currentUser!=='undefined'?currentUser:null)||[],done:(typeof getRoutineDoneIds==='function'?getRoutineDoneIds():[])||[]};}catch(e){return {list:[],done:[]};}}
+  function routineStripHtml(){
+    var R=routines();
+    if(!R.list.length)return '<div style="font-size:10px;color:#94a3b8;padding:6px 0">本日のルーティンはありません</div>';
+    return R.list.map(function(r,i){
+      var done=R.done.indexOf(r.id)>=0;var title=r.title||r.name||r.label||('ルーティン'+(i+1));var cat=r.cat||'その他';
+      var payload=esc(JSON.stringify({type:'routine',rid:r.id,title:title,cat:cat,dur:r.dur||r.duration||60,target:r.target||''}));
+      return '<div class="sb-rt-card" data-rt=\''+payload+'\' draggable="'+(done?'false':'true')+'" style="display:inline-flex;flex-direction:column;gap:3px;min-width:140px;max-width:190px;margin:0 7px 7px 0;padding:7px 9px;border:1px solid '+(done?'#e2e8f0':'#f43f5e')+';border-left:4px solid '+(done?'#cbd5e1':'#f43f5e')+';border-radius:8px;background:'+(done?'#f8fafc':'#fff5f6')+';cursor:'+(done?'default':'grab')+';opacity:'+(done?'.5':'1')+'">'
+        +'<div style="font-size:11px;font-weight:700;color:#9f1239;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">📋 '+esc(title)+'</div>'
+        +'<div style="font-size:9px;color:#64748b">'+esc(cat)+(done?'｜✓完了':'')+'</div>'
+        +(done?'':'<button class="sb-rt-assign" style="align-self:flex-start;font-size:9px;font-weight:700;padding:2px 8px;border:1px solid #f43f5e;border-radius:10px;background:#fff;color:#9f1239;cursor:pointer">割当</button>')
+      +'</div>';
+    }).join('');
+  }
+  function timeFromX(e,track){try{var rect=track.getBoundingClientRect();var x=(e.clientX!=null?e.clientX:0)-rect.left;var hr=START_H+Math.round(x/HOURW);return Math.min(Math.max(hr,START_H),END_H);}catch(_){return 10;}}
+  // 自前のタスク化（renderDay副作用を避け、ボードを更新）
+  function assignRoutine(rt,mi,sh){
+    try{
+      if(mi==null||mi<0||typeof state==='undefined'||!Array.isArray(state.tasks))return;
+      var dstr=(typeof ds==='function'&&typeof selDate!=='undefined')?ds(selDate):null;if(!dstr)return;
+      var title=rt.title||'ルーティン';
+      var dup=state.tasks.some(function(t){return t.title===title&&t.toIdx===mi&&t.deadline===dstr&&t.sh===sh&&t.fromRoutine;});
+      if(dup){if(typeof showToast==='function')showToast('既に割当済みです');return;}
+      state.tasks.push({id:Date.now(),title:title,cat:rt.cat||'その他',pri:'mid',status:'todo',toIdx:mi,deadline:dstr,comment:'',done:false,sh:sh,sm:0,dur:rt.dur||60,fromRoutine:true,routineId:rt.rid});
+      try{if(typeof _persistTasks==='function')_persistTasks();}catch(_){}
+      var nm=(typeof members!=='undefined'&&members[mi]&&members[mi].n)||('担当'+mi);
+      if(typeof showToast==='function')showToast(title+' を '+nm+' の '+sh+':00 に割り当てました');
+      try{renderTaskBoard();}catch(_){}
+    }catch(e){try{console.warn('[packet2027 assign]',e&&e.message);}catch(_){}}
+  }
+  function buildBoardHtml(){
+    if(typeof window.renderStaffTimelineDay!=='function')return '';
+    var html;try{html=window.renderStaffTimelineDay();}catch(e){return '';}
+    if(!html)return '';
+    // id 衝突回避（日表示側 #staff-tl と分離）＋トグル除去（ボードに縦グリッドは無い）
+    html=html.replace(/id="staff-tl"/,'id="staff-tl-board"').replace(/id="stl-routine"/,'id="stl-routine-board"').replace(/<button id="stl-toggle"[^>]*>[^<]*<\/button>/,'');
+    return '<div id="staff-schedule-board" style="margin:0 0 12px">'
+      +'<div style="font-size:12px;font-weight:800;color:#0a3d7c;margin:0 0 6px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">👥 担当者別スケジュール（本日）<span style="font-size:9px;color:#94a3b8;font-weight:600">予定＋タスクを時間軸表示・ルーティンをドラッグで割当</span></div>'
+      +html
+      +'<div style="margin-top:8px"><div style="font-size:11px;font-weight:800;color:#9f1239;margin-bottom:5px">📋 本日のルーティン（ドラッグ→担当者の時間帯／スマホは「割当」）</div><div style="display:flex;flex-wrap:wrap">'+routineStripHtml()+'</div></div>'
+    +'</div>';
+  }
+  function openPicker(rt){
+    var ex=document.getElementById('sb-assign-pop');if(ex)ex.remove();
+    var vis=[];try{vis=(typeof visMis==='function')?visMis():[];}catch(_){}
+    if((!vis||!vis.length)&&typeof members!=='undefined')vis=members.map(function(_,i){return i;});
+    var opts=vis.filter(function(mi){return typeof members!=='undefined'&&members[mi];}).map(function(mi){return '<option value="'+mi+'">'+esc(members[mi].n)+'</option>';}).join('');
+    var times='';for(var hh=START_H;hh<=END_H;hh++)times+='<option value="'+hh+'"'+(hh===10?' selected':'')+'>'+hh+':00</option>';
+    var pop=document.createElement('div');pop.id='sb-assign-pop';pop.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px';
+    pop.innerHTML='<div style="background:#fff;border-radius:12px;padding:16px;max-width:300px;width:100%"><div style="font-size:13px;font-weight:800;color:#9f1239;margin-bottom:10px">📋 '+esc(rt.title)+' を割当</div><div style="font-size:11px;color:#475569;margin-bottom:3px">担当者</div><select id="sb-as-mi" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;margin-bottom:10px;font-size:13px">'+opts+'</select><div style="font-size:11px;color:#475569;margin-bottom:3px">開始時刻</div><select id="sb-as-h" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;margin-bottom:14px;font-size:13px">'+times+'</select><div style="display:flex;gap:8px"><button id="sb-as-cancel" style="flex:1;padding:9px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:#475569;font-weight:700;cursor:pointer">キャンセル</button><button id="sb-as-ok" style="flex:1;padding:9px;border:none;border-radius:8px;background:#9f1239;color:#fff;font-weight:800;cursor:pointer">割当</button></div></div>';
+    document.body.appendChild(pop);
+    pop.addEventListener('click',function(e){if(e.target===pop)pop.remove();});
+    document.getElementById('sb-as-cancel').onclick=function(){pop.remove();};
+    document.getElementById('sb-as-ok').onclick=function(){var mi=parseInt(document.getElementById('sb-as-mi').value,10);var hh=parseInt(document.getElementById('sb-as-h').value,10);pop.remove();assignRoutine(rt,mi,hh);};
+  }
+  function wire(board){
+    board.querySelectorAll('.sb-rt-card[draggable="true"]').forEach(function(card){
+      card.addEventListener('dragstart',function(e){try{e.dataTransfer.setData('text/plain',card.getAttribute('data-rt'));e.dataTransfer.effectAllowed='copy';}catch(_){}card.style.opacity='.4';});
+      card.addEventListener('dragend',function(){card.style.opacity='1';board.querySelectorAll('.stl-row').forEach(function(r){r.style.background='';});});
+    });
+    board.querySelectorAll('.sb-rt-assign').forEach(function(btn){btn.addEventListener('click',function(e){e.stopPropagation();var card=btn.closest('.sb-rt-card');if(!card)return;var rt;try{rt=JSON.parse(card.getAttribute('data-rt'));}catch(_){return;}openPicker(rt);});});
+    board.querySelectorAll('.stl-row[data-droprow="1"]').forEach(function(row){
+      row.addEventListener('dragover',function(e){var ty=e.dataTransfer&&e.dataTransfer.types;if(ty&&Array.prototype.indexOf.call(ty,'text/plain')<0)return;e.preventDefault();row.style.background='#eff6ff';});
+      row.addEventListener('dragleave',function(){row.style.background='';});
+      row.addEventListener('drop',function(e){e.preventDefault();row.style.background='';var raw='';try{raw=e.dataTransfer.getData('text/plain');}catch(_){}var d;try{d=JSON.parse(raw);}catch(_){return;}if(!d||d.type!=='routine')return;var mi=parseInt(row.getAttribute('data-mi'),10);var track=row.querySelector('.stl-track');var sh=track?timeFromX(e,track):10;assignRoutine(d,mi,sh);});
+    });
+  }
+  function injectBoard(){
+    var body=document.getElementById('tb-body');if(!body||!body.parentNode)return;
+    var old=document.getElementById('staff-schedule-board');if(old)old.remove();
+    var html=buildBoardHtml();if(!html)return;
+    var holder=document.createElement('div');holder.innerHTML=html;var board=holder.firstChild;
+    body.parentNode.insertBefore(board,body);
+    wire(board);
+  }
+  // renderTaskBoard 非破壊ラップ
+  try{if(typeof renderTaskBoard==='function'){var _rtb=renderTaskBoard;renderTaskBoard=function(){var r=_rtb.apply(this,arguments);try{injectBoard();}catch(e){try{console.warn('[packet2027]',e&&e.message);}catch(_){}}return r;};try{window.renderTaskBoard=renderTaskBoard;}catch(_){}}}catch(e){}
+  // 初回＋保険（ログイン直後/遅延描画対策）
+  [200,800,1600].forEach(function(ms){setTimeout(function(){try{if(document.getElementById('tb-body'))injectBoard();}catch(_){}},ms);});
+})();
+
+</script>
 </body>
 </html>
