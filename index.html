@@ -35262,7 +35262,7 @@ function _p500_buildCandidateFromPayload(payload){
   if(typeof renderDay!=='function')return;
 
   var MODE='staff';
-  var START_H=8, END_H=24, HOURW=92, NAMEW=112, UNSETW=92, BLOCKH=38, GAP=3, MINW=72, AVAIL_END=18;/* packet 2029: 8-24時・幅拡大・空き率は就業コア8-18基準で維持 */
+  var START_H=8, END_H=24, HOURW=120, NAMEW=112, UNSETW=92, BLOCKH=38, GAP=3, MINW=80, AVAIL_END=18;/* packet 2029: 8-24時・1時間120px・空き率は就業コア8-18基準で維持 */
   function catIcon(cat,title,routine){
     if(routine)return '📋';var t=title||'';
     if(/内見|内覧/.test(t))return '🏠';
@@ -35616,7 +35616,7 @@ function _p500_buildCandidateFromPayload(payload){
 (function(){
   'use strict';
   if(window.__ht_taskboard_schedule)return; window.__ht_taskboard_schedule=true;
-  var START_H=8,END_H=24,HOURW=92;/* packet 2029: 8-24時・幅拡大に整合 */
+  var START_H=8,END_H=24,HOURW=120;/* packet 2029: 8-24時・1時間120pxに整合 */
   function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
   function routines(){try{if(typeof getTodayRoutinesForUser!=='function')return {list:[],done:[]};return {list:getTodayRoutinesForUser(typeof currentUser!=='undefined'?currentUser:null)||[],done:(typeof getRoutineDoneIds==='function'?getRoutineDoneIds():[])||[]};}catch(e){return {list:[],done:[]};}}
   function routineStripHtml(){
