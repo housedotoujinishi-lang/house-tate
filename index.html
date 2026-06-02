@@ -34928,6 +34928,7 @@ function _p500_buildCandidateFromPayload(payload){
       else if(A.view==='result')r.innerHTML=backBar()+tplResult();
       else if(A.view==='quiz')r.innerHTML=backBar()+tplQuiz();
       else if(A.view==='rank')r.innerHTML=backBar()+tplRank();
+      else if(A.view==='free')r.innerHTML=backBar()+tplFree();
       else {A.view='home';ensureToday();r.innerHTML=tplHome();}
     }catch(e){try{console.warn('[packet2017 render]',e&&e.message);}catch(_){}
       A.view='home';try{ensureToday();r.innerHTML=tplHome();}catch(_2){r.innerHTML='<div style="padding:20px;text-align:center"><div style="margin-bottom:10px;color:#64748b">読み込みに失敗しました。</div><button class="ac-home" style="padding:9px 16px;border:none;border-radius:8px;background:#3b0764;color:#fff;font-weight:800;cursor:pointer">🎓 ホームへ</button></div>';}}
@@ -34952,12 +34953,18 @@ function _p500_buildCandidateFromPayload(payload){
       +'</div>'
       +'<div style="font-size:12px;font-weight:800;color:#0a3d7c;margin-bottom:7px">難易度 '+mgr+'</div>'
       +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">'+diffBtns+'</div>'
+      +'<div style="font-size:12px;font-weight:800;color:#0a3d7c;margin:2px 0 7px">📝 選択式ロープレ（A/B/C）</div>'
       +'<div style="display:flex;gap:9px;flex-wrap:wrap;margin-bottom:14px">'
         +'<button class="ac-gen-sell" style="flex:1;min-width:140px;padding:11px;border:none;border-radius:9px;background:#fce7f3;color:#9d174d;font-weight:800;font-size:12px;cursor:pointer">🏷 売却を生成（'+DIFFS[A.diff].label+'）</button>'
         +'<button class="ac-gen-buy" style="flex:1;min-width:140px;padding:11px;border:none;border-radius:9px;background:#dbeafe;color:#1e40af;font-weight:800;font-size:12px;cursor:pointer">🏠 購入を生成（'+DIFFS[A.diff].label+'）</button>'
         +'<button class="ac-rank" style="flex:1;min-width:140px;padding:11px;border:none;border-radius:9px;background:#f5c400;color:#0a3d7c;font-weight:800;font-size:12px;cursor:pointer">🏆 ランキング</button>'
       +'</div>'
-      +'<div style="font-size:10px;color:#94a3b8;line-height:1.6">※ テンプレ売却10×購入10×変数で毎回内容が変化。スコアはセッション内のみ（保存なし）。実務クイズ本格版は今後拡張。</div>';
+      +'<div style="font-size:12px;font-weight:800;color:#0a3d7c;margin:4px 0 7px">✍️ 自由入力ロープレ（AI店長レビュー）</div>'
+      +'<div style="display:flex;gap:9px;flex-wrap:wrap;margin-bottom:14px">'
+        +'<button class="ac-free-sell" style="flex:1;min-width:140px;padding:11px;border:1px solid #9d174d;border-radius:9px;background:#fff;color:#9d174d;font-weight:800;font-size:12px;cursor:pointer">🏷 売却を自由入力</button>'
+        +'<button class="ac-free-buy" style="flex:1;min-width:140px;padding:11px;border:1px solid #1e40af;border-radius:9px;background:#fff;color:#1e40af;font-weight:800;font-size:12px;cursor:pointer">🏠 購入を自由入力</button>'
+      +'</div>'
+      +'<div style="font-size:10px;color:#94a3b8;line-height:1.6">※ 売主35×購入35テンプレ×顧客性格×変数で毎回変化。自由入力はキーワード/NGワード/法務リスクのローカル採点（外部API不使用）。スコアはセッション内のみ（保存なし）。</div>';
   }
 
   function startGen(side){A.scn=generateScenario(pick(rngFrom(todayStr()+'|man'+side+(A._c=(A._c||0)+1)),side==='sell'?SELL:BUY),todayStr()+'-m'+(A._c),A.diff);beginPlay();}
@@ -35048,6 +35055,90 @@ function _p500_buildCandidateFromPayload(payload){
       +'<div style="margin-top:10px;font-size:10px;color:#94a3b8">※ デモ集計。本番は学習/ロープレ実績を質で重み付け・シーズン制で集計予定（packet 2007設計）。</div>';
   }
 
+  /* ═══ packet 2019: 自由入力ロープレ（ルールベース採点・外部API不使用）═══ */
+  var NG_WORDS=['必ず売れ','絶対大丈夫','黙って','すぐ契約','他社より必ず高','ローンは絶対通','問題ありません','違法ではな','告知しなくて','絶対に儲か','必ず通り','絶対値上が','絶対損しま'];
+  var EMPATHY_RE=/お気持ち|ご不安|お察し|大変|承知|わかり|分かり|なるほど|そうなん|ご事情|ご心配|お辛|つらい|お困り|不安|寄り添/;
+  var Q_RE=/[\?？]|ですか|でしょうか|教えて|お聞かせ|伺|いかが|なぜ|どうして|いつ|どちら|どんな|どの|ありますか|聞かせ/;
+  var ACTION_RE=/訪問査定|内覧|事前審査|媒介|専任|次回|ご提案|日程|お時間|アポ|資料|お持ち|ご案内|お約束|現地|査定|段取り/;
+  var LEGAL_RE=/告知|重要事項|確認|司法書士|税理士|弁護士|専門家|調べ|登記|測量|境界|権利|名義|許可|抵当|残債/;
+  function freeScore(text,turn,persona){
+    text=String(text||'');var res={total:0,axes:{},good:[],bad:[],ng:[]};
+    NG_WORDS.forEach(function(w){if(text.indexOf(w)>=0)res.ng.push(w);});
+    var empathy=EMPATHY_RE.test(text),question=Q_RE.test(text),action=ACTION_RE.test(text),legal=LEGAL_RE.test(text);
+    var len=text.replace(/\s/g,'').length;
+    res.axes['共感']=empathy?15:0;
+    res.axes['深掘り(質問)']=question?15:0;
+    res.axes['次アクション']=action?20:0;
+    res.axes['法務配慮']=legal?15:0;
+    res.axes['不安を拾う']=/理由|事情|期限|いつまで|残債|ローン|ご家族|心配|不安|お困り|負担/.test(text)?10:0;
+    res.axes['断定回避']=res.ng.length?0:10;
+    var pAdj=0;
+    if(persona){
+      if(persona.closingGuard&&action&&!empathy)pAdj-=8;
+      if(persona.key==='logic'&&!legal&&!question)pAdj-=5;
+      if(persona.key==='emotion'&&empathy)pAdj+=5;
+      if(persona.key==='busy'&&len>120)pAdj-=4;
+      if(persona.key==='busy'&&action)pAdj+=4;
+      if(persona.key==='proud'&&/決めつけ|べき|ダメ/.test(text))pAdj-=5;
+    }
+    res.axes['性格適合']=Math.max(0,10+pAdj);
+    var sum=0;Object.keys(res.axes).forEach(function(k){sum+=res.axes[k];});
+    if(len<8)sum=Math.round(sum*0.4);
+    sum-=res.ng.length*25;
+    res.total=Math.max(-30,Math.min(100,sum));
+    if(empathy)res.good.push('共感の言葉で警戒を和らげている');
+    if(question)res.good.push('質問で事情を深掘りしている');
+    if(legal)res.good.push('確認・法務配慮ができている');
+    if(action)res.good.push('次アクション（訪問査定/内覧/媒介等）に繋げている');
+    if(!empathy)res.bad.push('共感が弱い。まず気持ちを受け止める一言を');
+    if(!question)res.bad.push('深掘りの質問がない。理由・期限・不安を引き出そう');
+    if(!action)res.bad.push('次アクションが弱い。訪問査定/内覧/事前審査など前進の提案を');
+    res.ng.forEach(function(w){res.bad.push('⚠ NGワード「'+w+'…」：断定・誇大・告知軽視は重大リスク（大幅減点）');});
+    if(persona&&persona.closingGuard&&action&&!empathy)res.bad.push('「'+persona.label+'」には信頼を作る前のクロージングは早い');
+    return res;
+  }
+  function tomokaFreeReview(res,turn,persona){
+    var lines=[];
+    if(res.ng.length)lines.push('断定・告知軽視は厳禁。NGワードは即・信頼を失い、法務リスクにもなる。');
+    else if(res.axes['共感']>0&&res.axes['次アクション']===0)lines.push('共感はできているが、次アクションが弱い。訪問査定/内覧に繋げよ。');
+    if(res.axes['深掘り(質問)']===0)lines.push('事情の深掘りが不足。表向きの裏の本音（'+(turn&&turn.dim||'')+'）を質問で引き出せ。');
+    if(persona&&persona.closingGuard&&res.axes['性格適合']<8)lines.push('「'+persona.label+'」にはクロージングが早すぎる。まず安心感を作れ。');
+    if(persona&&persona.key==='logic'&&res.axes['法務配慮']===0)lines.push('論理派には根拠・確認・数字を。曖昧な共感だけでは響かない。');
+    if(persona&&persona.key==='emotion'&&res.axes['共感']===0)lines.push('感情派の不安を先に拾え。いきなり本題は逆効果。');
+    if(!lines.length)lines.push('型に沿った良い対応。'+(persona?'「'+persona.label+'」':'')+'の特性も踏まえられている。');
+    return lines.slice(0,2);
+  }
+  function startFree(side){A.scn=generateScenario(pick(rngFrom(todayStr()+'|free'+side+(A._fc=(A._fc||0)+1)),side==='sell'?SELL:BUY),todayStr()+'-f'+(A._fc),A.diff);A.freeTurn=0;A.freeRes=null;A.freeText='';A.meters=initMeters(A.scn);A.emotion=emotionFor(A.meters);A.view='free';render();}
+  function tplFree(){
+    var s=A.scn,t=s.turns[Math.min(A.freeTurn,s.turns.length-1)],persona=s.persona;
+    var head1=head((s.side==='sell'?'🏷 売却':'🏠 購入')+' 自由入力ロープレ');
+    var card='<div style="background:#fff;border:1px solid #e2e8f0;border-radius:11px;padding:13px;margin-bottom:10px"><div style="font-size:11px;font-weight:800;color:#3b0764;margin-bottom:4px">'+(persona?persona.emoji+' '+persona.label+'タイプ':'お客様')+'　'+(A.emotion||'')+'</div><div style="font-size:11px;color:#334155;line-height:1.6">'+esc(s.profile)+'</div></div>';
+    var bubble='<div style="background:#0a3d7c;color:#fff;border-radius:10px;padding:12px 14px;margin-bottom:10px"><div style="font-size:10px;color:#f5c400;font-weight:800;margin-bottom:3px">'+esc(t.phase)+'（'+(A.freeTurn+1)+'/'+s.turns.length+'）</div><div style="font-size:13px;line-height:1.6">💬 '+esc(t.q)+'</div></div>';
+    if(!A.freeRes){
+      return head1+card+bubble
+        +'<textarea id="ac-free-input" placeholder="あなたの返答を入力（スマホでも入力しやすい欄）" style="width:100%;min-height:96px;padding:11px;border:1.5px solid #cbd5e1;border-radius:10px;font-size:13px;line-height:1.6;box-sizing:border-box;resize:vertical">'+esc(A.freeText||'')+'</textarea>'
+        +'<button class="ac-free-submit" style="margin-top:9px;width:100%;padding:12px;border:none;border-radius:9px;background:#3b0764;color:#fff;font-weight:800;font-size:13px;cursor:pointer">採点する（AI店長レビュー）</button>';
+    }
+    var r=A.freeRes,col=r.total>=70?'#16a34a':r.total>=45?'#f59e0b':'#dc2626';
+    var axes=Object.keys(r.axes).map(function(k){var v=r.axes[k];return '<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0"><span style="color:#475569">'+k+'</span><span style="font-weight:800;color:'+(v>0?'#16a34a':'#94a3b8')+'">'+(v>0?'+'+v:'0')+'</span></div>';}).join('');
+    var goods=r.good.length?r.good.map(function(x){return '<li>'+esc(x)+'</li>';}).join(''):'<li style="color:#94a3b8">該当なし</li>';
+    var bads=r.bad.length?r.bad.map(function(x){return '<li>'+esc(x)+'</li>';}).join(''):'<li style="color:#16a34a">大きな問題なし</li>';
+    var review=tomokaFreeReview(r,t,persona).map(function(x){return '<li>'+esc(x)+'</li>';}).join('');
+    var model=(t.g&&t.g[0])?esc(t.g[0]):'';
+    return head1+card+bubble
+      +'<div style="background:#fff;border:1px solid #e2e8f0;border-radius:11px;padding:13px;margin-bottom:10px;font-size:12px;color:#334155;line-height:1.6"><b>あなたの返答</b><br>'+esc(A.freeText||'(空)')+'</div>'
+      +'<div style="text-align:center;background:'+col+';color:#fff;border-radius:12px;padding:12px;margin-bottom:10px"><div style="font-size:10px;opacity:.9">採点</div><div style="font-size:30px;font-weight:900">'+r.total+'<span style="font-size:14px"> 点</span></div></div>'
+      +'<div style="background:#fff;border:1px solid #e2e8f0;border-radius:11px;padding:13px;margin-bottom:10px">'+axes+'</div>'
+      +'<div style="background:#dcfce7;border:1px solid #86efac;border-radius:11px;padding:12px;margin-bottom:10px"><div style="font-size:12px;font-weight:800;color:#14532d;margin-bottom:4px">✅ 良かった点</div><ul style="margin:0;padding-left:18px;font-size:11px;line-height:1.7;color:#14532d">'+goods+'</ul></div>'
+      +'<div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:11px;padding:12px;margin-bottom:10px"><div style="font-size:12px;font-weight:800;color:#7f1d1d;margin-bottom:4px">⚠ 危険な点・改善</div><ul style="margin:0;padding-left:18px;font-size:11px;line-height:1.7;color:#7f1d1d">'+bads+'</ul></div>'
+      +(model?'<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:11px;padding:12px;margin-bottom:10px"><div style="font-size:12px;font-weight:800;color:#1e40af;margin-bottom:4px">💡 改善例（模範解答）</div><div style="font-size:11px;color:#1e3a8a;line-height:1.7">'+model+'</div></div>':'')
+      +'<div style="background:#3b0764;color:#fff;border-radius:11px;padding:12px;margin-bottom:12px"><div style="font-size:12px;font-weight:800;color:#f5c400;margin-bottom:4px">👑 杤岡AI店長レビュー</div><ul style="margin:0;padding-left:18px;font-size:11px;line-height:1.7">'+review+'</ul></div>'
+      +'<div style="display:flex;gap:9px"><button class="ac-free-retry" style="flex:1;padding:11px;border:1.5px solid #3b0764;border-radius:9px;background:#fff;color:#3b0764;font-weight:800;font-size:12px;cursor:pointer">↻ 再回答</button>'
+      +'<button class="ac-free-next" style="flex:1;padding:11px;border:none;border-radius:9px;background:#3b0764;color:#fff;font-weight:800;font-size:12px;cursor:pointer">'+(A.freeTurn+1>=s.turns.length?'完了（ホームへ）':'次のお客様へ →')+'</button></div>';
+  }
+  function freeSubmit(){var ta=el().querySelector('#ac-free-input');A.freeText=ta?ta.value:'';var s=A.scn,t=s.turns[Math.min(A.freeTurn,s.turns.length-1)];A.freeRes=freeScore(A.freeText,t,s.persona);try{updateMeters(s.persona,{s:(A.freeRes.ng.length?'bad':(A.freeRes.total>=60?'good':'mid')),cl:false},t,A.meters);A.emotion=emotionFor(A.meters);}catch(_){}render();}
+  function freeNext(){var s=A.scn;A.freeRes=null;A.freeText='';A.freeTurn++;if(A.freeTurn>=s.turns.length){goHome();return;}render();}
+
   function bind(){var r=el();if(!r)return;
     var q=function(sel){return r.querySelector(sel);};var qa=function(sel){return r.querySelectorAll(sel);};
     qa('.ac-diff').forEach(function(b){b.onclick=function(){A.diff=parseInt(b.dataset.d,10);A.today=null;render();};});
@@ -35062,6 +35153,11 @@ function _p500_buildCandidateFromPayload(payload){
     qa('.ac-q').forEach(function(b){b.onclick=function(){answerQuiz(parseInt(b.dataset.i,10));};});
     var rt=q('.ac-retry');if(rt)rt.onclick=function(){startGen(A.scn.side);};
     qa('.ac-home').forEach(function(b){b.onclick=function(){goHome();};});
+    var fs1=q('.ac-free-sell');if(fs1)fs1.onclick=function(){startFree('sell');};
+    var fb1=q('.ac-free-buy');if(fb1)fb1.onclick=function(){startFree('buy');};
+    var fsub=q('.ac-free-submit');if(fsub)fsub.onclick=function(){freeSubmit();};
+    var frt=q('.ac-free-retry');if(frt)frt.onclick=function(){A.freeRes=null;render();};
+    var fnx=q('.ac-free-next');if(fnx)fnx.onclick=function(){freeNext();};
   }
 
   // ─── ページ＆ナビ注入（非破壊） ───
