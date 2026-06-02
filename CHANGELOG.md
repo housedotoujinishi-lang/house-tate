@@ -1,5 +1,16 @@
 # CHANGELOG — ハウステイト じゃがいAI会社OS
 
+## packet 2026 — 🛠 担当者別タイムライン re-inject safety net（hotfix） / 2026-06-02
+### 調査結論
+- 公開HTMLに packet2014 含む最新コードは全て載っている（curl確認・Last-Modified=本日）。タイムラインは**カレンダー日表示専用**で、`render()`は`layoutMode==='both'`かつ`renderCal()`は`curV==='day'`の時だけ`renderDay()`→inject。既定は月表示のため未遷移だと出ない＋inject例外が握りつぶされる可能性
+### Fixed（最小・packet2014非改変）
+- 公開済 `appendStaffTimelineToDayCalendar()` を多経路で再inject：setTimeout複数回/switchPage('cal')ラップ/renderCalラップ/クリック委譲（.vp[data-v=day]・#lay-both・日付セル）/最小MutationObserver
+- `#cal-view .daycol` が無ければ何もしない（月/週不変）・inject冪等・ループなし
+- `docs/STAFF_TIMELINE_NOT_VISIBLE_HOTFIX_PACKET_2026.md`（調査+手順）
+### 検証・遵守
+- node --check（単体＋埋込）PASS・<script>6/6・禁止APIトークン0件・月/週/CRM無傷
+- Supabase/SQL/RLS/Auth/外部API/Sheets/CloudRun不使用・localStorage本文保存なし・顧客タブ復活なし
+
 ## packet 2025 — 📡 アカデミー/ロープレ/タイムライン 公開反映記録（記録のみ・実装なし） / 2026-06-02
 ### Record
 - `git push origin main`（通常push・force無し）で `7b3f19d..f5f3609` を反映（9コミット：packet 2013記録〜2024）

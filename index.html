@@ -35558,5 +35558,36 @@ function _p500_buildCandidateFromPayload(payload){
 })();
 
 </script>
+
+<script>
+// ════════════════════════════════════════════════════════════════════
+// packet 2026 hotfix：担当者別タイムライン re-inject safety net
+// packet2014 の renderDay ラップ依存をやめ、複数経路で再injectして
+// 日表示DOM(.daycol)が現れたら必ずタイムラインを刺す。
+// 公開済 window.appendStaffTimelineToDayCalendar() を利用（packet2014 を改変しない）。
+// 月/週は不変（.daycol が無ければ何もしない）。外部接続/保存なし。
+// ════════════════════════════════════════════════════════════════════
+(function(){
+  'use strict';
+  if(window.__ht_daytl_safetynet)return; window.__ht_daytl_safetynet=true;
+  function hasDay(){return !!document.querySelector('#cal-view .daycol');}
+  function go(){try{if(hasDay()&&typeof window.appendStaffTimelineToDayCalendar==='function')window.appendStaffTimelineToDayCalendar();}catch(e){try{console.warn('[packet2026]',e&&e.message);}catch(_){}}}
+  function burst(){[60,300,900,1800].forEach(function(ms){setTimeout(go,ms);});}
+  // renderCal ラップ（月/週/日いずれの再描画後も、日DOMがあれば inject）
+  try{if(typeof renderCal==='function'){var _rc=renderCal;renderCal=function(){var r=_rc.apply(this,arguments);go();return r;};try{window.renderCal=renderCal;}catch(_){}}}catch(e){}
+  // switchPage ラップ（cal 入場時に burst）
+  try{if(typeof window.switchPage==='function'){var _sp=window.switchPage;window.switchPage=function(pg){var r=_sp.apply(this,arguments);if(pg==='cal')burst();return r;};}}catch(e){}
+  // クリック委譲（日ビュー切替/＋カレンダー/月セル/週日付）後に再inject
+  try{document.addEventListener('click',function(e){var t=e.target&&e.target.closest&&e.target.closest('.vp[data-v="day"],#lay-both,.mjump,.whdn,.mday,.mdtn');if(t)burst();},true);}catch(e){}
+  // 最小 MutationObserver：#cal-view に .daycol が現れ #staff-tl が無ければ inject（冪等）
+  try{
+    var mo=new MutationObserver(function(){if(hasDay()&&!document.querySelector('#staff-tl'))go();});
+    var tries=0;
+    (function attach(){var cv=document.getElementById('cal-view');if(cv){try{mo.observe(cv,{childList:true,subtree:true});}catch(_){}return;}if(tries++<10)setTimeout(attach,800);})();
+  }catch(e){}
+  burst();
+})();
+
+</script>
 </body>
 </html>
