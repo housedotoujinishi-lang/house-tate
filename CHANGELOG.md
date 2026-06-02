@@ -1,5 +1,13 @@
 # CHANGELOG — ハウステイト じゃがいAI会社OS
 
+## packet 2032 — 🗄 tasks時間カラム追加 手動SQL ＋ タスク時間永続化設計（docsのみ・未実装） / 2026-06-02
+### Added (docs only)
+- `docs/TASKS_TIME_COLUMNS_MANUAL_SQL_PACKET_2032.md`：tasksテーブルに sh/sm/dur を追加する手動SQL設計
+  - 現状整理（saveTasks/loadに時間カラムが無く、タスク時間がリロードで消える）
+  - 実行前確認SQL／ALTER TABLE（add column if not exists・冪等）／実行後確認SQL／ロールバックSQL（追加3列のみdrop）
+  - アプリ側実装計画（saveTasks rows＋load mapping に sh/sm/dur 追加・後方互換）／リスク整理（PostgRESTキャッシュ・RLS無影響・データ無損失）
+- **Claude側SQL実行なし・Supabase直接変更なし・index.html編集なし・アプリ実装なし**（docs設計のみ）
+
 ## packet 2031 — 🛠 タイムライン クリック編集 + 右端リサイズ15分（実装） / 2026-06-02
 ### Added（buildTimeline共有＝日表示＋タスクボード両方）
 - 表示改善：ブロック高さ38→48・タイトル2行表示（line-clamp2/white-space:normal）・時刻範囲＋種別アイコン・内容が読める
