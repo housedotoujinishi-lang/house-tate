@@ -1,5 +1,15 @@
 # CHANGELOG — ハウステイト じゃがいAI会社OS
 
+## packet 2033 — 🗄 タスク時間 永続化 アプリ側実装 / 2026-06-02
+### Fixed（タスク時間がリロードで消える問題）
+- `saveTasks` 送信カラムに `sh/sm/dur` を追加（DBへ保存。packet2032のSQLでカラム追加済み前提）
+- 起動時 `sbGet('tasks')` mapping に `sh/sm/dur` を追加（復元）。NULLは時間未設定で後方互換
+- これにより：クリック編集（開始/終了）・右端リサイズ（dur）・ルーティンD&D割当 のタスク時間が **リロード後も維持**（packet2031/2027は無改変で自動永続化）
+- `docs/TASKS_TIME_PERSIST_APP_IMPL_PACKET_2033.md`
+### 遵守
+- SQL実行なし・Supabase直接変更なし・RLS/Auth変更なし・新規外部接続なし（既存sbUpsert/sbGet）・顧客タブ復活なし・月週/既存追加/ルーティンD&D無改変
+- node --check（メインスクリプト）PASS・<script>8/8・CRM無傷
+
 ## packet 2032 — 🗄 tasks時間カラム追加 手動SQL ＋ タスク時間永続化設計（docsのみ・未実装） / 2026-06-02
 ### Added (docs only)
 - `docs/TASKS_TIME_COLUMNS_MANUAL_SQL_PACKET_2032.md`：tasksテーブルに sh/sm/dur を追加する手動SQL設計

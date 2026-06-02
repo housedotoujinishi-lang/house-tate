@@ -3256,7 +3256,8 @@ async function saveTasks() {
   const rows = state.tasks.map(t => ({
     id: t.id, title: t.title, cat: t.cat, pri: t.pri,
     status: t.status||'todo', to_idx: t.toIdx??null,
-    deadline: t.deadline||null, comment: t.comment||null, done: t.done||false
+    deadline: t.deadline||null, comment: t.comment||null, done: t.done||false,
+    sh: (t.sh!=null? t.sh : null), sm: (t.sm!=null? t.sm : null), dur: (t.dur!=null? t.dur : null) /* packet 2033: タスク時間永続化 */
   }));
   await sbUpsert('tasks', rows, 'id');
 }
@@ -3374,7 +3375,8 @@ async function loadAllFromDB() {
       tasks.forEach(t => state.tasks.push({
         id: t.id, title: t.title, cat: t.cat, pri: t.pri,
         status: t.status, toIdx: t.to_idx, deadline: t.deadline,
-        comment: t.comment, done: t.done
+        comment: t.comment, done: t.done,
+        sh: (t.sh!=null? t.sh : undefined), sm: (t.sm!=null? t.sm : undefined), dur: (t.dur!=null? t.dur : undefined) /* packet 2033: タスク時間復元 */
       }));
     }
 
