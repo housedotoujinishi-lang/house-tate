@@ -1,5 +1,11 @@
 # CHANGELOG — ハウステイト じゃがいAI会社OS
 
+## packet 2010 — 🎯 ロードマップ作成（docsのみ・未実装） / 2026-06-02
+### Added (docs only)
+- `docs/ACADEMY_2010_ROADMAP.md`：Phase1-4 の実装順・優先順位・工数・教育効果・売上効果
+- Phase1(実技+ハブ)→2(知識×連動+学習ループ)→3(店長+軽量ランキング)→4(昇格+AI)、各Phaseに中間指標と成約KPIを接続
+- ゲート制の効果測定・リスク回避・Lv4プロセス。実装なし・外部接続なし
+
 ## packet 2009 — 🤖 AI会議レビュー（docsのみ・未実装） / 2026-06-02
 ### Added (docs only)
 - `docs/ACADEMY_2009_AI_COUNCIL_REVIEW.md`：2003-2008を信長/家康/秀吉/ドラッカー/デミング/エジソンの観点で擬似議論
