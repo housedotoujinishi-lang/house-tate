@@ -34799,7 +34799,20 @@ function _p500_buildCandidateFromPayload(payload){
     if(/競合/.test(dim)&&(c.s==='good'||c.s==='alt'))m.comp-=8;
     m.trust=clampM(m.trust);m.guard=clampM(m.guard);m.urgency=clampM(m.urgency);m.temp=clampM(m.temp);m.comp=clampM(m.comp);
   }
-  function emotionFor(m){if(!m)return '😐 普通';if(m.guard>=65||m.trust<25)return '😠 不信感';if(m.trust>=65&&m.guard<40)return '🙂 好印象';if(m.guard>=48||m.trust<42)return '😟 不安';return '😐 普通';}
+  /* packet 2022: 感情エンジン強化（8状態・メーター連動） */
+  function emotionFor(m){
+    if(!m)return '😐 普通';
+    var side=(A.scn&&A.scn.side)||'sell',closing=!!A.closing;
+    var t=m.trust,g=m.guard,u=m.urgency,tp=m.temp;
+    if(g>=62)return '🛡 警戒';
+    if(t<42&&g>=46)return '🤨 半信半疑';
+    if(t>=66&&(closing||u>=64))return side==='sell'?'🏷 売却意欲高':'🏠 購入意欲高';
+    if(t>=64)return '🤝 信頼';
+    if(tp>=60||u>=58)return '🔥 前向き';
+    if(t>=50)return '🙂 好印象';
+    if(u>=44||tp>=46)return '👂 興味あり';
+    return '🤨 半信半疑';
+  }
   function metersBar(){
     var m=A.meters||initMeters(A.scn);var p=A.scn&&A.scn.persona;
     var rows=[['信頼度',m.trust,'#16a34a'],['警戒心',m.guard,'#dc2626'],['緊急度',m.urgency,'#f59e0b'],['温度感',m.temp,'#3b82f6'],['競合影響',m.comp,'#8b5cf6']];
@@ -34969,35 +34982,78 @@ function _p500_buildCandidateFromPayload(payload){
 
   function startGen(side){A.scn=generateScenario(pick(rngFrom(todayStr()+'|man'+side+(A._c=(A._c||0)+1)),side==='sell'?SELL:BUY),todayStr()+'-m'+(A._c),A.diff);beginPlay();}
   function startToday(side){A.scn=A.today[side];A._todayPlaying=side;beginPlay();}
-  function beginPlay(){A.turn=0;A.score=0;A.max=scnMaxP(A.scn);A.hits=0;A.reveals={};A.closing=false;A.history=[];A.meters=initMeters(A.scn);A.emotion=emotionFor(A.meters);A.view='play';render();}
+  function beginPlay(){A.turn=0;A.score=0;A.max=scnMaxP(A.scn);A.hits=0;A.reveals={};A.closing=false;A.history=[];A.meters=initMeters(A.scn);A.emotion=emotionFor(A.meters);if(A.coachFreq==null)A.coachFreq=2;A.view='play';render();}
+  /* packet 2021/2023: 会話反応 + 店長リアルタイム指導 */
+  function reactionFlavor(p,m,c){
+    if(!m)return '';
+    if(c.s==='bad')return m.guard>=55?'（表情が硬くなり、距離を取られた）':'（少し引かれてしまった）';
+    if(c.cl&&m.trust<55)return '（まだそこまでは…と警戒された）';
+    if(c.s==='good'&&m.trust>=60)return '（安心した様子で、本音をのぞかせた）';
+    if(c.s==='good')return '（うなずいて、話を続けてくれた）';
+    if(m.guard>=58)return '（まだ警戒している様子）';
+    return '';
+  }
+  function coachTip(t,p,m){
+    if(!t||!m)return null;var dim=t.dim||'';
+    if(p&&p.closingGuard&&/クロージング|媒介|買付|訪問査定/.test(dim)&&m.trust<55)return {t:'「'+p.label+'」にクロージングは早い。まず信頼を作れ。',risk:true};
+    if(m.guard>=58)return {t:'警戒心が高い。今は共感を優先せよ。',risk:true};
+    if(/価格/.test(dim)&&m.comp>=55)return {t:'競合確認を忘れるな。高値合戦に乗らず根拠で。',risk:true};
+    if(/売却理由|ヒアリング|深掘り/.test(dim))return {t:'理由・事情を2段階で深掘りせよ。',risk:false};
+    if(/所有者|相続人/.test(dim))return {t:'名義・相続人・同意の確認を。',risk:false};
+    if(/期限/.test(dim))return {t:'期限を確認して逆算せよ。',risk:false};
+    if(/価格/.test(dim))return {t:'価格期待値の調整を。成約事例の根拠で。',risk:false};
+    if(/資金|ローン/.test(dim))return {t:'資金計画・ローンの確認を先に。',risk:false};
+    if(/家族|決裁/.test(dim))return {t:'決裁者（配偶者/親）の意向を確認。',risk:false};
+    if(/クロージング|媒介|買付|訪問査定/.test(dim))return {t:'次アクション（訪問査定/内覧/買付）を提示せよ。',risk:false};
+    return null;
+  }
+  function coachShow(turnIdx,tip){
+    var f=A.coachFreq==null?2:A.coachFreq;
+    if(f<=0||!tip)return false;
+    if(f>=3)return true;
+    if(tip.risk)return true;
+    if(f===2)return turnIdx%2===0;
+    return false;
+  }
 
+  /* packet 2021: 会話型ロープレ（チャットログ・動的反応） */
   function tplPlay(){
     var s=A.scn,t=s.turns[A.turn],pct=Math.round(A.turn/s.turns.length*100);
-    var sideTag=s.side==='sell'?'<span style="background:#fce7f3;color:#9d174d;font-size:9px;font-weight:800;padding:2px 7px;border-radius:8px">売却</span>':'<span style="background:#dbeafe;color:#1e40af;font-size:9px;font-weight:800;padding:2px 7px;border-radius:8px">購入</span>';
     var starTxt='★'.repeat(s.star>5?5:s.star)+(s.star>5?' 地獄級':'');
-    var choices=t.choices.map(function(c,i){return '<button class="ac-ch" data-i="'+i+'" style="display:block;width:100%;text-align:left;margin-bottom:9px;padding:12px 14px;border:1.5px solid #e2e8f0;border-radius:10px;background:#fff;cursor:pointer;font-size:12px;line-height:1.5;color:#1e293b" onmouseover="this.style.borderColor=\'#3b0764\'" onmouseout="this.style.borderColor=\'#e2e8f0\'"><span style="display:inline-block;width:22px;height:22px;line-height:22px;text-align:center;background:#3b0764;color:#fff;border-radius:6px;font-weight:800;margin-right:8px">'+['A','B','C'][i]+'</span>'+esc(c.t)+'</button>';}).join('');
+    var log=A.history.map(function(h){
+      var badge=h.good?'<span style="background:#16a34a;color:#fff;font-size:8px;padding:1px 5px;border-radius:6px;margin-left:6px">◎'+(h.pts!=null?(h.pts>=0?'+':'')+h.pts:'')+'</span>':h.lm?'<span style="background:#dc2626;color:#fff;font-size:8px;padding:1px 5px;border-radius:6px;margin-left:6px">×'+(h.pts!=null?h.pts:'')+'</span>':'<span style="background:#f59e0b;color:#fff;font-size:8px;padding:1px 5px;border-radius:6px;margin-left:6px">△'+(h.pts!=null?(h.pts>=0?'+':'')+h.pts:'')+'</span>';
+      var rev=(h.reveal&&h.reveal.length)?'<div style="font-size:10px;color:#0a3d7c;font-weight:700;margin-top:3px">🕵️ '+h.reveal.map(esc).join(' / ')+'</div>':'';
+      return '<div style="margin-bottom:9px">'
+        +'<div style="font-size:11px;color:#334155;background:#eef2f7;border-radius:11px 11px 11px 2px;padding:8px 11px;max-width:88%;line-height:1.5">🧑 '+esc(h.q)+'</div>'
+        +'<div style="font-size:11px;color:#1e293b;background:#ede9fe;border-radius:11px 11px 2px 11px;padding:8px 11px;max-width:88%;margin:5px 0 0 auto;line-height:1.5">🙋 '+esc(h.t)+badge+'</div>'
+        +(h.react?'<div style="font-size:11px;color:#334155;background:#f8fafc;border:1px solid #e2e8f0;border-radius:11px;padding:7px 11px;max-width:88%;margin-top:5px;line-height:1.5">💬 '+esc(h.react)+'</div>':'')+rev
+      +'</div>';
+    }).join('');
+    var tip=coachTip(t,s.persona,A.meters);
+    var coach=coachShow(A.turn,tip)?'<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:8px 11px;margin-bottom:10px;font-size:11px;color:#92400e"><b>👑 杤岡:</b> '+esc(tip.t)+'</div>':'';
+    var cf=(A.coachFreq==null?2:A.coachFreq);
+    var coachToggle='<div style="display:flex;align-items:center;gap:4px;font-size:9px;color:#94a3b8;margin-bottom:8px">店長指導:'+['OFF','少','普通','多'].map(function(lbl,fi){return '<button class="ac-coach" data-f="'+fi+'" style="padding:2px 8px;border-radius:10px;border:1px solid #cbd5e1;cursor:pointer;font-size:9px;background:'+(cf===fi?'#3b0764':'#fff')+';color:'+(cf===fi?'#fff':'#475569')+'">'+lbl+'</button>';}).join('')+'</div>';
+    var choices=t.choices.map(function(c,i){return '<button class="ac-ch" data-i="'+i+'" style="display:block;width:100%;text-align:left;margin-bottom:9px;padding:12px 14px;border:1.5px solid #e2e8f0;border-radius:10px;background:#fff;cursor:pointer;font-size:12px;line-height:1.5;color:#1e293b"><span style="display:inline-block;width:22px;height:22px;line-height:22px;text-align:center;background:#3b0764;color:#fff;border-radius:6px;font-weight:800;margin-right:8px">'+['A','B','C'][i]+'</span>'+esc(c.t)+'</button>';}).join('');
     return head(esc(s.name)+'　'+starTxt)
-      +'<div style="background:#fff;border:1px solid #e2e8f0;border-radius:11px;padding:13px;margin-bottom:12px"><div style="display:flex;gap:7px;margin-bottom:5px">'+sideTag+'</div><div style="font-size:11px;color:#334155;line-height:1.6">'+esc(s.profile)+'</div></div>'
+      +'<div style="background:#fff;border:1px solid #e2e8f0;border-radius:11px;padding:11px;margin-bottom:10px"><div style="font-size:11px;color:#334155;line-height:1.55">'+esc(s.profile)+'</div></div>'
       +metersBar()
-      +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><div style="flex:1;height:6px;background:#e2e8f0;border-radius:3px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:#3b0764"></div></div><div style="font-size:11px;font-weight:800;color:#3b0764">'+(A.turn+1)+' / '+s.turns.length+'</div></div>'
-      +'<div style="background:#0a3d7c;color:#fff;border-radius:10px;padding:12px 14px;margin-bottom:12px"><div style="font-size:10px;color:#f5c400;font-weight:800;margin-bottom:3px">'+esc(t.phase)+'</div><div style="font-size:13px;line-height:1.6">'+esc(t.q)+'</div></div>'
-      +'<div id="ac-react" style="display:none;margin-bottom:12px"></div><div id="ac-choices">'+choices+'</div>'
+      +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><div style="flex:1;height:6px;background:#e2e8f0;border-radius:3px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:#3b0764"></div></div><div style="font-size:11px;font-weight:800;color:#3b0764">'+(A.turn+1)+' / '+s.turns.length+'</div></div>'
+      +coachToggle
+      +(log?'<div style="margin-bottom:8px">'+log+'</div>':'')
+      +'<div style="background:#eef2f7;border-radius:11px 11px 11px 2px;padding:10px 13px;margin-bottom:10px"><div style="font-size:10px;color:#64748b;font-weight:700;margin-bottom:2px">🧑 '+esc(t.phase)+'</div><div style="font-size:13px;color:#1e293b;line-height:1.6">'+esc(t.q)+'</div></div>'
+      +coach
+      +'<div id="ac-choices">'+choices+'</div>'
       +'<div style="margin-top:8px;font-size:10px;color:#94a3b8">スコア '+A.score+' ／ 隠し情報 '+Object.keys(A.reveals).length+'/'+s.hidden.length+'</div>';
   }
 
   function answer(i){var s=A.scn,t=s.turns[A.turn],c=t.choices[i];
     var pts=scoreAdjust(s.persona,c,t,A.meters);A._lastPts=pts;A.score+=pts;if(c.lm)A.hits++;if(c.cl)A.closing=true;if(c.reveal)c.reveal.forEach(function(k){A.reveals[k]=true;});
     updateMeters(s.persona,c,t,A.meters);A.emotion=emotionFor(A.meters);
-    if(A.turn+1>=s.turns.length)recordTypeStat();
-    A.history.push({phase:t.phase,dim:t.dim,t:c.t,lm:!!c.lm,good:(c.s==='good'),mid:(c.s==='mid'||c.s==='alt'||c.s==='weak'),cl:!!c.cl});
-    var react=el().querySelector('#ac-react');
-    var tone=c.s==='good'?{bg:'#dcfce7',bd:'#86efac',tx:'#14532d',ic:'◎ 好手'}:c.s==='bad'?{bg:'#fee2e2',bd:'#fca5a5',tx:'#7f1d1d',ic:'× 地雷'}:{bg:'#fef9c3',bd:'#fde047',tx:'#713f12',ic:'△ 及第'};
-    var rev=(c.reveal&&c.reveal.length)?'<div style="margin-top:7px;font-size:11px;color:#0a3d7c;font-weight:700">🕵️ 隠し情報を開示：'+c.reveal.map(esc).join(' / ')+'</div>':'';
-    react.style.display='block';
-    react.innerHTML='<div style="background:'+tone.bg+';border:1px solid '+tone.bd+';border-radius:10px;padding:12px 14px"><div style="font-size:11px;font-weight:800;color:'+tone.tx+';margin-bottom:4px">'+tone.ic+'　'+(pts>=0?'+':'')+pts+'</div><div style="font-size:12px;color:#334155;line-height:1.6">💬 '+esc(c.r)+'</div>'+rev+'<button id="ac-next" style="margin-top:10px;width:100%;padding:9px;border:none;border-radius:8px;background:'+tone.tx+';color:#fff;font-weight:800;font-size:12px;cursor:pointer">'+(A.turn+1>=s.turns.length?'結果を見る →':'次へ →')+'</button></div>';
-    var ch=el().querySelector('#ac-choices');if(ch)ch.style.display='none';
-    react.scrollIntoView({behavior:'smooth',block:'center'});
-    react.querySelector('#ac-next').onclick=function(){A.turn++;if(A.turn>=s.turns.length){if(A._todayPlaying){A.todayDone[A._todayPlaying]=true;A._todayPlaying=null;}A.view='result';}render();};
+    var react=(c.r||'')+(reactionFlavor(s.persona,A.meters,c)||'');
+    A.history.push({phase:t.phase,dim:t.dim,q:t.q,t:c.t,react:react,pts:pts,reveal:c.reveal||[],lm:!!c.lm,good:(c.s==='good'),mid:(c.s==='mid'||c.s==='alt'||c.s==='weak'),cl:!!c.cl});
+    A.turn++;
+    if(A.turn>=s.turns.length){recordTypeStat();if(A._todayPlaying){A.todayDone[A._todayPlaying]=true;A._todayPlaying=null;}A.view='result';}
+    render();
   }
 
   function tplResult(){
@@ -35158,6 +35214,7 @@ function _p500_buildCandidateFromPayload(payload){
     var fsub=q('.ac-free-submit');if(fsub)fsub.onclick=function(){freeSubmit();};
     var frt=q('.ac-free-retry');if(frt)frt.onclick=function(){A.freeRes=null;render();};
     var fnx=q('.ac-free-next');if(fnx)fnx.onclick=function(){freeNext();};
+    qa('.ac-coach').forEach(function(b){b.onclick=function(){A.coachFreq=parseInt(b.dataset.f,10);render();};});
   }
 
   // ─── ページ＆ナビ注入（非破壊） ───
