@@ -1,5 +1,13 @@
 # CHANGELOG — ハウステイト じゃがいAI会社OS
 
+## packet 2030 — 📡 タイムライン8-24時・幅拡張 公開反映記録（記録のみ・実装なし） / 2026-06-02
+### Record
+- `git push origin main`（通常push・force無し）で `d553ea5..808d215`（packet2029 2コミット）を反映
+- push後 origin/main と完全同期（HEAD 808d215）・`.claude` 未追跡維持
+- 公開URL curl で `END_H=24, HOURW=120`/`AVAIL_END=18`/`staff-schedule-board` 反映を確認・Last-Modified本日
+- `docs/CALENDAR_DAY_TIMELINE_8_TO_24_WIDTH_PUBLIC_PUSH_RECORD_PACKET_2030.md` に検証チェックリスト
+- 新規実装なし・コード変更なし。本記録はcommitまで、以降push停止
+
 ## packet 2029 — 🕛 スケジュール時間軸 8-24時・幅拡大（実装） / 2026-06-02
 ### Changed（buildTimeline共有＝日表示＋タスクボード両方）
 - 時間軸 8:00〜18:00 → **8:00〜24:00**（END_H 18→24・目盛17）。夜/残業/来客対応まで表示
