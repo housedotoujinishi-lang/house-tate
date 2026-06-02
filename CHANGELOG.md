@@ -1,5 +1,18 @@
 # CHANGELOG — ハウステイト じゃがいAI会社OS
 
+## packet 2031 — 🛠 タイムライン クリック編集 + 右端リサイズ15分（実装） / 2026-06-02
+### Added（buildTimeline共有＝日表示＋タスクボード両方）
+- 表示改善：ブロック高さ38→48・タイトル2行表示（line-clamp2/white-space:normal）・時刻範囲＋種別アイコン・内容が読める
+- クリック編集：`.stl-blk`タップで自前15分編集モーダル（タイトル/担当者/日付/開始/終了/カテゴリ）。予定=state.events更新（担当者は配列移動）/タスク=state.tasks更新→ _persistEvents/_persistTasks→再描画
+- 右端リサイズ：`.stl-rsz`ハンドルをpointerドラッグ→終了時刻を15分刻み変更（min15/max24:00）。予定eh/em・タスクdur更新→保存→再描画
+- 競合防止：リサイズは5px超で判定・`.stl-rsz`はstopPropagation・直後350msはクリック抑止・クリックはcaptureで既存onclick抑止（二重モーダル防止）
+- collectRowsにevent元index(eidx)付与・ブロックにdata属性(data-evmi/eidx/taskid/s/e)
+- `docs/CALENDAR_TIMELINE_EDIT_RESIZE_15MIN_PACKET_2031.md`
+### 維持・遵守
+- 8-24時/横スクロール/sticky/空き率/件数/ルーティンD&D/担当者フィルター維持・月/週/予定追加/タスク追加 無改変
+- node --check（packet2014/2031）PASS・<script>8/8・CRM無傷・禁止APIトークン0件
+- Supabase/外部API/Sheets/CloudRun不使用・localStorage本文保存なし・顧客タブ復活なし
+
 ## packet 2030 — 📡 タイムライン8-24時・幅拡張 公開反映記録（記録のみ・実装なし） / 2026-06-02
 ### Record
 - `git push origin main`（通常push・force無し）で `d553ea5..808d215`（packet2029 2コミット）を反映
