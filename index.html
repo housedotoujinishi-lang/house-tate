@@ -35262,7 +35262,7 @@ function _p500_buildCandidateFromPayload(payload){
   if(typeof renderDay!=='function')return;
 
   var MODE='staff';
-  var START_H=8, END_H=18, HOURW=64, NAMEW=112, UNSETW=92, BLOCKH=38, GAP=3, MINW=64;/* packet 2028: 2段ブロック・最小幅64・空き率 */
+  var START_H=8, END_H=24, HOURW=92, NAMEW=112, UNSETW=92, BLOCKH=38, GAP=3, MINW=72, AVAIL_END=18;/* packet 2029: 8-24時・幅拡大・空き率は就業コア8-18基準で維持 */
   function catIcon(cat,title,routine){
     if(routine)return '📋';var t=title||'';
     if(/内見|内覧/.test(t))return '🏠';
@@ -35273,8 +35273,8 @@ function _p500_buildCandidateFromPayload(payload){
   }
   function availBadge(r){
     if(r.mi<0)return '';
-    var occ=0;(r.timed||[]).forEach(function(it){var s=Math.min(Math.max(it.s,START_H*60),END_H*60),e=Math.min(Math.max(it.e,START_H*60),END_H*60);if(e>s)occ+=(e-s);});
-    var total=(END_H-START_H)*60;var avail=Math.max(0,Math.min(100,Math.round((1-occ/total)*100)));
+    var occ=0;(r.timed||[]).forEach(function(it){var s=Math.min(Math.max(it.s,START_H*60),AVAIL_END*60),e=Math.min(Math.max(it.e,START_H*60),AVAIL_END*60);if(e>s)occ+=(e-s);});
+    var total=(AVAIL_END-START_H)*60;var avail=Math.max(0,Math.min(100,Math.round((1-occ/total)*100)));
     var c=avail>=50?'#16a34a':avail>=20?'#f59e0b':'#dc2626';
     return '<div style="margin-top:3px"><div style="font-size:8px;color:'+c+';font-weight:800">空き '+avail+'%</div><div style="height:3px;background:#eef2f7;border-radius:2px;overflow:hidden;margin-top:1px"><div style="height:100%;width:'+(100-avail)+'%;background:'+c+'"></div></div></div>';
   }
@@ -35371,7 +35371,7 @@ function _p500_buildCandidateFromPayload(payload){
         var s=Math.min(Math.max(it.s,START_H*60),END_H*60), e=Math.min(Math.max(it.e,START_H*60),END_H*60);
         var left=(s-START_H*60)/60*HOURW, w=Math.max((e-s)/60*HOURW-2,MINW), top=4+it.lane*(BLOCKH+GAP);
         var hm=it.kind==='ev'?fmtt(it.raw.sh,it.raw.sm):fmtt(it.raw.sh,it.raw.sm||0);
-        return '<div class="stl-blk" data-kind="'+it.kind+'" style="position:absolute;left:'+left+'px;top:'+top+'px;width:'+w+'px;height:'+BLOCKH+'px;background:'+col.bg+';color:'+col.tx+';border-left:3px solid '+col.bd+';border-radius:5px;padding:3px 6px;overflow:hidden;cursor:pointer;line-height:1.2;opacity:'+(it.done?'.55':'1')+'" title="'+esc(hm)+'〜'+esc(fmtt(Math.floor(it.e/60),it.e%60))+' ／ '+esc(it.title)+' ／ 種別:'+esc(it.cat||'')+' ／ 担当:'+esc(r.mem.n)+'"><div style="font-size:9px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+catIcon(it.cat,it.title,it.routine)+' '+esc(hm)+'</div><div style="font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(it.title)+'</div></div>';
+        return '<div class="stl-blk" data-kind="'+it.kind+'" style="position:absolute;left:'+left+'px;top:'+top+'px;width:'+w+'px;height:'+BLOCKH+'px;background:'+col.bg+';color:'+col.tx+';border-left:3px solid '+col.bd+';border-radius:5px;padding:3px 6px;overflow:hidden;cursor:pointer;line-height:1.2;opacity:'+(it.done?'.55':'1')+'" title="'+esc(hm)+'〜'+esc(fmtt(Math.floor(it.e/60),it.e%60))+' ／ '+esc(it.title)+' ／ 種別:'+esc(it.cat||'')+' ／ 担当:'+esc(r.mem.n)+'"><div style="font-size:10px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+catIcon(it.cat,it.title,it.routine)+' '+esc(hm)+'</div><div style="font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(it.title)+'</div></div>';
       }).join('');
       var unsetChips=r.unset.map(function(it){
         var col=bucket(it.cat,it.title,it.routine);
@@ -35616,7 +35616,7 @@ function _p500_buildCandidateFromPayload(payload){
 (function(){
   'use strict';
   if(window.__ht_taskboard_schedule)return; window.__ht_taskboard_schedule=true;
-  var START_H=8,END_H=18,HOURW=64;
+  var START_H=8,END_H=24,HOURW=92;/* packet 2029: 8-24時・幅拡大に整合 */
   function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
   function routines(){try{if(typeof getTodayRoutinesForUser!=='function')return {list:[],done:[]};return {list:getTodayRoutinesForUser(typeof currentUser!=='undefined'?currentUser:null)||[],done:(typeof getRoutineDoneIds==='function'?getRoutineDoneIds():[])||[]};}catch(e){return {list:[],done:[]};}}
   function routineStripHtml(){
