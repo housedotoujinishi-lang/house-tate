@@ -1,5 +1,14 @@
 # CHANGELOG — ハウステイト じゃがいAI会社OS
 
+## packet 2013 — 📡 アカデミー公開反映記録（記録のみ・実装なし） / 2026-06-02
+### Record
+- `git push origin main`（通常push・force無し）で `2edc444..7b3f19d` を反映（13コミット：packet 2001〜2012）
+- push後 origin/main と完全同期（HEAD 7b3f19d）・`.claude` 未追跡維持
+- 公開URL: https://housedotoujinishi-lang.github.io/house-tate/ （GitHub Pages・ライブ確認・404なし）
+- `docs/HOUSE_TATE_SOURCE_ACADEMY_PUBLIC_PUSH_RECORD_PACKET_2013.md` に検証チェックリスト（13項目）を記録
+  - ログイン/ホーム/顧客タブ非復活=✅、ロープレ/アカデミー/今日の3本/3択/スコア/結果/杤岡レビュー/スマホ=🟡(コード確認済・実機クリック確認推奨)
+- 新規実装なし・コード変更なし。本記録はcommitまでで以降push停止
+
 ## packet 2012 — 🎓 生成型ロープレエンジンMVP（実装） / 2026-06-02
 ### Added
 - `index.html` 末尾に packet 2012 を非破壊追記（既存 packet 2001 無改変・顧客タブ無改変）
