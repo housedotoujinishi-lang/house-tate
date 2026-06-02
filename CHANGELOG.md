@@ -1,5 +1,18 @@
 # CHANGELOG — ハウステイト じゃがいAI会社OS
 
+## packet 2034 — 🎛 タスクボード司令塔化 ドラッグ移動＋30分刻み＋現在時刻ライン / 2026-06-02
+### Added（buildTimeline共有＝日表示＋タスクボード両方）
+- ドラッグ移動：ブロック左の `.stl-move`（⠿）を pointerドラッグ。**横=開始時刻（30分スナップ・8:00〜24:00クランプ）／縦=担当者レーン変更**（elementFromPoint→`.stl-row[data-mi]`）。予定=`state.events`(sh/sm/eh/em＋配列移動)→`_persistEvents`／タスク=`state.tasks`(sh/sm＋toIdx)→`_persistTasks`→再描画＋トースト
+- 現在時刻ライン：`nowLineHtml()` で当日（isT(selDate)）に各トラックへ赤縦線（今日列強調）
+- `docs/TASKBOARD_COMMAND_CENTER_DRAG_MOVE_PACKET_2034.md`
+### Changed
+- 刻みを15分→**30分**へ統一：packet2031 `MIN=30`・`snap15`丸めを`/30*30`・編集モーダル`<option>`を`m+=30`
+- ブロックに移動グリップ追加（padding-left 6→16px）・packet2031クリック編集除外を `.stl-rsz,.stl-move` に拡張（グリップ操作で編集モーダルが開かない）
+### 維持・遵守
+- 8-24時/横スクロール/sticky/空き率/件数/ルーティンD&D/担当者フィルター維持・月/週/予定追加/タスク追加/packet2031編集リサイズ 無改変
+- 状態は in-memory＋既存persist（新規外部接続なし）。node --check PASS・`<script>`9/9・CRM無傷・禁止APIトークン0件
+- **commitまで。push禁止。**
+
 ## packet 2033 — 🗄 タスク時間 永続化 アプリ側実装 / 2026-06-02
 ### Fixed（タスク時間がリロードで消える問題）
 - `saveTasks` 送信カラムに `sh/sm/dur` を追加（DBへ保存。packet2032のSQLでカラム追加済み前提）
