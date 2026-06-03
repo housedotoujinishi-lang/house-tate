@@ -1,5 +1,22 @@
 # CHANGELOG — ハウステイト じゃがいAI会社OS
 
+## packet 2038 — 🛠 ドラッグ移動が元に戻る問題 hotfix ＋ 15分刻み化 / 2026-06-04
+### Fixed（ドロップ後に元の場所へ戻る／✓完了も同根で未更新）
+- 根本原因：`findEvByBlk`/`findTaskByBlk`（packet2034/2037）・packet2035✓の`findTask`が`!window.state`ガードを使用。`state`は`const`（index.html:3632）でwindow未bind→`window.state`常にundefined→`!window.state`常にtrue→ヘルパーが必ずnull返却→state更新コードに不到達→再描画で旧位置へ巻き戻り（**packet452が文書化済の既知バグと同型**。packet2031リサイズ/編集はbareword stateのため動作していた）
+- 修正：`!window.state`→`typeof state==='undefined'||!state`に置換（3箇所）。ドロップ確定でstate.events/state.tasksを実体更新→移動先に残る。✓完了も復活
+### Changed（15分刻み化・30分固定は戻さない）
+- ドラッグ移動：`snap30`→`snap15`（/15*15）・最小所要15分
+- 右端リサイズ：packet2031 `MIN=15`・`snap15`を/15*15・最小幅`HOURW/4`（15分=45px）
+- クリック編集モーダル：時刻option`m+=15`・下限`+15`
+- 予定追加(setupEvForm/setupDayEvForm)・予定編集(showEvModal/buildTimeOptions)：`['00','15','30','45']`
+- 15分補助線：グリッド3階調（毎時#dbe2ea/30分#eef2f7/15分#f7f9fc最薄）。30分ラベル維持
+- トースト「〇〇 9:15へ移動しました」（15分表示）
+- `docs/TASKBOARD_TIMELINE_DRAG_PERSIST_15MIN_HOTFIX_PACKET_2038.md`
+### 維持・遵守
+- 月/週/日間・既存予定追加/タスク追加・ルーティンD&D 無改変・タスク時間DBカラム追加なし（packet2033で保存対象済）
+- node --check（drag/buildTimeline/✓/packet2031/showEvModal）全PASS・`<script>`10/10・`!window.state`残存0・snap30残存0・MIN=30残存0・禁止API0件・顧客タブ復活なし
+- **commitまで。push停止（ボス承認後）。**
+
 ## packet 2037 — 🛠 担当者別タイムライン ドラッグ移動 hotfix / 2026-06-03
 ### Fixed（ドラッグ移動が効かない問題）
 - 原因：packet2034の移動が`.stl-move`限定＋`setPointerCapture`＋常駐pointermove内の`pointerEvents`トグルで、一部ブラウザがポインターキャプチャを解放しmove/upが届かず移動不成立（右端リサイズは動的listener方式のため動作）
