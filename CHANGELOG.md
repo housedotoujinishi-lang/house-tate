@@ -1,5 +1,13 @@
 # CHANGELOG — ハウステイト じゃがいAI会社OS
 
+## packet 2036 — 🚀 タスクボード司令塔化フェーズ2 公開反映記録（docsのみ） / 2026-06-03
+### Added (docs only)
+- `docs/TASKBOARD_COMMAND_CENTER_PHASE2_PUBLIC_PUSH_RECORD_PACKET_2036.md`：packet2034+2035の本番反映記録
+  - push記録：`aa13a3d..522eb32 main -> main`・HEAD==origin/main==`522eb32`完全同期・`.claude`未追跡
+  - 公開URL配信HTML grep：HTTP200・`HOURW=180`×4・`class="stl-chk"`・✓ハンドラ・packet2034marker・30分グリッド検出・`HOURW=120`残存0＝コードレベル反映確認 ✅
+  - ブラウザ手動確認チェックリスト（🟡）／CDN max-age=600 注記
+- **index.html編集なし・アプリ実装なし**（docs記録のみ）
+
 ## packet 2035 — ✅ 完了チェック＋30分統一＋横幅180px＋時間軸改善 / 2026-06-03
 ### Added（buildTimeline共有＝日表示＋タスクボード両方）
 - 完了チェック：タスク種別ブロックのみ右上に `.stl-chk`（✓）。押下で `t.done` トグル→`_persistTasks`→再描画→トースト。完了は薄く（opacity.5）＋✓緑、取り消しも可。予定ブロックには非表示。クリック編集除外に `.stl-chk` 追加
