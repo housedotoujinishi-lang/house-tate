@@ -1,5 +1,18 @@
 # CHANGELOG — ハウステイト じゃがいAI会社OS
 
+## packet 2035 — ✅ 完了チェック＋30分統一＋横幅180px＋時間軸改善 / 2026-06-03
+### Added（buildTimeline共有＝日表示＋タスクボード両方）
+- 完了チェック：タスク種別ブロックのみ右上に `.stl-chk`（✓）。押下で `t.done` トグル→`_persistTasks`→再描画→トースト。完了は薄く（opacity.5）＋✓緑、取り消しも可。予定ブロックには非表示。クリック編集除外に `.stl-chk` 追加
+- 時間軸：30分位置を表示（毎時=濃い太字＋30分=薄い小）・グリッドを30分刻み（毎時#dbe2ea/30分#f1f5f9）。sticky維持
+### Changed
+- 横幅拡張：`HOURW=120`→**`180`**（buildTimeline/board/packet2031/2034 全整合）・`MINW`80→96・ブロック余白`4px 13px 4px 18px`
+- 30分統一（残存15分の総点検・全廃）：予定追加フォーム `setupEvForm`/`setupDayEvForm` を`['00','30']`化・packet2031リサイズ最小`HOURW/4`→`HOURW/2`・編集モーダル下限`+15`→`+30`
+### 維持・遵守
+- 月/週/日間カレンダー・既存予定追加/タスク追加・packet2031編集リサイズ・packet2034ドラッグ移動/現在時刻ライン・ルーティンD&D 無改変
+- リロード後の完了状態維持（saveTasks/loadがdone送受信）・in-memory＋既存persist・新規外部接続なし・localStorage本文保存なし
+- node --check（最終ブロック/buildTimeline含むメイン）PASS・`<script>`10/10・CRM無傷・禁止APIトークン0件
+- ConnectionRefusedで中断→reset/clean/rebase不使用でworking tree保持→残2点(setupEvForm/✓ハンドラ)補完して完成。**commitまで。push禁止。**
+
 ## packet 2034 — 🎛 タスクボード司令塔化 ドラッグ移動＋30分刻み＋現在時刻ライン / 2026-06-02
 ### Added（buildTimeline共有＝日表示＋タスクボード両方）
 - ドラッグ移動：ブロック左の `.stl-move`（⠿）を pointerドラッグ。**横=開始時刻（30分スナップ・8:00〜24:00クランプ）／縦=担当者レーン変更**（elementFromPoint→`.stl-row[data-mi]`）。予定=`state.events`(sh/sm/eh/em＋配列移動)→`_persistEvents`／タスク=`state.tasks`(sh/sm＋toIdx)→`_persistTasks`→再描画＋トースト
