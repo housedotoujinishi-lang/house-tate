@@ -1,5 +1,21 @@
 # CHANGELOG — ハウステイト じゃがいAI会社OS
 
+## packet 2037 — 🛠 担当者別タイムライン ドラッグ移動 hotfix / 2026-06-03
+### Fixed（ドラッグ移動が効かない問題）
+- 原因：packet2034の移動が`.stl-move`限定＋`setPointerCapture`＋常駐pointermove内の`pointerEvents`トグルで、一部ブラウザがポインターキャプチャを解放しmove/upが届かず移動不成立（右端リサイズは動的listener方式のため動作）
+- 修正：ドラッグIIFEのpointerdown/move/upを**動作実績のあるリサイズ同方式**へ書換（確定ロジック/ヘルパーは流用）
+  - トリガを`.stl-blk`**本体**へ拡張（`⠿`も本体扱いで動く）・`.stl-rsz`/`.stl-chk`は除外し各ハンドラへ委譲・`data-s`無しは対象外
+  - `setPointerCapture`撤廃→pointerdownで`document`に`pointermove/up`を動的登録/解除・5px超でdrag判定・pointerdownでpreventDefaultしない＝クリックのみは編集モーダル温存
+  - 横=開始時刻(snap30/8-24クランプ)・縦=`elementFromPoint`→`.stl-row[data-mi]`で担当者レーン変更
+  - ドラッグ中UI：半透明＋縦ゴースト＋ドロップ先ハイライト＋トースト「〇〇 9:00へ移動しました」
+  - クリック競合：実移動時`window.__htDragUntil`を立て、packet2031のクリック編集を直後400ms抑止
+- 保存：予定=events sh/sm/eh/em＋配列移動→`_persistEvents`／タスク=tasks sh/sm(＋dur)＋toIdx→`_persistTasks`（taskはpacket2033でDB永続化済）
+- `docs/TASKBOARD_TIMELINE_BLOCK_DRAG_MOVE_HOTFIX_PACKET_2037.md`
+### 維持・遵守
+- 右端リサイズ/完了チェック/クリック編集/月/週/日間カレンダー/既存予定追加/タスク追加/ルーティンD&D 無改変
+- node --check（ドラッグ/メイン）PASS・`<script>`10/10・setPointerCapture実呼び出し残存0・禁止APIトークン0件・顧客タブ復活なし
+- **commitまで。push停止（ボス承認後）。**
+
 ## packet 2036 — 🚀 タスクボード司令塔化フェーズ2 公開反映記録（docsのみ） / 2026-06-03
 ### Added (docs only)
 - `docs/TASKBOARD_COMMAND_CENTER_PHASE2_PUBLIC_PUSH_RECORD_PACKET_2036.md`：packet2034+2035の本番反映記録

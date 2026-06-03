@@ -35769,6 +35769,7 @@ function _p500_buildCandidateFromPayload(payload){
     var rs=e.target&&e.target.closest&&e.target.closest('.stl-rsz,.stl-move,.stl-chk');if(rs){e.stopPropagation();return;}
     var blk=e.target&&e.target.closest&&e.target.closest('.stl-blk');if(!blk)return;
     if(Date.now()-lastResizeAt<350){e.stopPropagation();return;}
+    if(window.__htDragUntil&&Date.now()<window.__htDragUntil){e.stopPropagation();return;}/* packet2037: ドラッグ直後はクリック編集を抑止 */
     e.stopPropagation();
     openEdit(blk);
   },true);
@@ -35867,49 +35868,46 @@ function _p500_buildCandidateFromPayload(payload){
 
   var drag=null;
 
-  document.addEventListener('pointerdown', function(e){
-    var grip=e.target&&e.target.closest&&e.target.closest('.stl-move');
-    if(!grip)return;
-    var blk=grip.closest('.stl-blk');
-    if(!blk)return;
-    if(blk.getAttribute('data-s')==null)return; /* 未担当チップ等は対象外 */
-    var track=blk.closest('.stl-track');
-    if(!track)return;
-    e.preventDefault(); e.stopPropagation();
-    var s=parseInt(blk.getAttribute('data-s'),10), en=parseInt(blk.getAttribute('data-e'),10);
-    if(isNaN(s)||isNaN(en))return;
-    drag={blk:blk,grip:grip,kind:blk.getAttribute('data-kind'),startX:e.clientX,startY:e.clientY,
-          s0:s,dur:Math.max(en-s,30),moved:false,curStart:s,targetMi:null};
-    try{ blk.setPointerCapture && blk.setPointerCapture(e.pointerId); }catch(_){}
-    blk.style.zIndex='50'; blk.style.opacity='.9'; blk.style.cursor='grabbing'; grip.style.cursor='grabbing';
-  }, true);
+  function fmtHM2(min){var hh=Math.floor(min/60),mm=min%60;return hh+':'+(mm<10?'0'+mm:mm);}
+  function memName(i){try{return (typeof members!=='undefined'&&members[i]&&members[i].n)||'';}catch(_){return '';}}
+  function clearHL(d){ if(d&&d.hlRow){ try{d.hlRow.style.background='';}catch(_){} d.hlRow=null; } }
 
-  document.addEventListener('pointermove', function(e){
+  function onMove(e){
     if(!drag)return;
     var dx=e.clientX-drag.startX, dy=e.clientY-drag.startY;
-    if(!drag.moved && Math.abs(dx)<4 && Math.abs(dy)<4)return;
-    drag.moved=true;
+    if(!drag.moved){
+      if(Math.abs(dx)<5 && Math.abs(dy)<5)return; /* 5px超で初めてドラッグ判定（クリック編集を温存） */
+      drag.moved=true;
+      drag.blk.style.opacity='.6'; drag.blk.style.zIndex='60'; drag.blk.style.cursor='grabbing';
+      try{document.body.style.userSelect='none';}catch(_){}
+    }
+    e.preventDefault();
     var ns=snap30(drag.s0 + dx/HOURW*60);
-    ns=Math.max(START_H*60, Math.min(END_H*60-drag.dur, ns));
+    ns=Math.max(START_H*60, Math.min(END_H*60-drag.dur, ns)); /* 8:00〜24:00内に丸め */
     drag.curStart=ns;
     drag.blk.style.left=((ns-START_H*60)/60*HOURW)+'px';
-    drag.blk.style.transform='translateY('+dy+'px)';
+    drag.blk.style.transform='translateY('+dy+'px)'; /* 縦ゴースト */
+    /* ドロップ先レーン検出：自分を一時透過させて下の row を取得 */
     drag.blk.style.pointerEvents='none';
     var under=document.elementFromPoint(e.clientX,e.clientY);
     drag.blk.style.pointerEvents='';
     var row=under&&under.closest&&under.closest('.stl-row[data-mi]');
     var tmi=row?parseInt(row.getAttribute('data-mi'),10):NaN;
+    if(row!==drag.hlRow){ clearHL(drag); if(row&&!isNaN(tmi)&&tmi>=0){ drag.hlRow=row; try{row.style.background='rgba(37,99,235,.08)';}catch(_){} } }
     drag.targetMi=(!isNaN(tmi)&&tmi>=0)?tmi:null;
-  }, true);
+  }
 
-  document.addEventListener('pointerup', function(e){
-    if(!drag)return;
+  function onUp(e){
+    document.removeEventListener('pointermove',onMove,true);
+    document.removeEventListener('pointerup',onUp,true);
     var d=drag; drag=null;
-    try{ d.blk.releasePointerCapture && d.blk.releasePointerCapture(e.pointerId); }catch(_){}
-    d.blk.style.transform=''; d.blk.style.zIndex=''; d.blk.style.opacity=''; d.blk.style.cursor=''; d.grip.style.cursor='grab';
-    if(!d.moved)return; /* 単純クリックはpacket2031の.stl-move除外で無反応 */
-    e.preventDefault(); e.stopPropagation();
-    d.blk.style.pointerEvents='none'; /* 直後のclickがブロックに当たり編集を開かないよう退避（再描画で消える） */
+    if(!d)return;
+    try{document.body.style.userSelect='';}catch(_){}
+    clearHL(d);
+    d.blk.style.transform=''; d.blk.style.zIndex=''; d.blk.style.opacity=''; d.blk.style.cursor='';
+    if(!d.moved)return; /* クリックのみ → packet2031の編集モーダルに委ねる */
+    e.preventDefault();
+    window.__htDragUntil=Date.now()+400; /* 直後のclick編集/既存onclickを抑止（packet2031が参照） */
     var ns=d.curStart, dur=d.dur;
     var nh=Math.floor(ns/60), nm=ns%60, ne=ns+dur, neh=Math.floor(ne/60), nem=ne%60;
     var newMi=d.targetMi, changedLane=false;
@@ -35917,33 +35915,46 @@ function _p500_buildCandidateFromPayload(payload){
       var f=findEvByBlk(d.blk);
       if(f){
         f.ev.sh=nh; f.ev.sm=nm; f.ev.eh=neh; f.ev.em=nem;
-        if(newMi!=null && newMi!==f.mi && state.events[newMi]){
-          state.events[f.mi].splice(f.eidx,1);
-          state.events[newMi].push(f.ev);
-          changedLane=true;
-        }
+        if(newMi!=null && newMi!==f.mi && state.events[newMi]){ state.events[f.mi].splice(f.eidx,1); state.events[newMi].push(f.ev); changedLane=true; }
         persist('ev');
-        toast(changedLane?'予定を移動（担当者変更）':'予定の時刻を変更');
+        var nmE=memName(newMi!=null?newMi:f.mi);
+        toast((nmE?nmE+' ':'')+fmtHM2(ns)+(changedLane?'（担当者変更）':'')+'へ移動しました');
       }
     }else{
       var ft=findTaskByBlk(d.blk);
       if(ft){
-        ft.task.sh=nh; ft.task.sm=nm;
-        if(ft.task.dur==null)ft.task.dur=dur;
-        if(newMi!=null && newMi!==ft.task.toIdx){ ft.task.toIdx=newMi; changedLane=true; }
+        var oldIdx=ft.task.toIdx;
+        ft.task.sh=nh; ft.task.sm=nm; if(ft.task.dur==null)ft.task.dur=dur; /* in-memory更新（taskのsh/sm/durはpacket2033でDB永続化済） */
+        if(newMi!=null && newMi!==oldIdx){ ft.task.toIdx=newMi; changedLane=true; }
         persist('task');
-        toast(changedLane?'タスクを移動（担当者変更）':'タスクの時刻を変更');
+        var nmT=memName(newMi!=null?newMi:oldIdx);
+        toast((nmT?nmT+' ':'')+fmtHM2(ns)+(changedLane?'（担当者変更）':'')+'へ移動しました');
       }
     }
     setTimeout(refresh,10);
+  }
+
+  /* ===== packet 2037 hotfix: ブロック本体ドラッグで移動。.stl-rsz/.stl-chk は除外。
+     setPointerCapture を使わず、pointerdownで動的に move/up を登録する方式（=リサイズと同方式・確実に発火）。 ===== */
+  document.addEventListener('pointerdown', function(e){
+    if(e.button!=null && e.button!==0)return; /* 左ボタン/タッチのみ */
+    var t=e.target;
+    if(!t||!t.closest)return;
+    if(t.closest('.stl-rsz')||t.closest('.stl-chk'))return; /* リサイズ/完了チェックは各ハンドラに委ねる */
+    var blk=t.closest('.stl-blk');
+    if(!blk)return;
+    if(blk.getAttribute('data-s')==null)return; /* 未担当チップ等（data-s無し）は対象外 */
+    if(!blk.closest('.stl-track'))return;
+    var s=parseInt(blk.getAttribute('data-s'),10), en=parseInt(blk.getAttribute('data-e'),10);
+    if(isNaN(s)||isNaN(en))return;
+    drag={blk:blk,kind:blk.getAttribute('data-kind'),startX:e.clientX,startY:e.clientY,s0:s,dur:Math.max(en-s,30),moved:false,curStart:s,targetMi:null,hlRow:null};
+    document.addEventListener('pointermove',onMove,true);
+    document.addEventListener('pointerup',onUp,true);
+    /* preventDefault/stopPropagationはここでは呼ばない＝クリックのみの場合は編集モーダルが従来どおり開く */
   }, true);
 
-  /* タッチデバイスでのスクロール誤爆を軽減：グリップ上は縦スクロールを抑止 */
-  try{
-    document.addEventListener('touchmove', function(e){
-      if(drag && drag.moved){ try{e.preventDefault();}catch(_){} }
-    }, {passive:false});
-  }catch(_){}
+  /* タッチ：ドラッグ中はスクロールを抑止 */
+  try{ document.addEventListener('touchmove', function(e){ if(drag&&drag.moved){try{e.preventDefault();}catch(_){}} }, {passive:false}); }catch(_){}
 })();
 </script>
 <script>
