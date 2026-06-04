@@ -35264,7 +35264,7 @@ function _p500_buildCandidateFromPayload(payload){
   if(typeof renderDay!=='function')return;
 
   var MODE='staff';
-  var START_H=8, END_H=24, HOURW=180, NAMEW=112, UNSETW=92, BLOCKH=48, GAP=3, MINW=96, AVAIL_END=18;/* packet 2035: 8-24時・1時間180px(視認性UP)・高さ48(2-3行)・空き率は就業コア8-18維持 */
+  var START_H=8, END_H=24, HOURW=260, NAMEW=112, UNSETW=92, BLOCKH=52, GAP=3, MINW=110, AVAIL_END=18;/* packet 2039: 1時間260px(Googleカレンダー寄り・初期約4時間表示+横スクロール)・高さ52・空き率は就業コア8-18維持 */
   function catIcon(cat,title,routine){
     if(routine)return '📋';var t=title||'';
     if(/内見|内覧/.test(t))return '🏠';
@@ -35364,8 +35364,8 @@ function _p500_buildCandidateFromPayload(payload){
     var rowsData=collectRows();
     var total=rowsData.reduce(function(a,r){return a+r.count;},0);
     var timeW=(END_H-START_H)*HOURW;
-    /* packet 2035: 30分刻みの時間軸ラベル（毎時=濃い太字／30分=薄い小） */
-    var ticks='';for(var hh=START_H;hh<=END_H;hh++){ticks+='<div style="position:absolute;left:'+((hh-START_H)*HOURW)+'px;top:0;font-size:10px;font-weight:700;color:#475569;transform:translateX(-50%)">'+hh+':00</div>';if(hh<END_H){ticks+='<div style="position:absolute;left:'+(((hh-START_H)+0.5)*HOURW)+'px;top:3px;font-size:8px;color:#94a3b8;transform:translateX(-50%)">'+hh+':30</div>';}}
+    /* packet 2039: 15分刻みの時間軸ラベル（毎時=太字／30分=中／15・45分=薄小）。HOURW=260で65px間隔＝視認可 */
+    var ticks='';for(var q=0;q<=(END_H-START_H)*4;q++){var _mt=START_H*60+q*15;var _hh=Math.floor(_mt/60),_mm=_mt%60;var _x=(_mt-START_H*60)/60*HOURW;var _isH=(_mm===0);var _fs=_isH?10:8;var _col=_isH?'#475569':(_mm===30?'#94a3b8':'#cbd5e1');var _fw=_isH?700:500;var _top=_isH?0:4;ticks+='<div style="position:absolute;left:'+_x+'px;top:'+_top+'px;font-size:'+_fs+'px;font-weight:'+_fw+';color:'+_col+';transform:translateX(-50%);white-space:nowrap">'+_hh+':'+(_mm<10?'0'+_mm:_mm)+'</div>';}
     /* packet 2038: 15分グリッド（毎時=濃い／30分=中／15分=最薄） */
     var gridlines='';for(var g4=START_H*4;g4<=END_H*4;g4++){var _q=g4%4;var _c=(_q===0)?'#dbe2ea':((_q===2)?'#eef2f7':'#f7f9fc');gridlines+='<div style="position:absolute;left:'+(((g4/4)-START_H)*HOURW)+'px;top:0;bottom:0;width:1px;background:'+_c+'"></div>';}
 
@@ -35381,7 +35381,7 @@ function _p500_buildCandidateFromPayload(payload){
         var idAttr=it.kind==='ev'?(' data-evmi="'+it.mi+'" data-eidx="'+(it.eidx!=null?it.eidx:-1)+'"'):(' data-taskid="'+(it.raw&&it.raw.id!=null?it.raw.id:'')+'"');
         /* packet 2035: タスクのみ右上に完了チェック（✓トグル） */
         var chk=it.kind==='task'?('<div class="stl-chk" data-taskid="'+(it.raw&&it.raw.id!=null?it.raw.id:'')+'" title="完了/未完了の切替" style="position:absolute;right:11px;top:1px;width:16px;height:16px;display:flex;align-items:center;justify-content:center;border-radius:4px;background:rgba(255,255,255,.92);color:'+(it.done?'#16a34a':'#94a3b8')+';font-size:12px;font-weight:900;line-height:1;cursor:pointer;border:1px solid '+(it.done?'#16a34a':'#cbd5e1')+';z-index:2">'+(it.done?'✓':'')+'</div>'):'';
-        return '<div class="stl-blk" data-kind="'+it.kind+'"'+idAttr+' data-s="'+it.s+'" data-e="'+it.e+'" style="position:absolute;left:'+left+'px;top:'+top+'px;width:'+w+'px;height:'+BLOCKH+'px;background:'+col.bg+';color:'+col.tx+';border-left:3px solid '+col.bd+';border-radius:5px;padding:4px 13px 4px 18px;overflow:hidden;cursor:pointer;line-height:1.18;opacity:'+(it.done?'.5':'1')+'" title="'+esc(hm)+'〜'+esc(endHm)+' ／ '+esc(it.title)+' ／ 種別:'+esc(it.cat||'')+' ／ 担当:'+esc(r.mem.n)+(it.kind==='task'?(it.done?' ／ ✓完了':' ／ 未完了'):'')+'"><div style="font-size:9px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:.85">'+catIcon(it.cat,it.title,it.routine)+' '+esc(hm)+'〜'+esc(endHm)+'</div><div style="font-size:11px;font-weight:600;white-space:normal;overflow:hidden;line-height:1.2;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">'+esc(it.title)+'</div>'+chk+'<div class="stl-move" style="position:absolute;left:2px;top:0;bottom:0;width:12px;cursor:grab;display:flex;align-items:center;justify-content:center;color:rgba(0,0,0,.28);font-size:10px;line-height:1" title="ドラッグで移動（時刻・担当者）">⠿</div><div class="stl-rsz" style="position:absolute;right:0;top:0;bottom:0;width:9px;cursor:ew-resize;background:linear-gradient(to right,transparent,rgba(0,0,0,.10))" title="右端ドラッグで終了時刻変更"></div></div>';
+        return '<div class="stl-blk" data-kind="'+it.kind+'"'+idAttr+' data-s="'+it.s+'" data-e="'+it.e+'" style="position:absolute;left:'+left+'px;top:'+top+'px;width:'+w+'px;height:'+BLOCKH+'px;background:'+col.bg+';color:'+col.tx+';border-left:3px solid '+col.bd+';border-radius:5px;padding:4px 13px 4px 18px;overflow:hidden;cursor:pointer;line-height:1.18;opacity:'+(it.done?'.5':'1')+'" title="'+esc(hm)+'〜'+esc(endHm)+' ／ '+esc(it.title)+' ／ 種別:'+esc(it.cat||'')+' ／ 担当:'+esc(r.mem.n)+(it.kind==='task'?(it.done?' ／ ✓完了':' ／ 未完了'):'')+'"><div style="font-size:10px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:.85">'+catIcon(it.cat,it.title,it.routine)+' '+esc(hm)+'〜'+esc(endHm)+'</div><div style="font-size:12px;font-weight:600;white-space:normal;overflow:hidden;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">'+esc(it.title)+'</div>'+chk+'<div class="stl-move" style="position:absolute;left:2px;top:0;bottom:0;width:12px;cursor:grab;display:flex;align-items:center;justify-content:center;color:rgba(0,0,0,.28);font-size:10px;line-height:1" title="ドラッグで移動（時刻・担当者）">⠿</div><div class="stl-rsz" style="position:absolute;right:0;top:0;bottom:0;width:9px;cursor:ew-resize;background:linear-gradient(to right,transparent,rgba(0,0,0,.10))" title="右端ドラッグで終了時刻変更"></div></div>';
       }).join('');
       var unsetChips=r.unset.map(function(it){
         var col=bucket(it.cat,it.title,it.routine);
@@ -35626,7 +35626,7 @@ function _p500_buildCandidateFromPayload(payload){
 (function(){
   'use strict';
   if(window.__ht_taskboard_schedule)return; window.__ht_taskboard_schedule=true;
-  var START_H=8,END_H=24,HOURW=180;/* packet 2035: 8-24時・1時間180pxに整合 */
+  var START_H=8,END_H=24,HOURW=260;/* packet 2039: 1時間260pxに整合 */
   function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
   function routines(){try{if(typeof getTodayRoutinesForUser!=='function')return {list:[],done:[]};return {list:getTodayRoutinesForUser(typeof currentUser!=='undefined'?currentUser:null)||[],done:(typeof getRoutineDoneIds==='function'?getRoutineDoneIds():[])||[]};}catch(e){return {list:[],done:[]};}}
   function routineStripHtml(){
@@ -35724,7 +35724,7 @@ function _p500_buildCandidateFromPayload(payload){
 (function(){
   'use strict';
   if(window.__ht_timeline_edit)return; window.__ht_timeline_edit=true;
-  var HOURW=180, START_H=8, END_H=24, MIN=15;/* packet 2038: 1時間180px・15分刻み */
+  var HOURW=260, START_H=8, END_H=24, MIN=15;/* packet 2039: 1時間260px・15分刻み */
   var lastResizeAt=0;
   function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
   function fmtHM(min){var hh=Math.floor(min/60),mm=min%60;return hh+':'+(mm<10?'0'+mm:mm);}
@@ -35832,7 +35832,7 @@ function _p500_buildCandidateFromPayload(payload){
 /* ===== packet 2034: タスクボード司令塔化 — ブロック ドラッグ移動（時刻＋担当者レーン） ===== */
 (function(){
   'use strict';
-  var START_H=8, END_H=24, HOURW=180;/* packet 2035: 1時間180px */
+  var START_H=8, END_H=24, HOURW=260;/* packet 2039: 1時間260px */
   function snap15(m){return Math.round(m/15)*15;}/* packet 2038: 30分→15分刻み */
   function findEvByBlk(blk){
     var mi=parseInt(blk.getAttribute('data-evmi'),10);
@@ -35979,6 +35979,52 @@ function _p500_buildCandidateFromPayload(payload){
     try{ if(typeof renderDay==='function')renderDay(); }catch(_){}
     try{ if(typeof showToast==='function')showToast(t.done?'✓ 完了にしました':'未完了に戻しました'); }catch(_){}
   }, true);
+})();
+</script>
+<script>
+/* ===== packet 2039: 担当者別タイムライン 現在時刻へ自動スクロール（初期 約4時間ビュー / Googleカレンダー寄り）
+   ・スクロール位置は re-render 間で保持＝ドラッグ/編集で毎回先頭へ飛ばない
+   ・日付が変わったときだけ now 基準（当日）/ 8:00（当日以外）へ再設定
+   ・定数は buildTimeline と整合（HOURW=260 / START_H=8 / UNSETW=92） ===== */
+(function(){
+  'use strict';
+  if(window.__ht_tl_autoscroll)return; window.__ht_tl_autoscroll=true;
+  var START_H=8, END_H=24, HOURW=260, UNSETW=92;
+  var saved={};      /* key('day'|'board') -> 直近scrollLeft */
+  var lastDate=null; /* 日付が変わったら位置リセット */
+  function keyOf(sc){ try{ return sc.closest('#staff-tl-board')?'board':'day'; }catch(_){ return 'day'; } }
+  function curDateKey(){ try{ return (typeof ds==='function'&&typeof selDate!=='undefined')?ds(selDate):'?'; }catch(_){ return '?'; } }
+  function isToday(){ try{ if(typeof isT==='function'&&typeof selDate!=='undefined')return !!isT(selDate); }catch(_){} return true; }
+  function nowScrollLeft(){
+    try{
+      if(!isToday())return 0; /* 当日以外は 8:00 先頭 */
+      var d=new Date(); var nm=d.getHours()*60+d.getMinutes();
+      var target=Math.max(START_H*60, Math.min(END_H*60, nm-45)); /* 現在の45分前を左端付近に */
+      return Math.max(0, UNSETW + (target-START_H*60)/60*HOURW);
+    }catch(_){ return 0; }
+  }
+  function apply(){
+    try{
+      var dk=curDateKey();
+      if(dk!==lastDate){ saved={}; lastDate=dk; } /* 日付変更→now基準に再設定 */
+      var list=document.querySelectorAll('.stl-scroll');
+      for(var i=0;i<list.length;i++){
+        (function(sc){
+          var k=keyOf(sc);
+          if(saved[k]!=null){ try{sc.scrollLeft=saved[k];}catch(_){} }
+          else { var v=nowScrollLeft(); try{sc.scrollLeft=v;}catch(_){} saved[k]=sc.scrollLeft; }
+          if(!sc.__ht2039bound){ sc.__ht2039bound=true; sc.addEventListener('scroll',function(){ saved[k]=sc.scrollLeft; },{passive:true}); }
+        })(list[i]);
+      }
+    }catch(_){}
+  }
+  /* render後にDOMが差し替わるため、外側でラップして遅延apply（既存ラップは壊さない） */
+  ['renderTaskBoard','renderDay'].forEach(function(fn){
+    try{ if(typeof window[fn]==='function'){ var o=window[fn]; window[fn]=function(){ var r=o.apply(this,arguments); setTimeout(apply,30); return r; }; } }catch(e){}
+  });
+  try{ if(typeof window.renderCal==='function'){ var rc=window.renderCal; window.renderCal=function(){ var r=rc.apply(this,arguments); setTimeout(apply,40); return r; }; } }catch(e){}
+  /* 遅延inject（packet2026/2027 burst）対策で複数回apply */
+  [250,650,1200,1800,2600].forEach(function(ms){ setTimeout(apply,ms); });
 })();
 </script>
 </body>

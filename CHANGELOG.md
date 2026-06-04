@@ -1,5 +1,20 @@
 # CHANGELOG — ハウステイト じゃがいAI会社OS
 
+## packet 2039 — 🗓 タイムライン UX改善 4時間ビュー＋15分グリッド＋現在時刻自動スクロール / 2026-06-04
+### Changed（buildTimeline共有＝日表示＋タスクボード両方・Googleカレンダー寄り）
+- 幅拡大：`HOURW=180→260`（buildTimeline/board/packet2031/drag/autoscroll 全整合）。全幅16h×260=4160px＝初期約4時間表示＋既存`.stl-scroll`で横スクロール
+- 15分ラベル：時間軸ラベルを15分刻み化（毎時=太字#475569/30分=中#94a3b8/15・45分=薄小#cbd5e1）。15分グリッド線はpacket2038実装済、HOURW=260で15分=65px＝視認性UP
+- ブロック拡大：`BLOCKH=48→52`・時刻9→10px・タイトル11→12px・予定名2行(line-clamp:2)維持・MINW96→110
+### Added
+- 現在時刻 自動スクロール（新規IIFE`__ht_tl_autoscroll`）：初期表示で現在の45分前を左端付近へ（当日のみ/当日以外8:00）。スクロール位置はre-render間で保持＝ドラッグ/編集で先頭へ飛ばない・日付変更時のみnow基準へ再設定。renderTaskBoard/renderDay/renderCalを外側ラップ（既存非破壊）
+- `docs/TASKBOARD_TIMELINE_4H_VIEW_15MIN_AUTOSCROLL_PACKET_2039.md`
+### 維持・遵守
+- ✓完了/予定編集/タスク編集/ドラッグ移動/上下担当者変更/横時間変更/リサイズ/タスク保存/予定保存・Sticky(担当者列/時間ヘッダ)・月/週・既存追加/ルーティンD&D 無改変（HOURW定数追従のみ）
+- 15分スナップ/グリッド/リサイズはpacket2038実装済。状態 in-memory＋既存persist・新規外部接続なし
+- node --check（buildTimeline/board/packet2031/drag/autoscroll）全PASS・`<script>`11/11・HOURW=180残存0・禁止API0件・顧客タブ復活なし
+- 補足：タスク保存エラー(packet2038調査・H1/H2)は本packet対象外（表示UXのみ）
+- **commitまで。push停止（ボス承認後）。**
+
 ## packet 2038 — 🛠 ドラッグ移動が元に戻る問題 hotfix ＋ 15分刻み化 / 2026-06-04
 ### Fixed（ドロップ後に元の場所へ戻る／✓完了も同根で未更新）
 - 根本原因：`findEvByBlk`/`findTaskByBlk`（packet2034/2037）・packet2035✓の`findTask`が`!window.state`ガードを使用。`state`は`const`（index.html:3632）でwindow未bind→`window.state`常にundefined→`!window.state`常にtrue→ヘルパーが必ずnull返却→state更新コードに不到達→再描画で旧位置へ巻き戻り（**packet452が文書化済の既知バグと同型**。packet2031リサイズ/編集はbareword stateのため動作していた）
