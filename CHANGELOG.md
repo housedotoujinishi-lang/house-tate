@@ -1,5 +1,21 @@
 # CHANGELOG — ハウステイト じゃがいAI会社OS
 
+## packet 2047 — 🧩 ローカル read-only MCP サーバー PoC（依存ゼロ・外部送信なし・Claude Desktop未接続） / 2026-06-06
+### Added（ローカルMCPサーバー実装＋自己テスト）
+- `scripts/mcp/jagai-members-mcp-server.mjs`：メンバーJSONを read-only 参照する MCP サーバー本体。**依存ゼロ**（npm install不要）・**stdio JSON-RPC 2.0のみ**・ネットワーク(http/net/fetch)不使用
+  - read-only 5ツール：get_members / get_member_by_uid / get_member_by_name / get_roles / get_org_summary。**書き込み系ツールは未定義**（未知/書込的ツール名は isError 拒否）
+  - 読むファイルは起動時固定（`--file`/`JAGAI_MEMBER_JSON`/既定 runtime、無ければダミーへフォールバック）。**ツール引数からパスを受けない**（traversal防止）
+  - 返却前に**許可9項目ホワイトリスト再フィルタ**（多層防御）。disabled/削除済みは既定除外。admin「管理者」・冨永「未定」は元データ非改変
+- `scripts/mcp/selftest.mjs`：Claude Desktopに繋がず子プロセスで検証する自己テスト（入力はコミット済みダミー）
+### Verified（本packet実施）
+- `node --check` server/selftest PASS・サーバーにネットワークモジュール不使用を grep 確認
+- 自己テスト：initialize/tools/list/tools/call 動作・**5 read-onlyツールのみ・書込ツール無し・update_member拒否**・出力は9項目のみ・禁止部分文字列なし・get_roles adminLabel=管理者 ＝ **RESULT: PASS**
+- adversarial：入力に pass/email/token/apiKey を混入しても出力は9項目のみ（`PLAINTEXT_PW`/`leak@example.com`/`tok_LEAK`/`sk-LEAK`・`"pass"`/`"email"`/`"token"`/`"apiKey"` は一切出力されず）
+- `docs/CLAUDE_DESKTOP_LOCAL_READONLY_MCP_SERVER_POC_PACKET_2047.md` 新規
+### 維持・遵守（禁止事項クリア／赤信号なし）
+- **Claude Desktop本体設定変更なし・MCP本番接続なし**・外部API接続なし・外部送信なし（依存取得もなし）・Cloud Run deployなし・Supabase/SQL/RLS/Auth変更なし・書き込みAPIなし
+- 本物メンバーJSONのgitコミットなし（runtime=gitignore・ダミーのみ）・localStorage保存なし・顧客タブ復活なし・`.claude add`なし・force push/reset/clean/rebaseなし・**通常commit/push**
+
 ## packet 2046 — 📋 Claude Desktop 接続前チェックリスト（docs-only） / 2026-06-05
 ### Added（接続前の確認項目を文書化・接続/設定変更なし）
 - `docs/CLAUDE_DESKTOP_CONNECT_PRECHECK_PACKET_2046.md` 新規。実接続前にボスが確認すべき項目をチェックリスト化
