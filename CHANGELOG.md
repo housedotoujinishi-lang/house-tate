@@ -1,5 +1,20 @@
 # CHANGELOG — ハウステイト じゃがいAI会社OS
 
+## packet 2049 — 🔄 Claude Desktop MCP 本物メンバーJSON 差し替え（git管理外・検証PASS） / 2026-06-06
+### Done（ダミー→本物データへローカル差し替え／本物JSONはgit管理しない）
+- じゃがいOS画面でコピーした本物メンバーJSONを方法A（チャット貼付）で受領 → `runtime/claude-member-json/incoming.json`（**git管理外**）にのみ保存
+- `scripts/jagai-member-json-template.ps1` で検証・整形保存 → `runtime/claude-member-json/members.snapshot.json`（**BOM無しUTF-8**・active 5名）
+### Verified
+- gitignore：incoming/snapshot ともに `git check-ignore` 除外・`git status` 非表示
+- 機密スキャン：pass/password/token/secret(値)/email/apiKey/access・refresh token/service_role/顧客/phone/address **検出ゼロ**／メンバーは許可9項目のみ
+- BOM：先頭 `7b 0d 0a`（`{`）＝BOM無し確認
+- MCP E2E（実スナップショット）：get_members **count=5**・get_org_summary totalActive=5（admin×3/staff×2・秘書割当5/未定0）・**isErrorゼロ・機密ゼロ**／self-test **RESULT: PASS**
+- 観察：本スナップショットは active 5名で**冨永(tominaga)を含まない**ため `secretaryUndecided` 空。「冨永=未定維持」は対象行が無く改変なし（値は一切書き換えない）
+- `docs/CLAUDE_DESKTOP_MCP_REAL_DATA_SWAP_PACKET_2049.md` 新規（本物データの中身は転記せず集計と検証のみ）
+### 維持・遵守（禁止事項クリア）
+- **本物メンバーJSONを git add しない**（コミットは docs/CHANGELOG のみ）・Claude Desktop設定変更なし・MCP追加変更なし・外部APIなし・Supabase/SQL/RLS/Auth変更なし
+- pass/token/secret出力なし・顧客情報出力なし・顧客タブ復活なし・`.claude add`なし・force push/reset/clean/rebaseなし・admin「管理者」維持・冨永「未定」維持・**通常commit/push（docs/CHANGELOGのみ）**
+
 ## packet 2048 — 🔌 Claude Desktop への MCP 実接続（ローカル read-only・本packet限定承認） / 2026-06-06
 ### Connected（Claude Desktop 設定にローカルMCPを登録／リポジトリ外・git管理せず）
 - `%APPDATA%\Claude\claude_desktop_config.json` に `mcpServers.jagai-members-readonly` を**マージ追加**（既存バイト不変のテキスト挿入。`coworkUserFilesPath`/`preferences` 保全を検証）
