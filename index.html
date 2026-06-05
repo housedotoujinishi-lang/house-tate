@@ -2172,6 +2172,7 @@ textarea.ai-team-input{resize:vertical;min-height:60px}
       <div class="ai-org-tree-line">│</div>
       <div id="ai-org-teams"></div>
       <div id="ai-org-secretary-map"></div>
+      <div id="ai-org-member-json"></div>
       <div id="ai-org-consult"></div>
     </div>
   </div>
@@ -9957,6 +9958,134 @@ function renderPersonalSecretaryMappingTable(rootId){
   };
 })();
 // ==== ここまで packet 319 担当秘書AIマッピング ====
+
+// ==== packet 2041 Claude連携用メンバーJSON スナップショット（read-only / 外部送信なし）====
+// 正本=accounts。安全項目のみ抽出して画面表示・コピーするだけの静的MVP。
+// 出力する項目: uid / name / displayName / role / perm / secretaryAiName / isActive / sortOrder / notesForAi
+// 絶対に出さない: pass / password / token / secret(値) / email / 顧客情報 / Supabaseキー / APIキー / access/refresh token / 不要なUUID
+// 注意: secretaryAiName は「秘書AI名」の意味。文字列に secret を含むが API secret / token ではない（機密スキャンの誤検知に注意）。
+// 外部送信なし・fetch追加なし・localStorage/sessionStorage 本文保存なし（既存 jagai_account_order_v1 の読み取りのみ）。
+function _cmjSecretaryAiNameFor(name){
+  // 既存マッピングから秘書AI名を取得。取れなければ「未定」。冨永は '未定' のまま返る。
+  try{
+    if(typeof getPersonalSecretaryMapping==='function'){
+      const m=getPersonalSecretaryMapping().find(x=>x.ownerName===name);
+      if(m&&m.secretary)return m.secretary;
+    }
+  }catch(e){}
+  return '未定';
+}
+function _cmjNotesForAi(a){
+  // 最低限の役割説明のみ。顧客情報/メール/電話/住所/パスワード/個別案件は入れない。推測で過剰に埋めない。
+  if(!a)return null;
+  if(a.uid==='admin'||a.name==='admin')return '管理者用テストアカウント（実務担当者ではない）。admin表記は「管理者」として維持。';
+  if(a.uid==='tominaga'||a.name==='冨永')return '秘書AI名はボス未指定（「未定」のまま維持）。';
+  return null;
+}
+function buildClaudeMemberSnapshot(){
+  // 正本 accounts から安全項目のみ抽出した read-only スナップショットを生成して返す（保存はしない）。
+  const list=Array.isArray(accounts)?accounts.slice():[];
+  // disabled / 削除済み は通常除外（active のみ）。既存 _isDisabledAccount があれば利用。
+  const active=list.filter(function(a){
+    try{ return (typeof _isDisabledAccount==='function') ? !_isDisabledAccount(a) : !(a&&(a.perm==='disabled'||a.role==='削除済み')); }
+    catch(e){ return !(a&&(a.perm==='disabled'||a.role==='削除済み')); }
+  });
+  // 表示順: 既存 jagai_account_order_v1（uid配列）順。helper があれば利用、無ければ accounts 順 fallback。
+  let ordered;
+  try{ ordered=(typeof _sortByAccountOrder==='function') ? _sortByAccountOrder(active,function(a){return a.uid;}) : active; }
+  catch(e){ ordered=active; }
+  const members=ordered.map(function(a,i){
+    return {
+      uid:a.uid,
+      name:a.name,
+      displayName:a.name,            // 既定は name と同値
+      role:a.role,
+      perm:a.perm,                   // admin/owner は連携側で「管理者」表記
+      secretaryAiName:_cmjSecretaryAiNameFor(a.name),
+      isActive:true,                 // active のみ抽出のため常に true
+      sortOrder:i,
+      notesForAi:_cmjNotesForAi(a)
+    };
+  });
+  return {
+    schemaVersion:'member-sync/1.0',
+    source:'jagai-os',
+    origin:'accounts',
+    readOnly:true,
+    externalSend:false,
+    includesInactive:false,
+    exportedAt:new Date().toISOString(),
+    count:members.length,
+    members:members
+  };
+}
+let _cmjLastJson='';
+function _cmjRegenerate(root){
+  if(!root)return;
+  const snap=buildClaudeMemberSnapshot();
+  const json=JSON.stringify(snap,null,2);
+  _cmjLastJson=json;                 // コピー用に保持（DOM再パースを避ける）
+  const ta=root.querySelector('#cmj-json'); if(ta)ta.value=json;
+  const cnt=root.querySelector('#cmj-count'); if(cnt)cnt.textContent=snap.count+' 件（active のみ）';
+  const tm=root.querySelector('#cmj-time'); if(tm)tm.textContent=snap.exportedAt;
+}
+function _cmjCopyFallback(root,text,done){
+  try{
+    const ta=root.querySelector('#cmj-json');
+    if(ta){ ta.focus(); ta.select(); const ok=document.execCommand&&document.execCommand('copy'); done(!!ok); return; }
+  }catch(e){}
+  done(false);
+}
+function _cmjCopy(root){
+  const text=_cmjLastJson||'';
+  const done=function(ok){
+    const b=root.querySelector('#cmj-copy');
+    if(b){ const o=b.getAttribute('data-label')||b.textContent; b.textContent=ok?'✓ コピーしました':'コピー失敗'; setTimeout(function(){ b.textContent=o; },1500); }
+  };
+  try{
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(function(){done(true);}).catch(function(){_cmjCopyFallback(root,text,done);});
+      return;
+    }
+  }catch(e){}
+  _cmjCopyFallback(root,text,done);
+}
+function renderClaudeMemberJsonCard(rootId){
+  const root=document.getElementById(rootId);if(!root)return;
+  const btn='font-size:12px;padding:7px 14px;border:0;border-radius:6px;cursor:pointer';
+  const h='<div class="ai-org-secretary-map" style="border-color:#0a3d7c">'
+    +'<div class="ai-org-secretary-title">🔗 Claude連携用メンバーJSON（read-only スナップショット）</div>'
+    +'<div class="ai-org-secretary-intro">Claude Desktopや将来のMCP連携が参照するための、安全なメンバーJSONです。外部送信は行わず、この画面上で生成・コピーするだけです。</div>'
+    +'<div style="font-size:11px;color:#475569;line-height:1.8;margin:6px 0">'
+      +'・正本：<b>accounts</b><br>'
+      +'・方式：<b>read-only snapshot</b><br>'
+      +'・外部送信：<b>なし</b><br>'
+      +'・pass / token / secret / email / 顧客情報：<b>除外</b><br>'
+      +'・disabled / 削除済み：<b>通常除外（active のみ）</b>'
+    +'</div>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0">'
+      +'<button id="cmj-gen" data-label="🔄 生成 / 再生成" style="'+btn+';background:#0a3d7c;color:#fff">🔄 生成 / 再生成</button>'
+      +'<button id="cmj-copy" data-label="📋 コピー" style="'+btn+';background:#c9a23d;color:#fff">📋 コピー</button>'
+    +'</div>'
+    +'<div style="font-size:11px;color:#666;margin:4px 0">件数：<b><span id="cmj-count">-</span></b> ／ 最終生成：<span id="cmj-time">-</span></div>'
+    +'<textarea id="cmj-json" readonly spellcheck="false" style="width:100%;height:240px;box-sizing:border-box;font-family:monospace;font-size:11px;color:#1e293b;background:#f8fafc;border:1px solid #cbd5e1;border-radius:6px;padding:8px;resize:vertical"></textarea>'
+    +'<div class="ai-org-secretary-note">ℹ 外部送信なし・fetch追加なし・localStorage本文保存なし。secretaryAiName は「秘書AI名」であり API secret / token ではありません。冨永の秘書AI名は「未定」維持・admin表記は「管理者」維持。</div>'
+    +'</div>';
+  root.innerHTML=h;
+  const gen=root.querySelector('#cmj-gen'); if(gen)gen.addEventListener('click',function(){_cmjRegenerate(root);});
+  const cp=root.querySelector('#cmj-copy'); if(cp)cp.addEventListener('click',function(){_cmjCopy(root);});
+  _cmjRegenerate(root); // 初期表示で1回生成
+}
+// 既存 renderAIOrgSecretaryMap の後に Claude連携用メンバーJSONカードを追加描画
+(function patchAIOrgMemberJson(){
+  const orig=window.renderAIOrgSecretaryMap;
+  if(typeof orig!=='function')return;
+  window.renderAIOrgSecretaryMap=function(){
+    orig.apply(this,arguments);
+    try{ renderClaudeMemberJsonCard('ai-org-member-json'); }catch(e){}
+  };
+})();
+// ==== ここまで packet 2041 Claude連携用メンバーJSON ====
 
 // ==== packet 327 ルーティン編集UI 本実装 ====
 function _routineKindLabel(kind){return kind==='daily'?'毎日':kind==='weekly'?'毎週':kind==='monthly'?'毎月':kind;}

@@ -1,5 +1,25 @@
 # CHANGELOG — ハウステイト じゃがいAI会社OS
 
+## packet 2041 — 🔗 Claude連携用メンバーJSONスナップショットMVP（read-only / 外部送信なし） / 2026-06-05
+### Added（AI組織図ページ・秘書マッピング直下に静的MVPカード追加）
+- AI組織図ページ（`#page-ai-org`）の担当秘書AIマッピング表（packet319）直下に「🔗 **Claude連携用メンバーJSON**（read-only スナップショット）」カードを追加。HTMLコンテナ`#ai-org-member-json`＋既存`renderAIOrgSecretaryMap`をIIFEラップして`renderClaudeMemberJsonCard`を追加描画（packet319と同方式・既存非破壊）
+- 機能：JSON表示欄(textarea readonly)／「🔄生成/再生成」／「📋コピー」／件数表示／最終生成時刻(ISO8601)
+- `buildClaudeMemberSnapshot()`＝**正本 accounts** から安全項目のみ抽出した **read-only snapshot** を生成（保存しない）
+- 出力項目：uid / name / displayName / role / perm / secretaryAiName / isActive / sortOrder / notesForAi（ホワイトリスト方式）
+- 表示順＝既存`jagai_account_order_v1`（uid配列）順を`_sortByAccountOrder`で参照（**読み取りのみ**・新規保存なし）。秘書AI名＝既存`getPersonalSecretaryMapping()`参照（取れなければ「未定」）
+- コピー＝`navigator.clipboard.writeText`優先・失敗時`textarea選択+execCommand('copy')`フォールバック（いずれもローカル処理）
+- `docs/CLAUDE_DESKTOP_MEMBER_JSON_SNAPSHOT_PACKET_2041.md` 新規
+### 除外・セキュリティ（絶対に出さない）
+- pass / password / token / secret(値) / email / Supabaseキー / APIキー / access・refresh token / 顧客情報 / 不要なUUID は出力しない（accountsに存在してもsnapshotに載せない）
+- disabled / 削除済みは通常除外（`_isDisabledAccount`＝perm==='disabled' OR role==='削除済み'／active のみ・isActive常にtrue）
+- **admin表記は「管理者」維持**・**冨永の秘書AI名は「未定」維持**
+- 注：`secretaryAiName`は「秘書AI名」由来でAPI secret/tokenではない（機密スキャン誤検知。実機密値の出力なしを確認済）
+### 維持・遵守（禁止事項クリア）
+- **Supabase/SQL/RLS/Auth 変更なし**・**外部API接続なし**・**Claude Desktop接続なし**・**MCP本番接続なし**・Cloud Run deploy なし・書き込みAPIなし
+- **fetch/XMLHttpRequest 新規追加なし**・**localStorage/sessionStorage 本文保存なし**（既存キー読み取りのみ）・顧客タブ復活なし・`.claude add`なし・force push/reset/clean/rebase なし
+- 構文：`<script>`11/11一致・追加ブロック`node --check`PASS・全インラインJS結合`node --check`PASS
+- **commitまで→通常push（packet2040と異なりboss事前承認のLv5包括承認範囲）。**
+
 ## packet 2040 — 🔗 Claude Desktop ⇄ じゃがいOS メンバー同期 設計（docs-only / read-only MVP） / 2026-06-05
 ### Added（設計ドキュメントのみ・コード/接続/デプロイ無改変）
 - `docs/CLAUDE_DESKTOP_MEMBER_SYNC_DESIGN_PACKET_2040.md` 新規。Claude Desktop から社内メンバー情報を**参照（read-only）**するための実装前提設計。じゃがいOS=正本／Claude=参照先・**一方向同期**
