@@ -1,0 +1,15 @@
+{
+  "_comment": "DUMMY ONLY — ダミー値のみ。本物のメンバーJSONではない。git管理してよい参照用サンプル。",
+  "schemaVersion": "member-sync/1.0",
+  "source": "jagai-os",
+  "origin": "accounts",
+  "readOnly": true,
+  "externalSend": false,
+  "includesInactive": false,
+  "exportedAt": "2026-01-01T00:00:00.000Z",
+  "count": 2,
+  "members": [
+    { "uid": "dummy01", "name": "サンプル太郎", "displayName": "サンプル太郎", "role": "エージェント", "perm": "staff", "secretaryAiName": "ダミー秘書A", "isActive": true, "sortOrder": 0, "notesForAi": null },
+    { "uid": "dummy02", "name": "サンプル花子", "displayName": "サンプル花子", "role": "店長", "perm": "admin", "secretaryAiName": "未定", "isActive": true, "sortOrder": 1, "notesForAi": null }
+  ]
+}

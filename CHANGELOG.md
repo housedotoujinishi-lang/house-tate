@@ -1,5 +1,19 @@
 # CHANGELOG — ハウステイト じゃがいAI会社OS
 
+## packet 2044 — 📁 Claude連携用メンバーJSON ローカルファイル化テンプレート（runtime/local-only） / 2026-06-05
+### Added（ローカル専用・外部送信なし・本物JSONはgit管理外）
+- `.gitignore` 新規：`runtime/` / `*.local.json` / `members.snapshot.json` / `incoming.json` / `.claude/` を除外（本物メンバーJSONを git に載せない）
+- `scripts/jagai-member-json-template.ps1`：コピーしたメンバーJSONをローカル検証＋整形保存するヘルパー。**外部送信なし**（Invoke-WebRequest/RestMethod 不使用）・出力は `runtime/` のみ
+  - 機密漏洩ガード：pass/password/token/secret/email/顧客情報/uuid 等を検出したら**書き出し中止（exit 2）**。許可は9項目ホワイトリスト。`secretary`は「秘書」由来で誤検知回避（除外語に含めない）
+  - `-Sample`：ダミーJSON生成（接続前確認用・本物データではない）
+- `scripts/sample.member-json.dummy.json`：ダミー値のみの参照用サンプル（git管理OK）
+- `docs/CLAUDE_MEMBER_JSON_LOCAL_FILE_TEMPLATE_PACKET_2044.md` 新規（手順・パラメータ・確認結果）
+### Verified（本packet実施）
+- `Parser::ParseFile` 構文チェック PARSE_OK（UTF-8 BOM保存）／`-Sample` 実行 exit0・runtime出力／漏洩JSON入力は検出して exit2・出力未生成／`git check-ignore` で runtime JSON は ignore 済み
+### 維持・遵守（禁止事項クリア）
+- Claude Desktop接続なし・MCP本番接続なし・外部API接続なし・Cloud Run deployなし・Supabase/SQL/RLS/Auth変更なし・書き込みAPIなし
+- **本物メンバーJSONのgitコミットなし**（runtime/＝gitignore）・localStorage/sessionStorage保存なし・ダミーのみコミット・顧客タブ復活なし・`.claude add`なし・force push/reset/clean/rebaseなし・**通常commit/push**
+
 ## packet 2043 — 🧩 Claude Desktop ローカル read-only MCP PoC 設計（docs-only） / 2026-06-05
 ### Added（設計docsのみ・接続/実装なし）
 - `docs/CLAUDE_DESKTOP_LOCAL_READONLY_MCP_DESIGN_PACKET_2043.md` 新規。Claude Desktop が将来じゃがいOSのメンバーJSONを read-only 参照するためのローカルMCP構想

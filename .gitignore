@@ -1,0 +1,8 @@
+# packet 2044: Claude連携用メンバーJSON はローカル/runtime 限定。本物JSONは git 管理しない。
+runtime/
+*.local.json
+members.snapshot.json
+incoming.json
+
+# Claude Code ローカル設定（未追跡維持・git add しない）
+.claude/
