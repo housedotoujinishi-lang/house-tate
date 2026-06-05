@@ -1,5 +1,19 @@
 # CHANGELOG — ハウステイト じゃがいAI会社OS
 
+## packet 2042 — ✅ Claude連携用メンバーJSON 実機確認記録＋表示改善 / 2026-06-05
+### Verified（公開URL反映確認＋デプロイ済みロジックの決定論的検証）
+- 公開URL `https://housedotoujinishi-lang.github.io/house-tate/` に packet2041 カード反映済みを確認（マーカー `ai-org-member-json`/`buildClaudeMemberSnapshot`/`Claude連携用メンバーJSON` 一致・コミット`fea8fa9`相当）
+- デプロイ済み実関数（`buildClaudeMemberSnapshot`/`_isDisabledAccount`/`_sortByAccountOrder`/`getPersonalSecretaryMapping`）を抽出しNodeで実行＝決定論的検証
+- **漏洩テスト（adversarial）**：seedに`pass`/`email`/`token=tok_LEAKCHECK`/`apiKey=sk-LEAKCHECK`を混入 → 生成JSONに**一切出力されず**（許可外キーNONE・禁止文字列NONE）
+- **冨永 `secretaryAiName:"未定"` 維持** ✓／`role:'削除済み'`(disabled)**除外** ✓（input8→active7）／`readOnly:true`・`externalSend:false`／admin(perm=owner)は連携側で「管理者」表記・notesに維持明記
+- `docs/CLAUDE_DESKTOP_MEMBER_JSON_VERIFY_PACKET_2042.md` に結果記録
+### Changed（軽微UI改善・表示整形のみ）
+- 最終生成時刻 `#cmj-time` を日本語ローカル時刻（`toLocaleString('ja-JP')`）表示に変更・`title`にISO保持。`_cmjRegenerate`内1行のみ。**JSON本文の`exportedAt`はISO8601のまま不変**
+### 維持・遵守（禁止事項クリア）
+- Claude Desktop接続なし・MCP本番接続なし・外部API接続なし・Cloud Run deployなし・Supabase/SQL/RLS/Auth変更なし・書き込みAPIなし
+- fetch/XHR **24→24（新規なし）**・localStorage setItem **62→62（新規なし／既存キー読み取りのみ）**・`<script>`11/11・packet2041ブロック`node --check`PASS・顧客タブ復活なし・`.claude add`なし・force push/reset/clean/rebaseなし
+- **commitまで→通常push（Lv5包括承認範囲）。**
+
 ## packet 2041 — 🔗 Claude連携用メンバーJSONスナップショットMVP（read-only / 外部送信なし） / 2026-06-05
 ### Added（AI組織図ページ・秘書マッピング直下に静的MVPカード追加）
 - AI組織図ページ（`#page-ai-org`）の担当秘書AIマッピング表（packet319）直下に「🔗 **Claude連携用メンバーJSON**（read-only スナップショット）」カードを追加。HTMLコンテナ`#ai-org-member-json`＋既存`renderAIOrgSecretaryMap`をIIFEラップして`renderClaudeMemberJsonCard`を追加描画（packet319と同方式・既存非破壊）

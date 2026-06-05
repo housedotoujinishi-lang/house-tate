@@ -10027,7 +10027,7 @@ function _cmjRegenerate(root){
   _cmjLastJson=json;                 // コピー用に保持（DOM再パースを避ける）
   const ta=root.querySelector('#cmj-json'); if(ta)ta.value=json;
   const cnt=root.querySelector('#cmj-count'); if(cnt)cnt.textContent=snap.count+' 件（active のみ）';
-  const tm=root.querySelector('#cmj-time'); if(tm)tm.textContent=snap.exportedAt;
+  const tm=root.querySelector('#cmj-time'); if(tm){ let disp=snap.exportedAt; try{ disp=new Date(snap.exportedAt).toLocaleString('ja-JP'); }catch(e){} tm.textContent=disp; tm.title=snap.exportedAt; } // packet2042: ローカル時刻表示（JSON内 exportedAt は ISO のまま不変）
 }
 function _cmjCopyFallback(root,text,done){
   try{
