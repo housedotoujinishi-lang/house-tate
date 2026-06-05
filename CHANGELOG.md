@@ -1,5 +1,13 @@
 # CHANGELOG — ハウステイト じゃがいAI会社OS
 
+## packet 2046 — 📋 Claude Desktop 接続前チェックリスト（docs-only） / 2026-06-05
+### Added（接続前の確認項目を文書化・接続/設定変更なし）
+- `docs/CLAUDE_DESKTOP_CONNECT_PRECHECK_PACKET_2046.md` 新規。実接続前にボスが確認すべき項目をチェックリスト化
+- 内容：じゃがいOS側JSON確認／機密(pass/email/token/secret/顧客/Supabaseキー/UUID)が無いことの確認／ローカル保存場所と.gitignore確認／本物JSONをgitに載せない／MCP設定にAPIキーを書かない・書き込みツールを作らない／実接続時のボス承認項目／**赤信号一覧**／ロールバック方針（revert中心・force push/reset不使用）／PoCに進むゲート条件
+### 維持・遵守（禁止事項クリア）
+- Claude Desktop接続なし・MCP本番接続なし・外部API接続なし・Supabase/SQL/RLS/Auth変更なし・Cloud Run deployなし・index.html無改変
+- admin「管理者」維持・冨永「未定」維持・顧客タブ復活なし・`.claude add`なし・force push/reset/clean/rebaseなし・**通常commit/push**
+
 ## packet 2045 — 🎨 Claude連携JSON UI改善（小粒・低リスク） / 2026-06-05
 ### Changed（カードHTMLの表示・文言のみ／ロジック不変）
 - 強調バッジ追加：🔒「このJSONは外部送信されません」・🔌「まだ Claude Desktop とは接続していません」
