@@ -1,5 +1,16 @@
 # CHANGELOG — ハウステイト じゃがいAI会社OS
 
+## packet 2043 — 🧩 Claude Desktop ローカル read-only MCP PoC 設計（docs-only） / 2026-06-05
+### Added（設計docsのみ・接続/実装なし）
+- `docs/CLAUDE_DESKTOP_LOCAL_READONLY_MCP_DESIGN_PACKET_2043.md` 新規。Claude Desktop が将来じゃがいOSのメンバーJSONを read-only 参照するためのローカルMCP構想
+- データフロー：accounts(正本) → buildClaudeMemberSnapshot(packet2041) → ローカルJSON → ローカルread-only MCP → Claude Desktop（参照のみ・書き戻しなし）
+- 方式A（手動コピー→ローカルファイル／推奨起点）／方式B（ローカルMCPがJSONをread-only読込／PoC本命）／方式C（将来Cloud Run/API化・今回未実装）
+- read-only MCPツール案：get_members / get_member_by_uid / get_member_by_name / get_roles / get_org_summary（**書き込み系は未定義 writeTools:[]**）
+- セキュリティ境界：read-only・pass/token/secret/email/顧客情報非返却・disabled除外・admin「管理者」維持・冨永「未定」維持・外部送信なし・MCP設定にAPIキーを書かない・本物JSONはgit管理しない
+### 維持・遵守（禁止事項クリア）
+- MCP本番接続なし・Claude Desktop設定変更なし・外部API接続なし・Cloud Run deployなし・Supabase/SQL/RLS/Auth変更なし・書き込みAPIなし
+- index.html無改変・本物メンバーJSONのgitコミットなし・顧客タブ復活なし・`.claude add`なし・force push/reset/clean/rebaseなし・**通常commit/push**
+
 ## packet 2042 — ✅ Claude連携用メンバーJSON 実機確認記録＋表示改善 / 2026-06-05
 ### Verified（公開URL反映確認＋デプロイ済みロジックの決定論的検証）
 - 公開URL `https://housedotoujinishi-lang.github.io/house-tate/` に packet2041 カード反映済みを確認（マーカー `ai-org-member-json`/`buildClaudeMemberSnapshot`/`Claude連携用メンバーJSON` 一致・コミット`fea8fa9`相当）
