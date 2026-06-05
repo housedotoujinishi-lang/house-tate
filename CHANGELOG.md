@@ -1,5 +1,20 @@
 # CHANGELOG — ハウステイト じゃがいAI会社OS
 
+## packet 2048 — 🔌 Claude Desktop への MCP 実接続（ローカル read-only・本packet限定承認） / 2026-06-06
+### Connected（Claude Desktop 設定にローカルMCPを登録／リポジトリ外・git管理せず）
+- `%APPDATA%\Claude\claude_desktop_config.json` に `mcpServers.jagai-members-readonly` を**マージ追加**（既存バイト不変のテキスト挿入。`coworkUserFilesPath`/`preferences` 保全を検証）
+- **バックアップ** `claude_desktop_config.json.bak-packet2048` 作成（完全可逆）。エントリは node.exe → `scripts/mcp/jagai-members-mcp-server.mjs --file runtime/.../members.snapshot.json`
+- 制約遵守：**ローカル read-only のみ・外部APIなし・書き込みツールなし・本物JSONは runtime/（git管理外）**
+### Fixed（エンドツーエンド検証で発見）
+- MCPサーバー：runtime JSON の **UTF-8 BOM** で Node `JSON.parse` が失敗する不具合を修正（`scripts/mcp/jagai-members-mcp-server.mjs` で先頭BOM除去＝堅牢化）
+- テンプレート：`scripts/jagai-member-json-template.ps1` の出力を **UTF-8 BOM無し**化（`WriteAllText`+絶対パス）。BOMを根本回避
+### Verified
+- config 妥当性（JSON.parse OK・既存キー保全・mcpServers追加）／**config同一コマンドでE2E**：initialize・tools/list（read-only5）・get_org_summary 正常（totalActive:2）・isErrorゼロ／自己テスト **RESULT: PASS**（書込ツールなし・update_member拒否・出力9項目のみ・機密なし）
+- `docs/CLAUDE_DESKTOP_MCP_CONNECT_PACKET_2048.md` 新規（再起動手順・本物データ差し替え・ロールバック記載）
+### 維持・遵守（赤信号は本packet承認のClaude Desktop設定変更のみ）
+- 外部API本番接続なし・Cloud Run deployなし・Supabase/SQL/RLS/Auth変更なし・書き込みツールなし・service_role不使用・.env未作成・APIキー作成/保存/読込なし
+- 本物JSONのgitコミットなし（config/runtimeともにgit管理外）・顧客タブ復活なし・`.claude add`なし・force push/reset/clean/rebaseなし・admin「管理者」維持・冨永「未定」維持・**通常commit/push**
+
 ## packet 2047 — 🧩 ローカル read-only MCP サーバー PoC（依存ゼロ・外部送信なし・Claude Desktop未接続） / 2026-06-06
 ### Added（ローカルMCPサーバー実装＋自己テスト）
 - `scripts/mcp/jagai-members-mcp-server.mjs`：メンバーJSONを read-only 参照する MCP サーバー本体。**依存ゼロ**（npm install不要）・**stdio JSON-RPC 2.0のみ**・ネットワーク(http/net/fetch)不使用

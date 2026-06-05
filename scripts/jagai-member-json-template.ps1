@@ -101,8 +101,11 @@ if ($leaks.Count -gt 0) {
 }
 
 # 4) 整形して runtime/ に出力（git管理外）。外部送信は一切しない。
+# UTF-8 BOM無しで書き出す（BOMがあると Node の JSON.parse が先頭でエラーになるため）
+# .NET の WriteAllText は相対パスをプロセスCWD基準で解決するため絶対パス化する
 $normalized = $obj | ConvertTo-Json -Depth 12
-Set-Content -Path $Out -Value $normalized -Encoding UTF8
+$OutAbs = if ([System.IO.Path]::IsPathRooted($Out)) { $Out } else { Join-Path (Get-Location).Path $Out }
+[System.IO.File]::WriteAllText($OutAbs, $normalized, (New-Object System.Text.UTF8Encoding($false)))
 
 $count = if ($obj.count) { $obj.count } elseif ($obj.members) { $obj.members.Count } else { 0 }
 Write-Host "✅ ローカル保存しました (git管理外 / 外部送信なし)" -ForegroundColor Green

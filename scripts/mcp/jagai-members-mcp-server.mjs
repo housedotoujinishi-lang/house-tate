@@ -46,7 +46,8 @@ function logErr(...a) { process.stderr.write('[jagai-mcp] ' + a.join(' ') + '\n'
 
 // --- スナップショット読込 (呼び出しごとに再読込して最新反映。ローカル読取のみ) ---
 function loadSnapshot() {
-  const raw = fs.readFileSync(DATA_FILE, 'utf8');
+  let raw = fs.readFileSync(DATA_FILE, 'utf8');
+  if (raw.charCodeAt(0) === 0xFEFF) raw = raw.slice(1); // UTF-8 BOM 除去 (PowerShell 出力対策)
   const obj = JSON.parse(raw);
   if (!obj || !Array.isArray(obj.members)) throw new Error('members 配列が見つかりません: ' + DATA_FILE);
   return obj;
