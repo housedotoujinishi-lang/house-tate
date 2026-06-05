@@ -1,5 +1,16 @@
 # CHANGELOG — ハウステイト じゃがいAI会社OS
 
+## packet 2045 — 🎨 Claude連携JSON UI改善（小粒・低リスク） / 2026-06-05
+### Changed（カードHTMLの表示・文言のみ／ロジック不変）
+- 強調バッジ追加：🔒「このJSONは外部送信されません」・🔌「まだ Claude Desktop とは接続していません」
+- 「使い方 3ステップ」追加：1.生成/再生成 → 2.コピー → 3.ローカルファイルに貼付（runtime=git管理外）
+- 除外表示を明確化：「出さないもの：pass/password/token/secret/email/顧客情報」を赤系強調・状態行に補足追記
+- `docs/CLAUDE_MEMBER_JSON_UI_IMPROVE_PACKET_2045.md` 新規
+### 維持・遵守（禁止事項クリア）
+- 実JSON自動保存なし・ダウンロード保存実装なし・外部送信なし・fetch追加なし・Claude Desktop設定変更なし・MCP本番接続なし
+- `buildClaudeMemberSnapshot`等ロジック不変・出力JSON項目不変・冨永「未定」維持・admin「管理者」維持
+- `<script>`11/11・packet2041ブロック`node --check`PASS・fetch24→24・setItem62→62（新規なし）・顧客タブ復活なし・`.claude add`なし・force push/reset/clean/rebaseなし・**通常commit/push**
+
 ## packet 2044 — 📁 Claude連携用メンバーJSON ローカルファイル化テンプレート（runtime/local-only） / 2026-06-05
 ### Added（ローカル専用・外部送信なし・本物JSONはgit管理外）
 - `.gitignore` 新規：`runtime/` / `*.local.json` / `members.snapshot.json` / `incoming.json` / `.claude/` を除外（本物メンバーJSONを git に載せない）
