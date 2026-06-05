@@ -1,5 +1,24 @@
 # CHANGELOG — ハウステイト じゃがいAI会社OS
 
+## packet 2040 — 🔗 Claude Desktop ⇄ じゃがいOS メンバー同期 設計（docs-only / read-only MVP） / 2026-06-05
+### Added（設計ドキュメントのみ・コード/接続/デプロイ無改変）
+- `docs/CLAUDE_DESKTOP_MEMBER_SYNC_DESIGN_PACKET_2040.md` 新規。Claude Desktop から社内メンバー情報を**参照（read-only）**するための実装前提設計。じゃがいOS=正本／Claude=参照先・**一方向同期**
+### 調査（正本候補の特定・実コード行番号付き）
+- 正本＝`accounts`配列（index.html:3484付近 → Supabase `accounts`）。安全カラム`_DB_ACCOUNT_COLUMNS_SAFE=['uid','pass','name','role','perm']`（3197付近）／シード`_bulkAccounts`（4932付近：芳村・杤岡・安見・佐野・冨永・伴）
+- `members`は派生軽量ビュー（3602付近）・`profiles`はAuth紐づき別テーブル（3649付近）・メンバー正本は`state`に無し（stateは予定/タスク）
+- 表示順の正本＝localStorage `jagai_account_order_v1`（4729付近・uid配列のみ）
+- disabled/削除判定＝`_isDisabledAccount`（perm==='disabled' OR role==='削除済み'／4711付近）
+- 役職：査定担当/店長/エージェント/サポート・権限：admin/owner/staff・**admin表記＝「管理者」維持**（3757・3982付近）・秘書AIマッピング（packet319/9928付近）
+### 設計内容
+- Claude参照用メンバーJSON（uid/name/displayName/role/perm/department/mainDuties/secretaryAiName/isActive/sortOrder/notesForAi）を**出自（正本/派生/手動メタ）付き**で定義＋サンプル＋JSON Schema
+- read-only MCP/API ツール5種設計：`get_members`/`get_member_by_uid`/`get_member_by_name`/`get_roles`/`get_org_summary`（write系は意図的に未定義`writeTools:[]`）
+- トランスポートMVP＝静的スナップショットJSON方式（本番API/Supabase直結/Cloud Runを使わない）
+- セキュリティ方針10項目：read-only／pass・token・secret・UUID・メール非出力（ホワイトリスト方式）／disabled・顧客情報除外／Claudeから役職・権限・削除不可／**冨永の秘書AI名は「未定」維持**／admin表記＝管理者維持
+### 維持・遵守（禁止事項クリア）
+- SQL/Supabase/RLS/Auth 変更なし・外部API接続なし・Cloud Run deploy なし・OpenAI/Claude API本番接続なし・書き込みAPI実装なし
+- パスワード/token/secret 出力なし・顧客タブ復活なし・`.claude add`なし・force push/reset/clean/rebase なし
+- index.html 無改変（docs追加とCHANGELOG追記のみ）・**commitまで。push停止（ボス承認後）。**
+
 ## packet 2039 — 🗓 タイムライン UX改善 4時間ビュー＋15分グリッド＋現在時刻自動スクロール / 2026-06-04
 ### Changed（buildTimeline共有＝日表示＋タスクボード両方・Googleカレンダー寄り）
 - 幅拡大：`HOURW=180→260`（buildTimeline/board/packet2031/drag/autoscroll 全整合）。全幅16h×260=4160px＝初期約4時間表示＋既存`.stl-scroll`で横スクロール
