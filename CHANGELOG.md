@@ -1,5 +1,24 @@
 # CHANGELOG — ハウステイト じゃがいAI会社OS
 
+## packet 2050 — 🧭 タスクボード4エリア再設計MVP「迷子にならない今日やることナビ」（表示のみ・非破壊） / 2026-06-06
+### Changed（UI/UX 表示改善・追加のみ／既存ロジック非干渉）
+- タスクボードタイトルを「📋 タスクボード」→「🧭 今日やることナビ」に改名
+- `.tbh` 直後に **4エリア・ナビ見出しバナー**を追加（静的HTML・`<details open>`で折りたたみ可）
+  - ① 今日の流れ（ここだけ見る）／② 割り込みメモ（考えず書く）／③ あとでやる箱（決まったら→①）／④ 毎日の型（ルーティン原本）
+  - 各エリア見出しは**濃い背景＋白文字**（①紺/②橙/③緑/④紫）・カード間に細い隙間・情報を詰め込みすぎない
+  - 種類凡例 🔵ルーティン 🔴突発 🟡今日中 ⚪空き・復帰枠／状態凡例 ☐まだ ✅終わった ⚠詰まった（3択中心）
+  - 導線は既存`switchPage('memo')`/`switchPage('routine')`を再利用（②メモ帳へ・④ルーティン編集／新規関数なし）
+- CSS（`.tyn-*`）をメイン`<style>`末尾に追加。スマホは`@media(max-width:700px)`で**縦1列**（横並びにしない）
+### 既存機能を壊していない（実測）
+- `<script>`11/11・`<style>`3/3・全インラインJS`node --check`PASS
+- **fetch/XHR 24→24・localStorage setItem 62→62（新規なし）**・localStorage本文保存の新規追加なし
+- 既存ハンドラ未編集：renderTaskBoard/bindChk(完了)/_persistTasks(保存)/appendRoutineToTaskBoard/stl-blk(ドラッグ×8)。state.tasks・保存・ドラッグ・15分刻み・カレンダー連携・完了チェックに非干渉
+- 新規id追加なし（`.tyn-*`クラスのみ＝ID衝突なし）。差分 index.html +38/-2
+- `docs/TASK_BOARD_FOUR_AREA_NAV_PACKET_2050.md` 新規
+### 維持・遵守（禁止事項クリア）
+- Supabase/SQL/RLS/Auth変更なし・DBテーブル変更なし・外部API接続なし・保存方式変更なし・既存タスクデータ破壊なし
+- 顧客タブ復活なし・`.claude add`なし・Claude Desktop/MCP設定変更なし・force push/reset/clean/rebaseなし・**通常commit/push**
+
 ## packet 2049 — 🔄 Claude Desktop MCP 本物メンバーJSON 差し替え（git管理外・検証PASS） / 2026-06-06
 ### Done（ダミー→本物データへローカル差し替え／本物JSONはgit管理しない）
 - じゃがいOS画面でコピーした本物メンバーJSONを方法A（チャット貼付）で受領 → `runtime/claude-member-json/incoming.json`（**git管理外**）にのみ保存
