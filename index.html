@@ -138,6 +138,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-siz
 .stlc-ttl{font-size:11.5px;font-weight:600;line-height:1.3;margin-top:1px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .stlc-empty{font-size:10px;color:#cbd5e1;padding:14px 4px;text-align:center}
 @media(max-width:700px){.stlc-col{flex-basis:154px;width:154px}}
+/* packet 2055: 複雑化解消＝タスク入力フォーム初期非表示＋時間軸を折りたたみ詳細化 */
+#tb-form.tb-form-open{display:block!important}   /* PCでも「＋タスクを追加」で開いた時だけ表示 */
+.stl-axis-d{border-top:1px solid #eef2f7}
+.stl-axis-d>summary{list-style:none;cursor:pointer;padding:8px 12px;font-size:11px;font-weight:800;color:#0a3d7c;background:#f8fafc;display:flex;align-items:center;gap:8px}
+.stl-axis-d>summary::-webkit-details-marker{display:none}
+.stl-axis-d>summary::after{content:'▼ 開く';margin-left:auto;font-size:10px;font-weight:700;color:#64748b}
+.stl-axis-d[open]>summary::after{content:'▲ 閉じる'}
+.stl-axis-d[open]>summary{border-bottom:1px solid #eef2f7}
 /* packet 2051: 表示モード切替バー（選択中=濃い背景＋白文字） */
 .vmode-bar{display:flex;gap:6px;padding:6px 8px;background:#eef2f7;border-bottom:1px solid #cbd5e1;align-items:center;justify-content:center;flex-wrap:wrap}
 .vmode-btn{padding:6px 14px;border-radius:999px;border:1.5px solid #94a3b8;background:#fff;color:#334155;font-size:12px;font-weight:800;cursor:pointer;white-space:nowrap}
@@ -1731,7 +1739,7 @@ body.task-dragging [data-id]:not(.dragging-this){opacity:1!important}
       <div class="tb" id="tb-panel">
         <div class="tbh">
           <div class="tbhl"><div class="tbt">🧭 今日やることナビ</div></div>
-          <button class="tbadd" id="tb-add">＋ 追加</button><button class="tbadd tbadd-mobile-only" id="tb-add-ev" style="margin-left:4px">📅 予定</button>
+          <button class="tbadd" id="tb-add">＋ タスクを追加</button><button class="tbadd tbadd-mobile-only" id="tb-add-ev" style="margin-left:4px">📅 予定</button>
         </div>
         <!-- packet 2050: 迷子にならない今日やることナビ 4エリア見出し（表示のみ・既存タスク/ドラッグ/保存/カレンダー非干渉） -->
         <details class="tyn-nav-wrap" open>
@@ -1747,7 +1755,7 @@ body.task-dragging [data-id]:not(.dragging-this){opacity:1!important}
             <div class="tyn-legend"><span><b>種類</b> 🔵ルーティン 🔴突発タスク 🟡今日中 ⚪空き・復帰枠</span><span><b>状態</b> ☐まだ ✅終わった ⚠詰まった</span></div>
           </div>
         </details>
-        <div class="tbform" id="tb-form" style="display:block">
+        <div class="tbform" id="tb-form" style="display:none">
           <div class="tfl">タスク内容</div><input class="tfi" id="tf-title" placeholder="例：山田様に架電してアポ確認"/><button class="voice-btn voice-btn-memo" type="button" data-voice-target="tf-title" title="音声で入力補助">🎙</button>
           <div class="tfr"><div><div class="tfl">カテゴリ</div><select class="tfi" id="tf-cat" style="margin-bottom:0"><option>架電</option><option>追客</option><option>査定</option><option>訪問</option><option>事務</option><option>その他</option></select></div><div><div class="tfl">優先度</div><select class="tfi" id="tf-pri" style="margin-bottom:0"><option value="high">高</option><option value="mid" selected>中</option><option value="low">低</option></select></div></div>
           <div class="tfr" style="margin-top:4px" id="tf-to-row"><div><div class="tfl">割当先</div><select class="tfi" id="tf-to" style="margin-bottom:0"></select></div><div><div class="tfl">期限</div><input class="tfi" type="date" id="tf-dead" style="margin-bottom:0"/></div></div>
@@ -35655,7 +35663,7 @@ function _p500_buildCandidateFromPayload(payload){
       +'<div id="stl-routine"></div>'
       +'<div style="padding:6px 10px;font-size:10px;color:#475569;border-bottom:1px solid #eef2f7;background:#f8fafc">'+esc(cnts)+'</div>'
       +cardViewHtml
-      +'<div style="padding:7px 12px 3px;font-size:10px;font-weight:700;color:#64748b;border-top:1px solid #eef2f7">🕓 時間軸（ドラッグで編集）</div>'
+      +'<details class="stl-axis-d"><summary class="stl-axis-sum">🕓 時間軸で細かく調整する（ドラッグ・リサイズ編集）</summary>'
       +'<div class="stl-scroll" style="overflow-x:auto;-webkit-overflow-scrolling:touch"><div style="min-width:'+(NAMEW+UNSETW+timeW)+'px">'
         +'<div style="display:flex;position:sticky;top:0;z-index:3;background:#fff;border-bottom:1px solid #e2e8f0">'
           +'<div style="position:sticky;left:0;z-index:4;flex:0 0 '+NAMEW+'px;width:'+NAMEW+'px;background:#fff;border-right:1px solid #e2e8f0;padding:6px 8px;font-size:10px;font-weight:700;color:#0a3d7c;box-sizing:border-box">担当者</div>'
@@ -35663,6 +35671,7 @@ function _p500_buildCandidateFromPayload(payload){
           +'<div style="position:relative;flex:0 0 '+timeW+'px;width:'+timeW+'px;height:22px">'+ticks+'</div>'
         +'</div>'+rowsHtml
       +'</div></div>'
+      +'</details>'
       +'<div style="padding:7px 12px;border-top:1px solid #eef2f7;background:#f8fafc">'+legend+'</div>'
     +'</div>';
   }

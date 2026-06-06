@@ -1,5 +1,21 @@
 # CHANGELOG — ハウステイト じゃがいAI会社OS
 
+## packet 2055 — 🧹 今日やることナビ 複雑化解消・詳細折りたたみMVP（DOM移動なし・保存/ドラッグ非編集） / 2026-06-07
+### Changed（初期シンプル化＝表示制御のみ）
+- **タスク入力フォームを初期非表示**：`#tb-form` インライン `display:block`→`display:none`。既存トグル流用で `#tb-add`（「**＋ タスクを追加**」に改名）押下時だけ開く。CSS `#tb-form.tb-form-open{display:block!important}` 追加（PCも開いた時だけ表示・モバイルは既存packet392）。入力/保存ロジックは非編集
+- **時間軸グリッドを折りたたみ詳細化**：packet2054の縦カラム**カードビューを主役（常時表示）**に、横軸の時間軸 `.stl-scroll` を `<details class="stl-axis-d">`（初期クローズ）で包む。サマリ「🕓 時間軸で細かく調整する（ドラッグ・リサイズ編集）」。開いた時だけ時間軸＝ドラッグ編集はその中で従来どおり
+- 初期表示順：見出し＋モード切替→4エリアカード(open)→担当者別カードビュー→タスク概要→詳細編集(フォーム/時間軸は初期閉じ)
+### 既存機能を壊していない（実測）
+- `<script>`11/11・`<style>`3/3・全インラインJS`node --check`PASS・**fetch24→24・setItem62→62（新規なし）**
+- 維持：`stl-blk`×9・`stl-scroll`×7・`data-s`・`bindChk`(完了)・`_persistTasks`(保存)・`minmax(0,1fr)`×6(横スクロール)・`#tb-add`の`.tb-form-open`トグル。`.stl-blk`/`data-*`/座標(HOURW=260)・buildTimeline本体ロジック 非編集（detailsで視覚的に畳むだけ）
+- details開閉バランス：`<details class="stl-axis-d">`開1・`</details>`閉1（カードビューはdetails外＝主役）・差分 +12/-3
+- `docs/TODAY_NAV_SIMPLIFY_DETAILS_PACKET_2055.md` 新規
+### 見送り（次packet・正直記録）
+- ルーティン詳細の折りたたみ（日次チェックとして有用なため初期表示維持）・「タスクのみ」画面へのカードビュー注入（カレンダー日表示内のため非表示）→ 2056/2057 候補
+### 維持・遵守（禁止事項クリア）
+- Supabase/SQL/RLS/Auth変更なし・DBテーブル変更なし・外部API接続なし・保存方式変更なし・既存タスクデータ破壊なし
+- 顧客タブ復活なし・localStorage本文保存なし・`.claude add`なし・Claude Desktop/MCP設定変更なし・force push/reset/clean/rebaseなし・**通常commit/push**
+
 ## packet 2054 — 🗂 担当者別タイムライン 縦カラムカード化MVP（表示専用カードビュー・案B） / 2026-06-07
 ### Added（既存タイムライン/ドラッグは非編集・read-only カードビューを追加）
 - 既存タイムラインは「行＝担当者・横軸＝時間」でドラッグ座標が絶対配置に依存→CSS転置不可。**案B（最安全）**を選択：既存本体は触らず、同じ `rowsData` から**表示専用の担当者別カードビュー**を生成し時間軸の上に追加
