@@ -1,5 +1,24 @@
 # CHANGELOG — ハウステイト じゃがいAI会社OS
 
+## packet 2051 — 🪟 表示モード切替強化：カレンダーのみ／タスクのみ／カレンダー＋タスク（画像準拠・非破壊） / 2026-06-07
+### Changed（3モード表示切替・既存ロジック非干渉）
+- `#cal-layout` 直上に**常時表示のモード切替バー** `.vmode-bar`（3ボタン）を新設。参考画像準拠ラベル：「🧭 タスクのみ／📅 カレンダーのみ／📅＋🧭 カレンダー＋タスク」
+- **第3モード `cal`（カレンダーのみ）を追加**：`#tb-panel` を `display:none` にしてカレンダー全幅。`board`=タスクのみ、`both`=両方
+- `both` の左タスク幅を **256px→300px** に拡張（タスク側が狭すぎ問題の緩和）
+- ボタンidは既存 `lay-both`/`lay-board` を流用（既存onclick/burst互換）＋ `lay-cal` 追加。旧 `.tbhl` 内 `.lbtn` 2ボタンは撤去（タイトルのみ残す）
+- `setLayout` を3分岐化（cal/both/board・`#tb-panel`表示制御・`.vmode-btn`状態）。`cal`/`both`進入時に`renderCal()`をguard付きで最新化。`render()`の描画条件を `both`→`both||cal` に拡張
+- 選択中ボタンは**濃い背景(#0a3d7c)＋白文字**。スマホは `.vmode-bar` を別クラス化し**スマホでも切替可能に**（旧 `.lbtn` はスマホ非表示だった）
+- 参考画像はgitignore追加（`767f21a9-*.png`）＝git管理しない
+- `docs/CALENDAR_TASK_VIEW_MODE_SWITCH_PACKET_2051.md` 新規
+### 既存機能を壊していない（実測）
+- `<script>`11/11・`<style>`3/3・全インラインJS`node --check`PASS
+- **fetch 24→24・localStorage setItem 62→62（新規なし）**・localStorage本文保存の新規追加なし
+- 既存関数未改変：renderTaskBoard/bindChk(完了)/_persistTasks(保存)/renderCal/stl-blk(ドラッグ×8)。setLayout/render は条件拡張のみ＝タスク追加・完了・ドラッグ・15分刻み・カレンダー予定追加・ルーティン導線に非干渉
+- ボタンid一意（ID衝突なし）・旧lbtn残骸なし・差分 index.html +33/-10
+### 維持・遵守（禁止事項クリア）
+- Supabase/SQL/RLS/Auth変更なし・DBテーブル変更なし・外部API接続なし・保存方式変更なし・既存タスクデータ破壊なし
+- 顧客タブ復活なし・参考画像をgit addしない・`.claude add`なし・Claude Desktop/MCP設定変更なし・force push/reset/clean/rebaseなし・**通常commit/push**
+
 ## packet 2050 — 🧭 タスクボード4エリア再設計MVP「迷子にならない今日やることナビ」（表示のみ・非破壊） / 2026-06-06
 ### Changed（UI/UX 表示改善・追加のみ／既存ロジック非干渉）
 - タスクボードタイトルを「📋 タスクボード」→「🧭 今日やることナビ」に改名

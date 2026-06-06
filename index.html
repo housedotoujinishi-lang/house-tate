@@ -103,8 +103,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-siz
 .stbl td{padding:5px 9px;border:1px solid var(--bo);font-size:10px;vertical-align:middle}
 .stbl tr:nth-child(even) td{background:var(--s2)}
 .cal-layout{display:grid;background:var(--bo);gap:1px}
-.cal-layout.both{grid-template-columns:256px 1fr}
+.cal-layout.both{grid-template-columns:300px 1fr}
 .cal-layout.board{grid-template-columns:1fr}
+.cal-layout.calonly{grid-template-columns:1fr}
+/* packet 2051: 表示モード切替バー（選択中=濃い背景＋白文字） */
+.vmode-bar{display:flex;gap:6px;padding:6px 8px;background:#eef2f7;border-bottom:1px solid #cbd5e1;align-items:center;justify-content:center;flex-wrap:wrap}
+.vmode-btn{padding:6px 14px;border-radius:999px;border:1.5px solid #94a3b8;background:#fff;color:#334155;font-size:12px;font-weight:800;cursor:pointer;white-space:nowrap}
+.vmode-btn.on{background:#0a3d7c;color:#fff;border-color:#0a3d7c}
+@media(max-width:700px){.vmode-bar{gap:5px;padding:6px}.vmode-btn{padding:7px 10px;font-size:12px;flex:1 1 auto}}
 .tb{background:var(--s1);display:flex;flex-direction:column}
 .tbh{padding:9px 12px;background:var(--navy);display:flex;align-items:center;justify-content:space-between;gap:6px}
 .tbhl{display:flex;align-items:center;gap:5px}
@@ -1683,10 +1689,16 @@ body.task-dragging [data-id]:not(.dragging-this){opacity:1!important}
       <button id="m-todo-add" type="button">＋ ToDo</button>
       <button id="m-ev-add" type="button">📅 予定</button>
     </div>
+    <!-- packet 2051: 表示モード切替バー（常時表示・カレンダーのみでも切替可）。ボタンidは既存流用＋lay-cal追加 -->
+    <div class="vmode-bar" id="vmode-bar">
+      <button class="vmode-btn" id="lay-board" type="button">🧭 タスクのみ</button>
+      <button class="vmode-btn" id="lay-cal" type="button">📅 カレンダーのみ</button>
+      <button class="vmode-btn on" id="lay-both" type="button">📅＋🧭 カレンダー＋タスク</button>
+    </div>
     <div class="cal-layout both" id="cal-layout">
       <div class="tb" id="tb-panel">
         <div class="tbh">
-          <div class="tbhl"><div class="tbt">🧭 今日やることナビ</div><button class="lbtn" id="lay-both">＋カレンダー</button><button class="lbtn on" id="lay-board">ボードのみ</button></div>
+          <div class="tbhl"><div class="tbt">🧭 今日やることナビ</div></div>
           <button class="tbadd" id="tb-add">＋ 追加</button><button class="tbadd tbadd-mobile-only" id="tb-add-ev" style="margin-left:4px">📅 予定</button>
         </div>
         <!-- packet 2050: 迷子にならない今日やることナビ 4エリア見出し（表示のみ・既存タスク/ドラッグ/保存/カレンダー非干渉） -->
@@ -7230,22 +7242,32 @@ function setLayout(mode){
   layoutMode=mode;
   const layout=document.getElementById('cal-layout');
   const calPanel=document.getElementById('cal-right');
+  const tbPanel=document.getElementById('tb-panel');
   const tbbody=document.getElementById('tb-body');
   if(!layout||!calPanel||!tbbody)return;
-  if(mode==='both'){
-    layout.className='cal-layout both';
-    calPanel.style.cssText='';
-    calPanel.removeAttribute('style');
-    document.getElementById('lay-both').className='lbtn on';
-    document.getElementById('lay-board').className='lbtn';
+  // packet 2051: 3モード（cal=カレンダーのみ / board=タスクのみ / both=両方）。ボタンは vmode-btn。
+  const setBtns=function(activeId){['lay-cal','lay-board','lay-both'].forEach(function(id){var b=document.getElementById(id);if(b)b.className='vmode-btn'+(id===activeId?' on':'');});};
+  if(mode==='cal'){
+    layout.className='cal-layout calonly';
+    calPanel.style.cssText='';calPanel.removeAttribute('style');
+    if(tbPanel)tbPanel.style.cssText='display:none';   // タスク側を隠してカレンダー最大化
     tbbody.className='tbbody';
+    setBtns('lay-cal');
+  }else if(mode==='both'){
+    layout.className='cal-layout both';
+    calPanel.style.cssText='';calPanel.removeAttribute('style');
+    if(tbPanel){tbPanel.style.cssText='';tbPanel.removeAttribute('style');}
+    tbbody.className='tbbody';
+    setBtns('lay-both');
   }else{
     layout.className='cal-layout board';
     calPanel.style.cssText='display:none';
-    document.getElementById('lay-both').className='lbtn';
-    document.getElementById('lay-board').className='lbtn on';
+    if(tbPanel){tbPanel.style.cssText='';tbPanel.removeAttribute('style');}
     tbbody.className='tbbody grid';
+    setBtns('lay-board');
   }
+  // カレンダーを表示するモードでは最新化（既存 render() と同条件・guard付き）
+  if(mode==='cal'||mode==='both'){try{renderCal();if(curV!=='day'&&typeof renderPoolPreview==='function')renderPoolPreview();}catch(e){}}
   renderTaskBoard();
 }
 function countOt(uid){
@@ -7290,7 +7312,7 @@ function renderReportPage(){const el=document.getElementById('report-content');i
 
 // inject1MonthData (legacy seed/test data with hardcoded uid+name pairs) は削除済み（packet 091 / v0.7.99）
 
-function render(){if(document.getElementById('page-cal')?.classList.contains('on'))renderCalNav();renderPeriod();renderFilterPills();renderKPI();renderTodoStrip();if(layoutMode==='both'){renderCal();if(curV!=='day')renderPoolPreview();}renderTaskBoard();const mi=singleMi()>=0?singleMi():0;const memoEl=document.getElementById('memo');if(memoEl)memoEl.value=state.memo[mi]||'';}
+function render(){if(document.getElementById('page-cal')?.classList.contains('on'))renderCalNav();renderPeriod();renderFilterPills();renderKPI();renderTodoStrip();if(layoutMode==='both'||layoutMode==='cal'){renderCal();if(curV!=='day')renderPoolPreview();}renderTaskBoard();const mi=singleMi()>=0?singleMi():0;const memoEl=document.getElementById('memo');if(memoEl)memoEl.value=state.memo[mi]||'';}
 
 function renderCal(){if(curV==='month')renderMonth();else if(curV==='week')renderWeek();else renderDay();}
 
@@ -7303,6 +7325,7 @@ document.querySelectorAll('.vp').forEach(b=>{b.onclick=()=>{curV=b.dataset.v;doc
 setLayout('both');
 document.getElementById('lay-both').onclick=()=>setLayout('both');
 document.getElementById('lay-board').onclick=()=>setLayout('board');
+{const _lc=document.getElementById('lay-cal');if(_lc)_lc.onclick=()=>setLayout('cal');} // packet 2051
 
 
 function showAddMember(){const bg=mkModal('amm','var(--gold)','メンバーを追加');mttlAfter(bg,`<div class="mfrow"><div class="mflbl">名前</div><input class="mfinp" id="am-n" placeholder="例：田中"/></div><div class="mfrow"><div class="mflbl">役割</div><select class="mfinp" id="am-r"><option>エージェント</option><option>サポート</option><option>査定担当</option></select></div>`);macts(bg,'<button class="mbtn mbcl" id="ammc">キャンセル</button><button class="mbtn mbok" id="am-save">追加</button>');document.getElementById('ammc').onclick=()=>bg.remove();document.getElementById('am-save').onclick=()=>{const name=document.getElementById('am-n').value.trim();if(!name)return;const role=document.getElementById('am-r').value;const c=MC[members.length%MC.length];const uid=`tmp_${Date.now()}`;const newMem={n:name,c,role,uid};members.push(newMem);state.events.push(mkEvs(members.length-1));state.todos.push([]);state.memo.push('');const{y,m}=shiftMo;const dim=new Date(y,m+1,0).getDate();shiftData[uid]={};for(let d=1;d<=dim;d++){shiftData[uid][d]='work';}bg.remove();render();if(document.getElementById('page-shift').classList.contains('on'))renderShift();};}

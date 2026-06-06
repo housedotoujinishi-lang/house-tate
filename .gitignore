@@ -6,3 +6,7 @@ incoming.json
 
 # Claude Code ローカル設定（未追跡維持・git add しない）
 .claude/
+
+# packet 2051: 参考用スクリーンショット/画像（git 管理しない）
+767f21a9-200f-4577-9e09-fe5b4d1c93ca.png
+*.reference.png
