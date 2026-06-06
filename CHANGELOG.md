@@ -1,5 +1,23 @@
 # CHANGELOG — ハウステイト じゃがいAI会社OS
 
+## packet 2053 — 🎨 担当者別タイムライン 本格カードUI化MVP（見た目のみ・幾何/ドラッグ非変更） / 2026-06-07
+### Changed（buildTimeline出力の見た目をカード化・座標/データ属性は非編集）
+- ヘッダを**白カード化**：濃紺バー→白背景＋青見出し「👥 担当者別タイムライン（本日）」＋サブ説明「ドラッグで簡単に予定・タスクを調整」（`id="stl-toggle"`維持）
+- 担当者名欄を **22px丸アバター（メンバー色＋イニシャル）**＋名前に
+- `#staff-tl` を角丸14px・やわらかい影・淡枠のカードに（CSS `!important`）／`.stl-row` 罫線を薄く・偶数行トラックに微色味・行ホバーで名前欄ハイライト
+- `.stl-blk[data-kind]`（タスク/予定/未割当チップ）を角丸8px＋微影で**淡いカード風**／`.stl-unset` を淡背景でカード寄せ
+### ドラッグ維持（変更禁止箇所を非編集）
+- `.stl-blk`＋`data-kind`/`data-s`/`data-e`/`data-id`、`.stl-move`/`.stl-rsz`/`.stl-chk`、`.stl-row`/`.stl-track`＋`data-mi`、絶対座標`left/top/width/height`（HOURW=260/BLOCKH）すべて**非変更**。変更は色/枠/影/角丸/余白/アバター/文言のみ
+### 既存機能を壊していない（実測）
+- `<script>`11/11・`<style>`3/3・全インラインJS`node --check`PASS・**fetch24→24・setItem62→62（新規なし）**
+- buildTimeline/renderTaskBoard/bindChk(完了)/_persistTasks(保存) 非編集・packet2052の横スクロール修正（minmax(0,1fr)×6・min-width:0）維持・差分 +12/-4
+- `docs/TIMELINE_CARD_UI_REPRO_PACKET_2053.md` 新規
+### まだ理想と違う点（次packet）
+- 担当者ごとの縦カラムカード分割・未割当0件の大きな✅・「タスクのみ」画面への注入は座標系/描画フロー改修が必要なため 2054-2056 に分離
+### 維持・遵守（禁止事項クリア）
+- Supabase/SQL/RLS/Auth変更なし・DBテーブル変更なし・外部API接続なし・保存方式変更なし・既存タスクデータ破壊なし
+- 顧客タブ復活なし・localStorage本文保存なし・`.claude add`なし・Claude Desktop/MCP設定変更なし・force push/reset/clean/rebaseなし・**通常commit/push**
+
 ## packet 2052 — 🛠 担当者別タイムライン 横スクロール復旧＋カード化（CSSのみ・JS非編集） / 2026-06-07
 ### Fixed（横スクロールできない問題の根治）
 - 原因：タイムライン（`#cal-view .daycol > #staff-tl > .stl-scroll`、内側 min-width≒4364px / HOURW=260×16h）は `overflow-x:auto` を持つが、`#cal-layout` のグリッド列が `1fr`（min-width:auto）で**カレンダー列が内容幅まで膨張→`body{overflow-x:hidden}`でクリップ**＝右側到達不可・スクロール不能だった

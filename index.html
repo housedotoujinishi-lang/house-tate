@@ -113,6 +113,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-siz
 .stl-scroll::-webkit-scrollbar{height:10px}
 .stl-scroll::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:6px}
 .stl-scroll::-webkit-scrollbar-track{background:#f1f5f9;border-radius:6px}
+/* packet 2053: 担当者別タイムライン カードUI寄せ（幾何・data属性は非変更／見た目のみ・!importantでインライン上書き） */
+#staff-tl{border:1px solid #e6ebf1!important;border-radius:14px!important;box-shadow:0 2px 10px rgba(15,23,42,.07)!important}
+.stl-row{border-top:1px solid #f1f5f9!important}
+.stl-row:nth-child(even) .stl-track{background:#fcfdff}
+.stl-row:hover .stl-name{background:#f8fbff!important}
+.stl-blk[data-kind]{border-radius:8px!important;box-shadow:0 1px 3px rgba(15,23,42,.12)!important}
+.stl-unset{background:#fafbfd!important}
 /* packet 2051: 表示モード切替バー（選択中=濃い背景＋白文字） */
 .vmode-bar{display:flex;gap:6px;padding:6px 8px;background:#eef2f7;border-bottom:1px solid #cbd5e1;align-items:center;justify-content:center;flex-wrap:wrap}
 .vmode-btn{padding:6px 14px;border-radius:999px;border:1.5px solid #94a3b8;background:#fff;color:#334155;font-size:12px;font-weight:800;cursor:pointer;white-space:nowrap}
@@ -35595,7 +35602,7 @@ function _p500_buildCandidateFromPayload(payload){
       var dropAttr=r.readonly?'':' data-droprow="1"';
       return '<div class="stl-row" data-mi="'+r.mi+'"'+dropAttr+' style="display:flex;border-top:1px solid #eef2f7;min-height:'+rowH+'px">'
         +'<div class="stl-name" style="position:sticky;left:0;z-index:2;flex:0 0 '+NAMEW+'px;width:'+NAMEW+'px;background:#fff;border-right:1px solid #e2e8f0;padding:6px 8px;box-sizing:border-box">'
-          +'<div style="display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:50%;background:'+(r.mem.c||'#94a3b8')+'"></span><span style="font-size:12px;font-weight:700;color:#1e293b">'+esc(r.mem.n)+'</span></div>'
+          +'<div style="display:flex;align-items:center;gap:6px"><span style="flex:0 0 auto;width:22px;height:22px;border-radius:50%;background:'+(r.mem.c||'#94a3b8')+';color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800">'+esc((r.mem.n||'?').charAt(0))+'</span><span style="font-size:12px;font-weight:700;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(r.mem.n)+'</span></div>'
           +'<div style="font-size:10px;color:#64748b;margin-top:2px">'+r.count+'件</div>'+availBadge(r)+'</div>'
         +'<div class="stl-unset" style="flex:0 0 '+UNSETW+'px;width:'+UNSETW+'px;border-right:1px dashed #e2e8f0;padding:5px 4px;box-sizing:border-box;background:#fcfcfd">'+(unsetChips||(r.count===0?'':''))+'</div>'
         +'<div class="stl-track" data-mi="'+r.mi+'" style="position:relative;flex:0 0 '+timeW+'px;width:'+timeW+'px;min-height:'+rowH+'px">'+gridlines+nowLineHtml()+blocks+(r.count===0?'<div style="position:absolute;left:8px;top:8px;font-size:10px;color:#cbd5e1">予定なし</div>':'')+'</div>'
@@ -35606,9 +35613,10 @@ function _p500_buildCandidateFromPayload(payload){
     var cnts=rowsData.filter(function(r){return r.mi>=0;}).map(function(r){return esc(r.mem.n)+' '+r.count+'件';}).join('　/　');
 
     return '<div id="staff-tl" style="border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;margin:0 0 10px;background:#fff">'
-      +'<div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:8px 12px;background:#0a3d7c;color:#fff">'
-        +'<span style="font-size:12px;font-weight:800">👥 担当者別タイムライン</span><span style="font-size:11px;opacity:.9">合計 '+total+'件</span><span style="flex:1"></span>'
-        +'<button id="stl-toggle" style="font-size:10px;font-weight:700;padding:4px 10px;border:none;border-radius:14px;background:#f5c400;color:#0a3d7c;cursor:pointer">🕓 時間軸表示に切替</button>'
+      +'<div class="stl-head" style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:10px 14px;background:#fff;border-bottom:1px solid #e8edf3">'
+        +'<div style="display:flex;flex-direction:column;gap:1px"><span style="font-size:13px;font-weight:800;color:#0a3d7c">👥 担当者別タイムライン（本日）</span><span style="font-size:10px;color:#64748b">ドラッグで簡単に予定・タスクを調整</span></div>'
+        +'<span style="font-size:11px;font-weight:700;color:#475569;background:#eef2f7;border-radius:10px;padding:2px 9px">合計 '+total+'件</span><span style="flex:1"></span>'
+        +'<button id="stl-toggle" style="font-size:10px;font-weight:700;padding:5px 12px;border:none;border-radius:14px;background:#0a3d7c;color:#fff;cursor:pointer">🕓 時間軸表示に切替</button>'
       +'</div>'
       +'<div id="stl-routine"></div>'
       +'<div style="padding:6px 10px;font-size:10px;color:#475569;border-bottom:1px solid #eef2f7;background:#f8fafc">'+esc(cnts)+'</div>'
