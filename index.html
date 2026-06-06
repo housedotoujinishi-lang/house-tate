@@ -103,9 +103,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-siz
 .stbl td{padding:5px 9px;border:1px solid var(--bo);font-size:10px;vertical-align:middle}
 .stbl tr:nth-child(even) td{background:var(--s2)}
 .cal-layout{display:grid;background:var(--bo);gap:1px}
-.cal-layout.both{grid-template-columns:300px 1fr}
-.cal-layout.board{grid-template-columns:1fr}
-.cal-layout.calonly{grid-template-columns:1fr}
+.cal-layout.both{grid-template-columns:300px minmax(0,1fr)}
+.cal-layout.board{grid-template-columns:minmax(0,1fr)}
+.cal-layout.calonly{grid-template-columns:minmax(0,1fr)}
+/* packet 2052: 担当者別タイムライン 横スクロール復旧（祖先の min-width:0 + 列 minmax で内容幅膨張を防ぎ .stl-scroll を機能させる）＋カード化 */
+.calr,.daycol{min-width:0}
+#staff-tl{max-width:100%;box-shadow:0 1px 5px rgba(15,23,42,.08);margin:0 0 12px}
+.stl-scroll{max-width:100%;overscroll-behavior-x:contain;scrollbar-width:thin;scrollbar-color:#cbd5e1 #f1f5f9}
+.stl-scroll::-webkit-scrollbar{height:10px}
+.stl-scroll::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:6px}
+.stl-scroll::-webkit-scrollbar-track{background:#f1f5f9;border-radius:6px}
 /* packet 2051: 表示モード切替バー（選択中=濃い背景＋白文字） */
 .vmode-bar{display:flex;gap:6px;padding:6px 8px;background:#eef2f7;border-bottom:1px solid #cbd5e1;align-items:center;justify-content:center;flex-wrap:wrap}
 .vmode-btn{padding:6px 14px;border-radius:999px;border:1.5px solid #94a3b8;background:#fff;color:#334155;font-size:12px;font-weight:800;cursor:pointer;white-space:nowrap}
@@ -797,7 +804,7 @@ button,a{-webkit-tap-highlight-color:rgba(10,61,124,.12)}
   body{padding:0}
 
   /* ── カレンダー/タスク（packet 392 修正：タスク表示優先・入力欄非表示）── */
-  .cal-layout.both{grid-template-columns:1fr!important}
+  .cal-layout.both{grid-template-columns:minmax(0,1fr)!important}  /* packet 2052: 横スクロール領域が潰れないよう minmax(0,1fr) */
   /* packet 392: タスクボード本体（個人タブ + 全タスク + 未割当 + 完了済）をスマホで表示 */
   #tb-panel{display:flex!important;flex-direction:column}
   .lbtn{display:none}

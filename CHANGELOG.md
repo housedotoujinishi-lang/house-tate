@@ -1,5 +1,23 @@
 # CHANGELOG — ハウステイト じゃがいAI会社OS
 
+## packet 2052 — 🛠 担当者別タイムライン 横スクロール復旧＋カード化（CSSのみ・JS非編集） / 2026-06-07
+### Fixed（横スクロールできない問題の根治）
+- 原因：タイムライン（`#cal-view .daycol > #staff-tl > .stl-scroll`、内側 min-width≒4364px / HOURW=260×16h）は `overflow-x:auto` を持つが、`#cal-layout` のグリッド列が `1fr`（min-width:auto）で**カレンダー列が内容幅まで膨張→`body{overflow-x:hidden}`でクリップ**＝右側到達不可・スクロール不能だった
+- 修正：グリッド列を `1fr`→**`minmax(0,1fr)`**（both/board/calonly＋スマホ）＋祖先 `.calr,.daycol{min-width:0}`。列がビューポート幅に制約され、`.stl-scroll` 内で**横スクロール復旧**（PC=スクロールバー/Shift+ホイール、スマホ=横スワイプ）
+- `.stl-scroll{max-width:100%;overscroll-behavior-x:contain}`＋スクロールバー視認性（`scrollbar-width:thin`・`::-webkit-scrollbar` 高さ10px）
+### Changed（下段カード化・表示のみ）
+- `#staff-tl` に薄い影＋下マージンで**カード感**（白背景・角丸・見出し#0a3d7cは活かす）
+### 既存機能を壊していない（実測）
+- 変更は**CSSのみ**（index.html +11/-4）。`buildTimeline`/`renderTaskBoard`/`bindChk`(完了)/`_persistTasks`(保存)/`stl-blk`(ドラッグ×8)/`HOURW=260`(×8)・`.stl-scroll`インライン **すべて非編集**
+- `<script>`11/11・`<style>`3/3・全インラインJS`node --check`PASS・**fetch 24→24・setItem 62→62（新規なし）**
+- ドラッグ pointer ハンドラ非編集＝横スクロールとの競合を増やしていない（万一のtouch-action調整は次packet）
+- `docs/TIMELINE_SCROLL_AND_CARD_UI_PACKET_2052.md` 新規
+### 補足・次packet候補
+- 担当者カラム/タスクブロックの本格カード化・未割当カード化/0件✅・「タスクのみ」への独立タイムライン表示は `buildTimeline` 改修（ドラッグ依存DOM）が必要なため次packet（2053-2055）に分離
+### 維持・遵守（禁止事項クリア）
+- Supabase/SQL/RLS/Auth変更なし・DBテーブル変更なし・外部API接続なし・保存方式変更なし・既存タスクデータ破壊なし
+- 顧客タブ復活なし・localStorage本文保存なし・`.claude add`なし・Claude Desktop/MCP設定変更なし・force push/reset/clean/rebaseなし・**通常commit/push**
+
 ## packet 2051 — 🪟 表示モード切替強化：カレンダーのみ／タスクのみ／カレンダー＋タスク（画像準拠・非破壊） / 2026-06-07
 ### Changed（3モード表示切替・既存ロジック非干渉）
 - `#cal-layout` 直上に**常時表示のモード切替バー** `.vmode-bar`（3ボタン）を新設。参考画像準拠ラベル：「🧭 タスクのみ／📅 カレンダーのみ／📅＋🧭 カレンダー＋タスク」
