@@ -1,5 +1,20 @@
 # CHANGELOG — ハウステイト じゃがいAI会社OS
 
+## packet 2054 — 🗂 担当者別タイムライン 縦カラムカード化MVP（表示専用カードビュー・案B） / 2026-06-07
+### Added（既存タイムライン/ドラッグは非編集・read-only カードビューを追加）
+- 既存タイムラインは「行＝担当者・横軸＝時間」でドラッグ座標が絶対配置に依存→CSS転置不可。**案B（最安全）**を選択：既存本体は触らず、同じ `rowsData` から**表示専用の担当者別カードビュー**を生成し時間軸の上に追加
+- カードビュー（**新クラス `.stlc-*` のみ・data属性なし**）：`.stlc-wrap`(横スクロール)→`.stlc-col`(担当者ごとの縦カラムカード)。上部に丸アバター（色＋イニシャル）＋名前＋件数、本体に**時刻順の縦積みタスクカード** `.stlc-card`（時刻＋カテゴリ色＋タイトル）。時間未設定/0件/担当者色アクセント対応
+- 既存 `bucket`/`catIcon`/`esc` を流用。時間軸側に小見出し「🕓 時間軸（ドラッグで編集）」を付与
+### ドラッグ維持（変更禁止箇所を非編集）
+- `.stl-blk`/`data-kind`/`data-s`/`data-e`/`data-id`・`.stl-move`/`.stl-rsz`/`.stl-chk`・`.stl-row`/`.stl-track`・絶対座標(HOURW=260/BLOCKH) すべて非編集。カードビューは別クラス＋data属性なし＝**ドラッグ/リサイズ/完了ハンドラが拾わない（data-kind混入0をgrep確認）**・read-only
+### 既存機能を壊していない（実測）
+- `<script>`11/11・`<style>`3/3・全インラインJS`node --check`PASS・**fetch24→24・setItem62→62（新規なし）**
+- buildTimeline/renderTaskBoard/bindChk/_persistTasks 非編集・packet2052横スクロール(minmax(0,1fr)×6)維持・差分 +36（純追加）
+- `docs/TIMELINE_VERTICAL_COLUMN_CARD_PACKET_2054.md` 新規
+### 維持・遵守（禁止事項クリア）
+- Supabase/SQL/RLS/Auth変更なし・DBテーブル変更なし・外部API接続なし・保存方式変更なし・既存タスクデータ破壊なし
+- 顧客タブ復活なし・localStorage本文保存なし・`.claude add`なし・Claude Desktop/MCP設定変更なし・force push/reset/clean/rebaseなし・**通常commit/push**
+
 ## packet 2053 — 🎨 担当者別タイムライン 本格カードUI化MVP（見た目のみ・幾何/ドラッグ非変更） / 2026-06-07
 ### Changed（buildTimeline出力の見た目をカード化・座標/データ属性は非編集）
 - ヘッダを**白カード化**：濃紺バー→白背景＋青見出し「👥 担当者別タイムライン（本日）」＋サブ説明「ドラッグで簡単に予定・タスクを調整」（`id="stl-toggle"`維持）
