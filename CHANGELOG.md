@@ -1,5 +1,21 @@
 # CHANGELOG — ハウステイト じゃがいAI会社OS
 
+## packet 2056 — ➕ 今日やることナビ 追加導線わかりやすさ改善MVP（既存導線流用・新規保存なし） / 2026-06-07
+### Added（クイック追加バー＋4エリア内導線）
+- 4エリアカード直下に**クイック追加バー**新設：見出し「➕ 迷ったらここから追加」＋入力欄＋ボタン4つ（**＋タスク(青)/＋突発(赤)/＋メモ(橙)/＋予定(緑)**）
+- `qaddOpen(kind)` 追加＝**DOM操作のみ**：task/urgent→既存タスクフォームを開く＋入力文字を`tf-title`へ転記＋（突発は`tf-pri='high'`）／memo→`switchPage('memo')`／ev→既存`#tb-add-ev`を`.click()`。**保存はユーザーが既存「割り当て」で実行**・Enter＝タスク
+- 4エリア内導線：②「＋ メモを追加」(qaddOpen memo)・③「＋ タスクを追加」(qaddOpen task)新設・④「＋ ルーティン編集」(switchPage routine)
+- 右上ボタンを「＋ タスクを追加」→「**＋タスク**」に短縮（補助化・id`tb-add`/トグル維持）
+- デザイン：白カード・角丸・薄影・色分け・ボタン大きめ。スマホは2列（`flex:1 1 calc(50%-3px)`）
+### 既存機能を壊していない（実測）
+- `<script>`11/11・`<style>`3/3・全インラインJS`node --check`PASS・**fetch24→24・setItem62→62（新規なし）**
+- 既存導線維持：`#tb-add`/`#tb-add-ev`/`.tb-form-open`トグル/`switchPage('memo')`×7/`switchPage('routine')`×4。ドラッグ/保存/横スクロール維持（stl-blk×9・bindChk・_persistTasks・minmax×6）
+- `qaddOpen`は保存/fetch/storageなし・差分 +43/-4
+- `docs/TODAY_NAV_QUICK_ADD_UI_PACKET_2056.md` 新規
+### 維持・遵守（禁止事項クリア）
+- Supabase/SQL/RLS/Auth変更なし・DBテーブル変更なし・外部API接続なし・保存方式変更なし・既存タスクデータ破壊なし
+- 顧客タブ復活なし・localStorage本文保存なし・`.claude add`なし・Claude Desktop/MCP設定変更なし・force push/reset/clean/rebaseなし・**通常commit/push**
+
 ## packet 2055 — 🧹 今日やることナビ 複雑化解消・詳細折りたたみMVP（DOM移動なし・保存/ドラッグ非編集） / 2026-06-07
 ### Changed（初期シンプル化＝表示制御のみ）
 - **タスク入力フォームを初期非表示**：`#tb-form` インライン `display:block`→`display:none`。既存トグル流用で `#tb-add`（「**＋ タスクを追加**」に改名）押下時だけ開く。CSS `#tb-form.tb-form-open{display:block!important}` 追加（PCも開いた時だけ表示・モバイルは既存packet392）。入力/保存ロジックは非編集
