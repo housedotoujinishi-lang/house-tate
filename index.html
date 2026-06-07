@@ -189,6 +189,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-siz
 .tynr-btn.undo{background:#94a3b8}
 .tynr-empty{font-size:10px;color:#94a3b8;padding:14px;text-align:center}
 @media(max-width:700px){.tyn-dash{flex-direction:column}.tyn-dash-left{width:100%}.tyn-dash-right{flex:1 1 auto;width:auto;max-height:300px;margin:8px}}
+/* packet 2059: タスク画面 本日のルーティン×担当者別タイムライン 横並びの見やすさ改善（CSS追加のみ・geometry/JS/DOM非変更）。
+   PC幅(約1440想定)で本日のルーティン右カラムを拡幅し名前/メタの省略を減らす／中間幅(701-1100px)はクランプして担当者別カードビューを圧迫しない／スマホ700px以下は上行(packet2058)の縦積みをそのまま維持。 */
+@media(min-width:1101px){.tyn-dash{gap:12px}.tyn-dash-right{flex:0 0 304px;width:304px;max-height:520px}}
+@media(max-width:1100px) and (min-width:701px){.tyn-dash-right{flex:0 0 224px;width:224px}}
 /* packet 2051: 表示モード切替バー（選択中=濃い背景＋白文字） */
 .vmode-bar{display:flex;gap:6px;padding:6px 8px;background:#eef2f7;border-bottom:1px solid #cbd5e1;align-items:center;justify-content:center;flex-wrap:wrap}
 .vmode-btn{padding:6px 14px;border-radius:999px;border:1.5px solid #94a3b8;background:#fff;color:#334155;font-size:12px;font-weight:800;cursor:pointer;white-space:nowrap}

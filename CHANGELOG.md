@@ -1,5 +1,25 @@
 # CHANGELOG — ハウステイト じゃがいAI会社OS
 
+## packet 2059 — 🧩 タスク画面 本日のルーティン×担当者別タイムライン 横並びの見やすさ改善（CSS追加のみ／OS packet 645） / 2026-06-07
+### Changed（`.tyn-dash` にレスポンシブCSSを**追加のみ**・geometry/JS/DOM/保存は非編集）
+- PC幅(約1440想定)で `📋本日のルーティン` 右カラムを **244px→304px に拡幅**（`max-height` 440→520）。名前/メタ(`.tynr-name`/`.tynr-meta`)の省略表示を減らし、担当者別カードビュー(左)と横並びで読みやすく（index.html `line192-195`）
+- 中間幅(701-1100px)は右カラムを 224px に**クランプ**して左カードビューを圧迫しない
+- スマホ700px以下は **既存(packet2058 `line191`)の縦積みをそのまま維持**（横スクロール破綻なし優先）。新規ルールは追加せず縦積みは従来動作
+- **タイムライン geometry は非変更**：`HOURW=260`(1時間260px=初期約4時間表示)・15分刻みticks/gridlines・現在時刻auto-scroll(45分前を左端)は packet2039 で実装済みのため触らない（task5/6は既存実装で充足、壊さないため再実装せず）
+### 既存機能を壊していない（実測）
+- `<script>`11/11・`<style>`3/3（新規タグなし、既存`<style>`内にCSS2媒体クエリ追記）・**fetch24→24・setItem63→63（新規なし）**
+- 追加は媒体クエリ2本のみ＝**JS差分0**（`buildTimeline`6・`_persistTasks`45・`makeRoutineDraggable`2・`tynRoutineToggle`3・`stl-toggle`3 すべて不変）
+- `.tyn-dash` セレクタ 9→12（追加CSSぶん）・既存`.tyn-dash`/`.tyn-dash-left`/`.tyn-dash-right`(line177-191)は1行も変更せず（純追加）
+- タスク追加・完了チェック(`.stl-chk`)・担当者別表示・横スクロール(`.stlc-wrap`/`.stl-scroll`)・ドラッグ移動(`.stl-blk`/`makeRoutineDraggable`)・保存(`_persistTasks`)維持・差分 +4/-0
+### UI確認（v0.9.644 ui_check）— 静的=PASS / 実機画面=ボスQA待ち
+- Claudeは認証付き本番アプリの実機ブラウザ操作不可（外部API/顧客DB接続禁止）→ 静的検証で構造破綻0を確認
+- PC幅1440/スマホ390/ダークの実機スクショは `runtime/screenshots/`（gitignore=ローカル限定）にボスが保存：`packet645-task-pc-after.png`/`packet645-task-mobile-after.png`/`packet645-task-dark-after.png`。撮影ガイド `runtime/screenshots/_CAPTURE_GUIDE_packet645.txt`
+### 維持・遵守（禁止事項クリア）
+- Supabase/SQL/RLS/Auth変更なし・DB直接操作なし・外部API接続なし・npm install/Playwright導入なし・保存方式変更なし・既存タスクデータ破壊なし
+- 顧客タブ復活なし・localStorage/sessionStorage本文保存（新規）なし・`.claude add`なし・force push/reset/clean/rebaseなし・**通常commit/push**
+### docs
+- `docs/TASK_ROUTINE_TIMELINE_READABILITY_PACKET_2059.md` 新規
+
 ## packet 2058 — 🧩 担当者カードビュー＋本日のルーティン 横並び2カラムMVP（PC横並び/スマホ縦積み） / 2026-06-07
 ### Changed（#staff-tl内を2カラムダッシュボード化・既存ルーティン完了/ドラッグ/保存は非編集）
 - 担当者カードビュー(`.stlc-wrap`,左)と**本日のルーティン(右)**を `#staff-tl` 内で `<div class="tyn-dash">` の**2カラム**に。別DOM親のためCSS不可→安全に同一ラッパー内で新設
