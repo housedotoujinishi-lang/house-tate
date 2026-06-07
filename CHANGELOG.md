@@ -1,5 +1,18 @@
 # CHANGELOG — ハウステイト じゃがいAI会社OS
 
+## packet 2064 — 🩹 タスク追加トースト 折り返しCSS対応（packet654A 仕上げ・Codex指摘の根本対処 / 対応 OS packet 654A・v0.9.654B） / 2026-06-08
+### Changed（`.shortcut-toast` の最小CSS修正のみ）
+- `.shortcut-toast`（`index.html` 860）の `white-space:nowrap` → `white-space:normal` に変更し、`max-width:90vw;overflow-wrap:anywhere;text-align:center` を追加
+- 長文タスク名でも**横 overflow せず、トースト表示範囲（最大90vw）内で折り返す**。packet 2063A の24文字短縮と合わせ2段構え（短縮＋折り返し）
+- showToast 関数・保存ロジック・タブ切替・`toIdx`・`_persistTasks` は非変更。CSS 1行（`.shortcut-toast`）のみ・diff +1/-1
+- ⚠️ 補足：showToast はアプリ全体共用のため、全トーストが nowrap→折り返しに変わる（長文メッセージ全般の横 overflow も同時に改善）。複数行時の高さはボス実機目視推奨
+### 既存機能を壊していない（静的実測）
+- `<script>`11/11・**fetch24→24・setItem63→63**・`showToast(`116→116・`_persistTasks(`20→20（いずれも不変）
+### ui_check（result: FIXED）
+- 横 overflow を折り返しCSSで抑制（表示範囲内に収める）。docs §4 の表現も実態へ更新済み
+### docs
+- `docs/TASK_ADD_DESTINATION_TOAST_PACKET_2063.md` に折り返しCSS対応を反映（§4・冒頭注記）
+
 ## packet 2063A hotfix — 🩹 タスク追加トーストの長文タスク名 横overflow対策＋docs言い過ぎ修正（Codexレビュー指摘対応 / 対応 OS packet 654A） / 2026-06-08
 ### 経緯（Codex read-only レビュー指摘）
 - packet 2063 でトーストにタスク名を出したが、`.shortcut-toast{white-space:nowrap}`（`index.html` 860）のため**長文タスク名で横 overflow するリスク**を指摘された

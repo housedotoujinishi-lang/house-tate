@@ -6,7 +6,7 @@ packet：2063（house-tate-source / 対応 OS packet 654・v0.9.654）＋ 654A h
 種別：軽めのUI改善（既存トーストの文言強化のみ・低リスク／🟡 MEDIUM）
 前提：OS packet 653 の VS Code 司令室 自走モードルールに基づく実戦。packet 644 の ui_check 適用。
 
-> **packet 654A hotfix（2026-06-08）**：Codex read-only レビューで「`.shortcut-toast{white-space:nowrap}`（`index.html` 860）のため長文タスク名で横 overflow するリスク」を指摘され、トースト表示用にタスク名を **24文字で短縮**（`_toastTitleShort`）する最小修正を追加。あわせて本書の「overflow 影響なし／崩れリスク構造上ゼロ」の言い過ぎを実態に修正（§4）。
+> **packet 654A hotfix（2026-06-08）**：Codex read-only レビューで「`.shortcut-toast{white-space:nowrap}`（`index.html` 860）のため長文タスク名で横 overflow するリスク」を指摘され、2段で対応：(1) トースト表示用にタスク名を **24文字で短縮**（`_toastTitleShort`）、(2) ボス指示により `.shortcut-toast` を **折り返し可能**に最小CSS修正（`white-space:normal;max-width:90vw;overflow-wrap:anywhere;text-align:center`）。あわせて本書の「overflow 影響なし／崩れリスク構造上ゼロ」の言い過ぎを実態（折り返しで表示範囲内に収める）に修正（§4）。
 
 ## 1. 経緯（重要：機能は既存だった）
 read-only 調査の結果、「タスク追加後にどこに入ったか案内する」機能は **packet 444 で既に実装済み**だった：
@@ -54,13 +54,14 @@ ui_check:
   pc:  { width: ">=1280px", overflow_x: none, layout: 不変(トースト文言のみ), dark_mode: 不変 }
   sp:  { width: "375/390/414px (breakpoint 700px)", overflow_x: none, stacking: 不変, tap_targets: 不変, dark_mode: 不変 }
   screenshots: []                       # トースト文言のみ・既存UI構造不変のため実機スクショ任意（撮る場合 runtime/screenshots/、git管理外）
-  static_check: { node_check: 該当なし(既存showToast文字列＋短縮変数のみ・JSロジック/保存非編集), fetch_count: "24->24", setItem_count: "63->63", showToast_count: "116->116", persistTasks_count: "20->20", existing_cards_intact: true }
+  static_check: { node_check: 該当なし(既存showToast文字列＋短縮変数＋.shortcut-toast の折り返しCSS・JSロジック/保存非編集), fetch_count: "24->24", setItem_count: "63->63", showToast_count: "116->116", persistTasks_count: "20->20", existing_cards_intact: true }
   issues_found: 1                        # Codex指摘：長文タスク名の横overflowリスク
-  fixed: [ "packet654A: トースト用タスク名を24文字で短縮し横overflowリスクを抑制" ]
-  result: FIXED                         # 文言強化を維持しつつ overflowリスクを hotfix
+  fixed: [ "packet654A: トースト用タスク名を24文字で短縮（_toastTitleShort）", "packet654A(CSS): .shortcut-toast を white-space:normal + max-width:90vw + overflow-wrap:anywhere + text-align:center で折り返し対応" ]
+  result: FIXED                         # 文言強化を維持しつつ overflowリスクを2段（短縮＋折り返し）で抑制
 ```
-- 既存の `showToast` 表示機構（`.shortcut-toast` は固定下部中央・`white-space:nowrap`）を流用。**短いタスク名や通常文ではレイアウト不変**。
-- ⚠️ ただし `nowrap` のため **長文タスク名はトースト幅が伸び横 overflow しうる**（Codex 指摘）。→ packet 654A で **24文字短縮**して幅増加を抑制。CSS 自体は未変更のため、極端に長い他文言や狭い画面では完全にゼロとは言い切れない（要実機目視）。
+- 既存の `showToast` 表示機構を流用。**短いタスク名や通常文ではレイアウト不変**。
+- 長文 overflow 対策は2段構え：(1) トースト用タスク名を **24文字短縮**（フィルタ警告など長文併記にも効く）、(2) `.shortcut-toast` を **折り返し可能**に変更（`white-space:normal;max-width:90vw;overflow-wrap:anywhere;text-align:center`）。これにより**横 overflow ではなく既存トースト表示範囲（最大90vw）内で折り返す**。
+- ⚠️ 「overflow 影響なし／崩れリスク構造上ゼロ」は誤り。正しくは「**折り返しCSSで横 overflow を抑え、表示範囲内に収める**」。複数行になった場合の高さ・他トースト全般への影響（showToast はアプリ全体で共用）はボス実機目視推奨。
 - 実機での見え方（タスク追加→トースト、特に長文タスク名・スマホ幅）はボスが目視確認推奨。
 
 ## 5. 守った安全境界（赤信号クリア）
