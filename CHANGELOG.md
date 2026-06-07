@@ -1,5 +1,22 @@
 # CHANGELOG — ハウステイト じゃがいAI会社OS
 
+## packet 2057 — 🗃 今日やることナビ Notion風ビュー整理MVP（集中カード＋ビュー誘導＋折りたたみ・read-only） / 2026-06-07
+### Added（初期表示の主役を「今日やること」に・保存方式不変）
+- **今日の集中カード**（`#tyn-focus`＋`renderTynFocus()`）：`state.tasks`から今日分を**read-only集計**＝▶今やる(最優先タスク名)/次にやる/⚠詰まってる/未割当/完了率の5カード。`render()`末尾に1行フック（追加のみ）
+- **ビュー切替タブ**（今日/担当者/時間軸/ルーティン/詰まり）：`tynView()`＝既存`setLayout('both')`＋スクロール＋details展開で**誘導**（担当者=packet2054カードビュー・時間軸=packet2055 details・ルーティン=本packet details）。DOM移動なし
+- **ルーティン一覧を折りたたみ**：`appendRoutineToTaskBoard`出力を`<details class="tb-routine-d">`（初期クローズ）化。✓完了`data-tbraction`維持・編集ボタンは`stopPropagation`・開閉状態を`window._tbRoutineOpen`で保持（再描画で閉じない）
+- 初期表示＝集中カード→タブ→4エリア＋クイック追加→タスク一覧（ルーティン/時間軸は折りたたみ）。大量カードが初期を邪魔しない
+### 既存機能を壊していない（実測）
+- `<script>`11/11・`<style>`3/3・全インラインJS`node --check`PASS・**fetch24→24・setItem62→62（新規なし）**
+- ルーティンdetails開閉1/1・`data-tbraction`×3維持・`renderTaskBoard`/`appendRoutineToTaskBoard`/`bindChk`/`_persistTasks`/`stl-blk`×9/`minmax(0,1fr)`×6 維持
+- `renderTynFocus`/`tynView`はread-only＋既存`setLayout`/`switchPage`のみ（保存/fetch/storageなし）・差分 +66/-3
+- `docs/TODAY_NAV_NOTION_VIEW_PACKET_2057.md` 新規
+### 黄色信号判断（正直記録）
+- 担当者/時間軸/ルーティンは別所に分散のため真のビュー統合はDOM移動＝高リスク→**ナビ誘導＋折りたたみ**で安全に「ビュー分離」を表現。「詰まり」は状態フィールド未確定のため暫定判定＋枠（次packet）
+### 維持・遵守（禁止事項クリア）
+- Supabase/SQL/RLS/Auth変更なし・DBテーブル変更なし・外部API接続なし・保存方式変更なし・既存タスクデータ破壊なし
+- 顧客タブ復活なし・localStorage本文保存なし・`.claude add`なし・Claude Desktop/MCP設定変更なし・force push/reset/clean/rebaseなし・**通常commit/push**
+
 ## packet 2056 — ➕ 今日やることナビ 追加導線わかりやすさ改善MVP（既存導線流用・新規保存なし） / 2026-06-07
 ### Added（クイック追加バー＋4エリア内導線）
 - 4エリアカード直下に**クイック追加バー**新設：見出し「➕ 迷ったらここから追加」＋入力欄＋ボタン4つ（**＋タスク(青)/＋突発(赤)/＋メモ(橙)/＋予定(緑)**）

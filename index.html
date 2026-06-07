@@ -159,6 +159,20 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-siz
 .qa-memo{background:#ea7317}
 .qa-ev{background:#0e9f6e}
 @media(max-width:700px){.qadd-btn{flex:1 1 calc(50% - 3px);min-width:0;padding:11px 6px}}
+/* packet 2057: 今日の集中カード＋ビュー切替タブ＋ルーティン折りたたみ */
+.tynf-wrap{display:flex;gap:6px;flex-wrap:wrap;padding:8px 8px 0}
+.tynf-card{flex:1 1 calc(20% - 6px);min-width:96px;background:#fff;border:1px solid #e6ebf1;border-radius:10px;box-shadow:0 1px 4px rgba(15,23,42,.06);padding:8px 9px}
+.tynf-lbl{font-size:10px;font-weight:800;color:#475569;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tynf-val{font-size:17px;font-weight:900;color:#0a3d7c;line-height:1.2;margin:2px 0}
+.tynf-sub{font-size:9.5px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tynv-tabs{display:flex;gap:5px;flex-wrap:wrap;padding:8px}
+.tynv-tab{flex:0 0 auto;padding:6px 12px;border:1.5px solid #cbd5e1;background:#fff;color:#334155;border-radius:999px;font-size:12px;font-weight:800;cursor:pointer;white-space:nowrap}
+.tynv-tab.on{background:#0a3d7c;color:#fff;border-color:#0a3d7c}
+.tb-routine-d>summary{list-style:none;cursor:pointer}
+.tb-routine-d>summary::-webkit-details-marker{display:none}
+.tb-routine-d>summary::before{content:'▼ ';font-size:10px;color:#64748b}
+.tb-routine-d[open]>summary::before{content:'▲ '}
+@media(max-width:700px){.tynf-card{flex:1 1 calc(33.33% - 6px)}.tynv-tab{flex:1 1 calc(33.33% - 5px);text-align:center}}
 /* packet 2051: 表示モード切替バー（選択中=濃い背景＋白文字） */
 .vmode-bar{display:flex;gap:6px;padding:6px 8px;background:#eef2f7;border-bottom:1px solid #cbd5e1;align-items:center;justify-content:center;flex-wrap:wrap}
 .vmode-btn{padding:6px 14px;border-radius:999px;border:1.5px solid #94a3b8;background:#fff;color:#334155;font-size:12px;font-weight:800;cursor:pointer;white-space:nowrap}
@@ -1755,6 +1769,15 @@ body.task-dragging [data-id]:not(.dragging-this){opacity:1!important}
           <button class="tbadd" id="tb-add">＋タスク</button><button class="tbadd tbadd-mobile-only" id="tb-add-ev" style="margin-left:4px">📅 予定</button>
         </div>
         <!-- packet 2050: 迷子にならない今日やることナビ 4エリア見出し（表示のみ・既存タスク/ドラッグ/保存/カレンダー非干渉） -->
+        <!-- packet 2057: 今日の集中カード（read-only集計・主役）＋ビュー切替タブ -->
+        <div id="tyn-focus" class="tynf-wrap"></div>
+        <div class="tynv-tabs" id="tynv-tabs">
+          <button type="button" class="tynv-tab on" data-tynv="today" onclick="tynView('today',this)">📋 今日</button>
+          <button type="button" class="tynv-tab" data-tynv="staff" onclick="tynView('staff',this)">👥 担当者</button>
+          <button type="button" class="tynv-tab" data-tynv="axis" onclick="tynView('axis',this)">🕓 時間軸</button>
+          <button type="button" class="tynv-tab" data-tynv="routine" onclick="tynView('routine',this)">🔁 ルーティン</button>
+          <button type="button" class="tynv-tab" data-tynv="stuck" onclick="tynView('stuck',this)">⚠ 詰まり</button>
+        </div>
         <details class="tyn-nav-wrap" open>
           <summary>🧭 迷子にならない今日やることナビ</summary>
           <div class="tyn-nav">
@@ -7376,7 +7399,7 @@ function renderReportPage(){const el=document.getElementById('report-content');i
 
 // inject1MonthData (legacy seed/test data with hardcoded uid+name pairs) は削除済み（packet 091 / v0.7.99）
 
-function render(){if(document.getElementById('page-cal')?.classList.contains('on'))renderCalNav();renderPeriod();renderFilterPills();renderKPI();renderTodoStrip();if(layoutMode==='both'||layoutMode==='cal'){renderCal();if(curV!=='day')renderPoolPreview();}renderTaskBoard();const mi=singleMi()>=0?singleMi():0;const memoEl=document.getElementById('memo');if(memoEl)memoEl.value=state.memo[mi]||'';}
+function render(){if(document.getElementById('page-cal')?.classList.contains('on'))renderCalNav();renderPeriod();renderFilterPills();renderKPI();renderTodoStrip();if(layoutMode==='both'||layoutMode==='cal'){renderCal();if(curV!=='day')renderPoolPreview();}renderTaskBoard();const mi=singleMi()>=0?singleMi():0;const memoEl=document.getElementById('memo');if(memoEl)memoEl.value=state.memo[mi]||'';try{renderTynFocus();}catch(e){}}
 
 function renderCal(){if(curV==='month')renderMonth();else if(curV==='week')renderWeek();else renderDay();}
 
@@ -10012,8 +10035,8 @@ function appendRoutineToTaskBoard(body){
   const section=document.createElement('div');
   section.className='tb-routine-section';
   const doneCount=list.filter(r=>doneIds.includes(r.id)).length;
-  let h='<div class="tb-routine-title"><span>📋 本日のルーティンタスク（'+doneCount+' / '+list.length+'）</span>'
-    +'<button class="tb-routine-link" onclick="switchPage(\'routine\')">ルーティン編集 →</button></div>';
+  let h='<details class="tb-routine-d"'+(window._tbRoutineOpen?' open':'')+' ontoggle="window._tbRoutineOpen=this.open"><summary class="tb-routine-title"><span>📋 本日のルーティンタスク（'+doneCount+' / '+list.length+'）</span>'
+    +'<button class="tb-routine-link" onclick="event.stopPropagation();switchPage(\'routine\')">ルーティン編集 →</button></summary>';
   list.forEach(r=>{
     const isDone=doneIds.includes(r.id);
     const priCls=r.priority==='high'?'pri-high':r.priority==='mid'?'pri-mid':'';
@@ -10028,6 +10051,7 @@ function appendRoutineToTaskBoard(body){
     else{h+='<button class="tb-routine-btn" data-tbrid="'+e(r.id)+'" data-tbraction="done">✓ 完了</button>';}
     h+='</div></div>';
   });
+  h+='</details>';
   section.innerHTML=h;
   body.appendChild(section);
   section.querySelectorAll('[data-tbraction]').forEach(b=>{
@@ -12225,6 +12249,45 @@ function qaddOpen(kind){
   }catch(e){}
 }
 // ==== ここまで packet 2056 ====
+// ==== packet 2057: 今日の集中カード（read-only集計）＋ビュー切替ナビ（既存導線流用・保存/外部接続なし）====
+function _tynE(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function renderTynFocus(){
+  try{
+    var host=document.getElementById('tyn-focus'); if(!host)return;
+    var tasks=(typeof state!=='undefined'&&state&&Array.isArray(state.tasks))?state.tasks:[];
+    var d=new Date(); var dstr=d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2);
+    var todayTasks=tasks.filter(function(t){return t&&t.deadline===dstr;});
+    var total=todayTasks.length;
+    var done=todayTasks.filter(function(t){return t.done;}).length;
+    var open=todayTasks.filter(function(t){return !t.done;});
+    var unassigned=open.filter(function(t){return t.toIdx==null||t.toIdx<0;}).length;
+    var stuck=todayTasks.filter(function(t){return !t.done&&(t.status==='blocked'||t.status==='stuck'||t.status==='詰まり');}).length;
+    var rank={high:0,mid:1,low:2};
+    var sorted=open.slice().sort(function(a,b){return (rank[a.pri]||1)-(rank[b.pri]||1);});
+    var pct=total>0?Math.round(done/total*100):0;
+    var firstTitle=sorted[0]?('「'+_tynE(sorted[0].title)+'」'):'今日のタスク完了 🎉';
+    function card(label,val,sub,c){return '<div class="tynf-card" style="border-top:3px solid '+c+'"><div class="tynf-lbl">'+label+'</div><div class="tynf-val">'+val+'</div><div class="tynf-sub">'+sub+'</div></div>';}
+    host.innerHTML=
+       card('▶ 今やる', open.length?'1件目':'✓', firstTitle, '#0a3d7c')
+      +card('次にやる', Math.max(open.length-1,0)+'件', '控え', '#2563eb')
+      +card('⚠ 詰まってる', stuck+'件', stuck?'要対応':'なし', '#dc2626')
+      +card('未割当', unassigned+'件', unassigned?'担当未定':'割当済', '#ea7317')
+      +card('完了率', pct+'%', done+' / '+total, '#0e9f6e');
+  }catch(e){}
+}
+function tynView(name,btn){
+  try{
+    var tabs=document.getElementById('tynv-tabs');
+    if(tabs)tabs.querySelectorAll('.tynv-tab').forEach(function(b){b.className='tynv-tab'+(b===btn?' on':'');});
+    var scrollTo=function(sel){var el=document.querySelector(sel);if(el&&el.scrollIntoView)el.scrollIntoView({behavior:'smooth',block:'center'});};
+    if(name==='today'){ var f=document.getElementById('tyn-focus'); if(f&&f.scrollIntoView)f.scrollIntoView({behavior:'smooth',block:'start'}); return; }
+    if(name==='staff'){ if(typeof setLayout==='function')setLayout('both'); setTimeout(function(){scrollTo('.stlc-wrap');},120); return; }
+    if(name==='axis'){ if(typeof setLayout==='function')setLayout('both'); setTimeout(function(){var dt=document.querySelector('.stl-axis-d');if(dt){dt.open=true;scrollTo('.stl-axis-d');}},120); return; }
+    if(name==='routine'){ var rd=document.querySelector('.tb-routine-d'); if(rd){window._tbRoutineOpen=true;rd.open=true;scrollTo('.tb-routine-d');} else if(typeof switchPage==='function'){switchPage('routine');} return; }
+    if(name==='stuck'){ scrollTo('#tyn-focus'); return; }
+  }catch(e){}
+}
+// ==== ここまで packet 2057 ====
 // ==== ここまで packet 380 AI 事典追加候補箱 ====
 // ==== packet 405: 音声入力 静的MVP（Web Speech API、外部 API 接続なし） ====
 (function patchVoiceInputMVP(){
