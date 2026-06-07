@@ -1,5 +1,26 @@
 # CHANGELOG — ハウステイト じゃがいAI会社OS
 
+## packet 2062 — 🧩 タスク画面 追加導線わかりやすさ改善（追加フォームに補足文＋title純追加・低リスク / 対応 OS packet 652・v0.9.652） / 2026-06-07
+### Changed（`#tb-form` 内に補足1行＋title2点を追加・ID/data/JS/保存ロジック非変更）
+- タスク追加フォーム（`#tb-form`・既定 `display:none`）に「割当先は未割当のまま保存OK→あとで未割当タブから担当者へ割当できる」補足を追加
+  - 割当先セレクト `#tf-to` に `title`（未割当のまま保存可の説明）
+  - 割当先行と保存ボタンの間に補足1行 `.tf-hint`（10px・muted・💡 割当先は「未割当」のまま保存してOK…）
+  - 保存ボタン `#tf-save`（割り当て）に `title`（割当先選べば割当・未割当ならプールへ）
+- 補足は**追加フォーム内**＝既定では非表示のため**通常画面の高さ/レイアウト不変**。開いたときだけ1行増える。diff +3/-2
+- 文言は実装と一致：`popTfTo()`(6587)が `value="pool" 未割当` を出力、保存ハンドラ(14761-14767)が `pool→toIdx=null`＝未割当登録
+### 既存機能を壊していない（静的実測）
+- `<script>`11/11・**fetch24→24・setItem63→63（新規なし）**
+- `data-tt`5・`id="tf-to"`1・`id="tf-save"`1・`value="pool"`2（いずれも不変）＝保存系トークン不変
+- タスク追加/完了チェック/担当別・個人・未割当・完了済みタブのロジック非干渉（ID/data/ハンドラ未編集）
+### ui_check（packet644準拠 / result: PASS）
+- 補足は `display:none` のフォーム内＝通常画面の overflow/stacking/高さに影響なし。静的PASS（fetch/setItem不変・既存カード非破壊）。フォーム展開時の見え方はボス実機目視可（任意・スマホでも10px短文で邪魔にならない）。詳細 `docs/TASK_ADD_GUIDE_HINT_PACKET_2062.md`
+### 維持・遵守（赤信号クリア）
+- Supabase/SQL/RLS/Auth 変更なし・DB直接INSERT/UPDATE/DELETEなし・外部API接続なし・npm install なし
+- タスク保存仕様変更なし・JSロジック大改造なし・index.html全体整形なし
+- `.claude/.vscode/runtime/PNG add` なし・`git add -A` なし・force push/reset/clean/rebase なし・**通常commit/push**
+### docs
+- `docs/TASK_ADD_GUIDE_HINT_PACKET_2062.md` 新規
+
 ## packet 2061 — 🧩 タスク画面 フィルタタブに説明ツールチップ追加（title属性の純追加・低リスクUI改善 / 対応 OS packet 651・v0.9.651） / 2026-06-07
 ### Changed（`.tbtab` 4個に `title` 追加のみ・ラベル/JS/CSS/data-tt 非変更）
 - タスクボードのフィルタタブ「未割当/担当別/個人/完了済み」（`index.html` line1831）に各タブの意味を説明する `title` 属性を追加（未割当=未割り当て＆ここから割当／担当別=担当者ごと表示／個人=自分のタスク／完了済み=完了履歴）
