@@ -1,5 +1,17 @@
 # CHANGELOG — ハウステイト じゃがいAI会社OS
 
+## packet 2060 — 🧩 gitignore非対称解消 + VS Code司令室安全運用仕上げ（対応 OS packet 648 / v0.9.648） / 2026-06-07
+### Changed（`.gitignore` 追記のみ・既存ルール非削除）
+- `housetate-ai-company` と本 repo の `.gitignore` が非対称（本 repo は `.claude/` のみ ignore・OS 側は `.vscode/` のみ ignore）だったため対称化
+- 本 repo `.gitignore` に `.vscode/`・`.idea/` を**追記**（既存 `runtime/`・`*.local.json`・`members.snapshot.json`・`incoming.json`・`.claude/`・PNG 各種は1行も削除・変更せず純追記）
+- OS 側は `.claude/` を追記して両 repo 対称化
+### 維持・遵守（禁止事項クリア）
+- `index.html` 非編集・Supabase/SQL/RLS/Auth 変更なし・DB 直接操作なし・外部 API 接続なし・npm install なし
+- 既存 ignore ルール削除なし・`.claude add`/`.vscode add`/`runtime add`/`PNG add` なし・`git add -A` なし・force push/reset/clean/rebase なし・**通常 commit/push**
+- 変更後 `git status -sb` で `.claude/`・`.vscode/` が commit 対象に出ないことを確認
+### docs
+- `docs/VS_CODE_GITIGNORE_SAFETY_PACKET_2060.md` 新規
+
 ## packet 2059 — 🧩 タスク画面 本日のルーティン×担当者別タイムライン 横並びの見やすさ改善（CSS追加のみ／OS packet 645） / 2026-06-07
 ### Changed（`.tyn-dash` にレスポンシブCSSを**追加のみ**・geometry/JS/DOM/保存は非編集）
 - PC幅(約1440想定)で `📋本日のルーティン` 右カラムを **244px→304px に拡幅**（`max-height` 440→520）。名前/メタ(`.tynr-name`/`.tynr-meta`)の省略表示を減らし、担当者別カードビュー(左)と横並びで読みやすく（index.html `line192-195`）
