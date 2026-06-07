@@ -1,5 +1,23 @@
 # CHANGELOG — ハウステイト じゃがいAI会社OS
 
+## packet 2063 — 🧩 タスク追加後「どこに入ったか分かる」案内表示の文言強化（既存トースト文言のみ変更・低リスク / 対応 OS packet 654・v0.9.654） / 2026-06-08
+### 経緯（機能は既存だった）
+- 「タスク追加後どこに入ったか案内」は **packet 444 で実装済み**（行き先タブ自動切替＋案内トースト `index.html` 14794-14818）と判明。重複実装を避け、ボス確認のうえ**既存トーストの文言強化のみ**に方針決定（A案）
+### Changed（案内トースト3箇所の showToast 文字列のみ変更・ロジック非変更）
+- `タスクを追加しました（○○タブに表示）` → `✅「{タスク名}」を○○タブに追加しました`（フィルタ中・例外fallback含む3箇所、`index.html` 14816-14818）
+- `{タスク名}`＝既存スコープ内の `title`(14757)。行き先タブ判定/自動切替/保存ロジック(`_persistTasks`)/`toIdx`算出は**一切変更なし**。diff +3/-3
+### 既存機能を壊していない（静的実測）
+- `<script>`11/11・**fetch24→24・setItem63→63（新規なし）**・`showToast(`116→116（呼び出し数不変＝既存呼び出しの文字列だけ変更）・`_persistTasks(`20（不変）
+- タブ自動切替・タスク保存・完了チェック・各タブのロジック非干渉
+### ui_check（packet644準拠 / result: PASS）
+- 既存 showToast 表示機構流用・レイアウト/overflow/stacking 影響なし→静的PASS。文言の見え方はボス実機目視可（任意）。詳細 `docs/TASK_ADD_DESTINATION_TOAST_PACKET_2063.md`
+### 維持・遵守（赤信号クリア）
+- Supabase/SQL/RLS/Auth 変更なし・DB直接操作なし・外部API接続なし・npm install なし
+- **タスク保存仕様・JSロジック・タブ切替ロジック非変更（🟠該当なし＝既存トースト文言のみの🟡）**
+- `.claude/.vscode/runtime/PNG add` なし・`git add -A` なし・force push/reset/clean/rebase なし・**通常commit/push**
+### docs
+- `docs/TASK_ADD_DESTINATION_TOAST_PACKET_2063.md` 新規
+
 ## packet 2062 — 🧩 タスク画面 追加導線わかりやすさ改善（追加フォームに補足文＋title純追加・低リスク / 対応 OS packet 652・v0.9.652） / 2026-06-07
 ### Changed（`#tb-form` 内に補足1行＋title2点を追加・ID/data/JS/保存ロジック非変更）
 - タスク追加フォーム（`#tb-form`・既定 `display:none`）に「割当先は未割当のまま保存OK→あとで未割当タブから担当者へ割当できる」補足を追加
