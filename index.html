@@ -1828,7 +1828,7 @@ body.task-dragging [data-id]:not(.dragging-this){opacity:1!important}
           <div class="tfr" style="margin-top:4px" id="tf-to-row"><div><div class="tfl">割当先</div><select class="tfi" id="tf-to" style="margin-bottom:0"></select></div><div><div class="tfl">期限</div><input class="tfi" type="date" id="tf-dead" style="margin-bottom:0"/></div></div>
           <div class="tfa" style="margin-top:5px"><button class="bc" id="tf-cancel">キャンセル</button><button class="bsv" id="tf-save">割り当て</button></div>
         </div>
-        <div class="tbtabs"><button class="tbtab on" data-tt="unassigned">未割当</button><button class="tbtab" data-tt="all">担当別</button><button class="tbtab" data-tt="mine">個人</button><button class="tbtab" data-tt="done">完了済み</button></div>
+        <div class="tbtabs"><button class="tbtab on" data-tt="unassigned" title="まだ担当者が決まっていないタスク。ここから割り当てます">未割当</button><button class="tbtab" data-tt="all" title="担当者ごとにまとめて表示">担当別</button><button class="tbtab" data-tt="mine" title="自分に割り当てられたタスク">個人</button><button class="tbtab" data-tt="done" title="完了したタスクの履歴">完了済み</button></div>
           <div id="task-filter-bar" style="display:flex;gap:5px;padding:5px 8px;background:var(--s2);border-bottom:1px solid var(--bo);flex-wrap:wrap;align-items:center">
             <select id="tf-period" style="padding:3px 7px;border-radius:8px;border:1.5px solid var(--bo);background:var(--s1);color:var(--t1);font-size:10px;font-weight:700;outline:none" onchange="taskFilter.period=this.value;renderTaskBoard()">
               <option value="all">全期間</option>

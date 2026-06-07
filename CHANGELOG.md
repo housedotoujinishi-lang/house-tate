@@ -1,5 +1,22 @@
 # CHANGELOG — ハウステイト じゃがいAI会社OS
 
+## packet 2061 — 🧩 タスク画面 フィルタタブに説明ツールチップ追加（title属性の純追加・低リスクUI改善 / 対応 OS packet 651・v0.9.651） / 2026-06-07
+### Changed（`.tbtab` 4個に `title` 追加のみ・ラベル/JS/CSS/data-tt 非変更）
+- タスクボードのフィルタタブ「未割当/担当別/個人/完了済み」（`index.html` line1831）に各タブの意味を説明する `title` 属性を追加（未割当=未割り当て＆ここから割当／担当別=担当者ごと表示／個人=自分のタスク／完了済み=完了履歴）
+- 新しいスタッフ向けに各タブの意味をホバーで補足。**レイアウト・挙動・ラベル文言・`data-tt`・CSS は一切変更なし**（`title` 属性の純追加・diff +1/-1）
+### 既存機能を壊していない（静的実測）
+- `<script>`11/11・**fetch24→24・setItem63→63（新規なし）**
+- タブ切替ハンドラ（line6612-6620）は `b.dataset.tt` のみ参照＝`title`/`textContent` 非依存で挙動非干渉
+- `data-tt`(unassigned/all/mine/done) 不変＝フィルタロジック不変・既存タスクデータ破壊なし
+### ui_check（packet644準拠 / result: PASS）
+- `title` 属性のみ＝レイアウト/overflow/stacking/tap対象に影響なし→PC幅/スマホ幅の崩れリスク構造上ゼロ。静的PASS（fetch/setItem不変・既存カード非破壊）
+- スマホはツールチップ非表示のため影響なし。PCツールチップの見え方はボス実機目視可（任意）。詳細 `docs/TASK_TAB_TOOLTIP_HINT_PACKET_2061.md`
+### 維持・遵守（赤信号クリア）
+- Supabase/SQL/RLS/Auth 変更なし・DB直接操作なし・外部API接続なし・npm install なし
+- `.claude/.vscode/runtime/PNG add` なし・`git add -A` なし・force push/reset/clean/rebase なし・**通常commit/push**
+### docs
+- `docs/TASK_TAB_TOOLTIP_HINT_PACKET_2061.md` 新規
+
 ## packet 2060 — 🧩 gitignore非対称解消 + VS Code司令室安全運用仕上げ（対応 OS packet 648 / v0.9.648） / 2026-06-07
 ### Changed（`.gitignore` 追記のみ・既存ルール非削除）
 - `housetate-ai-company` と本 repo の `.gitignore` が非対称（本 repo は `.claude/` のみ ignore・OS 側は `.vscode/` のみ ignore）だったため対称化
