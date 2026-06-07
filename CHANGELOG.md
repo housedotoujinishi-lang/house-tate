@@ -1,5 +1,22 @@
 # CHANGELOG — ハウステイト じゃがいAI会社OS
 
+## packet 2058 — 🧩 担当者カードビュー＋本日のルーティン 横並び2カラムMVP（PC横並び/スマホ縦積み） / 2026-06-07
+### Changed（#staff-tl内を2カラムダッシュボード化・既存ルーティン完了/ドラッグ/保存は非編集）
+- 担当者カードビュー(`.stlc-wrap`,左)と**本日のルーティン(右)**を `#staff-tl` 内で `<div class="tyn-dash">` の**2カラム**に。別DOM親のためCSS不可→安全に同一ラッパー内で新設
+- 右カラム `routineColHtml`：`getTodayRoutinesForUser`/`getRoutineDoneIds` から生成（名前＋メタ＋**✓完了/↩戻す**＋「編集 →」）。完了は `tynRoutineToggle(id,bool)`＝既存 `markRoutineDone`/`unmarkRoutineDone` 流用＋`renderDay()`再描画。**`data-tbraction` 非依存・新規保存/localStorageキーなし**
+- PC：左カードビュー(横スクロール)＋右ルーティン(幅244・内部縦スクロール max-height440)。スマホ：縦積み(カードビュー→ルーティン・横はみ出しなし)
+- 時間軸グリッドは折りたたみ(packet2055)維持
+### 既存機能を壊していない（実測）
+- `<script>`11/11・`<style>`3/3・全インラインJS`node --check`PASS・**fetch24→24・setItem62→62（新規なし）**
+- **tb-body側ルーティン完了 非編集**：`appendRoutineToTaskBoard`×1・`data-tbraction`実使用3箇所(10066/10067/10073)unchanged・`.tb-routine-d`折りたたみ維持
+- カードビュー(`.stlc-wrap`)・時間軸(`.stl-axis-d`)・ドラッグ(`stl-blk`×9)・保存(`_persistTasks`)・完了(`bindChk`)・横スクロール(`minmax(0,1fr)`×6)維持・差分 +44/-1
+- `docs/TODAY_NAV_STAFF_ROUTINE_2COLUMN_PACKET_2058.md` 新規
+### 補足（正直記録）
+- tb-body側折りたたみルーティンは安全のため残置（右カラムと重複だが折りたたみ済で非干渉）。右カラム完了時は`renderDay()`全体再描画（スクロール位置リセットの可能性・実害小）→ 一本化/部分更新は次packet
+### 維持・遵守（禁止事項クリア）
+- Supabase/SQL/RLS/Auth変更なし・DBテーブル変更なし・外部API接続なし・保存方式変更なし・既存タスクデータ破壊なし
+- 顧客タブ復活なし・localStorage本文保存（新規）なし・`.claude add`なし・Claude Desktop/MCP設定変更なし・force push/reset/clean/rebaseなし・**通常commit/push**
+
 ## packet 2057 — 🗃 今日やることナビ Notion風ビュー整理MVP（集中カード＋ビュー誘導＋折りたたみ・read-only） / 2026-06-07
 ### Added（初期表示の主役を「今日やること」に・保存方式不変）
 - **今日の集中カード**（`#tyn-focus`＋`renderTynFocus()`）：`state.tasks`から今日分を**read-only集計**＝▶今やる(最優先タスク名)/次にやる/⚠詰まってる/未割当/完了率の5カード。`render()`末尾に1行フック（追加のみ）

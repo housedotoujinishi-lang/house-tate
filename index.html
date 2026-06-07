@@ -173,6 +173,22 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-siz
 .tb-routine-d>summary::before{content:'▼ ';font-size:10px;color:#64748b}
 .tb-routine-d[open]>summary::before{content:'▲ '}
 @media(max-width:700px){.tynf-card{flex:1 1 calc(33.33% - 6px)}.tynv-tab{flex:1 1 calc(33.33% - 5px);text-align:center}}
+/* packet 2058: 担当者カードビュー（左）＋本日のルーティン（右）2カラムダッシュボード */
+.tyn-dash{display:flex;gap:10px;align-items:flex-start}
+.tyn-dash-left{flex:1 1 auto;min-width:0}
+.tyn-dash-right{flex:0 0 244px;width:244px;background:#fff1f2;border:1px solid #fecdd3;border-radius:12px;margin:10px 12px 10px 0;max-height:440px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 1px 5px rgba(15,23,42,.05)}
+.tynr-head{padding:9px 11px;font-size:11px;font-weight:800;color:#9f1239;border-bottom:1px solid #fecdd3;display:flex;align-items:center;gap:6px;background:#fff5f6}
+.tynr-edit{margin-left:auto;font-size:10px;font-weight:700;padding:3px 9px;border:1px solid #fda4af;border-radius:9px;background:#fff;color:#9f1239;cursor:pointer;white-space:nowrap}
+.tynr-list{padding:8px;overflow-y:auto;display:flex;flex-direction:column;gap:6px}
+.tynr-card{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #f1d4da;border-radius:9px;padding:7px 9px;box-shadow:0 1px 2px rgba(15,23,42,.05)}
+.tynr-card.done{opacity:.55}
+.tynr-info{flex:1;min-width:0}
+.tynr-name{font-size:11.5px;font-weight:700;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tynr-meta{font-size:9px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tynr-btn{flex:0 0 auto;font-size:10px;font-weight:800;padding:5px 10px;border:0;border-radius:8px;background:#0e9f6e;color:#fff;cursor:pointer}
+.tynr-btn.undo{background:#94a3b8}
+.tynr-empty{font-size:10px;color:#94a3b8;padding:14px;text-align:center}
+@media(max-width:700px){.tyn-dash{flex-direction:column}.tyn-dash-left{width:100%}.tyn-dash-right{flex:1 1 auto;width:auto;max-height:300px;margin:8px}}
 /* packet 2051: 表示モード切替バー（選択中=濃い背景＋白文字） */
 .vmode-bar{display:flex;gap:6px;padding:6px 8px;background:#eef2f7;border-bottom:1px solid #cbd5e1;align-items:center;justify-content:center;flex-wrap:wrap}
 .vmode-btn{padding:6px 14px;border-radius:999px;border:1.5px solid #94a3b8;background:#fff;color:#334155;font-size:12px;font-weight:800;cursor:pointer;white-space:nowrap}
@@ -12288,6 +12304,17 @@ function tynView(name,btn){
   }catch(e){}
 }
 // ==== ここまで packet 2057 ====
+// ==== packet 2058: 担当者カードビュー右の本日ルーティン完了トグル（既存グローバル流用・data-tbraction非依存）====
+function tynRoutineToggle(id,makeDone){
+  try{
+    if(makeDone){ if(typeof markRoutineDone==='function')markRoutineDone(id); }
+    else { if(typeof unmarkRoutineDone==='function')unmarkRoutineDone(id); }
+    // #staff-tl（カレンダー日表示内）を再描画して状態反映
+    if(typeof renderDay==='function'){ try{renderDay();}catch(e){} }
+    else if(typeof render==='function'){ try{render();}catch(e){} }
+  }catch(e){}
+}
+// ==== ここまで packet 2058 ====
 // ==== ここまで packet 380 AI 事典追加候補箱 ====
 // ==== packet 405: 音声入力 静的MVP（Web Speech API、外部 API 接続なし） ====
 (function patchVoiceInputMVP(){
@@ -35755,6 +35782,22 @@ function _p500_buildCandidateFromPayload(payload){
       var body=(cards+unsetCards)||'<div class="stlc-empty">予定なし</div>';
       return '<div class="stlc-col" style="border-top:3px solid '+tint+'">'+head+'<div class="stlc-body">'+body+'</div></div>';
     }).join('')+'</div></div>';
+    /* packet 2058: 本日のルーティン 右カラム（既存ルーティングローバル流用・data-tbraction非依存） */
+    var routineColHtml='';
+    try{
+      var _rl=(typeof getTodayRoutinesForUser==='function')?(getTodayRoutinesForUser(typeof currentUser!=='undefined'?currentUser:null)||[]):[];
+      var _rd=(typeof getRoutineDoneIds==='function')?(getRoutineDoneIds()||[]):[];
+      var _rdn=_rl.filter(function(r){return _rd.indexOf(r.id)>=0;}).length;
+      var _rc=_rl.map(function(r){
+        var isDone=_rd.indexOf(r.id)>=0;
+        var rid=String(r.id).replace(/'/g,"\\'");
+        var meta=esc(r.target||'')+(r.time?' / ⏰'+esc(r.time):'')+(r.duration?' / ⏱'+r.duration+'分':'');
+        return '<div class="tynr-card'+(isDone?' done':'')+'"><div class="tynr-info"><div class="tynr-name">'+esc(r.title||'')+'</div><div class="tynr-meta">'+meta+'</div></div>'
+          +(isDone?'<button type="button" class="tynr-btn undo" onclick="tynRoutineToggle(\''+rid+'\',false)">↩ 戻す</button>':'<button type="button" class="tynr-btn" onclick="tynRoutineToggle(\''+rid+'\',true)">✓ 完了</button>')
+          +'</div>';
+      }).join('')||'<div class="tynr-empty">本日のルーティンはありません</div>';
+      routineColHtml='<div class="tyn-dash-right"><div class="tynr-head"><span>📋 本日のルーティン（'+_rdn+' / '+_rl.length+'）</span><button type="button" class="tynr-edit" onclick="switchPage(\'routine\')">編集 →</button></div><div class="tynr-list">'+_rc+'</div></div>';
+    }catch(_e){ routineColHtml=''; }
 
     return '<div id="staff-tl" style="border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;margin:0 0 10px;background:#fff">'
       +'<div class="stl-head" style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:10px 14px;background:#fff;border-bottom:1px solid #e8edf3">'
@@ -35764,7 +35807,7 @@ function _p500_buildCandidateFromPayload(payload){
       +'</div>'
       +'<div id="stl-routine"></div>'
       +'<div style="padding:6px 10px;font-size:10px;color:#475569;border-bottom:1px solid #eef2f7;background:#f8fafc">'+esc(cnts)+'</div>'
-      +cardViewHtml
+      +'<div class="tyn-dash"><div class="tyn-dash-left">'+cardViewHtml+'</div>'+routineColHtml+'</div>'
       +'<details class="stl-axis-d"><summary class="stl-axis-sum">🕓 時間軸で細かく調整する（ドラッグ・リサイズ編集）</summary>'
       +'<div class="stl-scroll" style="overflow-x:auto;-webkit-overflow-scrolling:touch"><div style="min-width:'+(NAMEW+UNSETW+timeW)+'px">'
         +'<div style="display:flex;position:sticky;top:0;z-index:3;background:#fff;border-bottom:1px solid #e2e8f0">'
