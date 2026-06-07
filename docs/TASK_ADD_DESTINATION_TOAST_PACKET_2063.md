@@ -1,10 +1,12 @@
 # タスク追加後「どこに入ったか分かる」案内表示の文言強化（TASK_ADD_DESTINATION_TOAST_PACKET_2063）
 
-最終更新：2026-06-08
-packet：2063（house-tate-source / 対応 OS packet 654・v0.9.654）
+最終更新：2026-06-08（packet 654A hotfix 反映）
+packet：2063（house-tate-source / 対応 OS packet 654・v0.9.654）＋ 654A hotfix
 管理：dev / qa
 種別：軽めのUI改善（既存トーストの文言強化のみ・低リスク／🟡 MEDIUM）
 前提：OS packet 653 の VS Code 司令室 自走モードルールに基づく実戦。packet 644 の ui_check 適用。
+
+> **packet 654A hotfix（2026-06-08）**：Codex read-only レビューで「`.shortcut-toast{white-space:nowrap}`（`index.html` 860）のため長文タスク名で横 overflow するリスク」を指摘され、トースト表示用にタスク名を **24文字で短縮**（`_toastTitleShort`）する最小修正を追加。あわせて本書の「overflow 影響なし／崩れリスク構造上ゼロ」の言い過ぎを実態に修正（§4）。
 
 ## 1. 経緯（重要：機能は既存だった）
 read-only 調査の結果、「タスク追加後にどこに入ったか案内する」機能は **packet 444 で既に実装済み**だった：
@@ -23,9 +25,18 @@ read-only 調査の結果、「タスク追加後にどこに入ったか案内�
 | フィルタ中 | `タスクを追加しました（○○タブに表示 / 期間フィルタ中。全期間／全カテゴリをご確認ください）` | `✅「{タスク名}」を○○タブに追加しました / 期間フィルタ中。全期間／全カテゴリでご確認ください` |
 | 例外時fallback | `タスクを追加しました` | `✅「{タスク名}」を追加しました` |
 
-- `{タスク名}`＝保存ハンドラ内で既に定義済みの `title`（14757）。スコープ内のため新規変数なし。
+- `{タスク名}`＝保存ハンドラ内で既に定義済みの `title`（14757）を **packet 654A で短縮した `_toastTitleShort`**（24文字超は `…` 付きで切り詰め）。
 - **行き先タブ判定（`_where`/`tbTab`）・自動切替・保存ロジック（`_persistTasks`）・`toIdx` 算出は一切変更なし**。
-- diff：`index.html` +3/-3（文字列3本のみ）。
+- diff：`index.html` 文言3本（packet 654）＋ 短縮変数2行＋コメント1行（packet 654A）。
+
+### packet 654A hotfix の実装（`index.html` 14809 付近・トースト try の直前）
+```js
+// 長文タスク名はトースト用に短縮（.shortcut-toast は white-space:nowrap のため横 overflow を抑制）
+const _toastTitle = String(title||'タスク').trim();
+const _toastTitleShort = _toastTitle.length > 24 ? _toastTitle.slice(0,24) + '…' : _toastTitle;
+```
+- 変数は try の**外**で定義し、try 本体・catch fallback の3箇所すべてで `_toastTitleShort` を使用。
+- 24文字は目安（`.shortcut-toast` の bottom 中央・nowrap でも PC/スマホで概ね収まる長さ）。CSS は変更していない。
 
 ## 3. 既存機能を壊していない（静的実測）
 - `<script>` 11/11・`</script>` 11/11
@@ -43,13 +54,14 @@ ui_check:
   pc:  { width: ">=1280px", overflow_x: none, layout: 不変(トースト文言のみ), dark_mode: 不変 }
   sp:  { width: "375/390/414px (breakpoint 700px)", overflow_x: none, stacking: 不変, tap_targets: 不変, dark_mode: 不変 }
   screenshots: []                       # トースト文言のみ・既存UI構造不変のため実機スクショ任意（撮る場合 runtime/screenshots/、git管理外）
-  static_check: { node_check: 該当なし(既存showToast文字列のみ変更・JSロジック非編集), fetch_count: "24->24", setItem_count: "63->63", showToast_count: "116->116", existing_cards_intact: true }
-  issues_found: 0
-  fixed: []
-  result: PASS                          # 静的PASS（既存トースト文言のみ・レイアウト/挙動不変）
+  static_check: { node_check: 該当なし(既存showToast文字列＋短縮変数のみ・JSロジック/保存非編集), fetch_count: "24->24", setItem_count: "63->63", showToast_count: "116->116", persistTasks_count: "20->20", existing_cards_intact: true }
+  issues_found: 1                        # Codex指摘：長文タスク名の横overflowリスク
+  fixed: [ "packet654A: トースト用タスク名を24文字で短縮し横overflowリスクを抑制" ]
+  result: FIXED                         # 文言強化を維持しつつ overflowリスクを hotfix
 ```
-- トーストは既存の `showToast` 表示機構を流用。レイアウト/overflow/stacking に影響なし。崩れリスク構造上ゼロ → 静的 PASS。
-- 実機での文言の見え方（タスク追加→トースト）はボスが目視確認可（任意）。長いタスク名でもトースト幅は既存 showToast の挙動に従う。
+- 既存の `showToast` 表示機構（`.shortcut-toast` は固定下部中央・`white-space:nowrap`）を流用。**短いタスク名や通常文ではレイアウト不変**。
+- ⚠️ ただし `nowrap` のため **長文タスク名はトースト幅が伸び横 overflow しうる**（Codex 指摘）。→ packet 654A で **24文字短縮**して幅増加を抑制。CSS 自体は未変更のため、極端に長い他文言や狭い画面では完全にゼロとは言い切れない（要実機目視）。
+- 実機での見え方（タスク追加→トースト、特に長文タスク名・スマホ幅）はボスが目視確認推奨。
 
 ## 5. 守った安全境界（赤信号クリア）
 - Supabase/SQL/RLS/Auth/DB 変更なし・DB 直接操作なし・外部 API 接続なし・npm install なし

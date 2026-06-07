@@ -1,16 +1,35 @@
 # CHANGELOG — ハウステイト じゃがいAI会社OS
 
+## packet 2063A hotfix — 🩹 タスク追加トーストの長文タスク名 横overflow対策＋docs言い過ぎ修正（Codexレビュー指摘対応 / 対応 OS packet 654A） / 2026-06-08
+### 経緯（Codex read-only レビュー指摘）
+- packet 2063 でトーストにタスク名を出したが、`.shortcut-toast{white-space:nowrap}`（`index.html` 860）のため**長文タスク名で横 overflow するリスク**を指摘された
+- docs/CHANGELOG の「overflow影響なし／崩れリスク構造上ゼロ」が実変更とやや不一致との指摘も対応
+### Changed（最小差分・トースト用タスク名の短縮のみ）
+- トースト try 直前（`index.html` 14809付近）に短縮変数を追加し、トースト3箇所で使用：
+  ```js
+  const _toastTitle = String(title||'タスク').trim();
+  const _toastTitleShort = _toastTitle.length > 24 ? _toastTitle.slice(0,24) + '…' : _toastTitle;
+  ```
+- showToast 3箇所の `title` → `_toastTitleShort` に置換（24文字超は `…` 付きで短縮）。変数は try の外で定義＝catch fallback でも参照可
+- **CSS（.shortcut-toast）は未変更**・保存ロジック/タブ切替/`toIdx`/`_persistTasks`/showToast呼び出し構造は非変更
+### 既存機能を壊していない（静的実測）
+- `<script>`11/11・**fetch24→24・setItem63→63**・`showToast(`116→116・`_persistTasks(`20→20（いずれも不変）・`'✅「'+title+'」`残存0（3箇所置換済み）
+### ui_check（result: FIXED）
+- 短いタスク名/通常文はレイアウト不変。長文は nowrap で幅が伸びうるため**24文字短縮で抑制**（CSS未変更ゆえ極端に狭い画面では完全ゼロと断定せず・要実機目視）。result を PASS→FIXED に訂正
+### docs
+- `docs/TASK_ADD_DESTINATION_TOAST_PACKET_2063.md` に hotfix 反映・§4 の言い過ぎ（overflow影響なし/崩れリスク構造上ゼロ）を実態へ修正
+
 ## packet 2063 — 🧩 タスク追加後「どこに入ったか分かる」案内表示の文言強化（既存トースト文言のみ変更・低リスク / 対応 OS packet 654・v0.9.654） / 2026-06-08
 ### 経緯（機能は既存だった）
 - 「タスク追加後どこに入ったか案内」は **packet 444 で実装済み**（行き先タブ自動切替＋案内トースト `index.html` 14794-14818）と判明。重複実装を避け、ボス確認のうえ**既存トーストの文言強化のみ**に方針決定（A案）
 ### Changed（案内トースト3箇所の showToast 文字列のみ変更・ロジック非変更）
 - `タスクを追加しました（○○タブに表示）` → `✅「{タスク名}」を○○タブに追加しました`（フィルタ中・例外fallback含む3箇所、`index.html` 14816-14818）
-- `{タスク名}`＝既存スコープ内の `title`(14757)。行き先タブ判定/自動切替/保存ロジック(`_persistTasks`)/`toIdx`算出は**一切変更なし**。diff +3/-3
+- `{タスク名}`＝既存スコープ内の `title`(14757)。行き先タブ判定/自動切替/保存ロジック(`_persistTasks`)/`toIdx`算出は**一切変更なし**（※長文 overflow 対策は packet 2063A で追加）
 ### 既存機能を壊していない（静的実測）
 - `<script>`11/11・**fetch24→24・setItem63→63（新規なし）**・`showToast(`116→116（呼び出し数不変＝既存呼び出しの文字列だけ変更）・`_persistTasks(`20（不変）
 - タブ自動切替・タスク保存・完了チェック・各タブのロジック非干渉
-### ui_check（packet644準拠 / result: PASS）
-- 既存 showToast 表示機構流用・レイアウト/overflow/stacking 影響なし→静的PASS。文言の見え方はボス実機目視可（任意）。詳細 `docs/TASK_ADD_DESTINATION_TOAST_PACKET_2063.md`
+### ui_check（packet644準拠 / result: FIXED ※packet 2063A で訂正）
+- 短文/通常文はレイアウト不変。ただし `.shortcut-toast{white-space:nowrap}` のため**長文タスク名は横overflowしうる**（Codex指摘）→ packet 2063A で24文字短縮して抑制。文言の見え方（特に長文・スマホ）はボス実機目視推奨。詳細 `docs/TASK_ADD_DESTINATION_TOAST_PACKET_2063.md`
 ### 維持・遵守（赤信号クリア）
 - Supabase/SQL/RLS/Auth 変更なし・DB直接操作なし・外部API接続なし・npm install なし
 - **タスク保存仕様・JSロジック・タブ切替ロジック非変更（🟠該当なし＝既存トースト文言のみの🟡）**

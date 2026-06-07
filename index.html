@@ -14806,6 +14806,9 @@ function tynRoutineToggle(id,makeDone){
           try{if(typeof renderTaskBoard==='function'){renderTaskBoard();try{console.warn('[packet 452 tf-save] renderTaskBoard called');}catch(e){}}}catch(e){try{console.warn('[packet 452 tf-save] renderTaskBoard error:',e&&e.message);}catch(e2){}}
           // 日間カレンダーへの反映（packet 444、renderDay 経由）
           try{if(typeof render==='function'){render();try{console.warn('[packet 452 tf-save] render called');}catch(e){}}}catch(e){try{console.warn('[packet 452 tf-save] render error:',e&&e.message);}catch(e2){}}
+          // packet 654A hotfix: 長文タスク名はトースト用に短縮（.shortcut-toast は white-space:nowrap のため横 overflow を抑制）
+          const _toastTitle = String(title||'タスク').trim();
+          const _toastTitleShort = _toastTitle.length > 24 ? _toastTitle.slice(0,24) + '…' : _toastTitle;
           // packet 444 C案: 案内トースト + フィルタ警告
           try{
             let _warn = '';
@@ -14813,9 +14816,9 @@ function tynRoutineToggle(id,makeDone){
               if(taskFilter.period && taskFilter.period!=='all' && taskFilter.period!=='')_warn += ' / 期間フィルタ中';
               if(taskFilter.cat)_warn += ' / カテゴリフィルタ中';
             }
-            if(_warn){if(typeof showToast==='function')showToast('✅「'+title+'」を'+_where+'に追加しました'+_warn+'。全期間／全カテゴリでご確認ください',3500);}
-            else{if(typeof showToast==='function')showToast('✅「'+title+'」を'+_where+'に追加しました');}
-          }catch(e){try{if(typeof showToast==='function')showToast('✅「'+title+'」を追加しました');}catch(e2){}}
+            if(_warn){if(typeof showToast==='function')showToast('✅「'+_toastTitleShort+'」を'+_where+'に追加しました'+_warn+'。全期間／全カテゴリでご確認ください',3500);}
+            else{if(typeof showToast==='function')showToast('✅「'+_toastTitleShort+'」を'+_where+'に追加しました');}
+          }catch(e){try{if(typeof showToast==='function')showToast('✅「'+_toastTitleShort+'」を追加しました');}catch(e2){}}
           // packet 440 永続化
           try{if(typeof _persistTasks==='function'){_persistTasks();try{console.warn('[packet 452 tf-save] _persistTasks dispatched');}catch(e){}}}catch(e){try{console.warn('[packet 452 tf-save] _persistTasks error:',e&&e.message);}catch(e2){}}
         }catch(e){try{console.warn('[packet 452 tf-save] handler error:',e&&e.message);}catch(e2){}}
