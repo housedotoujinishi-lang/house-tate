@@ -1,5 +1,21 @@
 # CHANGELOG — ハウステイト じゃがいAI会社OS
 
+## packet 2065 — 🧩 タスク追加フォーム 保存ボタン文言改善（割り当て→タスクを保存・文言のみ / 対応 OS packet 655・v0.9.655） / 2026-06-08
+### Changed（`#tf-save` の表示文言のみ変更）
+- 保存ボタン `#tf-save`（`index.html` 1830）の表示文言：`割り当て` → `タスクを保存`
+- 未割当のまま保存できる実装（`pool→toIdx=null`）と文言を整合させ、未割当でも押してよいことを直感的に
+- **id `tf-save`・`title`・`class`・JSハンドラ・保存ロジックは非変更**。diff +1/-1
+### 既存機能を壊していない（静的実測）
+- `<script>`11/11・**fetch24→24・setItem63→63**・`id="tf-save"`1（不変）・`getElementById('tf-save')`2（ハンドラバインド不変）
+- 保存ハンドラ(14744-14790)はid経由バインドでボタン文字列を読まない＝挙動非干渉。別箇所の「割り当て」文字列は別文脈で無関係
+### ui_check（packet644準拠 / result: PASS）
+- ボタン文言のみ・id/ハンドラ/保存ロジック不変。幅がわずかに増えるが `.tfa` ボタン行で許容。詳細 `docs/TASK_SAVE_BUTTON_LABEL_PACKET_2065.md`
+### 維持・遵守（赤信号クリア）
+- id変更なし・JS保存ロジック/タスク保存仕様変更なし・Supabase/SQL/Auth/DB・外部API・npm install なし
+- `.claude/.vscode/runtime/PNG add` なし・`git add -A` なし・force/reset/clean/rebase なし・**通常commit/push**
+### docs
+- `docs/TASK_SAVE_BUTTON_LABEL_PACKET_2065.md` 新規
+
 ## packet 2064 — 🩹 タスク追加トースト 折り返しCSS対応（packet654A 仕上げ・Codex指摘の根本対処 / 対応 OS packet 654A・v0.9.654B） / 2026-06-08
 ### Changed（`.shortcut-toast` の最小CSS修正のみ）
 - `.shortcut-toast`（`index.html` 860）の `white-space:nowrap` → `white-space:normal` に変更し、`max-width:90vw;overflow-wrap:anywhere;text-align:center` を追加
