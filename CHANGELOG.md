@@ -1,5 +1,20 @@
 # CHANGELOG — ハウステイト じゃがいAI会社OS
 
+## packet 2077 — 🧩 追加トースト経路Aにタスク名表示（content parity / 対応 OS packet 666・v0.9.666） / 2026-06-08
+### Changed（showKAddModal の追加トーストを経路Bと同形に）
+- 経路A（カンバン `showKAddModal` 7123）の `✅ タスクを追加しました（○○タブに表示）` → `✅「{タスク名}」を○○タブに追加しました`（経路Bと統一）
+- 短縮変数を追加（`_tShort`＝24文字超は`…`、経路B `_toastTitleShort` と同方式）。`title` は同onclick内の既存const(7089)
+- **保存ロジック/state.tasks.push/toIdx/タブ判定/_persistTasks/taskFilter は非変更**。トースト文言＋表示用ローカル変数のみ。diff +5/-3
+### 既存機能を壊していない（静的実測）
+- `<script>`11/11・**fetch24→24・setItem63→63**・`showToast(`116→116・`_persistTasks(`20→20・`renderTaskBoard(`37→37（全不変）
+### ui_check（packet644準拠 / result: PASS）
+- 経路A/Bのトーストが同形で一貫。長文は24文字短縮＋折り返し(2064)で overflow なし。詳細 `docs/TASK_ADD_TOAST_PATHA_TITLE_PACKET_2077.md`
+### 維持・遵守（赤信号クリア）
+- 保存ロジック/データ構造/_persistTasks/toIdx/タブ判定/taskFilter 非変更・大規模JS改造なし・DB/Auth/API/npm install なし
+- `.claude/.vscode/runtime/PNG/xlsx add` なし・`git add -A` なし・force/reset/clean/rebase なし・**通常commit/push**
+### docs
+- `docs/TASK_ADD_TOAST_PATHA_TITLE_PACKET_2077.md` 新規
+
 ## packet 2076 — ✏️ タスクボード周辺 文言トーン最終レビュー（点検＋軽微polish / 対応 OS packet 665・v0.9.665） / 2026-06-08
 ### Review（タスクボードのユーザー向け文言を点検）
 - 基準：丁寧な日本語で統一・意味に合う絵文字接頭・ボタン名は「」で本文参照

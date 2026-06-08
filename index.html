@@ -7113,6 +7113,9 @@ function showKAddModal(colKey,mi){
       }
     }catch(e){}
     renderTaskBoard();
+    // packet 666: トースト用タスク名（長文は24文字短縮・経路B(_toastTitleShort)と統一）
+    const _tTitle=String(title||'タスク').trim();
+    const _tShort=_tTitle.length>24?_tTitle.slice(0,24)+'…':_tTitle;
     // packet 444 C案: 案内トースト（追加先タブ + フィルタ警告）
     try{
       let _p444FilterWarn='';
@@ -7120,9 +7123,9 @@ function showKAddModal(colKey,mi){
         if(taskFilter.period && taskFilter.period!=='all' && taskFilter.period!=='')_p444FilterWarn+=' / 期間で絞り込み中';
         if(taskFilter.cat)_p444FilterWarn+=' / カテゴリで絞り込み中';
       }
-      if(_p444FilterWarn)showToast('✅ タスクを追加しました（'+_p444Where+'に表示'+_p444FilterWarn+'。「絞り込み解除」で全件表示に戻せます）',3500);
-      else showToast('✅ タスクを追加しました（'+_p444Where+'に表示）');
-    }catch(e){showToast('✅ タスクを追加しました');}
+      if(_p444FilterWarn)showToast('✅「'+_tShort+'」を'+_p444Where+'に追加しました'+_p444FilterWarn+'。「絞り込み解除」で全件表示に戻せます',3500);
+      else showToast('✅「'+_tShort+'」を'+_p444Where+'に追加しました');
+    }catch(e){showToast('✅「'+_tShort+'」を追加しました');}
     _persistTasks();
   };
 }
