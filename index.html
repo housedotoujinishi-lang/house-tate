@@ -1845,7 +1845,7 @@ body.task-dragging [data-id]:not(.dragging-this){opacity:1!important}
           </div>
           <!-- packet 2066: フィルタ中バナー（taskFilter が有効なときだけ renderTaskBoard で display 切替） -->
           <div id="task-filter-banner" style="display:none;align-items:center;gap:8px;padding:6px 10px;background:var(--am-lt);border-bottom:1px solid var(--bo);font-size:10.5px;color:var(--t1);line-height:1.4">
-            <span style="flex:1;min-width:0">🔎 絞り込み中です。タスクが見えない時は「絞り込み解除」を押してください。</span>
+            <span style="flex:1;min-width:0">🔎 <b id="tfb-kind">絞り込み中</b>です。タスクが見えない時は「絞り込み解除」を押してください。</span>
             <button type="button" onclick="taskFilter.period='all';taskFilter.cat='';renderTaskBoard()" title="期間・カテゴリの絞り込みを解除して全件表示に戻す" style="flex:0 0 auto;padding:4px 10px;border:1px solid var(--navy);border-radius:8px;background:var(--navy);color:#fff;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap">絞り込み解除</button>
           </div>
         <!-- packet 414: メモ並列ストリップ（ピン or 対応要のみ最大 3 件、空なら非表示）-->
@@ -6614,7 +6614,7 @@ function renderTaskBoard(){
   const cSel=document.querySelector('#task-filter-bar #tf-cat');
   if(pSel)pSel.value=taskFilter.period;if(cSel)cSel.value=taskFilter.cat;
   // packet 2066: フィルタ中バナーの表示切替（period が all 以外 / cat が指定ありのときだけ表示）
-  try{const _fb=document.getElementById('task-filter-banner');if(_fb){const _act=(taskFilter.period&&taskFilter.period!=='all')||(taskFilter.cat&&taskFilter.cat!=='');_fb.style.display=_act?'flex':'none';}}catch(e){}
+  try{const _fb=document.getElementById('task-filter-banner');if(_fb){const _pAct=(taskFilter.period&&taskFilter.period!=='all');const _cAct=(taskFilter.cat&&taskFilter.cat!=='');const _act=_pAct||_cAct;_fb.style.display=_act?'flex':'none';const _k=document.getElementById('tfb-kind');if(_k&&_act){_k.textContent=(_pAct&&_cAct)?'期間・カテゴリで絞り込み中':(_pAct?'期間で絞り込み中':'カテゴリで絞り込み中');}}}catch(e){}
 
   // ── タブバインド ──
   document.querySelectorAll('.tbtab').forEach(b=>{

@@ -1,5 +1,21 @@
 # CHANGELOG — ハウステイト じゃがいAI会社OS
 
+## packet 2070 — 🧩 フィルタ中バナーに絞り込み種別を表示（期間/カテゴリ/両方・局所JS / 対応 OS packet 659・v0.9.659） / 2026-06-08
+### Added/Changed（バナー文言の動的化・packet2069候補Bの実装）
+- バナー span の「絞り込み中」を `<b id="tfb-kind">絞り込み中</b>` に切り出し（JS未実行時も自然な既定文言）
+- `renderTaskBoard()` 内の表示切替JS（packet2066 の try）を拡張し、種別を出し分け：両方→`期間・カテゴリで絞り込み中`／期間のみ→`期間で絞り込み中`／カテゴリのみ→`カテゴリで絞り込み中`
+- 追加JSは `taskFilter.period`/`taskFilter.cat` の**読み取り(!==比較)** と `tfb-kind` の **textContent設定のみ**。`taskFilter`代入・解除挙動・保存ロジック・データ構造は**非変更**。diff +2/-2
+### 既存機能を壊していない（静的実測）
+- `<script>`11/11・**fetch24→24・setItem63→63**・`showToast(`116→116・`_persistTasks(`20→20・`renderTaskBoard(`37→37・`task-filter-banner`2（不変）／新規`tfb-kind`2
+- `taskFilter.period=`/`cat=` の代入箇所は不変（追加は比較＝読み取りのみ）
+### ui_check（packet644準拠 / result: PASS）
+- 種別語（最大「期間・カテゴリで絞り込み中」）。バナーは折返し可(2066/2068)でスマホ overflow なし。詳細 `docs/TASK_FILTER_BANNER_KIND_PACKET_2070.md`
+### 維持・遵守（赤信号クリア）
+- taskFilter代入/解除挙動/保存仕様/データ構造/_persistTasks/applyTaskFilter 非変更・大規模JS改造なし・DB/Auth/API/npm install なし
+- `.claude/.vscode/runtime/PNG/xlsx add` なし・`git add -A` なし・force/reset/clean/rebase なし・**通常commit/push**
+### docs
+- `docs/TASK_FILTER_BANNER_KIND_PACKET_2070.md` 新規
+
 ## packet 2069 — ✏️ フィルタ中バナー 文言短縮（スマホ可読性・Lv1 / 対応 OS packet 658C・v0.9.658C） / 2026-06-08
 ### Changed（バナー span 文言のみ）
 - `🔎 現在、絞り込み中です。追加したタスクが見えない場合は絞り込みを解除してください。` → `🔎 絞り込み中です。タスクが見えない時は「絞り込み解除」を押してください。`
