@@ -1,5 +1,14 @@
 # CHANGELOG — ハウステイト じゃがいAI会社OS
 
+## packet 2074 — 📋 タスクボード次改善候補をCodexに再棚卸し（候補一覧docs / 対応 OS packet 663・v0.9.663） / 2026-06-08
+### Added（棚卸しdocsのみ・コード非変更）
+- `docs/TASKBOARD_NEXT_CANDIDATES_CODEX_REVIEW_PACKET_2074.md` 新規：packet 2061-2073 の「今後候補/残課題」を集約した候補一覧（C1-C7）＋リスク/スコープ/着手順＋Codex read-onlyレビュー依頼文
+- C1=顧客系xlsx退避（🔴ボス専決）、C2=トースト経路Aにタスク名、C3=ダーク微調整、C4=文言トーン、C5=ショートカット、C6=完了タブサマリ、C7=件数表示の視認性
+### 性質
+- 棚卸しdocsの新規作成のみ。`index.html`・保存仕様・DB/Auth/API 非変更（🟢 LOW）
+### docs
+- `docs/TASKBOARD_NEXT_CANDIDATES_CODEX_REVIEW_PACKET_2074.md` 新規
+
 ## packet 2073 — 🧩 フィルタ中バナーに具体値を表示（今週/架電 等・局所JS / 対応 OS packet 662・v0.9.662） / 2026-06-08
 ### Changed（バナー切替JSを実値表示に拡張）
 - packet 2070 の総称（期間/カテゴリ）から**実値**へ：期間値マップ `{today:今日,week:今週,overdue:期限切れ}`（不明値は`期間`）＋カテゴリは `taskFilter.cat` 直接
