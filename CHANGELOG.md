@@ -1,5 +1,20 @@
 # CHANGELOG — ハウステイト じゃがいAI会社OS
 
+## packet 2068 — 🎨 フィルタ中バナー ダークモード配色改善（固定色→CSS変数・低リスク / 対応 OS packet 658B・v0.9.658B） / 2026-06-08
+### Changed（`#task-filter-banner` の inline 色のみ CSS変数へ）
+- 背景 `#fff7ed`→`var(--am-lt)`／下線 `#fed7aa`→`var(--bo)`／文字 `#9a3412`→`var(--t1)`／ボタン `#ea580c`→`var(--navy)`（白文字は不変）
+- いずれも `body.dark` で override 済みの既存変数。ダーク切替で自動的に適切な配色・コントラストに（固定オレンジの浮きを解消）
+- 文言・解除挙動（`taskFilter...;renderTaskBoard()`）・構造・`display:none` は**非変更**。色プロパティのみ diff +2/-2
+### 既存機能を壊していない（静的実測）
+- `<script>`11/11・**fetch24→24・setItem63→63**・`showToast(`116→116・`_persistTasks(`20→20・`renderTaskBoard(`37→37・`task-filter-banner`2（いずれも不変）
+### ui_check（packet644準拠 / result: PASS）
+- 色をCSS変数へ寄せただけ・構造/挙動不変。dark override 済み変数で可読性は構造上改善。light/dark/スマホの最終見え方はボス実機目視推奨。詳細 `docs/TASK_FILTER_BANNER_DARKMODE_PACKET_2068.md`
+### 維持・遵守（赤信号クリア）
+- 文言/挙動/taskFilter/renderTaskBoard/保存仕様/データ構造 非変更・大規模CSS再設計なし・新規classなし・DB/Auth/API/npm install なし
+- `.claude/.vscode/runtime/PNG/xlsx add` なし・`git add -A` なし・force/reset/clean/rebase なし・**通常commit/push**
+### docs
+- `docs/TASK_FILTER_BANNER_DARKMODE_PACKET_2068.md` 新規
+
 ## packet 2067 — 🩹 Excel(xlsx)・Excel一時ファイル 誤commit防止 .gitignore hotfix（顧客/業者情報の流出防止 / 対応 OS packet 658A・v0.9.658A） / 2026-06-08
 ### 背景
 - 直下に未追跡の `.xlsx` 6件・Excel一時ファイル `~$...` 2件（ファイル名に電話・住所等＝顧客/業者情報を含む可能性）。将来の誤commit/流出防止
