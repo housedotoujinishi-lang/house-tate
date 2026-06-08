@@ -1,5 +1,14 @@
 # CHANGELOG — ハウステイト じゃがいAI会社OS
 
+## packet 2071 — 📚 タスクボードUX改善まとめdocs（packet 2061-2070 総括 / 対応 OS packet 660・v0.9.660） / 2026-06-08
+### Added（まとめdocsのみ・コード非変更）
+- `docs/TASKBOARD_UX_IMPROVEMENTS_SUMMARY_PACKET_2071.md` 新規：タスク画面/タスクボードのUX改善 packet 2061〜2070 を1枚で総括
+- 改善packet一覧（packet/OS版数/内容/commit）、テーマ別まとめ（追加導線/行き先明確化/フィルタ中不安解消/安全運用）、共通の非破壊担保、残課題を記載
+### 性質
+- まとめdocsの新規作成のみ。`index.html`・保存仕様・データ構造・DB/Auth/API 一切非変更（🟢 LOW）
+### docs
+- `docs/TASKBOARD_UX_IMPROVEMENTS_SUMMARY_PACKET_2071.md` 新規
+
 ## packet 2070 — 🧩 フィルタ中バナーに絞り込み種別を表示（期間/カテゴリ/両方・局所JS / 対応 OS packet 659・v0.9.659） / 2026-06-08
 ### Added/Changed（バナー文言の動的化・packet2069候補Bの実装）
 - バナー span の「絞り込み中」を `<b id="tfb-kind">絞り込み中</b>` に切り出し（JS未実行時も自然な既定文言）
