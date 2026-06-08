@@ -16,3 +16,9 @@ incoming.json
 *.reference.png
 ChatGPT Image*.png
 *.png
+
+# packet 2067: Excel ファイル / Excel 一時ファイル（顧客・業者情報を含む可能性。誤commit防止のため git 管理しない）
+*.xlsx
+*.xls
+*.xlsm
+~$*

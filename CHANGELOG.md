@@ -1,5 +1,22 @@
 # CHANGELOG — ハウステイト じゃがいAI会社OS
 
+## packet 2067 — 🩹 Excel(xlsx)・Excel一時ファイル 誤commit防止 .gitignore hotfix（顧客/業者情報の流出防止 / 対応 OS packet 658A・v0.9.658A） / 2026-06-08
+### 背景
+- 直下に未追跡の `.xlsx` 6件・Excel一時ファイル `~$...` 2件（ファイル名に電話・住所等＝顧客/業者情報を含む可能性）。将来の誤commit/流出防止
+### Changed（.gitignore 末尾追記のみ・既存非削除）
+- `*.xlsx` / `*.xls` / `*.xlsm` / `~$*` を追加
+- **追跡済み xlsx/~$ は無し**（`git ls-files` 空）→ untrack・削除不要。既存ファイルには触れない
+### 反映確認
+- 追記後 `git status -sb`：未追跡 .xlsx 0件・~$ 0件（commit対象から消失）。変更は `.gitignore` のみ
+- `git check-ignore`：実在xlsx代表・`test.xlsx`・`~$tmp.xlsx` いずれも ignore 対象を確認
+### 残課題（ボス判断）
+- ignore は追跡対象外にしただけ。顧客/業者情報を含むなら**リポジトリ外への退避**推奨（削除・移動は Claude では行わない）
+### 維持・遵守（赤信号クリア）
+- 顧客系xlsxの add なし・既存ファイルの削除/untrackなし・DB/Auth/API・保存仕様変更なし
+- `.claude/.vscode/runtime/PNG add` なし・`git add -A` なし・force/reset/clean/rebase なし・**通常commit/push**
+### docs
+- `docs/XLSX_GITIGNORE_SAFETY_PACKET_2067.md` 新規
+
 ## packet 2066 — 🧩 タスクボード フィルタ中バナー＋絞り込み解除ボタン（局所追加・低リスク / 対応 OS packet 657・v0.9.657） / 2026-06-08
 ### Added（#task-filter-bar 直後にバナー＋renderTaskBoardで表示切替）
 - フィルタ中（`taskFilter.period!=='all'` または `taskFilter.cat!==''`）だけ表示される `#task-filter-banner` を追加：「🔎 現在、絞り込み中です。追加したタスクが見えない場合は絞り込みを解除してください。」＋「絞り込み解除」ボタン
