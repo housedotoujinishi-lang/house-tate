@@ -1,5 +1,20 @@
 # CHANGELOG — ハウステイト じゃがいAI会社OS
 
+## packet 2069 — ✏️ フィルタ中バナー 文言短縮（スマホ可読性・Lv1 / 対応 OS packet 658C・v0.9.658C） / 2026-06-08
+### Changed（バナー span 文言のみ）
+- `🔎 現在、絞り込み中です。追加したタスクが見えない場合は絞り込みを解除してください。` → `🔎 絞り込み中です。タスクが見えない時は「絞り込み解除」を押してください。`
+- packet 658C 候補A（文言短縮）を選択。候補B（フィルタ種別表示）はJS追加で複雑化のため今後候補に（docs記録）
+- 色・構造・挙動・`display:none`・解除処理（`taskFilter...;renderTaskBoard()`）は非変更。diff +1/-1
+### 既存機能を壊していない（静的実測）
+- `<script>`11/11・**fetch24→24・setItem63→63**・`showToast(`116→116・`_persistTasks(`20→20・`renderTaskBoard(`37→37・`task-filter-banner`2（全不変）
+### ui_check（result: PASS）
+- 文言短縮のみ・スマホ折返し減で可読性向上。詳細 `docs/TASK_FILTER_BANNER_TEXT_SHORTEN_PACKET_2069.md`
+### 維持・遵守（赤信号クリア）
+- taskFilter/renderTaskBoard/保存仕様/データ構造/配色 非変更・DB/Auth/API/npm install なし
+- `.claude/.vscode/runtime/PNG/xlsx add` なし・`git add -A` なし・force/reset/clean/rebase なし・**通常commit/push**
+### docs
+- `docs/TASK_FILTER_BANNER_TEXT_SHORTEN_PACKET_2069.md` 新規
+
 ## packet 2068 — 🎨 フィルタ中バナー ダークモード配色改善（固定色→CSS変数・低リスク / 対応 OS packet 658B・v0.9.658B） / 2026-06-08
 ### Changed（`#task-filter-banner` の inline 色のみ CSS変数へ）
 - 背景 `#fff7ed`→`var(--am-lt)`／下線 `#fed7aa`→`var(--bo)`／文字 `#9a3412`→`var(--t1)`／ボタン `#ea580c`→`var(--navy)`（白文字は不変）
