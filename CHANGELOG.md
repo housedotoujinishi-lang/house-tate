@@ -1,5 +1,24 @@
 # CHANGELOG — ハウステイト じゃがいAI会社OS
 
+## packet 2072 — 🧩 タスク追加トーストとフィルタ中バナーの文言トーン統一（文言のみ / 対応 OS packet 661・v0.9.661） / 2026-06-08
+### Changed（2トースト経路の文言をバナーに統一・ロジック非変更）
+- 用語「○○フィルタ中」→「○○で絞り込み中」（バナー `tfb-kind` と一致）
+- 誘導文「全期間／全カテゴリをご確認ください」→「「絞り込み解除」で全件表示に戻せます」（バナーボタンに直結）
+- 経路A（showKAddModal系 7123-7125）の追加トースト頭に `✅` を付与し、経路B（左フォーム 14826）の ✅ に統一
+- 対象は2経路（`_p444FilterWarn`/`_warn`）の文言のみ。taskFilter/保存/タブ判定/showToast呼び出し構造は**非変更**
+### 既存機能を壊していない（静的実測）
+- `<script>`11/11・**fetch24→24・setItem63→63**・`showToast(`116→116・`_persistTasks(`20→20・`renderTaskBoard(`37→37（全不変）
+- 「フィルタ中」残2＝コメントのみ（非ユーザー向け）／統一誘導文2（両経路）
+### ui_check（result: PASS）
+- 文言のみ・構造/挙動/配色不変。トースト折り返し(2064)で長文も収まる。詳細 `docs/TASK_TOAST_BANNER_TONE_PACKET_2072.md`
+### 今後候補
+- 経路A（7123）へのタスク名表示（経路Bと content parity）は別packet候補
+### 維持・遵守（赤信号クリア）
+- taskFilter/保存仕様/データ構造/タブ判定 非変更・DB/Auth/API/npm install なし
+- `.claude/.vscode/runtime/PNG/xlsx add` なし・`git add -A` なし・force/reset/clean/rebase なし・**通常commit/push**
+### docs
+- `docs/TASK_TOAST_BANNER_TONE_PACKET_2072.md` 新規
+
 ## packet 2071 — 📚 タスクボードUX改善まとめdocs（packet 2061-2070 総括 / 対応 OS packet 660・v0.9.660） / 2026-06-08
 ### Added（まとめdocsのみ・コード非変更）
 - `docs/TASKBOARD_UX_IMPROVEMENTS_SUMMARY_PACKET_2071.md` 新規：タスク画面/タスクボードのUX改善 packet 2061〜2070 を1枚で総括

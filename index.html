@@ -7117,12 +7117,12 @@ function showKAddModal(colKey,mi){
     try{
       let _p444FilterWarn='';
       if(typeof taskFilter!=='undefined'){
-        if(taskFilter.period && taskFilter.period!=='all' && taskFilter.period!=='')_p444FilterWarn+=' / 期間フィルタ中';
-        if(taskFilter.cat)_p444FilterWarn+=' / カテゴリフィルタ中';
+        if(taskFilter.period && taskFilter.period!=='all' && taskFilter.period!=='')_p444FilterWarn+=' / 期間で絞り込み中';
+        if(taskFilter.cat)_p444FilterWarn+=' / カテゴリで絞り込み中';
       }
-      if(_p444FilterWarn)showToast('タスクを追加しました（'+_p444Where+'に表示'+_p444FilterWarn+'。全期間／全カテゴリをご確認ください）',3500);
-      else showToast('タスクを追加しました（'+_p444Where+'に表示）');
-    }catch(e){showToast('タスクを追加しました');}
+      if(_p444FilterWarn)showToast('✅ タスクを追加しました（'+_p444Where+'に表示'+_p444FilterWarn+'。「絞り込み解除」で全件表示に戻せます）',3500);
+      else showToast('✅ タスクを追加しました（'+_p444Where+'に表示）');
+    }catch(e){showToast('✅ タスクを追加しました');}
     _persistTasks();
   };
 }
@@ -14820,10 +14820,10 @@ function tynRoutineToggle(id,makeDone){
           try{
             let _warn = '';
             if(typeof taskFilter!=='undefined' && taskFilter){
-              if(taskFilter.period && taskFilter.period!=='all' && taskFilter.period!=='')_warn += ' / 期間フィルタ中';
-              if(taskFilter.cat)_warn += ' / カテゴリフィルタ中';
+              if(taskFilter.period && taskFilter.period!=='all' && taskFilter.period!=='')_warn += ' / 期間で絞り込み中';
+              if(taskFilter.cat)_warn += ' / カテゴリで絞り込み中';
             }
-            if(_warn){if(typeof showToast==='function')showToast('✅「'+_toastTitleShort+'」を'+_where+'に追加しました'+_warn+'。全期間／全カテゴリでご確認ください',3500);}
+            if(_warn){if(typeof showToast==='function')showToast('✅「'+_toastTitleShort+'」を'+_where+'に追加しました'+_warn+'。「絞り込み解除」で全件表示に戻せます',3500);}
             else{if(typeof showToast==='function')showToast('✅「'+_toastTitleShort+'」を'+_where+'に追加しました');}
           }catch(e){try{if(typeof showToast==='function')showToast('✅「'+_toastTitleShort+'」を追加しました');}catch(e2){}}
           // packet 440 永続化
