@@ -1,5 +1,20 @@
 # CHANGELOG — ハウステイト じゃがいAI会社OS
 
+## packet 2075 — 🎨 タスクボード #tf-count 視認性改善（件数表示styleのみ・Lv1 / 対応 OS packet 664・v0.9.664） / 2026-06-08
+### Changed（#tf-count の inline style のみ）
+- フィルタバー右端の件数表示 `#tf-count`（`index.html` 1844）を 9px/薄色(--t3) → 10.5px/太字/`var(--navy)`＋`var(--navy-lt)` 淡背景ピル（padding・border-radius・white-space:nowrap）。`margin-left:auto` は維持で右寄せ不変
+- **件数算出ロジック（6641/6726 の `tfCount.textContent=…件`）・applyTaskFilter・taskFilter・state.tasks・_persistTasks は一切変更なし**。CSS変数でダーク自動対応。diff +1/-1
+- Codex(2074) C7 高優先の対応。Lv2（件数算出ロジック追加）はスキップ
+### 既存機能を壊していない（静的実測）
+- `<script>`11/11・**fetch24→24・setItem63→63**・`showToast(`116→116・`_persistTasks(`20→20・`renderTaskBoard(`37→37・`applyTaskFilter(`4・`id="tf-count"`1（全不変）
+### ui_check（packet644準拠 / result: PASS）
+- 件数チップの視認性向上・右寄せ/レイアウト不変・nowrapで折返さず。ダークはnavy/navy-lt override。詳細 `docs/TASK_COUNT_VISIBILITY_PACKET_2075.md`
+### 維持・遵守（赤信号クリア）
+- 件数算出/applyTaskFilter条件/taskFilter代入/state.tasks/_persistTasks/保存仕様 非変更・既存id非変更・DB/Auth/API/npm install なし
+- `.claude/.vscode/runtime/PNG/xlsx add` なし・`git add -A` なし・force/reset/clean/rebase なし・**通常commit/push**
+### docs
+- `docs/TASK_COUNT_VISIBILITY_PACKET_2075.md` 新規
+
 ## packet 2074 — 📋 タスクボード次改善候補をCodexに再棚卸し（候補一覧docs / 対応 OS packet 663・v0.9.663） / 2026-06-08
 ### Added（棚卸しdocsのみ・コード非変更）
 - `docs/TASKBOARD_NEXT_CANDIDATES_CODEX_REVIEW_PACKET_2074.md` 新規：packet 2061-2073 の「今後候補/残課題」を集約した候補一覧（C1-C7）＋リスク/スコープ/着手順＋Codex read-onlyレビュー依頼文
