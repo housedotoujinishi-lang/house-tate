@@ -6614,7 +6614,7 @@ function renderTaskBoard(){
   const cSel=document.querySelector('#task-filter-bar #tf-cat');
   if(pSel)pSel.value=taskFilter.period;if(cSel)cSel.value=taskFilter.cat;
   // packet 2066: フィルタ中バナーの表示切替（period が all 以外 / cat が指定ありのときだけ表示）
-  try{const _fb=document.getElementById('task-filter-banner');if(_fb){const _pAct=(taskFilter.period&&taskFilter.period!=='all');const _cAct=(taskFilter.cat&&taskFilter.cat!=='');const _act=_pAct||_cAct;_fb.style.display=_act?'flex':'none';const _k=document.getElementById('tfb-kind');if(_k&&_act){_k.textContent=(_pAct&&_cAct)?'期間・カテゴリで絞り込み中':(_pAct?'期間で絞り込み中':'カテゴリで絞り込み中');}}}catch(e){}
+  try{const _fb=document.getElementById('task-filter-banner');if(_fb){const _pAct=(taskFilter.period&&taskFilter.period!=='all');const _cAct=(taskFilter.cat&&taskFilter.cat!=='');const _act=_pAct||_cAct;_fb.style.display=_act?'flex':'none';const _k=document.getElementById('tfb-kind');if(_k&&_act){const _pLbl={today:'今日',week:'今週',overdue:'期限切れ'}[taskFilter.period]||'期間';const _parts=[];if(_pAct)_parts.push(_pLbl);if(_cAct)_parts.push(taskFilter.cat);_k.textContent=_parts.join('・')+'で絞り込み中';}}}catch(e){}
 
   // ── タブバインド ──
   document.querySelectorAll('.tbtab').forEach(b=>{

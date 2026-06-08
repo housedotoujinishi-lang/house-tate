@@ -1,5 +1,20 @@
 # CHANGELOG — ハウステイト じゃがいAI会社OS
 
+## packet 2073 — 🧩 フィルタ中バナーに具体値を表示（今週/架電 等・局所JS / 対応 OS packet 662・v0.9.662） / 2026-06-08
+### Changed（バナー切替JSを実値表示に拡張）
+- packet 2070 の総称（期間/カテゴリ）から**実値**へ：期間値マップ `{today:今日,week:今週,overdue:期限切れ}`（不明値は`期間`）＋カテゴリは `taskFilter.cat` 直接
+- 表示例：「今週で絞り込み中」「架電で絞り込み中」「今週・架電で絞り込み中」。`textContent` 使用でXSS安全
+- `taskFilter` は**読み取りのみ**・代入/保存/タブ判定/renderTaskBoard呼び出し 非変更。diff +1/-1
+### 既存機能を壊していない（静的実測）
+- `<script>`11/11・**fetch24→24・setItem63→63**・`showToast(`116→116・`_persistTasks(`20→20・`renderTaskBoard(`37→37・`tfb-kind`2・`taskFilter`代入7（全不変）
+### ui_check（result: PASS）
+- 文言値が可変になるのみ・構造/配色/挙動不変。最長「今週・架電で絞り込み中」もバナー折返し可でスマホ overflow なし。詳細 `docs/TASK_FILTER_BANNER_VALUE_PACKET_2073.md`
+### 維持・遵守（赤信号クリア）
+- taskFilter読み取りのみ・保存仕様/データ構造/タブ判定 非変更・大規模JS改造なし・DB/Auth/API/npm install なし
+- `.claude/.vscode/runtime/PNG/xlsx add` なし・`git add -A` なし・force/reset/clean/rebase なし・**通常commit/push**
+### docs
+- `docs/TASK_FILTER_BANNER_VALUE_PACKET_2073.md` 新規
+
 ## packet 2072 — 🧩 タスク追加トーストとフィルタ中バナーの文言トーン統一（文言のみ / 対応 OS packet 661・v0.9.661） / 2026-06-08
 ### Changed（2トースト経路の文言をバナーに統一・ロジック非変更）
 - 用語「○○フィルタ中」→「○○で絞り込み中」（バナー `tfb-kind` と一致）
