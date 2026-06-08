@@ -1,5 +1,26 @@
 # CHANGELOG — ハウステイト じゃがいAI会社OS
 
+## packet 2066 — 🧩 タスクボード フィルタ中バナー＋絞り込み解除ボタン（局所追加・低リスク / 対応 OS packet 657・v0.9.657） / 2026-06-08
+### Added（#task-filter-bar 直後にバナー＋renderTaskBoardで表示切替）
+- フィルタ中（`taskFilter.period!=='all'` または `taskFilter.cat!==''`）だけ表示される `#task-filter-banner` を追加：「🔎 現在、絞り込み中です。追加したタスクが見えない場合は絞り込みを解除してください。」＋「絞り込み解除」ボタン
+- 解除ボタン onclick は既存 select と同パターン `taskFilter.period='all';taskFilter.cat='';renderTaskBoard()`。renderTaskBoard(6610付近)が select値を同期するため**全期間/全カテゴリ表示も自動で戻る**＝再設計不要
+- `renderTaskBoard()` の select 同期直後に表示切替JS（try/catch・`display:flex/none`）を1行追加
+### Changed/非変更
+- `taskFilter` は**読み取り＋解除用の最小代入のみ**。保存仕様・タスクデータ構造・`_persistTasks`・`applyTaskFilter()` のフィルタ条件・既存 `#task-filter-bar`/select は**非変更**
+- バナーは `#tb-body` 外＝再描画で消えない（既存 filter-bar と同じ持続）。既定 `display:none`
+### 既存機能を壊していない（静的実測）
+- `<script>`11/11・**fetch24→24・setItem63→63**・`showToast(`116→116・`_persistTasks(`20→20（不変）
+- `renderTaskBoard(`36→37（**解除ボタンonclickの1件のみ増**・切替JSは呼び出し非追加）・既存id `task-filter-bar` 3（不変）
+### ui_check（packet644準拠 / result: PASS）
+- 既定 display:none でフィルタなし時はレイアウト不変。フィルタ中のみ1行（スマホ折返し2行）表示で overflow なし。ダーク配色は要実機目視（固定オレンジ色）。詳細 `docs/TASK_FILTER_ACTIVE_BANNER_PACKET_2066.md`
+### 今後課題（docs記録）
+- ダークモード専用色の最適化（崩れはしないが配色要目視）・フィルタ種別のバナー明示（文言長くなるため今回見送り）
+### 維持・遵守（赤信号クリア）
+- DB/Supabase/RLS/Auth/API 変更なし・保存仕様/データ構造/_persistTasks 仕様変更なし・大規模renderTaskBoard改造なし・npm install なし
+- `.claude/.vscode/runtime/PNG add` なし・`git add -A` なし・force/reset/clean/rebase なし・**通常commit/push**
+### docs
+- `docs/TASK_FILTER_ACTIVE_BANNER_PACKET_2066.md` 新規
+
 ## packet 2065 — 🧩 タスク追加フォーム 保存ボタン文言改善（割り当て→タスクを保存・文言のみ / 対応 OS packet 655・v0.9.655） / 2026-06-08
 ### Changed（`#tf-save` の表示文言のみ変更）
 - 保存ボタン `#tf-save`（`index.html` 1830）の表示文言：`割り当て` → `タスクを保存`

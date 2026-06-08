@@ -1843,6 +1843,11 @@ body.task-dragging [data-id]:not(.dragging-this){opacity:1!important}
             </select>
             <span id="tf-count" style="font-size:9px;color:var(--t3);margin-left:auto"></span>
           </div>
+          <!-- packet 2066: フィルタ中バナー（taskFilter が有効なときだけ renderTaskBoard で display 切替） -->
+          <div id="task-filter-banner" style="display:none;align-items:center;gap:8px;padding:6px 10px;background:#fff7ed;border-bottom:1px solid #fed7aa;font-size:10.5px;color:#9a3412;line-height:1.4">
+            <span style="flex:1;min-width:0">🔎 現在、絞り込み中です。追加したタスクが見えない場合は絞り込みを解除してください。</span>
+            <button type="button" onclick="taskFilter.period='all';taskFilter.cat='';renderTaskBoard()" title="期間・カテゴリの絞り込みを解除して全件表示に戻す" style="flex:0 0 auto;padding:4px 10px;border:1px solid #ea580c;border-radius:8px;background:#ea580c;color:#fff;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap">絞り込み解除</button>
+          </div>
         <!-- packet 414: メモ並列ストリップ（ピン or 対応要のみ最大 3 件、空なら非表示）-->
         <div id="tb-memo-strip" class="tb-memo-strip" style="display:none">
           <div class="tb-memo-strip-h"><span class="tb-memo-strip-h-l">📒 対応要メモ</span><button type="button" class="tb-memo-strip-more" onclick="switchPage('memo')">▶ メモ帳へ</button></div>
@@ -6608,6 +6613,8 @@ function renderTaskBoard(){
   const pSel=document.querySelector('#task-filter-bar #tf-period')||document.getElementById('tf-period');
   const cSel=document.querySelector('#task-filter-bar #tf-cat');
   if(pSel)pSel.value=taskFilter.period;if(cSel)cSel.value=taskFilter.cat;
+  // packet 2066: フィルタ中バナーの表示切替（period が all 以外 / cat が指定ありのときだけ表示）
+  try{const _fb=document.getElementById('task-filter-banner');if(_fb){const _act=(taskFilter.period&&taskFilter.period!=='all')||(taskFilter.cat&&taskFilter.cat!=='');_fb.style.display=_act?'flex':'none';}}catch(e){}
 
   // ── タブバインド ──
   document.querySelectorAll('.tbtab').forEach(b=>{
