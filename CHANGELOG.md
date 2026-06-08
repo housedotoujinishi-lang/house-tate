@@ -1,5 +1,23 @@
 # CHANGELOG — ハウステイト じゃがいAI会社OS
 
+## packet 2076 — ✏️ タスクボード周辺 文言トーン最終レビュー（点検＋軽微polish / 対応 OS packet 665・v0.9.665） / 2026-06-08
+### Review（タスクボードのユーザー向け文言を点検）
+- 基準：丁寧な日本語で統一・意味に合う絵文字接頭・ボタン名は「」で本文参照
+- トースト/バナー/フォーム/ボタンを点検 → フィルタ用語・誘導は 2072 で統一済みを確認
+### Changed（文言polish 1箇所のみ）
+- フォーム補足（1829）：`…のまま保存してOK。` → `…のまま保存できます。`（英語混じり「OK」を解消し丁寧トーンに統一）。diff +1/-1
+### 次packetへ送付
+- 追加トースト経路A（7123）にタスク名がない（経路Bと content parity）→ **packet 666 で対応**（トーンではなく内容の問題のため665では非対応）
+### 判断保留（ボス確認）
+- 「迷ったらここから追加」「✅」等の親しみtraitは意図的と判断し維持。全面フォーマル化の意向あれば別途指示
+### 既存機能を壊していない（静的実測）
+- `<script>`11/11・**fetch24→24・setItem63→63**・`showToast(`116→116・`_persistTasks(`20→20・`renderTaskBoard(`37→37（全不変）
+### 維持・遵守（赤信号クリア）
+- 文言のみ・taskFilter/保存仕様/データ構造/ロジック 非変更・DB/Auth/API/npm install なし
+- `.claude/.vscode/runtime/PNG/xlsx add` なし・`git add -A` なし・force/reset/clean/rebase なし・**通常commit/push**
+### docs
+- `docs/TASKBOARD_WORDING_TONE_REVIEW_PACKET_2076.md` 新規
+
 ## packet 2075 — 🎨 タスクボード #tf-count 視認性改善（件数表示styleのみ・Lv1 / 対応 OS packet 664・v0.9.664） / 2026-06-08
 ### Changed（#tf-count の inline style のみ）
 - フィルタバー右端の件数表示 `#tf-count`（`index.html` 1844）を 9px/薄色(--t3) → 10.5px/太字/`var(--navy)`＋`var(--navy-lt)` 淡背景ピル（padding・border-radius・white-space:nowrap）。`margin-left:auto` は維持で右寄せ不変
